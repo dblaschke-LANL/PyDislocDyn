@@ -1,6 +1,6 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
-# Date: Nov. 3, 2017 - Apr. 25, 2018
+# Date: Nov. 3, 2017 - May 30, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -16,6 +16,7 @@ for X in ISO_nu.keys():
     ISO_c11[X] = ISO_c12[X]+2*ISO_c44[X]
 for X in ISO_bulk.keys():
     ISO_c12[X] = round(ISO_bulk[X] - 2*ISO_c44[X]/3,-8)
+    ISO_c11[X] = ISO_c12[X]+2*ISO_c44[X]
     
 ## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
 ISO_l = {'Al':-143e9, 'Cu':-160e9,  'Fe':-170e9, 'Nb':-610e9}

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 22, 2018
+# Date: Nov. 3, 2017 - June 20, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -81,7 +81,7 @@ c66['ISO'] = None
 
 ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
 mu = {}
-for X in metal:
+for X in c11.keys():
     mu[X] = (c11[X]-c12[X]+2*c44[X])/4
     ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
     
@@ -118,31 +118,12 @@ for X in autoscale.intersection(data.bcc_metals):
     scaling[X] = min(1,round(np.sqrt((c11[X]-c12[X]+c44[X])/(3*mu[X])),2))
     beta_scaled[X] = beta*scaling[X]
 
-## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
-## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
-vcrit_smallest = {}
-for X in metal:
-    ## happens to be the same formula for both fcc and bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bcc)
-    vcrit_smallest[X] = min(np.sqrt(c44[X]/mu[X]),np.sqrt((c11[X]-c12[X])/(2*mu[X])))
-    ### also the correct value for some (but not all) hexagonal metals
-### ... but not for tetragonal, where vcrit needs to be determined numerically:
-## numerically determined values:
-vcrit_smallest['In'] = 0.549112640852*np.sqrt(c44['In']/mu['In'])
-vcrit_smallest['Sn'] = 0.749383792758*np.sqrt(c44['Sn']/mu['Sn'])
-vcrit_smallest['Zn'] = 0.997590612836*np.sqrt(c44['Zn']/mu['Zn'])
-
 ### define Burgers (unit-)vectors and slip plane normals for all metals
 bfcc = np.array([1,1,0]/np.sqrt(2))
 n0fcc = -np.array([1,-1,1]/np.sqrt(3))
 
 bbcc = np.array([1,-1,1]/np.sqrt(3))
 n0bcc = np.array([1,1,0]/np.sqrt(2))
-
-### slip directions for hcp are the [1,1,bar-2,0] directions; since the SOEC are invariant under rotations about the z-axis, we may align e.g. the x-axis with b:
-### (comment: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement is typically done with x-axis aligned with one of the slip directions,
-###  so this choise is also consistent with future calculations involving TOEC)
-bhcp = np.array([-1,0,0]) ## any direction in the x-y plane (=slip plane) is possible, as hexagonal metals are isotropic in the basal plane, see H+L
-n0hcp = np.array([0,0,1]) ## slip plane normal = normal to basal plane
 
 b = {}
 n0 = {}
@@ -156,6 +137,11 @@ for X in data.bcc_metals.intersection(metal):
     b[X] = bbcc
     n0[X] = n0bcc
 
+### slip directions for hcp are the [1,1,bar-2,0] directions; since the SOEC are invariant under rotations about the z-axis, we may align e.g. the x-axis with b:
+### (comment: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement is typically done with x-axis aligned with one of the slip directions,
+###  so this choise is also consistent with future calculations involving TOEC)
+bhcp = np.array([-1,0,0]) ## any direction in the x-y plane (=slip plane) is possible, as hexagonal metals are isotropic in the basal plane, see H+L
+n0hcp = np.array([0,0,1]) ## slip plane normal = normal to basal plane
 for X in data.hcp_metals.intersection(metal):
     b[X] = bhcp
     n0[X] = n0hcp
@@ -166,6 +152,19 @@ for X in data.tetr_metals.intersection(metal):
     b[X] = np.array([0,0,-1])
     n0[X] = np.array([0,1,0])
 ####
+
+## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
+## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
+vcrit_smallest = {}
+for X in metal:
+    ## happens to be the same formula for both fcc and bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bcc)
+    vcrit_smallest[X] = min(np.sqrt(c44[X]/mu[X]),np.sqrt((c11[X]-c12[X])/(2*mu[X])))
+    ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
+### ... but not for tetragonal, where vcrit needs to be determined numerically:
+## numerically determined values:
+vcrit_smallest['In'] = 0.54911*np.sqrt(c44['In']/mu['In'])
+vcrit_smallest['Sn'] = 0.74938*np.sqrt(c44['Sn']/mu['Sn'])
+vcrit_smallest['Zn'] = 0.99759*np.sqrt(c44['Zn']/mu['Zn']) ## for basal slip
 
 ### import additional modules
 from elasticconstants import elasticC2

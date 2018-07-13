@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 22, 2018
+# Date: Nov. 5, 2017 - June 25, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -475,6 +475,11 @@ if __name__ == '__main__':
             Bmin = (int(1000*np.min(B_trunc)))/1000
         if Bmax==None:
             Bmax = Bmin+0.016
+            ## tweak colorbar range defined above:
+            if np.sum(B_trunc<=Bmax)/(Ntheta*len(beta_trunc))<0.65:
+                Bmax = Bmin+0.032 ## if more than 35% of the area is >Bmax, double the range
+            elif np.sum(B_trunc>Bmax)/(Ntheta*len(beta_trunc))<0.02:
+                Bmax = Bmin+0.008 ## if less than 2% of the area is >Bmax, cut the range in half
         namestring = "{}".format(X)
         plt.xticks(fontsize=fntsize)
         plt.yticks(np.arange(10)/10,fontsize=fntsize)

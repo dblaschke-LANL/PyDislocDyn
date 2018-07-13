@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - April 30, 2018
+# Date: Nov. 5, 2017 - June 27, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -118,7 +118,7 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
     If the latter mixed modes are considered, variable qtilde is the ratio of q/q1, and variable t is a function of q and other variables, and that is what needs to be passed to this function.'''
     lenph = len(phi)
     lenph1 = len(phi1)
-    lent = len(qtilde) ## qtilde is a either Nt x Nphi dimensional array or just an Nt dimensional one (for the mixed phonone cases)
+    lent = len(qtilde) ## qtilde is a either Nt x Nphi dimensional array or just an Nt dimensional one (for the mixed phonon cases)
     lentph = lent*lenph
     dphi1 = phi1[1:] - phi1[:-1]
     result = np.zeros((3,3,3,3,lentph))
@@ -194,7 +194,7 @@ def dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq
 
 def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde, T):
     '''Subroutine of dragcoeff().'''
-    lent = len(qtilde) ## qtilde is a either Nt x Nphi dimensional array or just an Nt dimensional one (for the mixed phonone cases)
+    lent = len(qtilde) ## qtilde is a either Nt x Nphi dimensional array or just an Nt dimensional one (for the mixed phonon cases)
     lenq1 = len(q1)
     lenphi = len(phi)
     beta = beta_list[0]
@@ -271,6 +271,8 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=250, N
     
     Ntheta = len(dij[0,0])
     modes_allowed = ['all', 'TT', 'LL', 'LT', 'TL', 'mix'] ## define allowed keywords for modes
+    if beta <0 or beta>1:
+        raise ValueError("beta={}, but must be between 0 and 1.".format(beta))
       
     if modes=='all' or modes=='TT':
         Ntauto = int((1+beta)*Nt)
@@ -299,8 +301,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=250, N
     out = BTT + BLL + BTL + BLT
     # if not out.any(): ## may be zero for other reasons
     if modes not in modes_allowed:
-        print("Error: invalid keyword modes='{}'.".format(modes))
-        out = None
+        raise ValueError("Error: invalid keyword modes='{}'.".format(modes))
     
     return out
 
