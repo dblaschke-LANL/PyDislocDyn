@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 27, 2018
+# Date: Nov. 5, 2017 - July 23, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -127,18 +127,18 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
     part1 = np.empty((3,3,3,3,lentph))
     part2 = np.empty((3,3,3,3,lentph))
     ##
-    delta1 = np.zeros((3,3,lentph))
-    delta2 = np.zeros((3,3,lentph))
+    delta1 = np.zeros((3,3))
+    delta2 = np.zeros((3,3))
     qv = np.empty((3,lent,lenph))
     
     for i in range(3):
         if longitudinal==False:
-            delta1[i,i] = np.ones((lentph))
+            delta1[i,i] = 1
             delta2[i,i] = delta1[i,i]
         elif longitudinal=="1":
-            delta2[i,i] = np.ones((lentph))
+            delta2[i,i] = 1
         elif longitudinal=="2":
-            delta1[i,i] = np.ones((lentph))
+            delta1[i,i] = 1
             
     if len(t.shape)==1:
         mag = np.reshape(np.outer(np.ones((lent)),np.ones((lenph)))+qtilde**2-2*np.outer(t,np.ones((lenph)))*qtilde,(lentph))
@@ -242,7 +242,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
         ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
         prefac = (1000*np.pi*hbar*qBZ*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5))*(np.outer(np.ones((lent)),csphi/(np.ones((lenphi))-(beta*csphi)**2))/qtilde)
         OneMinBtqcosph1 = np.outer(np.ones((lent)),np.ones((lenphi)))-beta*qtilde*np.outer(np.ones((lent)),csphi)
-    distri = np.zeros((lenq1,lent,lenphi))
+    distri = np.empty((lenq1,lent,lenphi))
     distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)
     
     ### if c1>c2, we need to further limit the integration range of q1 <= (c2/c1)/(1-beta1*qtilde*abs(cosphi)) (in addition to q1 <=1);
@@ -454,7 +454,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             prefactor1 = dragcoeff_iso_computeprefactor(qBZ, cs, [beta, beta_L], burgers, q1, phi, qtilde,T)
     
     Ntheta = len(dij[0,0])
-    Bmix = np.zeros((Ntheta,len(t),len(phi)))
+    Bmix = np.empty((Ntheta,len(t),len(phi)))
     Bmixfinal = np.zeros((Ntheta))
     
     if A3[0,0,0,0,0,0].shape == ():
