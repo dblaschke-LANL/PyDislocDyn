@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 23, 2018
+# Date: Nov. 5, 2017 - July 24, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -50,7 +50,14 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
                     result1 -= np.outer(prefacOnes,dij[k,kk]*dij[n,nn])*poly[k,kk,n,nn]
                     
     return prefactor*result1
-    
+
+## if it exists, use fortran-compiled subroutine for maximum performance (instead of the four jit-compiled fcts below):
+try:
+    import phononwindsubroutines as fsub
+    usefortran = True
+except ImportError:
+    usefortran = False
+
 ## dragcoeff_iso_computepoly() is currently the bottle neck, as it takes of the order of a few seconds to compute and is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta
 ## jit-compiling some of the subroutines helps somewhat
 @jit
@@ -164,6 +171,12 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
     
     qv = np.reshape(qv,(3,lentph))
 
+    if usefortran:
+        ### use fortran implementation:
+        result = np.moveaxis(fsub.thesum(tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv.T,delta1,delta2,mag,A3,phi1[:-1],dphi1,lenph1-1,lentph),0,4)
+        lenph1 = 1 ## ensure we bypass the python loop below
+
+    ### else use jit-compiled python implementation:
     for p1 in range(lenph1-1):
         dp1 = dphi1[p1]
         qt = np.empty((3,lentph))
@@ -171,7 +184,7 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
         qt[1] = tsinphi + sqrtcosphi*np.cos(phi1[p1])
         qt[2] = sqrtt*np.sin(phi1[p1])
         qtshift = qt - qv
-                            
+        
         A3qt2 = dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph)
         part1 = dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph)
         part2 = dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dp1,lentph)
