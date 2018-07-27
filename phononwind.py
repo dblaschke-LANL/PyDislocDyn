@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 24, 2018
+# Date: Nov. 5, 2017 - July 27, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -473,7 +473,12 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     if A3[0,0,0,0,0,0].shape == ():
         poly = dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitud)
         for th in range(Ntheta):
-            Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
+            if usefortran:
+                ### use fortran implementation:
+                Bmix[th] = fsub.dragintegrand(prefactor1.T,np.moveaxis(dij[:,:,th],2,0),np.moveaxis(poly,5,0)).T
+            else:
+                ### else use jit-compiled python implementation:
+                Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
             if isinstance(cs, list):
                 Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi)
             else:
@@ -484,7 +489,12 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     else:
         for th in range(Ntheta):
             poly = dragcoeff_iso_computepoly(A3[th], phi, qvec, qtilde, t, phi1, longitud)
-            Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
+            if usefortran:
+                ### use fortran implementation:
+                Bmix[th] = fsub.dragintegrand(prefactor1.T,np.moveaxis(dij[:,:,th],2,0),np.moveaxis(poly,5,0)).T
+            else:
+                ### else use jit-compiled python implementation:
+                Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
             if isinstance(cs, list):
                 Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi)
             else:

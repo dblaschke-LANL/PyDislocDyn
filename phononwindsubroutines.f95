@@ -2,7 +2,7 @@
 ! run 'f2py -c phononwindsubroutines.f95 -m phononwindsubroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 24, 2018
+! Date: July 23, 2018 - July 27, 2018
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
 
@@ -91,4 +91,35 @@ end do
 return
 end subroutine
 
+
+
+subroutine dragintegrand(output,prefactor,dij,poly,lent,lenph)
+
+implicit none
+
+integer :: i, k, kk, n, nn
+integer, intent(in) :: lent, lenph
+real, intent(in), dimension(lenph,lent) :: prefactor
+real, intent(in), dimension(lenph,3,3) :: dij
+real, intent(in), dimension(lenph,3,3,3,3,lent) :: poly
+real, intent(out), dimension(lenph,lent) :: output
+
+output(:,:) = 0.0
+
+do i = 1,lent
+   do nn=1,3
+      do n=1,3
+         do kk=1,3
+            do k=1,3
+               output(:,i) = output(:,i) - dij(:,k,kk)*dij(:,n,nn)*poly(:,k,kk,n,nn,i)
+            end do
+         end do
+      end do
+   end do
+end do
+
+output(:,:) = prefactor(:,:)*output(:,:)
+
+return
+end subroutine
 
