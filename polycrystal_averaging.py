@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Jan. 30, 2018
+# Date: Nov. 7, 2017 - Sept. 24, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -290,8 +290,8 @@ if __name__ == '__main__':
     def stringofresults_toec(dictionary,X):
         return X+" & "+"{:.1f}".format(float(dictionary[X][lam]))+" & "+"{:.1f}".format(float(dictionary[X][mu]))+" & "+"{:.0f}".format(float(dictionary[X][Murl]))+" & "+"{:.0f}".format(float(dictionary[X][Murm]))+" & "+"{:.0f}".format(float(dictionary[X][Murn]))+" \\\\"+"\n"
     
-    with open("averaged_elastic_constants.txt","a+") as averfile:
-        averfile.write("Voigt averages:\n")
+    with open("averaged_elastic_constants.txt","w") as averfile:
+        averfile.write("Voigt averages [GPa]:\n")
         averfile.write(stringofnames)
         for X in metal:
             averfile.write(stringofresults(VoigtAverage,X))
@@ -301,7 +301,7 @@ if __name__ == '__main__':
             averfile.write(stringofresults_toec(VoigtAverage,X))
         averfile.write("\n\n")
         
-        averfile.write("Reuss averages:\n")
+        averfile.write("Reuss averages [GPa]:\n")
         averfile.write(stringofnames)
         for X in metal:
             averfile.write(stringofresults(ReussAverage,X))
@@ -311,7 +311,7 @@ if __name__ == '__main__':
             averfile.write(stringofresults_toec(ReussAverage,X)) 
         averfile.write("\n\n")
         
-        averfile.write("Hill averages:\n")
+        averfile.write("Hill averages [GPa]:\n")
         averfile.write(stringofnames)
         for X in metal:
             averfile.write(stringofresults(HillAverage,X))
@@ -321,7 +321,7 @@ if __name__ == '__main__':
             averfile.write(stringofresults_toec(HillAverage,X)) 
         averfile.write("\n\n") 
     
-        averfile.write("improved averages:\n")
+        averfile.write("improved averages [GPa]:\n")
         averfile.write(stringofnames)
         for X in metal_cubic:
             averfile.write(stringofresults(ImprovedAv,X))

@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 25, 2018
+# Date: Nov. 5, 2017 - Sept. 24, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -97,10 +97,6 @@ c44 = data.CRC_c44
 c13 = data.CRC_c13
 c33 = data.CRC_c33
 c66 = data.CRC_c66
-# SOEC taken from various refs.:
-# c11 = data.THLPG_c11
-# c12 = data.THLPG_c12
-# c44 = data.THLPG_c44
 ## TOEC from various refs.
 c111 = data.c111
 c112 = data.c112
@@ -127,21 +123,13 @@ c366 = data.c366
 # c144 = data.ISO_c144
 # c166 = data.ISO_c166
 # c456 = data.ISO_c456
-# c13 = {}
-# c33 = {}
-# c66 = {}
-# c113 = {}
-# c133 = {}
-# c155 = {}
-# c222 = {}
-# c333 = {}
-# c344 = {}
-# c366 = {}
 
 mu = data.ISO_c44 ## effective shear modulus of polycrystal
 lam = data.ISO_c12
 mu['Mo'] = 125.0e9 ## use the 'improved' average for polycrystalline Mo since we don't have experimental data (see results of 'polycrystal_averaging.py')
 lam['Mo'] = 176.4e9
+mu['Zr'] = 36.0e9 ## use the Hill average for polycrystalline Zr since we don't have experimental data (see results of 'polycrystal_averaging.py')
+lam['Zr'] = 71.3e9
 
 qBZ = {}
 ct = {} ## may need some "effective" transverse sound speed
@@ -154,29 +142,13 @@ bulk = {}
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c111.keys()).intersection(mu.keys())))
 metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 
-### set "None" non-independent elastic constants
-### and compute various numbers for these metals
+### compute various numbers for these metals
 for X in metal_cubic:
-    c13[X] = None
-    c33[X] = None
-    c66[X] = None
-    c113[X] = None
-    c133[X] = None
-    c155[X] = None
-    c222[X] = None
-    c333[X] = None
-    c344[X] = None
-    c366[X] = None
     qBZ[X] = ((6*np.pi**2)**(1/3))/ac[X]
 ###
 for X in data.hcp_metals.intersection(metal):
-    c66[X] = None
-    c166[X] = None
-    c366[X] = None
-    c456[X] = None
     qBZ[X] = ((4*np.pi**2/(ac[X]*ac[X]*cc[X]*np.sqrt(3)))**(1/3))
 for X in data.tetr_metals.intersection(metal):
-    c222[X] = None
     qBZ[X] = ((6*np.pi**2/(ac[X]*ac[X]*cc[X]))**(1/3))
 ###
 for X in metal:
@@ -185,7 +157,6 @@ for X in metal:
     cl[X] = np.sqrt((lam[X]+2*mu[X])/rho[X])
     bulk[X] = lam[X] + 2*mu[X]/3
     ct_over_cl[X] = ct[X]/cl[X]
-    # ct_over_cl[X] = np.sqrt(mu[X]/(c12[X]+2*c44[X])) ## for isotropic check
 
 ### define Burgers (unit-)vectors and slip plane normals for all metals
 b = {}
@@ -230,7 +201,7 @@ def fccrotation(theta):
 def bccrotation(theta):
     return np.round(np.dot(Roty(np.pi/2-theta-np.arctan2(1,np.sqrt(2))),Rotz(-np.pi/4)),15)
     
-### rotation needed for the slip system {001}[100]:
+### rotation needed for the basal slip system (default):
 def hcprotation(theta):
     return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi/2)),15)
     ### TODO: include also other slip systems (above is for basal slip with b in -x direction)
@@ -245,6 +216,10 @@ alpha_a = data.CRC_alpha_a  ## coefficient of linear thermal expansion at room t
 
 #########
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
+        metal = sys.argv[1].split()
+        
     with open("beta.dat","w") as betafile:
         betafile.write('\n'.join(map("{:.5f}".format,beta)))
 
@@ -253,11 +228,7 @@ if __name__ == '__main__':
 
     with open("temperatures.dat","w") as Tfile:
         Tfile.write('\n'.join(map("{:.1f}".format,highT)))  
-            
-    if len(sys.argv) > 1:
-        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
-        metal = sys.argv[1].split()
-        
+    
     print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
     ## compute rotation matrices for later use
@@ -420,9 +391,10 @@ if __name__ == '__main__':
     vcrit_smallest = {}
     for X in metal:
         vcrit_smallest[X] = min(np.sqrt(c44[X]/mu[X]),np.sqrt((c11[X]-c12[X])/(2*mu[X])))
-    ## above is correct for fcc, bcc and some (but not all) hcp, otherwise need to determine numerically as in:
-    vcrit_smallest['Sn'] = 0.8181 ## rounded, determined numerically
-    vcrit_smallest['Zn'] = 0.9431 ## rounded, determined numerically
+    ## above is correct for fcc, bcc and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
+    ## numerically determined values (rounded):
+    vcrit_smallest['Sn'] = 0.8181
+    vcrit_smallest['Zn'] = 0.9431 ## for basal slip
     
     ## load data from semi-isotropic calculation
     Broom = {}
@@ -494,6 +466,7 @@ if __name__ == '__main__':
         if colbar==True:
             cbar = plt.colorbar(fraction=clbar_frac,pad=clbar_pd, ticks=cbarlevels)
             cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, fontsize = fntsize)
+            cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(),fontsize = fntsize)
         plt.contour(x_msh,y_msh,B_trunc, colors=('gray','gray','gray','white','white','white','white','white','white'), levels=cbarlevels, linewidths=[0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9], linestyles=['dashdot','solid','dashed','dotted','dashdot','solid','dashed','dotted','dashdot'])
         
     for X in metal:

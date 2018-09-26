@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 20, 2018
+# Date: Nov. 3, 2017 - Sept. 25, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -48,13 +48,12 @@ dtheta = np.pi/(Ntheta-2)
 theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
 beta = np.linspace(0,1,Nbeta+1)
 phi = np.linspace(0,2*np.pi,Nphi)
-# dphi = 2*np.pi/(Nphi-1)
 #####
 
 #### input data:
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
 metal = sorted(metal + ['ISO']) ### test isotropic limit
-# metal = ['Al', 'Cu', 'Ni', 'ISO', 'Fe', 'Nb', 'Ta', 'W']
+
 # 2nd order elastic constants taken from the CRC handbook:
 c11 = data.CRC_c11
 c12 = data.CRC_c12
@@ -62,14 +61,7 @@ c44 = data.CRC_c44
 c13 = data.CRC_c13
 c33 = data.CRC_c33
 c66 = data.CRC_c66
-### set "None" for c13,c33,c66 of cubic metals
-for X in data.fcc_metals.union(data.bcc_metals).intersection(c11.keys()):
-    c13[X] = None
-    c33[X] = None
-    c66[X] = None
-for X in data.hcp_metals.intersection(metal):
-    c66[X] = None
-###
+
 ### define some isotropic constants to check isotropic limit:
 c44['ISO'] = 1
 nu = 1/3 ## define Poisson's ratio
@@ -99,6 +91,7 @@ beta_scaled = {'Al':0.98*beta, 'Cu':0.85*beta,  'Ni':0.88*beta, 'Fe':0.87*beta, 
 # mu['K'] = 0.9e9
 # mu['Be'] = 148.6e9 ## use Hill average for polycrystalline Be, In (see results of 'polycrystal_averaging.py')
 # mu['In'] = 4.8e9
+# mu['Zr'] = 36.0e9
 # mu['ISO'] = 1
 # metal = sorted(list(set(metal).intersection(mu.keys()))) ## update list of metals since we may not have mu for all elements
 # beta_scaled = {} # reset
@@ -238,7 +231,7 @@ if __name__ == '__main__':
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         if X=='ISO':
-            plt.xlabel(r'$\beta_\text{t}=v/c_\text{t}$',fontsize=fntsize)
+            plt.xlabel(r'$\beta_\mathrm{t}=v/c_\mathrm{t}$',fontsize=fntsize)
             plt.title(r'Isotropic',fontsize=fntsize)
         else:
             plt.xlabel(r'$\beta_{\bar\mu}$',fontsize=fntsize)
