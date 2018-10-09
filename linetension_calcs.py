@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 25, 2018
+# Date: Nov. 3, 2017 - Sept. 30, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -61,6 +61,9 @@ c44 = data.CRC_c44
 c13 = data.CRC_c13
 c33 = data.CRC_c33
 c66 = data.CRC_c66
+## lattice constants needed for normalization of some slip plane normals
+ac = data.CRC_a
+cc = data.CRC_c
 
 ### define some isotropic constants to check isotropic limit:
 c44['ISO'] = 1
@@ -133,11 +136,19 @@ for X in data.bcc_metals.intersection(metal):
 ### slip directions for hcp are the [1,1,bar-2,0] directions; since the SOEC are invariant under rotations about the z-axis, we may align e.g. the x-axis with b:
 ### (comment: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement is typically done with x-axis aligned with one of the slip directions,
 ###  so this choise is also consistent with future calculations involving TOEC)
-bhcp = np.array([-1,0,0]) ## any direction in the x-y plane (=slip plane) is possible, as hexagonal metals are isotropic in the basal plane, see H+L
-n0hcp = np.array([0,0,1]) ## slip plane normal = normal to basal plane
+hcpslip = 'basal' ## default
+# hcpslip = 'prismatic' ## uncomment to use
+# hcpslip = 'pyramidal' ## uncomment to use
 for X in data.hcp_metals.intersection(metal):
-    b[X] = bhcp
-    n0[X] = n0hcp
+    b[X] = np.array([-1,0,0]) ## any direction in the x-y plane (=slip plane) is possible, as hexagonal metals are isotropic in the basal plane, see H+L
+    ## basal slip:
+    n0[X] = np.array([0,0,1]) ## slip plane normal = normal to basal plane
+    if hcpslip=='prismatic':
+        ## prismatic slip:
+        n0[X] = np.array([0,-1,0])
+    elif hcpslip=='pyramidal':
+        ## pyramidal slip:
+        n0[X] = np.array([0,-ac[X],cc[X]])/np.sqrt(ac[X]**2+cc[X]**2)
     
 ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
 ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
@@ -155,9 +166,15 @@ for X in metal:
     ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
 ### ... but not for tetragonal, where vcrit needs to be determined numerically:
 ## numerically determined values:
-vcrit_smallest['In'] = 0.54911*np.sqrt(c44['In']/mu['In'])
-vcrit_smallest['Sn'] = 0.74938*np.sqrt(c44['Sn']/mu['Sn'])
-vcrit_smallest['Zn'] = 0.99759*np.sqrt(c44['Zn']/mu['Zn']) ## for basal slip
+vcrit_smallest['In'] = 0.549*np.sqrt(c44['In']/mu['In'])
+vcrit_smallest['Sn'] = 0.749*np.sqrt(c44['Sn']/mu['Sn'])
+vcrit_smallest['Zn'] = 0.998*np.sqrt(c44['Zn']/mu['Zn']) ## for basal slip
+if hcpslip=='prismatic':
+    vcrit_smallest['Cd'] = 0.932*np.sqrt(c44['Cd']/mu['Cd'])
+    vcrit_smallest['Zn'] = 0.766*np.sqrt(c44['Zn']/mu['Zn'])
+elif hcpslip=='pyramidal':
+    vcrit_smallest['Cd'] = 0.952*np.sqrt(c44['Cd']/mu['Cd'])
+    vcrit_smallest['Zn'] = 0.804*np.sqrt(c44['Zn']/mu['Zn'])
 
 ### import additional modules
 from elasticconstants import elasticC2

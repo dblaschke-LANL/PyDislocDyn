@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 22, 2018
+# Date: Nov. 5, 2017 - Sept. 27, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -31,7 +31,6 @@ fntsize=11
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 ##################
 import metal_data as data
-# import polycrystal_averaging as pca
 from elasticconstants import elasticC2, elasticC3
 from dislocations import fourieruij_iso
 from phononwind import elasticA3, dragcoeff_iso
@@ -76,6 +75,7 @@ cMn = data.ISO_n
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys())))
 
 #### OR GENERATE IT BY AVERAGING OVER SINGLE CRYSTAL CONSTANTS:
+# import polycrystal_averaging as pca
 # c12 = {}
 # c44 = {}
 # cMl = {}
@@ -148,18 +148,18 @@ alpha_a = data.CRC_alpha_a  ## coefficient of linear thermal expansion at room t
 
 #########
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
+        metal = sys.argv[1].split()
+        
     with open("beta.dat","w") as betafile:
         betafile.write('\n'.join(map("{:.5f}".format,beta)))
 
     with open("theta.dat","w") as thetafile:
-        thetafile.write('\n'.join(map("{:.6f}".format,theta)))        
+        thetafile.write('\n'.join(map("{:.6f}".format,theta)))
 
     with open("temperatures.dat","w") as Tfile:
-        Tfile.write('\n'.join(map("{:.1f}".format,highT)))
-            
-    if len(sys.argv) > 1:
-        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
-        metal = sys.argv[1].split()
+        Tfile.write('\n'.join(map("{:.2f}".format,highT)))
         
     print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
@@ -254,8 +254,8 @@ if __name__ == '__main__':
             beta = Broom[X][:,0]
             
     ## define line styles for every metal in the same plot
-    lnstyles = {'Al':'-', 'Cu':'--', 'Fe':':', 'Nb':'-.'}
-    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'green', 'Nb':'red'}
+    lnstyles = {'Al':'-', 'Cu':'--', 'Fe':':', 'Nb':'-.', 'Cd':'-', 'Mg':'--', 'Zn':':', 'Sn':'-.', 'Ni':'-.', 'Mo':'--', 'Ag':':', 'Au':'-.', 'Ti':'-', 'Zr':'-.'}
+    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'green', 'Nb':'red', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
     ## plot only pure screw and pure edge by default
     theta_indices = [0,Ntheta-1]
     for th in theta_indices:
