@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 24, 2018
+# Date: Nov. 5, 2017 - Sept. 30, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -177,11 +177,20 @@ for X in data.bcc_metals.intersection(metal):
 ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
 ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
 ### therefore, may choose b parallel to x-axis
+hcpslip = 'basal' ## default
+# hcpslip = 'prismatic' ## uncomment to use
+# hcpslip = 'pyramidal' ## uncomment to use
 for X in data.hcp_metals.intersection(metal):
     burgers[X] = ac[X]
     b[X] = np.array([-1,0,0])
+    ## basal slip:
     n0[X] = np.array([0,0,1]) ## slip plane normal = normal to basal plane
-    ### TODO: include also other slip systems
+    if hcpslip=='prismatic':
+        ## prismatic slip:
+        n0[X] = np.array([0,-1,0])
+    elif hcpslip=='pyramidal':
+        ## pyramidal slip:
+        n0[X] = np.array([0,-ac[X],cc[X]])/np.sqrt(ac[X]**2+cc[X]**2)
     
 ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
 ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
@@ -204,7 +213,14 @@ def bccrotation(theta):
 ### rotation needed for the basal slip system (default):
 def hcprotation(theta):
     return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi/2)),15)
-    ### TODO: include also other slip systems (above is for basal slip with b in -x direction)
+
+### rotation needed for the prismatic slip
+def hcprotation_pris(theta):
+    return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi)),15)
+    
+### rotation needed for the pyramidal slip (material dependent!!)
+def hcprotation_pyr(theta,X):
+    return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi/2+np.arcsin(ac[X]/np.sqrt(ac[X]**2+cc[X]**2)))),15)
     
 ### rotation needed for the slip system {010}[001]:
 def tetrrotation(theta):
@@ -244,8 +260,15 @@ if __name__ == '__main__':
             
     for X in data.hcp_metals.intersection(metal):
         rotmat[X] = np.zeros((len(theta),3,3))
-        for th in range(len(theta)):
-            rotmat[X][th] = hcprotation(theta[th])
+        if hcpslip=='prismatic':
+            for th in range(len(theta)):
+                rotmat[X][th] = hcprotation_pris(theta[th])
+        elif hcpslip=='pyramidal':
+            for th in range(len(theta)):
+                rotmat[X][th] = hcprotation_pyr(theta[th],X)
+        else: ## default = basal
+            for th in range(len(theta)):
+                rotmat[X][th] = hcprotation(theta[th])
             
     for X in data.tetr_metals.intersection(metal):
         rotmat[X] = np.zeros((len(theta),3,3))
@@ -393,8 +416,14 @@ if __name__ == '__main__':
         vcrit_smallest[X] = min(np.sqrt(c44[X]/mu[X]),np.sqrt((c11[X]-c12[X])/(2*mu[X])))
     ## above is correct for fcc, bcc and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
     ## numerically determined values (rounded):
-    vcrit_smallest['Sn'] = 0.8181
-    vcrit_smallest['Zn'] = 0.9431 ## for basal slip
+    vcrit_smallest['Sn'] = 0.818
+    vcrit_smallest['Zn'] = 0.943 ## for basal slip
+    if hcpslip=='prismatic':
+        vcrit_smallest['Cd'] = 0.948
+        vcrit_smallest['Zn'] = 0.724
+    elif hcpslip=='pyramidal':
+        vcrit_smallest['Cd'] = 0.968
+        vcrit_smallest['Zn'] = 0.760
     
     ## load data from semi-isotropic calculation
     Broom = {}
