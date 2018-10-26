@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 30, 2018
+# Date: Nov. 3, 2017 - Oct. 23, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -173,8 +173,8 @@ if hcpslip=='prismatic':
     vcrit_smallest['Cd'] = 0.932*np.sqrt(c44['Cd']/mu['Cd'])
     vcrit_smallest['Zn'] = 0.766*np.sqrt(c44['Zn']/mu['Zn'])
 elif hcpslip=='pyramidal':
-    vcrit_smallest['Cd'] = 0.952*np.sqrt(c44['Cd']/mu['Cd'])
-    vcrit_smallest['Zn'] = 0.804*np.sqrt(c44['Zn']/mu['Zn'])
+    vcrit_smallest['Cd'] = 0.959*np.sqrt(c44['Cd']/mu['Cd'])
+    vcrit_smallest['Zn'] = 0.819*np.sqrt(c44['Zn']/mu['Zn'])
 
 ### import additional modules
 from elasticconstants import elasticC2
