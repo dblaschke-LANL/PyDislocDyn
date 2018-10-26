@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 30, 2018
+# Date: Nov. 5, 2017 - Oct. 23, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -422,8 +422,8 @@ if __name__ == '__main__':
         vcrit_smallest['Cd'] = 0.948
         vcrit_smallest['Zn'] = 0.724
     elif hcpslip=='pyramidal':
-        vcrit_smallest['Cd'] = 0.968
-        vcrit_smallest['Zn'] = 0.760
+        vcrit_smallest['Cd'] = 0.975
+        vcrit_smallest['Zn'] = 0.775
     
     ## load data from semi-isotropic calculation
     Broom = {}
