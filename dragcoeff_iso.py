@@ -1,6 +1,6 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
-# Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
+# Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 5, 2017 - Sept. 27, 2018
 #################################
 from __future__ import division

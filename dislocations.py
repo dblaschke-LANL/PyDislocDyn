@@ -1,6 +1,6 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
-# Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
+# Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 3, 2017 - Apr. 30, 2018
 #################################
 from __future__ import division

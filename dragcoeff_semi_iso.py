@@ -1,6 +1,6 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
-# Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
+# Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 5, 2017 - Oct. 23, 2018
 #################################
 from __future__ import division
