@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
-# Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
+# Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 3, 2017 - Oct. 23, 2018
 #################################
 from __future__ import division
@@ -92,7 +92,7 @@ beta_scaled = {'Al':0.98*beta, 'Cu':0.85*beta,  'Ni':0.88*beta, 'Fe':0.87*beta, 
 # mu = data.ISO_c44
 # mu['Mo'] = 125.0e9 ## use the 'improved' average for polycrystalline Mo, K since we don't have experimental data (see results of 'polycrystal_averaging.py')
 # mu['K'] = 0.9e9
-# mu['Be'] = 148.6e9 ## use Hill average for polycrystalline Be, In (see results of 'polycrystal_averaging.py')
+# mu['Be'] = 148.6e9 ## use Hill average for polycrystalline Be, In, Zr (see results of 'polycrystal_averaging.py')
 # mu['In'] = 4.8e9
 # mu['Zr'] = 36.0e9
 # mu['ISO'] = 1

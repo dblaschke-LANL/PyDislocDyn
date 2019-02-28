@@ -1,7 +1,7 @@
 ! Some subroutines meant to be compiled for phononwind.py via f2py
 ! run 'f2py -c phononwindsubroutines.f95 -m phononwindsubroutines' to use
 ! Author: Daniel N. Blaschke
-! Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
+! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ! Date: July 23, 2018 - July 27, 2018
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)

@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
-# Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Jan. 29, 2018
+# Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
+# Date: Nov. 7, 2017 - Feb. 27, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -164,87 +164,54 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
     
 ### Convert to and from Voigt notation:
 VoigtIndices = [0,4,8,5,2,1]
-UnVoigtIndices = [0,5,4,5,1,3,4,3,8]
+UnVoigtIndices = [0,5,4,5,1,3,4,3,2]
 
 def Voigt(elasticC):
-    '''Converts tensors of (2nd and 3rd order) elastic constants into Voigt notation.
+    '''Converts Voigt-symmetric tensors of ranks 2, 4, and 6 (such as strain/stress tensors or 2nd and 3rd order elastic constants) into Voigt notation.
     Both input and output are numpy arrays. Warning: this function does not check the input for Voigt symmetry, use CheckVoigt() instead.'''
     CVoigt = np.asarray(elasticC)
-    if CVoigt.ndim == 4:
+    if CVoigt.ndim == 2:
+        CVoigt = np.reshape(CVoigt,(9))[VoigtIndices]
+    elif CVoigt.ndim == 4:
         CVoigt = np.reshape(CVoigt,(9,9))[VoigtIndices][:,VoigtIndices]
     elif CVoigt.ndim == 6:
         CVoigt = np.reshape(CVoigt,(9,9,9))[VoigtIndices][:,VoigtIndices][:,:,VoigtIndices]
+    elif CVoigt.ndim == 8:
+        CVoigt = np.reshape(CVoigt,(9,9,9,9))[VoigtIndices][:,VoigtIndices][:,:,VoigtIndices][:,:,:,VoigtIndices]
     else:
         print('not implemented for array of dimension',CVoigt.ndim,', returning input')
     return CVoigt
 
-# @jit ### performance gain is small for floats, and jit makes fct. slower if entries are sympy symbols
 def UnVoigt2(CVoigt):
-    '''Subroutine of UnVoigt(), converts 2nd order elastic constants from Voigt to conventional tensor notation.'''
-    if CVoigt.dtype.kind == 'O':
-        elasticC = np.zeros((3,3,3,3), dtype=object)
-    else:
-        elasticC = np.zeros((3,3,3,3))
-    for i in range(3):
-        for ii in range(3):
-            for j in range(3):
-                for jj in range(3):
-                    if i == ii and j == jj:
-                        elasticC[i,ii,j,jj] = CVoigt[i,j]
-                    if i != ii and j != jj:
-                        elasticC[i,ii,j,jj] = CVoigt[-(i+ii), -(j+jj)]
-                    if i == ii and j != jj:
-                        elasticC[i,ii,j,jj] = CVoigt[i, -(j+jj)]
-                    if i != ii and j == jj:
-                        elasticC[i,ii,j,jj] = CVoigt[-(i+ii), j]
-    return elasticC
+    '''Deprecaded, call UnVoigt() instead.'''
+    print("Warning: UnVoigt2() is deprecated, call UnVoigt() instead!")
+    return UnVoigt(CVoigt)
     
-@jit
 def UnVoigt3(CVoigt):
-    '''Subroutine of UnVoigt(), converts 3rd order elastic constants from Voigt to conventional tensor notation.'''
-    if CVoigt.dtype.kind == 'O':
-        elasticC = np.zeros((3,3,3,3,3,3), dtype=object)
-    else:
-        elasticC = np.zeros((3,3,3,3,3,3))
-    for i in range(3):
-        for ii in range(3):
-            for j in range(3):
-                for jj in range(3):
-                    for k in range(3):
-                        for kk in range(3):
-                            if i == ii and j == jj and k == kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[i,j,k]
-                            if i != ii and j != jj and k != kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[-(i+ii), -(j+jj), -(k+kk)]
-                            if i == ii and j != jj and k == kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[i, -(j+jj), k]
-                            if i != ii and j == jj and k == kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[-(i+ii), j, k]
-                            if i == ii and j == jj and k != kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[i, j, -(k+kk)]
-                            if i == ii and j != jj and k != kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[i, -(j+jj), -(k+kk)]
-                            if i != ii and j == jj and k != kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[-(i+ii), j, -(k+kk)]
-                            if i != ii and j != jj and k == kk:
-                                elasticC[i,ii,j,jj,k,kk] = CVoigt[-(i+ii), -(j+jj), k]
-    return elasticC
+    '''Deprecaded, call UnVoigt() instead.'''
+    print("Warning: UnVoigt3() is deprecated, call UnVoigt() instead!")
+    return UnVoigt(CVoigt)
 
 def UnVoigt(CVoigt):
-    '''Converts tensors of (2nd and 3rd order) elastic constants from Voigt to conventional tensor notation.
+    '''Converts tensors of ranks 1, 2, and 3 (such as strain/stress tensors or 2nd and 3rd order elastic constants) from Voigt to conventional tensor notation.
     Both input and output are numpy arrays.'''
     elasticC = np.asarray(CVoigt)
-    if elasticC.ndim == 2:
-        elasticC = UnVoigt2(elasticC)
+    if elasticC.ndim == 1:
+        elasticC = np.reshape(elasticC[UnVoigtIndices],(3,3))
+    elif elasticC.ndim == 2:
+        elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices],(3,3,3,3))
     elif elasticC.ndim == 3:
-        elasticC = UnVoigt3(elasticC)
+        elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices][:,:,UnVoigtIndices],(3,3,3,3,3,3))
+    elif elasticC.ndim == 4:
+        elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices][:,:,UnVoigtIndices][:,:,:,UnVoigtIndices],(3,3,3,3,3,3,3,3))
     else:
         print('not implemented for array of dimension',elasticC.ndim,', returning input')
     return elasticC
     
 ## check for Voigt symmetry
 def CheckVoigt(tensor):
-    '''Quick and dirty check for Voigt symmetry: only checks UnVoigt(Voigt(tensor).T)==tensor, so don't rely on it entirely.'''
+    '''Quick and dirty check for Voigt symmetry: only checks UnVoigt(Voigt(tensor).T)==tensor, so don't rely on it entirely.
+    Input must be a (numpy array) tensor of rank 2, 4, or 6.'''
     return np.all(UnVoigt(Voigt(tensor).T)==tensor)
     
 ##### generate tensors of elastic compliances
