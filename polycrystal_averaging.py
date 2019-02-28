@@ -1,6 +1,6 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
-# Copyright (c) 2018, Los Alamos National Security, LLC. All rights reserved.
+# Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 7, 2017 - Sept. 24, 2018
 #################################
 from __future__ import division
