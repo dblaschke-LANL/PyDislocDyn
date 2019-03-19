@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Feb. 27, 2019
+# Date: Nov. 7, 2017 - Mar. 19, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -13,7 +13,7 @@ from sympy import Symbol
 import sympy as sp
 import numpy as np
 ### makes numerical versions faster, but symbolic versions slightly slower
-from numba import jit
+# from numba import jit
 
 ### vectorize some sympy fcts to make them work on numpy arrays
 ### (as an alternative to loops and/or converting to and from sympy matrices):
@@ -27,7 +27,7 @@ Delta = sp.KroneckerDelta
 
 
 ### generate tensors of elastic constants
-@jit
+# @jit
 def elasticC2(c12, c44, c11=None, c13=None, c33=None, c66=None):
     '''Generates the tensor of second order elastic constants for tetragonal I, hexagonal, cubic and isotropic symmetries using c11, c12, c44, c13, c33, and c66 as input data
     (assuming the third axis is perpendicular to the basal plane).
@@ -62,7 +62,7 @@ def elasticC2(c12, c44, c11=None, c13=None, c33=None, c66=None):
         C2 = UnVoigt(C2)
     return C2
         
-@jit
+# @jit
 def elasticC3_cubic(c111=None, c112=None, c123=None, c144=None, c166=None, c456=None, l=None, m=None, n=None):
     '''Generates the tensor of third order elastic constants for solids of cubic I symmetry using c111, c112, c123, c144, c166, and c456 as input data.
     If either c111, c112, or c166 are omitted (or 'None'), an isotropic tensor is generated using c123, c144, and c456 as the input.
@@ -181,16 +181,6 @@ def Voigt(elasticC):
     else:
         print('not implemented for array of dimension',CVoigt.ndim,', returning input')
     return CVoigt
-
-def UnVoigt2(CVoigt):
-    '''Deprecaded, call UnVoigt() instead.'''
-    print("Warning: UnVoigt2() is deprecated, call UnVoigt() instead!")
-    return UnVoigt(CVoigt)
-    
-def UnVoigt3(CVoigt):
-    '''Deprecaded, call UnVoigt() instead.'''
-    print("Warning: UnVoigt3() is deprecated, call UnVoigt() instead!")
-    return UnVoigt(CVoigt)
 
 def UnVoigt(CVoigt):
     '''Converts tensors of ranks 1, 2, and 3 (such as strain/stress tensors or 2nd and 3rd order elastic constants) from Voigt to conventional tensor notation.
