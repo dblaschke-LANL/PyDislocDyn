@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 23, 2018
+# Date: Nov. 3, 2017 - Mar. 19, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -30,7 +30,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 # plt.rc('font',**{'family':'Liberation Sans Narrow','size':'11'})
-fntsize=12
+fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import metal_data as data
@@ -41,6 +41,7 @@ Ncores = -2
 ### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
 ### and phi is an integration angle used in the integral method for computing dislocations
 Ntheta = 600
+Ntheta2 = 21 ## number of character angles for which to calculate critical velocities (set to None or 0 to bypass entirely)
 Nbeta = 625
 Nphi = 1000
 ### and range & step sizes
@@ -194,15 +195,17 @@ if __name__ == '__main__':
 
     with open("theta.dat","w") as thetafile:
         thetafile.write('\n'.join(map("{:.6f}".format,theta[1:-1])))        
+                           
+    C2 = {}
+    for X in metal:  
+        ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
+        C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]
         
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(i):
         X = metal[i]
         with open("beta_{}.dat".format(X),"w") as betafile:
             betafile.write('\n'.join(map("{:.5f}".format,beta_scaled[X])))
-                   
-        ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
-        C2 = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]
     
         geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phi)
         Cv = geometry['Cv']
@@ -211,8 +214,8 @@ if __name__ == '__main__':
         
         ### compute dislocation displacement gradient uij and line tension LT
         def compute_lt(j):
-            uij = dlc.computeuij(beta=beta_scaled[X][j], C2=C2, Cv=Cv, b=b[X], M=M, N=N, phi=phi)
-            Etot = dlc.computeEtot(uij=uij, betaj=beta_scaled[X][j], C2=C2, Cv=Cv, phi=phi)
+            uij = dlc.computeuij(beta=beta_scaled[X][j], C2=C2[X], Cv=Cv, b=b[X], M=M, N=N, phi=phi)
+            Etot = dlc.computeEtot(uij=uij, betaj=beta_scaled[X][j], C2=C2[X], Cv=Cv, phi=phi)
             return 4*np.pi*dlc.computeLT(Etot=Etot, dtheta=dtheta)
             
         LT = np.array([compute_lt(j) for j in range(Nbeta+1)])
@@ -270,3 +273,176 @@ if __name__ == '__main__':
         [maincomputations(i) for i in range(len(metal))]
     else:
         Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
+
+################################################         
+    if Ntheta2==0 or Ntheta2==None:
+        sys.exit()
+    
+    print("Computing critical velocities for: ",metal)
+    import sympy as sp
+    from scipy.optimize import fmin
+    ### define some symbols and functions of symbols
+    cc11 = sp.Symbol('cc11', real=True)
+    cc12 = sp.Symbol('cc12', real=True)
+    cc44 = sp.Symbol('cc44', real=True)
+    cc13 = sp.Symbol('cc13', real=True)
+    cc33 = sp.Symbol('cc33', real=True)
+    cc66 = sp.Symbol('cc66', real=True)
+    substitutions = {}
+    for X in metal:
+        ## substitute SOEC in units of GPa to minimize rounding errors from huge/tiny floats in intermediate steps
+        substitutions[X] = {cc11:c11[X]/1e9, cc12:c12[X]/1e9, cc44:c44[X]/1e9}
+        if c13[X]!=None:
+            substitutions[X].update({cc13:c13[X]/1e9, cc33:c33[X]/1e9})
+        if c66[X]!=None:
+            substitutions[X].update({cc66:c66[X]/1e9})
+        
+    bt2 = sp.Symbol('bt2', real=True)
+    phi = sp.Symbol('phi', real=True)
+    C2cub = elasticC2(c11=cc11,c12=cc12,c44=cc44)
+    C2hex = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33)
+    C2tetr = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33,c66=cc66)
+    
+    ### setup slip-geometries for symbolic calculations:
+    bfcc = np.array([1,1,0])/sp.sqrt(2)
+    n0fcc = -np.array([1,-1,1])/sp.sqrt(3)
+    
+    bbcc = np.array([1,-1,1])/sp.sqrt(3)
+    n0bcc = np.array([1,1,0])/sp.sqrt(2)
+    
+    #basal:
+    bhcp = np.array([-1,0,0])
+    n0hcp = np.array([0,0,1])
+    #prismatic:
+    n0pris = np.array([0,-1,0])
+    #pyramidal:
+    n0pyr = {}
+    for X in data.hcp_metals.intersection(metal):
+        n0pyr[X] = np.array([0,-ac[X],cc[X]])/sp.sqrt(ac[X]**2+cc[X]**2)
+    
+    btetr = np.array([0,0,-1])
+    n0tetr = np.array([0,1,0])
+        
+    ## build symbolic expression of the determinant whose zeros we want to find (as a fct of velocity bt2 and polar angle phi)
+    def build_det(N,C2,m0,cc44=cc44,bt2=bt2):
+        NC2N = np.dot(N,np.dot(N,C2))
+        thedot = np.dot(N,m0)
+        for a in sp.preorder_traversal(thedot):
+            if isinstance(a, sp.Float):
+                thedot = thedot.subs(a, round(a, 12))
+        thematrix = NC2N - bt2*cc44*(thedot**2)*np.diag((1,1,1))
+        return sp.det(sp.Matrix(thematrix))
+       
+    def compute_bt2(thi,N,m0,C2,bt2):
+        thedet = (build_det(N[thi],C2,m0[thi]))
+        return sp.solve(thedet,bt2)
+        
+    def computevcrit(b,n0,C2,Ntheta,metal_list,symmetric=True,bt2=bt2,Ncores=Ncores):
+        ## metal_list must only contain metals of the same symmetry and for the same slip system (although n0 may be a dictionary of slip plane normals)
+        vcrit={}
+        if symmetric:
+            Theta = (sp.pi/2)*np.linspace(0,1,Ntheta2)
+        else:
+            Theta = (sp.pi/2)*np.linspace(-1,1,2*Ntheta2-1)
+        if isinstance(n0,dict): ## check if slip plane normal depends on metal (like for pyramidal slip)
+            Xloop=True
+            t = {}
+            m0 = {}
+            N = {}
+            bt2_curr = {}
+            for X in metal_list:
+                t[X] = np.zeros((Ntheta,3))
+                m0[X] = np.zeros((Ntheta,3))
+                N[X] = np.zeros((Ntheta,3),dtype=object)
+                for thi in range(Ntheta):
+                    t[X][thi] = sp.cos(Theta[thi])*b + sp.sin(Theta[thi])*np.cross(b,n0[X])
+                    m0[X][thi] = np.cross(n0[X],t[X][thi])
+                    N[X][thi] = n0[X]*sp.cos(phi) - m0[X][thi]*sp.sin(phi)
+                bt2_curr[X] = np.zeros((Ntheta,3),dtype=object)
+                if Ncores == 1:
+                    for thi in range(Ntheta):
+                        bt2_curr[X][thi] = compute_bt2(thi,N[X],m0[X],C2,bt2)
+                else:
+                    bt2_curr[X] = np.array(Parallel(n_jobs=Ncores)(delayed(compute_bt2)(thi,N[X],m0[X],C2,bt2) for thi in range(Ntheta)))
+        else:
+            Xloop=False
+            t = np.zeros((Ntheta,3))
+            m0 = np.zeros((Ntheta,3))
+            N = np.zeros((Ntheta,3),dtype=object)
+            for thi in range(Ntheta):
+                t[thi] = sp.cos(Theta[thi])*b + sp.sin(Theta[thi])*np.cross(b,n0)
+                m0[thi] = np.cross(n0,t[thi])
+                N[thi] = n0*sp.cos(phi) - m0[thi]*sp.sin(phi)
+            bt2_curr = np.zeros((Ntheta,3),dtype=object)
+            if Ncores == 1:
+                for thi in range(Ntheta):
+                    bt2_curr[thi] = compute_bt2(thi,N,m0,C2,bt2)
+            else:
+                bt2_curr = np.array(Parallel(n_jobs=Ncores)(delayed(compute_bt2)(thi,N,m0,C2,bt2) for thi in range(Ntheta)))
+        for X in metal_list:
+            bt2_res = np.zeros((3,2),dtype=complex)
+            vcrit[X] = np.zeros((Ntheta,3))
+            for thi in range(Ntheta):
+                if Xloop:
+                    bt2_X = np.copy(bt2_curr[X][thi])
+                else:
+                    bt2_X = np.copy(bt2_curr[thi])
+                for i in range(len(bt2_X)):
+                    bt2_X[i] = (bt2_X[i].subs(substitutions[X]))
+                for i in range(len(bt2_X)):
+                    fphi = sp.lambdify((phi),bt2_X[i])
+                    def f(x):
+                        out = fphi(x)
+                        return sp.re(out)
+                    bt2_res[i,0] = fmin(f,0.001,disp=False)
+                    bt2_res[i,1] = bt2_X[i].subs({phi:bt2_res[i,0]})
+                mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
+                vcrit[X][thi] = np.sqrt(c44[X]/mu[X]*np.real(bt2_res[:,1][mask]))
+        return vcrit
+        
+    vcrit = {}
+    vcrit.update(computevcrit(bfcc,n0fcc,C2cub,Ntheta2,sorted(list(data.fcc_metals.intersection(metal))),symmetric=True))
+    vcrit.update(computevcrit(bbcc,n0bcc,C2cub,2*Ntheta2-1,sorted(list(data.bcc_metals.intersection(metal))),symmetric=False))
+    if hcpslip=='basal':
+        vcrit.update(computevcrit(bhcp,n0hcp,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
+    elif hcpslip=='prismatic':
+        vcrit.update(computevcrit(bhcp,n0pris,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
+    elif hcpslip=='pyramidal':
+        vcrit.update(computevcrit(bhcp,n0pyr,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
+    vcrit.update(computevcrit(btetr,n0tetr,C2tetr,Ntheta2,sorted(list(data.tetr_metals.intersection(metal))),symmetric=True))
+
+    ## write vcrit results to disk, then plot
+    rho = data.CRC_rho ## need densities to convert vcrit to m/s
+    with open("vcrit.dat","w") as vcritfile:
+        vcritfile.write("theta/pi\t" + '\t'.join(map("{:.6f}".format,np.linspace(1/2,-1/2,2*Ntheta2-1))) + '\n')
+        vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
+        for X in sorted(list(set(metal).intersection(vcrit.keys()))):
+            for i in range(3):
+                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.0f}".format,np.flip(np.sqrt(mu[X]/rho[X])*vcrit[X][:,i]))) + '\n')
+                
+    def mkvcritplot(X,vcrit,Ntheta):
+        fig, ax = plt.subplots(1, 1, figsize=(5.5,4.5))
+        plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
+        if len(vcrit)==Ntheta:
+            plt.xticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
+            thetapoints = np.linspace(0,np.pi/2,Ntheta)
+        else:
+            plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
+            thetapoints = np.linspace(-np.pi/2,np.pi/2,2*Ntheta-1)
+        ax.axis((min(thetapoints),max(thetapoints),np.min(vcrit)*0.97,np.max(vcrit)*1.02)) ## define plot range
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.set_xlabel(r'$\vartheta$',fontsize=fntsize)
+        ax.set_ylabel(r'$v_c$[m/s]',fontsize=fntsize)
+        ax.set_title("3 vcrit solutions for {}".format(X),fontsize=fntsize)
+        if np.all(np.max(vcrit,axis=1)==np.max(vcrit,axis=1)[0]) and np.all(np.min(vcrit,axis=1)==np.min(vcrit,axis=1)[0]):
+            vcrit = np.sort(vcrit)
+        for i in range(3):
+            ax.plot(thetapoints,vcrit[:,i])
+        plt.savefig("vcrit_{}.pdf".format(X),format='pdf',bbox_inches='tight')
+        plt.close()
+    
+    for X in sorted(list(set(metal).intersection(vcrit.keys()))):
+        mkvcritplot(X,np.sqrt(mu[X]/rho[X])*vcrit[X],Ntheta2)
+        
