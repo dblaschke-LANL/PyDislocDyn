@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 13, 2019
+# Date: Nov. 5, 2017 - Mar. 19, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -608,17 +608,14 @@ if __name__ == '__main__':
         fitfile.write(" \\\\\n $v_c^{\mathrm{e}}/c_{\mathrm{t}}$")
         for X in metal:
             fitfile.write(" & "+"{:.3f}".format(vcrit_edge[X]))
-        fitfile.write(" \\\\\n $v_c^{\mathrm{e}}$")
         fitfile.write("\n\\\\\hline\hline")
         fitfile.write("\n $v_c^{\mathrm{s}}/c_{\mathrm{t}}$")
         for X in metal:
             fitfile.write(" & "+"{:.3f}".format(vcrit_screw[X]))
-        fitfile.write(" \\\\\n $v_c^{\mathrm{s}}$")
         fitfile.write("\n\\\\\hline\hline")
         fitfile.write("\n $v_c^{\mathrm{av}}/c_{\mathrm{t}}$")
         for X in metal:
             fitfile.write(" & "+"{:.3f}".format(vcrit_smallest[X]))
-        fitfile.write(" \\\\\n $v_c^{\mathrm{av}}$")
         
     def mkfitplot(metal_list,filename,figtitle):
         fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
