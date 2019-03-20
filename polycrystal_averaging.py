@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 24, 2018
+# Date: Nov. 7, 2017 - Mar. 19, 2018
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -59,27 +59,6 @@ c366 = data.c366
 
 ### generate a list of those fcc, bcc, hcp metals for which we have sufficient data
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c11.keys())))
-### set "None" non-independent elastic constants
-for X in data.fcc_metals.union(data.bcc_metals).intersection(c11.keys()):
-    c13[X] = None
-    c33[X] = None
-    c66[X] = None
-    c113[X] = None
-    c133[X] = None
-    c155[X] = None
-    c222[X] = None
-    c333[X] = None
-    c344[X] = None
-    c366[X] = None
-###
-for X in data.hcp_metals.intersection(c11.keys()):
-    c66[X] = None
-    c166[X] = None
-    c366[X] = None
-    c456[X] = None
-for X in data.tetr_metals.intersection(c11.keys()):
-    c222[X] = None
-###
 
 ### compute various contractions/invariants of elastic constant/compliance tensors:
 def invI1(C2):

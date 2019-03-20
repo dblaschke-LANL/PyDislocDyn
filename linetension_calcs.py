@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 19, 2019
+# Date: Nov. 3, 2017 - Mar. 20, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -390,7 +390,7 @@ if __name__ == '__main__':
                 for i in range(len(bt2_X)):
                     bt2_X[i] = (bt2_X[i].subs(substitutions[X]))
                 for i in range(len(bt2_X)):
-                    fphi = sp.lambdify((phi),bt2_X[i])
+                    fphi = sp.lambdify((phi),bt2_X[i],modules=["math", "mpmath", "sympy"])
                     def f(x):
                         out = fphi(x)
                         return sp.re(out)
@@ -418,7 +418,7 @@ if __name__ == '__main__':
         vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
         for X in sorted(list(set(metal).intersection(vcrit.keys()))):
             for i in range(3):
-                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.0f}".format,np.flip(np.sqrt(mu[X]/rho[X])*vcrit[X][:,i]))) + '\n')
+                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.0f}".format,np.flipud(np.sqrt(mu[X]/rho[X])*vcrit[X][:,i]))) + '\n')
                 
     def mkvcritplot(X,vcrit,Ntheta):
         fig, ax = plt.subplots(1, 1, figsize=(5.5,4.5))
@@ -436,7 +436,7 @@ if __name__ == '__main__':
         ax.set_xlabel(r'$\vartheta$',fontsize=fntsize)
         ax.set_ylabel(r'$v_c$[m/s]',fontsize=fntsize)
         ax.set_title("3 vcrit solutions for {}".format(X),fontsize=fntsize)
-        if np.all(np.max(vcrit,axis=1)==np.max(vcrit,axis=1)[0]) and np.all(np.min(vcrit,axis=1)==np.min(vcrit,axis=1)[0]):
+        if np.all(np.round(np.max(vcrit,axis=1),6)==round(np.max(vcrit,axis=1)[0],6)) and np.all(np.round(np.min(vcrit,axis=1),6)==round(np.min(vcrit,axis=1)[0],6)):
             vcrit = np.sort(vcrit)
         for i in range(3):
             ax.plot(thetapoints,vcrit[:,i])
