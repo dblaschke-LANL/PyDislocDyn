@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 20, 2019
+# Date: Nov. 3, 2017 - Mar. 21, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -341,9 +341,9 @@ if __name__ == '__main__':
         ## metal_list must only contain metals of the same symmetry and for the same slip system (although n0 may be a dictionary of slip plane normals)
         vcrit={}
         if symmetric:
-            Theta = (sp.pi/2)*np.linspace(0,1,Ntheta2)
+            Theta = (sp.pi/2)*np.linspace(0,1,Ntheta)
         else:
-            Theta = (sp.pi/2)*np.linspace(-1,1,2*Ntheta2-1)
+            Theta = (sp.pi/2)*np.linspace(-1,1,Ntheta)
         if isinstance(n0,dict): ## check if slip plane normal depends on metal (like for pyramidal slip)
             Xloop=True
             t = {}
