@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 26, 2019
+# Date: Nov. 3, 2017 - June 27, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -278,12 +278,15 @@ if __name__ == '__main__':
     else:
         Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
 
-################################################         
+################################################    
+    import sympy as sp     
     if Ntheta2==0 or Ntheta2==None:
+        sys.exit()
+    elif sp.__version__ < '1.0':
+        print("Error: sympy {} is too old, need sympy 1.0 or higher to compute critical velocities; skipping".format(sp.__version__))
         sys.exit()
     
     print("Computing critical velocities for: ",metal)
-    import sympy as sp
     from scipy.optimize import fmin
     ### define some symbols and functions of symbols
     cc11 = sp.Symbol('cc11', real=True)
