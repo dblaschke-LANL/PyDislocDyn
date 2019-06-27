@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 12, 2019
+# Date: Nov. 3, 2017 - June 26, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -10,7 +10,12 @@ from __future__ import print_function
 ### make sure we are running a recent version of python
 # assert version_info >= (3,5)
 import numpy as np
-from numba import jit
+try:
+    from numba import jit
+except ImportError:
+    print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
+    def jit(func):
+        return func
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
@@ -92,7 +97,7 @@ def elbrak_alt(A,B,elC):
     return AB
 
 @jit
-def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
+def computeuij(beta, C2, Cv, b, M, N, phi, r=[], nogradient=False):
     '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi as explained below),
        which corresponds to the displacement gradient multiplied by the radius r (i.e. we only return the angular dependence).
@@ -104,10 +109,10 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
        In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
     Ntheta = len(M[0,:,0])
     Nphi = len(phi)
-    if np.any(np.asarray(r)!=None):
-        Nr = len(r)
-    else:
+    if np.any(np.asarray(r)==None) or np.asarray(r)==np.empty((0)):
         Nr = 0
+    else:
+        Nr = len(np.asarray(r))
     MM = np.zeros((3,3,Ntheta,Nphi))
     NN = np.zeros((3,3,Ntheta,Nphi))
     MN = np.zeros((3,3,Ntheta,Nphi))
@@ -201,7 +206,7 @@ else:
         return out
 
 ############# isotropic case
-def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
+def computeuij_iso(beta,ct_over_cl, theta, phi, r=[], nogradient=False):
     '''Compute the dislocation displacement gradient field in the isotropic limit.
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi),
        which corresponds to the displacement gradient multiplied by the radius r over the magnitude of the Burgers vector (i.e. we only return the angular dependence).
@@ -210,10 +215,10 @@ def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
        If r is provided, the full displacement gradient (a 3x3xNthetaxNrxNphi dimensional array) is returned.
        If option nogradient is set to True, the displacement field (not its gradient) is returned: a 3xNthetaxNrxNphi dimensional array.
        In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
-    if np.any(np.asarray(r)!=None):
-        Nr = len(r)
-    else:
+    if np.any(np.asarray(r)==None) or np.asarray(r)==np.empty((0)):
         Nr = 0
+    else:
+        Nr = len(np.asarray(r))
     Ntheta = len(theta)
     Nphi = len(phi)
     gamt = np.sqrt(1-beta**2) ## defined as 1/gamma
