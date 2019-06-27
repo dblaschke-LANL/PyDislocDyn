@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 19, 2019
+# Date: Nov. 5, 2017 - June 26, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -39,9 +39,13 @@ import metal_data as data
 from elasticconstants import elasticC2, elasticC3
 import dislocations as dlc
 from phononwind import elasticA3, dragcoeff_iso
-from joblib import Parallel, delayed
-## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-Ncores = -2
+try:
+    from joblib import Parallel, delayed
+    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
+    Ncores = -2
+except ImportError:
+    print("WARNING: module 'joblib' not found, will run on only one core\n")
+    Ncores = 1 ## must be 1 without joblib
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
