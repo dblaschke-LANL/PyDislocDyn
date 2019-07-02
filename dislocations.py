@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 27, 2019
+# Date: Nov. 3, 2017 - July 1, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -10,6 +10,7 @@ from __future__ import print_function
 ### make sure we are running a recent version of python
 # assert version_info >= (3,5)
 import numpy as np
+from scipy.integrate import cumtrapz
 try:
     from numba import jit
 except ImportError:
@@ -170,8 +171,9 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
             for j in range(3):
                 for p in range(3):
                     tmpu[j,th] += (NNinv[j,p,th]*B[p,th] - S[j,p,th]*Sb[p,th])
-        for ph in range(Nphi):
-            uiphi[:,:,ph] = np.trapz(tmpu[:,:,:ph],x=phi[:ph])
+        uiphi = cumtrapz(tmpu,x=phi,initial=0)
+        # for ph in range(Nphi):
+        #     uiphi[:,:,ph] = np.trapz(tmpu[:,:,:ph],x=phi[:ph])
         
         uij=np.moveaxis(np.reshape(np.outer(np.ones(Nr),uiphi)-np.outer(np.log(r/r0),np.outer(Sb,np.ones(Nphi))),(Nr,3,Ntheta,Nphi)),0,-2)
     else:
