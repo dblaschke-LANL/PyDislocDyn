@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 26, 2019
+# Date: Nov. 5, 2017 - Aug. 12, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -289,11 +289,11 @@ if __name__ == '__main__':
         
     for X in metal:
         geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phiX)
-        Cv = geometry['Cv']
-        M = geometry['M']
-        N = geometry['N']
-        linet[X] = np.round(geometry['t'],15)
-        velm0[X] = np.round(geometry['m0'],15)
+        Cv = geometry.Cv
+        M = geometry.M
+        N = geometry.N
+        linet[X] = np.round(geometry.t,15)
+        velm0[X] = np.round(geometry.m0,15)
                
         C2 = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/mu[X]

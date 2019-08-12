@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 27, 2019
+# Date: Nov. 3, 2017 - Aug. 12, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -212,9 +212,9 @@ if __name__ == '__main__':
             betafile.write('\n'.join(map("{:.5f}".format,beta_scaled[X])))
     
         geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phi)
-        Cv = geometry['Cv']
-        M = geometry['M']
-        N = geometry['N']
+        Cv = geometry.Cv
+        M = geometry.M
+        N = geometry.N
         
         ### compute dislocation displacement gradient uij and line tension LT
         def compute_lt(j):
