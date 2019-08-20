@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 12, 2019
+# Date: Nov. 5, 2017 - Aug. 20, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -42,6 +42,7 @@ from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
+    ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
     Ncores = -2
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
@@ -240,17 +241,18 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
         metal = sys.argv[1].split()
-        
-    with open("beta.dat","w") as betafile:
-        betafile.write('\n'.join(map("{:.5f}".format,beta)))
-
-    with open("theta.dat","w") as thetafile:
-        thetafile.write('\n'.join(map("{:.6f}".format,theta)))
-
-    with open("temperatures.dat","w") as Tfile:
-        Tfile.write('\n'.join(map("{:.1f}".format,highT)))  
     
-    print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
+    if Ncores != 0:
+        with open("beta.dat","w") as betafile:
+            betafile.write('\n'.join(map("{:.5f}".format,beta)))
+    
+        with open("theta.dat","w") as thetafile:
+            thetafile.write('\n'.join(map("{:.6f}".format,theta)))
+    
+        with open("temperatures.dat","w") as Tfile:
+            Tfile.write('\n'.join(map("{:.1f}".format,highT)))  
+        
+        print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
     ## compute rotation matrices for later use
     for X in data.fcc_metals.intersection(metal):
@@ -383,19 +385,22 @@ if __name__ == '__main__':
         # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
         if Ncores == 1:
             Bmix = np.array([maincomputations(bt,modes) for bt in beta])
+        elif Ncores == 0:
+            pass
         else:
             Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,modes) for bt in beta))
 
 
         # and write the results to disk (in various formats)
-        with open("drag_anis_{}.dat".format(X),"w") as Bfile:
-            Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
-            Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
-            for bi in range(len(beta)):
-                Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+        if Ncores != 0:
+            with open("drag_anis_{}.dat".format(X),"w") as Bfile:
+                Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
+                for bi in range(len(beta)):
+                    Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
-        if len(highT)>1:
+        if len(highT)>1 and Ncores !=0:
             with open("drag_anis_T_{}.dat".format(X),"w") as Bfile:
                 Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
@@ -661,4 +666,55 @@ if __name__ == '__main__':
     mkfitplot(metal,"edge","pure edge")
     mkfitplot(metal,"screw","pure screw")
     mkfitplot(metal,"aver","averaged over $\\vartheta$")
+    
+    
+    from scipy.optimize import fmin
+    ### finally, also plot Baver as a function of stress using the fits computed above
+    for X in metal:
+        vcrit = ct[X]*vcrit_smallest[X]
+        popt = popt_aver[X]
+        burg = burgers[X]
+        
+        @np.vectorize
+        def B(v):
+            bt = abs(v/vcrit)
+            if bt<1:
+                out = 1e-3*fit_mix(bt, *popt)
+            else:
+                out = np.inf
+            return out
+            
+        @np.vectorize
+        def vr(stress):
+            '''returns the velocity of a dislocation in the drag dominated regime as a function of stress.'''
+            bsig = abs(burg*stress)
+            def nonlinear_equation(v):
+                return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
+            out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
+            zero = abs(nonlinear_equation(out))
+            if zero>1e-5 and zero/bsig>1e-2:
+                print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
+            return out
+            
+        ### compute what stress is needed to move dislocations at velocity v:
+        @np.vectorize
+        def sigma_eff(v):
+            return v*B(v)/burg
+            
+        ## determine stress that will lead to velocity of 99% sound speed and stop plotting there, or at 500 MPa (whichever is smaller)
+        sigma_max = min(5e8,sigma_eff(0.99*vcrit))
+        
+        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
+        ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
+        ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
+        ax.set_title("{}, ".format(X) + "averaged over $\\vartheta$",fontsize=fntsize)
+        sigma = np.linspace(0,sigma_max,300)
+        ax.axis((0,sigma_max/1e6,0,B(vr(sigma_max))*1e3))
+        ax.plot(sigma/1e6,B(vr(sigma))*1e3)
+        plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        plt.savefig("B_of_sigma_{}.pdf".format(X),format='pdf',bbox_inches='tight')
+        plt.close()
     
