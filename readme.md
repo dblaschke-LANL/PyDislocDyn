@@ -22,12 +22,12 @@ The LANL development team asks that any forks or derivative works include approp
 
 numpy,</br>
 sympy,</br>
-numba,</br>
-joblib,</br>
 matplotlib</br>
 
 ### Optional:
 
+numba,</br>
+joblib,</br>
 f2py + a Fortran compiler (to use the alternative faster Fortran implementations of some subroutines)
 
 ## PyDislocDyn consists of:

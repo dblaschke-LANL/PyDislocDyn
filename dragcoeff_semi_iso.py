@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 21, 2019
+# Date: Nov. 5, 2017 - Aug. 22, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -614,13 +614,13 @@ if __name__ == '__main__':
     with open("drag_semi_iso_fit.txt","w") as fitfile:
         fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature:\nEdge dislocations:\n")
         for X in metal:
-            fitfile.write("f"+X+"(x) = {0:.2f} + {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
+            fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
         fitfile.write("\nScrew dislocations:\n")
         for X in metal:
-            fitfile.write("f"+X+"(x) = {0:.2f} + {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_screw[X]))
+            fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_screw[X]))
         fitfile.write("\nAveraged over all characters:\n")
         for X in metal:
-            fitfile.write("f"+X+"(x) = {0:.2f} + {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
+            fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
         fitfile.write("\n\nwhere $x=v/v_c$ with:\n\n")
         fitfile.write(" & "+" & ".join((metal))+" \\\\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
