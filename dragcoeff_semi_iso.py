@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 21, 2019
+# Date: Nov. 5, 2017 - Aug. 22, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -50,9 +50,9 @@ except ImportError:
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
-Nbeta = 90 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
+Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
-maxb = 0.90
+maxb = 0.99
 NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 roomT = 300 # in Kelvin
 maxT = 600
@@ -64,7 +64,7 @@ skip_plots=False ## set to True to skip generating plots from the results
 Nphi = 50 # computation time scales linearly with resolution in phi, phi1 and t (each); increase for higher accuracy
 Nphi1 = 50
 Nq1 = 400
-Nt = 250
+Nt = 321
 Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high resolution if cutoffs are chosen carefully since the q-dependence drops out in that case
 # in x-space (used in numerical Fourier trafo):
 NphiX = 3000
@@ -562,7 +562,8 @@ if __name__ == '__main__':
         mksmallbetaplot(X,ylab=True,xlab=True)
         divider = make_axes_locatable(ax1)
         cax = divider.append_axes("right", size="{}%".format(wspc))
-        cax.set_facecolor('none')
+        if mpl.__version__ >= '2.0.0':
+            cax.set_facecolor('none')
         for axis in ['top','bottom','left','right']:
             cax.spines[axis].set_linewidth(0)
         cax.set_xticks([])
@@ -613,13 +614,13 @@ if __name__ == '__main__':
     with open("drag_semi_iso_fit.txt","w") as fitfile:
         fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature:\nEdge dislocations:\n")
         for X in metal:
-            fitfile.write("f"+X+"(x) = {0:.2f} + {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
+            fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
         fitfile.write("\nScrew dislocations:\n")
         for X in metal:
-            fitfile.write("f"+X+"(x) = {0:.2f} + {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_screw[X]))
+            fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_screw[X]))
         fitfile.write("\nAveraged over all characters:\n")
         for X in metal:
-            fitfile.write("f"+X+"(x) = {0:.2f} + {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
+            fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
         fitfile.write("\n\nwhere $x=v/v_c$ with:\n\n")
         fitfile.write(" & "+" & ".join((metal))+" \\\\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
