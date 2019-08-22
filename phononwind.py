@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 27, 2018
+# Date: Nov. 5, 2017 - June 26, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -10,7 +10,12 @@ from __future__ import print_function
 ### make sure we are running a recent version of python
 # assert version_info >= (3,5)
 import numpy as np
-from numba import jit
+try:
+    from numba import jit
+except ImportError:
+    print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
+    def jit(func):
+        return func
 
 delta = np.diag((1,1,1))
 hbar = 1.0545718e-34
@@ -56,6 +61,8 @@ try:
     import phononwindsubroutines as fsub
     usefortran = True
 except ImportError:
+    print("WARNING: module 'phononwindsubroutines' not found, execution will be slower")
+    print("run 'f2py -c phononwindsubroutines.f95 -m phononwindsubroutines' to compile this module\n")
     usefortran = False
 
 ## dragcoeff_iso_computepoly() is currently the bottle neck, as it takes of the order of a few seconds to compute and is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta

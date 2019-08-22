@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 30, 2018
+# Date: Nov. 3, 2017 - Aug. 12, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -10,39 +10,42 @@ from __future__ import print_function
 ### make sure we are running a recent version of python
 # assert version_info >= (3,5)
 import numpy as np
-# from scipy.integrate import simps
-from random import randint, uniform
-from numba import jit
+from scipy.integrate import cumtrapz
+try:
+    from numba import jit
+except ImportError:
+    print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
+    def jit(func):
+        return func
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
 
-def StrohGeometry(b, n0, theta, phi):
-    '''Computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
+class StrohGeometry(object):
+    '''This class computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
        Required input parameters are: the Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector, 
        and an array of angles phi to be integrated over.
-       The output is a dictionary containing the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
-       the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line.'''
-    ### initialize some arrays
-    Ntheta = len(theta)
-    Nphi = len(phi)
-    t = np.zeros((Ntheta,3))
-    m0 = np.zeros((Ntheta,3))
-    Cv = np.zeros((3,3,3,3,Ntheta))
-    M = np.zeros((3,Ntheta,Nphi))
-    N = np.zeros((3,Ntheta,Nphi))
-       
-    t = np.outer(np.cos(theta),b) + np.outer(np.sin(theta),np.cross(b,n0))
-    m0 = np.cross(n0,t)
-    
-    for i in range(3):
-        M[i] = np.outer(m0[:,i],np.cos(phi)) + np.outer(np.repeat(n0[i],Ntheta),np.sin(phi))
-        N[i] = np.outer(np.repeat(n0[i],Ntheta),np.cos(phi)) - np.outer(m0[:,i],np.sin(phi))
-        for j in range(3):
-            for k in range(3):
-                for l in range(3):
-                    Cv[i,j,k,l] = m0[:,i]*delta[j,k]*m0[:,l]
-    return {'Cv':Cv, 'M':M, 'N':N, 't':t, 'm0':m0}
+       Its attributes are: the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
+       the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line, as well as the dislocation line direction t and unit vector m0 normal to n0 and t.'''
+    def __init__(self,b, n0, theta, phi):
+        Ntheta = len(theta)
+        Nphi = len(phi)
+        self.t = np.zeros((Ntheta,3))
+        self.m0 = np.zeros((Ntheta,3))
+        self.Cv = np.zeros((3,3,3,3,Ntheta))
+        self.M = np.zeros((3,Ntheta,Nphi))
+        self.N = np.zeros((3,Ntheta,Nphi))
+        
+        self.t = np.outer(np.cos(theta),b) + np.outer(np.sin(theta),np.cross(b,n0))
+        self.m0 = np.cross(n0,self.t)
+        
+        for i in range(3):
+            self.M[i] = np.outer(self.m0[:,i],np.cos(phi)) + np.outer(np.repeat(n0[i],Ntheta),np.sin(phi))
+            self.N[i] = np.outer(np.repeat(n0[i],Ntheta),np.cos(phi)) - np.outer(self.m0[:,i],np.sin(phi))
+            for j in range(3):
+                for k in range(3):
+                    for l in range(3):
+                        self.Cv[i,j,k,l] = self.m0[:,i]*delta[j,k]*self.m0[:,l]
 
 @jit
 def ArrayDot(A,B):
@@ -50,7 +53,6 @@ def ArrayDot(A,B):
     N = len(A[0,0])
     AB = np.zeros((3,3,N))
     tmp = np.zeros((N))
-    # for th in range(N):
     for k in range(3):
         for l in range(3):
             for o in range(3):

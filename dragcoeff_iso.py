@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 27, 2018
+# Date: Nov. 5, 2017 - Aug. 21, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -34,9 +34,14 @@ import metal_data as data
 from elasticconstants import elasticC2, elasticC3
 from dislocations import fourieruij_iso
 from phononwind import elasticA3, dragcoeff_iso
-from joblib import Parallel, delayed
-## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-Ncores = -2
+try:
+    from joblib import Parallel, delayed
+    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
+    ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
+    Ncores = -2
+except ImportError:
+    print("WARNING: module 'joblib' not found, will run on only one core\n")
+    Ncores = 1 ## must be 1 (or 0) without joblib
 
 ### choose various resolutions and other parameters:
 Ntheta = 3 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -49,6 +54,7 @@ maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
 modes = 'all'
 # modes = 'TT'
+skip_plots=False ## set to True to skip generating plots from the results
 # in Fourier space:
 Nphi = 50
 Nphi1 = 50
@@ -151,28 +157,32 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
         metal = sys.argv[1].split()
-        
-    with open("beta.dat","w") as betafile:
-        betafile.write('\n'.join(map("{:.5f}".format,beta)))
-
-    with open("theta.dat","w") as thetafile:
-        thetafile.write('\n'.join(map("{:.6f}".format,theta)))
-
-    with open("temperatures.dat","w") as Tfile:
-        Tfile.write('\n'.join(map("{:.2f}".format,highT)))
-        
-    print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
+    if Ncores == 0:
+        print("skipping phonon wind calculations as requested")
+    else:
+        with open("beta.dat","w") as betafile:
+            betafile.write('\n'.join(map("{:.5f}".format,beta)))
+    
+        with open("theta.dat","w") as thetafile:
+            thetafile.write('\n'.join(map("{:.6f}".format,theta)))
+    
+        with open("temperatures.dat","w") as Tfile:
+            Tfile.write('\n'.join(map("{:.2f}".format,highT)))
+            
+        print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
+    
+    A3 = {}
+    for X in metal:
+        A3[X] = elasticA3(elasticC2(c12=c12[X], c44=c44[X]), elasticC3(l=cMl[X], m=cMm[X], n=cMn[X]))/c44[X]
     for X in metal:
         
-        A3 = elasticA3(elasticC2(c12=c12[X], c44=c44[X]), elasticC3(l=cMl[X], m=cMm[X], n=cMn[X]))/c44[X]  
-        
         # wrap all main computations into a single function definition to be run in a parallelized loop below
-        def maincomputations(bt,modes=modes):
+        def maincomputations(bt,X,modes=modes):
             Bmix = np.zeros((len(theta),len(highT)))
                                     
             dij = fourieruij_iso(bt, ct_over_cl[X], theta, phi)
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3, qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
             
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
@@ -200,21 +210,24 @@ if __name__ == '__main__':
 
         # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
         if Ncores == 1:
-            Bmix = np.array([maincomputations(bt,modes) for bt in beta])
+            Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
+        elif Ncores == 0:
+            pass
         else:
-            Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,modes) for bt in beta))
+            Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,X,modes) for bt in beta))
 
 
         # and write the results to disk (in various formats)
-        with open("drag_{}.dat".format(X),"w") as Bfile:
-            # Bfile.write('beta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
-            Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
-            Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
-            for bi in range(len(beta)):
-                Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
-
+        if Ncores != 0:
+            with open("drag_{}.dat".format(X),"w") as Bfile:
+                # Bfile.write('beta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
+                Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
+                for bi in range(len(beta)):
+                    Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+            
         # only print temperature dependence if temperatures other than room temperature are actually computed above
-        if len(highT)>1:
+        if len(highT)>1 and Ncores !=0:
             with open("drag_T_{}.dat".format(X),"w") as Bfile:
                 Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n') 
                 for bi in range(len(beta)):
@@ -233,7 +246,13 @@ if __name__ == '__main__':
                 with open("drag_T_mix{0:.6f}_{1}.dat".format(theta[th+1],X),"w") as Bmixfile:
                     for bi in range(len(beta)):
                         Bmixfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,th+1])) + '\n')
-        
+
+    #############################################################################################################################
+
+    if skip_plots:
+        print("skipping plots as requested")
+        sys.exit()
+    
     ###### plot room temperature results:
     ## load data from isotropic calculation
     Broom = {}

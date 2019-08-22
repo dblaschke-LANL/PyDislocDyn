@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 21, 2019
+# Date: Nov. 3, 2017 - Aug. 12, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -34,9 +34,13 @@ fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import metal_data as data
-from joblib import Parallel, delayed
-## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-Ncores = -2
+try:
+    from joblib import Parallel, delayed
+    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
+    Ncores = -2
+except ImportError:
+    print("WARNING: module 'joblib' not found, will run on only one core\n")
+    Ncores = 1 ## must be 1 without joblib
 
 ### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
 ### and phi is an integration angle used in the integral method for computing dislocations
@@ -208,9 +212,9 @@ if __name__ == '__main__':
             betafile.write('\n'.join(map("{:.5f}".format,beta_scaled[X])))
     
         geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phi)
-        Cv = geometry['Cv']
-        M = geometry['M']
-        N = geometry['N']
+        Cv = geometry.Cv
+        M = geometry.M
+        N = geometry.N
         
         ### compute dislocation displacement gradient uij and line tension LT
         def compute_lt(j):
@@ -274,12 +278,15 @@ if __name__ == '__main__':
     else:
         Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
 
-################################################         
+################################################    
+    import sympy as sp     
     if Ntheta2==0 or Ntheta2==None:
+        sys.exit()
+    elif sp.__version__ < '1.0':
+        print("Error: sympy {} is too old, need sympy 1.0 or higher to compute critical velocities; skipping".format(sp.__version__))
         sys.exit()
     
     print("Computing critical velocities for: ",metal)
-    import sympy as sp
     from scipy.optimize import fmin
     ### define some symbols and functions of symbols
     cc11 = sp.Symbol('cc11', real=True)

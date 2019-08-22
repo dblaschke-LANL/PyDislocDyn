@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 19, 2019
+# Date: Nov. 5, 2017 - Aug. 21, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -39,9 +39,14 @@ import metal_data as data
 from elasticconstants import elasticC2, elasticC3
 import dislocations as dlc
 from phononwind import elasticA3, dragcoeff_iso
-from joblib import Parallel, delayed
-## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-Ncores = -2
+try:
+    from joblib import Parallel, delayed
+    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
+    ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
+    Ncores = -2
+except ImportError:
+    print("WARNING: module 'joblib' not found, will run on only one core\n")
+    Ncores = 1 ## must be 1 (or 0) without joblib
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -54,6 +59,7 @@ maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
 modes = 'all'
 # modes = 'TT'
+skip_plots=False ## set to True to skip generating plots from the results
 # in Fourier space:
 Nphi = 50 # computation time scales linearly with resolution in phi, phi1 and t (each); increase for higher accuracy
 Nphi1 = 50
@@ -236,17 +242,20 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
         metal = sys.argv[1].split()
-        
-    with open("beta.dat","w") as betafile:
-        betafile.write('\n'.join(map("{:.5f}".format,beta)))
-
-    with open("theta.dat","w") as thetafile:
-        thetafile.write('\n'.join(map("{:.6f}".format,theta)))
-
-    with open("temperatures.dat","w") as Tfile:
-        Tfile.write('\n'.join(map("{:.1f}".format,highT)))  
     
-    print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
+    if Ncores == 0:
+        print("skipping phonon wind calculations as requested")
+    else:
+        with open("beta.dat","w") as betafile:
+            betafile.write('\n'.join(map("{:.5f}".format,beta)))
+    
+        with open("theta.dat","w") as thetafile:
+            thetafile.write('\n'.join(map("{:.6f}".format,theta)))
+    
+        with open("temperatures.dat","w") as Tfile:
+            Tfile.write('\n'.join(map("{:.1f}".format,highT)))  
+        
+        print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
     ## compute rotation matrices for later use
     for X in data.fcc_metals.intersection(metal):
@@ -283,32 +292,38 @@ if __name__ == '__main__':
     ## for use with fourieruij_nocut(), which is faster than fourieruij() if cutoffs are chosen such that they are neglegible in the result:
     sincos_noq = np.average(dlc.fourieruij_sincos(r,phiX,q,phi)[3:-4],axis=0)
         
+    A3rotated = {}
+    C2 = {}
+    Cv = {}
+    M = {}
+    N = {}
     for X in metal:
         geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phiX)
-        Cv = geometry['Cv']
-        M = geometry['M']
-        N = geometry['N']
-        linet[X] = np.round(geometry['t'],15)
-        velm0[X] = np.round(geometry['m0'],15)
+        Cv[X] = geometry.Cv
+        M[X] = geometry.M
+        N[X] = geometry.N
+        linet[X] = np.round(geometry.t,15)
+        velm0[X] = np.round(geometry.m0,15)
                
-        C2 = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
+        C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/mu[X]
-        A3 = elasticA3(C2,C3)
-        A3rotated = np.zeros((len(theta),3,3,3,3,3,3))
+        A3 = elasticA3(C2[X],C3)
+        A3rotated[X] = np.zeros((len(theta),3,3,3,3,3,3))
         for th in range(len(theta)):
-            A3rotated[th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3),12)
+            A3rotated[X][th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3),12)
         
+    for X in metal:
         # r = np.exp(np.linspace(np.log(burgers[X]/5),np.log(100*burgers[X]),125))
         ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
         # r = np.exp(np.linspace(np.log(rmin*np.pi/qBZ[X]),np.log(rmax*np.pi/qBZ[X]),Nr))
         # q = qBZ[X]*np.linspace(0,1,Nq)
     
         # wrap all main computations into a single function definition to be run in a parallelized loop below
-        def maincomputations(bt,modes=modes):
+        def maincomputations(bt,X,modes=modes):
             Bmix = np.zeros((len(theta),len(highT)))
                                     
             ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-            uij = dlc.computeuij(beta=bt, C2=C2, Cv=Cv, b=b[X], M=M, N=N, phi=phiX)
+            uij = dlc.computeuij(beta=bt, C2=C2[X], Cv=Cv[X], b=b[X], M=M[X], N=N[X], phi=phiX)
             # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
             uijrotated = np.zeros(uij.shape)
             for th in range(len(theta)):
@@ -318,7 +333,7 @@ if __name__ == '__main__':
             # dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,r_reg)
             dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,sincos=sincos_noq)
             
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated, qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
             
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
@@ -361,7 +376,7 @@ if __name__ == '__main__':
                 for th in range(len(theta)):
                     A3Trotated[th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3T),12)
                 ##########################
-                uij = dlc.computeuij(beta=betaT, C2=C2T, Cv=Cv, b=b[X], M=M, N=N, phi=phiX)
+                uij = dlc.computeuij(beta=betaT, C2=C2T, Cv=Cv[X], b=b[X], M=M[X], N=N[X], phi=phiX)
                 uijrotated = np.zeros(uij.shape)
                 for th in range(len(theta)):
                     uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],uij[:,:,th])),15)
@@ -374,24 +389,25 @@ if __name__ == '__main__':
                     
             return Bmix
 
-        ############## to bypass calculations and just create plots from previous runs, comment out this whole block of code: ##############################
-            
         # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
         if Ncores == 1:
-            Bmix = np.array([maincomputations(bt,modes) for bt in beta])
+            Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
+        elif Ncores == 0:
+            pass
         else:
-            Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,modes) for bt in beta))
+            Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,X,modes) for bt in beta))
 
 
         # and write the results to disk (in various formats)
-        with open("drag_anis_{}.dat".format(X),"w") as Bfile:
-            Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
-            Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
-            for bi in range(len(beta)):
-                Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+        if Ncores != 0:
+            with open("drag_anis_{}.dat".format(X),"w") as Bfile:
+                Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
+                for bi in range(len(beta)):
+                    Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
-        if len(highT)>1:
+        if len(highT)>1 and Ncores !=0:
             with open("drag_anis_T_{}.dat".format(X),"w") as Bfile:
                 Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
@@ -413,6 +429,10 @@ if __name__ == '__main__':
 
     #############################################################################################################################
 
+    if skip_plots:
+        print("skipping plots as requested")
+        sys.exit()
+    
     ###### plot room temperature results:
     print("Creating plots")
     ## compute smallest critical velocity in ratio to the scaling velocity and plot only up to this velocity
@@ -542,7 +562,8 @@ if __name__ == '__main__':
         mksmallbetaplot(X,ylab=True,xlab=True)
         divider = make_axes_locatable(ax1)
         cax = divider.append_axes("right", size="{}%".format(wspc))
-        cax.set_facecolor('none')
+        if mpl.__version__ >= '2.0.0':
+            cax.set_facecolor('none')
         for axis in ['top','bottom','left','right']:
             cax.spines[axis].set_linewidth(0)
         cax.set_xticks([])
