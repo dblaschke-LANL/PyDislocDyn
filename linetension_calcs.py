@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 12, 2019
+# Date: Nov. 3, 2017 - Sept. 6, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -52,7 +52,6 @@ Nphi = 1000
 dtheta = np.pi/(Ntheta-2)
 theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
 beta = np.linspace(0,1,Nbeta+1)
-phi = np.linspace(0,2*np.pi,Nphi)
 #####
 
 #### input data:
@@ -211,16 +210,14 @@ if __name__ == '__main__':
         with open("beta_{}.dat".format(X),"w") as betafile:
             betafile.write('\n'.join(map("{:.5f}".format,beta_scaled[X])))
     
-        geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phi)
-        Cv = geometry.Cv
-        M = geometry.M
-        N = geometry.N
+        dislocation = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=Nphi)
         
         ### compute dislocation displacement gradient uij and line tension LT
         def compute_lt(j):
-            uij = dlc.computeuij(beta=beta_scaled[X][j], C2=C2[X], Cv=Cv, b=b[X], M=M, N=N, phi=phi)
-            Etot = dlc.computeEtot(uij=uij, betaj=beta_scaled[X][j], C2=C2[X], Cv=Cv, phi=phi)
-            return 4*np.pi*dlc.computeLT(Etot=Etot, dtheta=dtheta)
+            dislocation.computeuij(beta=beta_scaled[X][j], C2=C2[X])
+            dislocation.computeEtot()
+            dislocation.computeLT()
+            return 4*np.pi*dislocation.LT
             
         LT = np.array([compute_lt(j) for j in range(Nbeta+1)])
         

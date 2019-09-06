@@ -186,11 +186,12 @@ if __name__ == '__main__':
             
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
-                qBZT = qBZ[X]/(1 + alpha_a[X]*(T - roomT))
+                expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
+                qBZT = qBZ[X]/expansionratio
+                burgersT = burgers[X]*expansionratio
+                rhoT = rho[X]/expansionratio**3
                 c44T = c44[X] ## TODO: need to implement T dependence of shear modulus!
                 c12T = bulk[X] - 2*c44T/3 ## TODO: need to implement T dependence of bulk modulus!
-                rhoT = rho[X]/(1 + alpha_a[X]*(T - roomT))**3
-                burgersT = burgers[X]*(1 + alpha_a[X]*(T - roomT))
                 ctT = np.sqrt(c44T/rhoT)
                 ct_over_cl_T = np.sqrt(c44T/(c12T+2*c44T))
                 clT = ctT/ct_over_cl_T

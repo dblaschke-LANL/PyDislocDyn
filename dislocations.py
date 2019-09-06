@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 12, 2019
+# Date: Nov. 3, 2017 - Sep. 6, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -25,11 +25,15 @@ class StrohGeometry(object):
     '''This class computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
        Required input parameters are: the Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector, 
        and an array of angles phi to be integrated over.
-       Its attributes are: the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
-       the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line, as well as the dislocation line direction t and unit vector m0 normal to n0 and t.'''
-    def __init__(self,b, n0, theta, phi):
+       Its initial attributes are: the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
+       the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line, as well as the dislocation line direction t and unit vector m0 normal to n0 and t.
+       Methods computeuij(), computeEtot(), and computeLT() call functions of the same name, storing results in attributes uij, Etot, and LT.'''
+    def __init__(self,b, n0, theta, Nphi):
         Ntheta = len(theta)
-        Nphi = len(phi)
+        self.theta = theta
+        self.phi = np.linspace(0,2*np.pi,Nphi)
+        self.b = b
+        self.n0=n0
         self.t = np.zeros((Ntheta,3))
         self.m0 = np.zeros((Ntheta,3))
         self.Cv = np.zeros((3,3,3,3,Ntheta))
@@ -40,12 +44,33 @@ class StrohGeometry(object):
         self.m0 = np.cross(n0,self.t)
         
         for i in range(3):
-            self.M[i] = np.outer(self.m0[:,i],np.cos(phi)) + np.outer(np.repeat(n0[i],Ntheta),np.sin(phi))
-            self.N[i] = np.outer(np.repeat(n0[i],Ntheta),np.cos(phi)) - np.outer(self.m0[:,i],np.sin(phi))
+            self.M[i] = np.outer(self.m0[:,i],np.cos(self.phi)) + np.outer(np.repeat(n0[i],Ntheta),np.sin(self.phi))
+            self.N[i] = np.outer(np.repeat(n0[i],Ntheta),np.cos(self.phi)) - np.outer(self.m0[:,i],np.sin(self.phi))
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
                         self.Cv[i,j,k,l] = self.m0[:,i]*delta[j,k]*self.m0[:,l]
+        
+        self.beta = 0
+        self.C2 = np.zeros((3,3,3,3))
+        self.uij = np.zeros((3,3,Ntheta,Nphi))
+        self.Etot = np.zeros((Ntheta))
+        self.LT = 0
+        
+    def computeuij(self, beta, C2, r=None, nogradient=False):
+        self.beta = beta
+        self.C2 = C2
+        self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=None, nogradient=False)
+        
+    def computeEtot(self):
+        self.Etot = computeEtot(self.uij, self.beta, self.C2, self.Cv, self.phi)
+        
+    def computeLT(self):
+        dtheta = abs(self.theta[1]-self.theta[0])
+        self.LT = computeLT(self.Etot, dtheta)
+        
+        
+#############################################################################
 
 @jit
 def ArrayDot(A,B):

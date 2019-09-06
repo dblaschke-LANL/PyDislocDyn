@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 22, 2019
+# Date: Nov. 5, 2017 - Sept. 6, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -298,12 +298,9 @@ if __name__ == '__main__':
     M = {}
     N = {}
     for X in metal:
-        geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phiX)
-        Cv[X] = geometry.Cv
-        M[X] = geometry.M
-        N[X] = geometry.N
-        linet[X] = np.round(geometry.t,15)
-        velm0[X] = np.round(geometry.m0,15)
+        dislocation = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=NphiX)
+        linet[X] = np.round(dislocation.t,15)
+        velm0[X] = np.round(dislocation.m0,15)
                
         C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/mu[X]
@@ -323,25 +320,25 @@ if __name__ == '__main__':
             Bmix = np.zeros((len(theta),len(highT)))
                                     
             ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-            uij = dlc.computeuij(beta=bt, C2=C2[X], Cv=Cv[X], b=b[X], M=M[X], N=N[X], phi=phiX)
+            dislocation.computeuij(beta=bt, C2=C2[X])
             # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
-            uijrotated = np.zeros(uij.shape)
+            uijrotated = np.zeros(dislocation.uij.shape)
             for th in range(len(theta)):
-                uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],uij[:,:,th])),15)
+                uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],dislocation.uij[:,:,th])),15)
             
             # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-            # dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,r_reg)
             dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,sincos=sincos_noq)
             
             Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
             
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
-                qBZT = qBZ[X]/(1 + alpha_a[X]*(T - roomT))
+                expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
+                qBZT = qBZ[X]/expansionratio
+                burgersT = burgers[X]*expansionratio
+                rhoT = rho[X]/expansionratio**3
                 muT = mu[X] ## TODO: need to implement T dependence of shear modulus!
                 lamT = bulk[X] - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
-                rhoT = rho[X]/(1 + alpha_a[X]*(T - roomT))**3
-                burgersT = burgers[X]*(1 + alpha_a[X]*(T - roomT))
                 ctT = np.sqrt(muT/rhoT)
                 ct_over_cl_T = np.sqrt(muT/(lamT+2*muT))
                 clT = ctT/ct_over_cl_T
@@ -376,10 +373,10 @@ if __name__ == '__main__':
                 for th in range(len(theta)):
                     A3Trotated[th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3T),12)
                 ##########################
-                uij = dlc.computeuij(beta=betaT, C2=C2T, Cv=Cv[X], b=b[X], M=M[X], N=N[X], phi=phiX)
-                uijrotated = np.zeros(uij.shape)
+                dislocation.computeuij(beta=betaT, C2=C2T)
+                uijrotated = np.zeros(dislocation.uij.shape)
                 for th in range(len(theta)):
-                    uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],uij[:,:,th])),15)
+                    uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],dislocation.uij[:,:,th])),15)
                                     
                 ## rT*qT = r*q, so does not change anything
                 # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
