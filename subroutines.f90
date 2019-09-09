@@ -1,8 +1,8 @@
-! Some subroutines meant to be compiled for phononwind.py via f2py
-! run 'f2py -c phononwindsubroutines.f95 -m phononwindsubroutines' to use
+! Some subroutines meant to be compiled for phononwind.py and dislocations.py via f2py
+! run 'f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 27, 2018
+! Date: July 23, 2018 - Sept. 9, 2019
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
 
@@ -89,9 +89,9 @@ end do
 end do
 
 return
-end subroutine
+end subroutine thesum
 
-
+!!**********************************************************************
 
 subroutine dragintegrand(output,prefactor,dij,poly,lent,lenph)
 
@@ -121,5 +121,35 @@ end do
 output(:,:) = prefactor(:,:)*output(:,:)
 
 return
-end subroutine
+end subroutine dragintegrand
 
+!!**********************************************************************
+
+SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+!-----------------------------------------------------------------------
+!  Inputs:
+  INTEGER, INTENT(IN) :: Ntheta,Nphi
+  REAL(KIND=8), DIMENSION(Nphi,3,Ntheta), INTENT(IN)  :: a, b
+  REAL(KIND=8), DIMENSION(3,3,3,3,Ntheta), INTENT(IN)  :: Cmat
+!-----------------------------------------------------------------------
+!  Outputs:
+  REAL(KIND=8), DIMENSION(Nphi,3,3,Ntheta), INTENT(OUT) :: AB
+!-----------------------------------------------------------------------
+  integer l,o,k,p,i
+  AB(:,:,:,:) = 0.d0
+  do i=1, Ntheta
+    do p=1,3
+      do o=1,3
+        do l=1,3
+          do k=1,3
+            AB(:,l,o,i) = AB(:,l,o,i) + a(:,k,i)*Cmat(k,l,o,p,i)*b(:,p,i)
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  RETURN
+END SUBROUTINE elbrak

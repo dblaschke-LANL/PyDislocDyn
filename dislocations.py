@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sep. 6, 2019
+# Date: Nov. 3, 2017 - Sep. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -11,10 +11,12 @@ from __future__ import print_function
 # assert version_info >= (3,5)
 import numpy as np
 from scipy.integrate import cumtrapz
+nonumba=False
 try:
     from numba import jit
 except ImportError:
     print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
+    nonumba=True
     def jit(func):
         return func
 
@@ -75,32 +77,56 @@ class StrohGeometry(object):
 @jit
 def ArrayDot(A,B):
     '''Dot product of matrices, except that each matrix entry is itself an array.'''
-    N = len(A[0,0])
-    AB = np.zeros((3,3,N))
+    Ashape = A.shape
+    Bshape = B.shape
+    nk = Ashape[0]
+    nl = Bshape[1]
+    no = max(Ashape[1],Bshape[0])
+    # if numbers don't match, python loop will trigger an error, but jit-compiled will silently produce junk (tradeoff for speed)
+    if len(Ashape)==2:
+        N=1
+    else:
+        N=Ashape[-1]
+    if len(Bshape)>2:
+        N=max(N,Bshape[-1])
+    AB = np.zeros((nk,nl,N))
     tmp = np.zeros((N))
-    for k in range(3):
-        for l in range(3):
-            for o in range(3):
-                np.add(np.multiply(A[k,o] , B[o,l] , tmp) , AB[k,l])
+    for k in range(nk):
+        for l in range(nl):
+            for o in range(no):
+                np.add(np.multiply(A[k,o] , B[o,l] , tmp), AB[k,l], AB[k,l])
     return AB
-
-@jit
-def elbrak(A,B,elC):
-    '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
-    Ntheta = len(A[0,:,0])
-    Nphi = len(A[0,0])
-    tmp = np.zeros((Nphi))
-    AB = np.zeros((3,3,Ntheta,Nphi))
-    for th in range(Ntheta):
-        for l in range(3):
-            for o in range(3):
-                for k in range(3):
-                    for p in range(3):
-                        # AB[l,o,th] += A[k,th]*elC[k,l,o,p,th]*B[p,th]
-                        #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
-                        np.add(AB[l,o,th] , np.multiply(np.multiply(A[k,th],elC[k,l,o,p,th],tmp),B[p,th],tmp) , AB[l,o,th])
     
-    return AB
+try:
+    import subroutines as fsub
+    usefortran = True
+except ImportError:
+    print("WARNING: module 'subroutines' not found, execution will be slower")
+    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
+    usefortran = False
+## numba version of elbrak() is just as fast as the fortran implementation, so we use the latter only as a fall-back if numba is missing
+if nonumba and usefortran:
+    def elbrak(A,B,elC):
+        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
+        return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
+else:
+    @jit
+    def elbrak(A,B,elC):
+        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
+        Ntheta = len(A[0,:,0])
+        Nphi = len(A[0,0])
+        tmp = np.zeros((Nphi))
+        AB = np.zeros((3,3,Ntheta,Nphi))
+        for th in range(Ntheta):
+            for l in range(3):
+                for o in range(3):
+                    for k in range(3):
+                        for p in range(3):
+                            # AB[l,o,th] += A[k,th]*elC[k,l,o,p,th]*B[p,th]
+                            #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
+                            np.add(AB[l,o,th] , np.multiply(np.multiply(A[k,th],elC[k,l,o,p,th],tmp),B[p,th],tmp) , AB[l,o,th])
+        
+        return AB
 
 @jit
 def elbrak_alt(A,B,elC):
@@ -115,7 +141,7 @@ def elbrak_alt(A,B,elC):
             for l in range(3):
                 for o in range(3):
                     for p in range(3):
-                        AB[th] += A[k,l,th]*B[o,p,th]*elC[k,l,o,p]
+                        # AB[th] += A[k,l,th]*B[o,p,th]*elC[k,l,o,p]
                         #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
                         np.add(AB[th] , np.multiply(np.multiply(A[k,l,th],elC[k,l,o,p],tmp),B[o,p,th],tmp) , AB[th])
         
