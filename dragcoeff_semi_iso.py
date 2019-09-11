@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 22, 2019
+# Date: Nov. 5, 2017 - Sept. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -330,18 +330,18 @@ if __name__ == '__main__':
                 uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],uij[:,:,th])),15)
             
             # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-            # dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,r_reg)
             dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,sincos=sincos_noq)
             
             Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
             
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
-                qBZT = qBZ[X]/(1 + alpha_a[X]*(T - roomT))
+                expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
+                qBZT = qBZ[X]/expansionratio
+                burgersT = burgers[X]*expansionratio
+                rhoT = rho[X]/expansionratio**3
                 muT = mu[X] ## TODO: need to implement T dependence of shear modulus!
                 lamT = bulk[X] - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
-                rhoT = rho[X]/(1 + alpha_a[X]*(T - roomT))**3
-                burgersT = burgers[X]*(1 + alpha_a[X]*(T - roomT))
                 ctT = np.sqrt(muT/rhoT)
                 ct_over_cl_T = np.sqrt(muT/(lamT+2*muT))
                 clT = ctT/ct_over_cl_T

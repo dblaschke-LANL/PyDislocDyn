@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 21, 2019
+# Date: Nov. 5, 2017 - Aug. 22, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -186,11 +186,12 @@ if __name__ == '__main__':
             
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
-                qBZT = qBZ[X]/(1 + alpha_a[X]*(T - roomT))
+                expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
+                qBZT = qBZ[X]/expansionratio
+                burgersT = burgers[X]*expansionratio
+                rhoT = rho[X]/expansionratio**3
                 c44T = c44[X] ## TODO: need to implement T dependence of shear modulus!
                 c12T = bulk[X] - 2*c44T/3 ## TODO: need to implement T dependence of bulk modulus!
-                rhoT = rho[X]/(1 + alpha_a[X]*(T - roomT))**3
-                burgersT = burgers[X]*(1 + alpha_a[X]*(T - roomT))
                 ctT = np.sqrt(c44T/rhoT)
                 ct_over_cl_T = np.sqrt(c44T/(c12T+2*c44T))
                 clT = ctT/ct_over_cl_T
