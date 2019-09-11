@@ -148,15 +148,22 @@ def elbrak_alt(A,B,elC):
     return AB
 
 @jit
-def computeuij(beta, C2, Cv, b, M, N, phi):
+def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
     '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi as explained below),
        which corresponds to the displacement gradient multiplied by the radius r (i.e. we only return the angular dependence).
        Required input parameters are: the dislocation velocity betaj, 2nd order elastic constant tensor C2, its velocity dependent shift Cv
        (and all three may be scaled by a common parameter like the mean shear modulus), the Burgers vector b, vectors M, N spanning the plane normal to the dislocation line,
-       and the integration angle phi inside the plane spanned by M,N.'''
+       and the integration angle phi inside the plane spanned by M,N.
+       If r is provided, the full displacement gradient (a 3x3xNthetaxNrxNphi dimensional array) is returned.
+       If option nogradient is set to True, the displacement field (not its gradient) is returned: a 3xNthetaxNrxNphi dimensional array.
+       In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
     Ntheta = len(M[0,:,0])
     Nphi = len(phi)
+    if r is not None:
+        Nr = len(np.asarray(r))
+    else:
+        Nr = 0
     MM = np.zeros((3,3,Ntheta,Nphi))
     NN = np.zeros((3,3,Ntheta,Nphi))
     MN = np.zeros((3,3,Ntheta,Nphi))
@@ -167,7 +174,6 @@ def computeuij(beta, C2, Cv, b, M, N, phi):
     S = np.zeros((3,3,Ntheta,Nphi))
     ## Sb = S.b (integrated over phi)
     Sb = np.empty((3,Ntheta))
-    uij = np.zeros((3,3,Ntheta,Nphi))
     pi = np.pi
     
     tmp = np.empty((Nphi))
@@ -202,34 +208,104 @@ def computeuij(beta, C2, Cv, b, M, N, phi):
                     
     Sb = (1/(4*pi*pi))*np.tensordot(np.trapz(S,x=phi),b,axes = ([1],[0]))
     B = (1/(4*pi*pi))*np.tensordot(np.trapz(B,x=phi),b,axes = ([1],[0]))
-
-    # tmp2 = np.empty((Nphi))
-    for th in range(Ntheta):
-        for k in range(3):
-            for l in range(3):
-                uij[k,l,th] = uij[k,l,th] - Sb[k,th]*M[l,th]
-                # np.subtract(uij[k,l,th] ,  np.multiply(Sb[k,th] , M[l,th] , tmp2) , uij[k,l,th])
+    
+    if nogradient==True:
+        if Nr==0:
+            raise ValueError("I need an array for r in conjunction with nogradient=True.")
+        r0 = r[0] ## cutoff
+        uiphi = np.zeros((3,Ntheta,Nphi))
+        
+        tmpu = np.zeros((3,Ntheta,Nphi))
+        for th in range(Ntheta):
+            # tmpu = np.zeros((3,Nphi))
+            for j in range(3):
                 for p in range(3):
-                    uij[k,l,th] += N[l,th]*(NNinv[k,p,th]*B[p,th] - S[k,p,th]*Sb[p,th])
-                    # np.add(uij[k,l,th] , np.multiply(N[l,th] , np.subtract(np.multiply(NNinv[k,p,th] , B[p,th] , tmp2) , np.multiply(S[k,p,th] , Sb[p,th] , tmp) , tmp) , tmp) , uij[k,l,th])
+                    tmpu[j,th] += (NNinv[j,p,th]*B[p,th] - S[j,p,th]*Sb[p,th])
+        uiphi = cumtrapz(tmpu,x=phi,initial=0)
+        # for ph in range(Nphi):
+        #     uiphi[:,:,ph] = np.trapz(tmpu[:,:,:ph],x=phi[:ph])
+        
+        uij=np.moveaxis(np.reshape(np.outer(np.ones(Nr),uiphi)-np.outer(np.log(r/r0),np.outer(Sb,np.ones(Nphi))),(Nr,3,Ntheta,Nphi)),0,-2)
+    else:
+        uij = np.zeros((3,3,Ntheta,Nphi))
+        for th in range(Ntheta):
+            for k in range(3):
+                for l in range(3):
+                    uij[k,l,th] = uij[k,l,th] - Sb[k,th]*M[l,th]
+                    for p in range(3):
+                        uij[k,l,th] += N[l,th]*(NNinv[k,p,th]*B[p,th] - S[k,p,th]*Sb[p,th])
+                        
+        if Nr != 0:
+            uij = np.moveaxis(np.reshape(np.outer(1/r,uij),(Nr,3,3,Ntheta,Nphi)),0,-2)
  
     return uij
 
+
+if np.version.version<'1.13':
+    ## work around missing np.heaviside() in older versions of numpy
+    @jit
+    def artan(x,y):
+        '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
+        out = np.arctan2(x,y)
+        sgn = np.sign(-out)
+        out += 2*np.pi*sgn*(sgn+1)/2
+        return out
+else:
+    def artan(x,y):
+        '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
+        out = np.arctan2(x,y)
+        out += 2*np.pi*np.heaviside(-out,0)
+        return out
+
 ############# isotropic case
-def computeuij_iso(beta,ct_over_cl, theta, phi):
+def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
     '''Compute the dislocation displacement gradient field in the isotropic limit.
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi),
        which corresponds to the displacement gradient multiplied by the radius r over the magnitude of the Burgers vector (i.e. we only return the angular dependence).
        Required input parameters are: the dislocation velocity beta in units of transverse sound speed, the ratio of transverse to longitudinal sound speed,
-       and two arrays encoding the discretized dependence on the angle theta between dislocation line and Burgers vector and the polar angle phi in the plane normal to the dislocation line.'''
+       and two arrays encoding the discretized dependence on the angle theta between dislocation line and Burgers vector and the polar angle phi in the plane normal to the dislocation line.
+       If r is provided, the full displacement gradient (a 3x3xNthetaxNrxNphi dimensional array) is returned.
+       If option nogradient is set to True, the displacement field (not its gradient) is returned: a 3xNthetaxNrxNphi dimensional array.
+       In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
+    if r is not None:
+        Nr = len(np.asarray(r))
+    else:
+        Nr = 0
+    Ntheta = len(theta)
+    Nphi = len(phi)
     gamt = np.sqrt(1-beta**2) ## defined as 1/gamma
     gaml = np.sqrt(1-(ct_over_cl*beta)**2)
-    uij = np.zeros((3,3,len(theta),len(phi)))
+    uij = np.zeros((3,3,Ntheta,Nphi))
     pi = np.pi
     sinph = np.sin(phi)
     cosph = np.cos(phi)
     sinth = np.sin(theta)
-    if beta==0:
+    if nogradient==True:
+        if Nr==0:
+            raise ValueError("I need an array for r in conjunction with nogradient=True.")
+        r0 = r[0] ## cutoff
+        uk = np.zeros((3,Ntheta,Nr*Nphi))
+        one = np.ones((Nr))
+        if beta==0:
+            crat2 = ct_over_cl**2
+            atan = artan(sinph,cosph)
+            ## edge parametrized by sin(theta)
+            uk[0] = np.outer(np.sin(theta),np.outer(one,(atan + (1-crat2)*cosph*sinph)/(2*pi)))
+            uk[1] = np.outer(np.sin(theta),np.outer(one,((1-crat2)*(sinph)**2)/(2*pi)) - np.outer((crat2*np.log(r**2/r0**2))/(4*pi),np.ones((Nphi))))
+        else:
+            x2 = np.outer(r**2,cosph**2)
+            y2 = np.outer(r**2,sinph**2)
+            gamt = np.sqrt(1-beta**2)  ## defined as 1/gamma
+            gaml = np.sqrt(1-(ct_over_cl*beta)**2)
+            atan = artan(sinph,(1/gamt)*cosph)
+            atanL = artan(sinph,(1/gaml)*cosph)
+            ## edge parametrized by sin(theta)
+            uk[0] = np.outer(np.sin(theta),np.outer(one,(atanL - (1-beta**2/2)*atan)/(pi*beta**2)))
+            uk[1] = np.outer(np.sin(theta),(gaml*np.log((x2 + y2*gaml**2)/r0**2) - (1/gamt)*(1-beta**2/2)*np.log((x2 + y2*gamt**2)/r0**2))/(2*pi*beta**2))
+        ## screw parametrized by cos(theta)
+        uk[2] = np.outer(np.cos(theta),np.outer(one,atan/(2*pi)))
+        uij = np.reshape(uk,(3,Ntheta,Nr,Nphi))
+    elif beta==0:
         crat2 = ct_over_cl**2
         denomT = 1
         ## edge parametrized by sin(theta)
@@ -251,7 +327,8 @@ def computeuij_iso(beta,ct_over_cl, theta, phi):
         ## screw parametrized by cos(theta)
         uij[2,0] = (-1/(2*pi))*np.outer(np.cos(theta),sinph*gamt/denomT)
         uij[2,1] = (1/(2*pi))*np.outer(np.cos(theta),cosph*gamt/denomT)
-    
+    if Nr != 0 and nogradient!=True:
+            uij = np.moveaxis(np.reshape(np.outer(1/r,uij),(Nr,3,3,Ntheta,Nphi)),0,-2)
     return uij
 
 #### Fourier transform of uij, isotropic case
