@@ -294,16 +294,10 @@ if __name__ == '__main__':
         
     A3rotated = {}
     C2 = {}
-    Cv = {}
-    M = {}
-    N = {}
     for X in metal:
-        geometry = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, phi=phiX)
-        Cv[X] = geometry.Cv
-        M[X] = geometry.M
-        N[X] = geometry.N
-        linet[X] = np.round(geometry.t,15)
-        velm0[X] = np.round(geometry.m0,15)
+        dislocation = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=NphiX)
+        linet[X] = np.round(dislocation.t,15)
+        velm0[X] = np.round(dislocation.m0,15)
                
         C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/mu[X]
@@ -323,11 +317,11 @@ if __name__ == '__main__':
             Bmix = np.zeros((len(theta),len(highT)))
                                     
             ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-            uij = dlc.computeuij(beta=bt, C2=C2[X], Cv=Cv[X], b=b[X], M=M[X], N=N[X], phi=phiX)
+            dislocation.computeuij(beta=bt, C2=C2[X])
             # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
-            uijrotated = np.zeros(uij.shape)
+            uijrotated = np.zeros(dislocation.uij.shape)
             for th in range(len(theta)):
-                uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],uij[:,:,th])),15)
+                uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],dislocation.uij[:,:,th])),15)
             
             # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
             dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,sincos=sincos_noq)
@@ -376,10 +370,10 @@ if __name__ == '__main__':
                 for th in range(len(theta)):
                     A3Trotated[th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3T),12)
                 ##########################
-                uij = dlc.computeuij(beta=betaT, C2=C2T, Cv=Cv[X], b=b[X], M=M[X], N=N[X], phi=phiX)
-                uijrotated = np.zeros(uij.shape)
+                dislocation.computeuij(beta=betaT, C2=C2T)
+                uijrotated = np.zeros(dislocation.uij.shape)
                 for th in range(len(theta)):
-                    uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],uij[:,:,th])),15)
+                    uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],dislocation.uij[:,:,th])),15)
                                     
                 ## rT*qT = r*q, so does not change anything
                 # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
