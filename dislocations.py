@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sep. 9, 2019
+# Date: Nov. 3, 2017 - Sep. 10, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -226,17 +226,33 @@ def computeuij_iso(beta,ct_over_cl, theta, phi):
     gaml = np.sqrt(1-(ct_over_cl*beta)**2)
     uij = np.zeros((3,3,len(theta),len(phi)))
     pi = np.pi
-    ## edge parametrized by sin(theta)
-    uij[0,0] = (-1/(pi*beta**2))*np.outer(np.sin(theta),np.sin(phi)*(gaml/(1-(ct_over_cl*beta*np.sin(phi))**2)-(1-beta**2/2)*gamt/(1-(beta*np.sin(phi))**2)))
-    uij[0,1] = (1/(pi*beta**2))*np.outer(np.sin(theta),np.cos(phi)*(gaml/(1-(ct_over_cl*beta*np.sin(phi))**2)-(1-beta**2/2)*gamt/(1-(beta*np.sin(phi))**2)))
-    uij[1,0] = (1/(pi*beta**2))*np.outer(np.sin(theta),np.cos(phi)*(gaml/(1-(ct_over_cl*beta*np.sin(phi))**2)-(1-beta**2/2)/((1-(beta*np.sin(phi))**2)*gamt)))
-    uij[1,1] = (1/(pi*beta**2))*np.outer(np.sin(theta),np.sin(phi)*(gaml**3/(1-(ct_over_cl*beta*np.sin(phi))**2)-(1-beta**2/2)*gamt/(1-(beta*np.sin(phi))**2)))
-    ## screw parametrized by cos(theta)
-    uij[2,0] = (-1/(2*pi))*np.outer(np.cos(theta),np.sin(phi)*gamt/(1-(beta*np.sin(phi))**2))
-    uij[2,1] = (1/(2*pi))*np.outer(np.cos(theta),np.cos(phi)*gamt/(1-(beta*np.sin(phi))**2))
+    sinph = np.sin(phi)
+    cosph = np.cos(phi)
+    sinth = np.sin(theta)
+    if beta==0:
+        crat2 = ct_over_cl**2
+        denomT = 1
+        ## edge parametrized by sin(theta)
+        uij[0,0] = (-1/pi)*np.outer(sinth,sinph*((1-(crat2/2))*cosph**2+(crat2/2)*sinph**2))
+        uij[0,1] = (1/pi)*np.outer(sinth,cosph*((1-(crat2/2))*cosph**2+(crat2/2)*sinph**2))
+        uij[1,0] = (-1/pi)*np.outer(sinth,cosph*((1-(crat2/2))*sinph**2+(crat2/2)*cosph**2))
+        uij[1,1] = (1/pi)*np.outer(sinth,sinph*((1-3*(crat2/2))*cosph**2-(crat2/2)*sinph**2))
+        ## screw parametrized by cos(theta)
+        uij[2,0] = (-1/(2*pi))*np.outer(np.cos(theta),sinph)
+        uij[2,1] = (1/(2*pi))*np.outer(np.cos(theta),cosph)
+    else:
+        denomL = 1-(ct_over_cl*beta*sinph)**2
+        denomT = 1-(beta*sinph)**2
+        ## edge parametrized by sin(theta)
+        uij[0,0] = (-1/(pi*beta**2))*np.outer(sinth,sinph*(gaml/denomL-(1-beta**2/2)*gamt/denomT))
+        uij[0,1] = (1/(pi*beta**2))*np.outer(sinth,cosph*(gaml/denomL-(1-beta**2/2)*gamt/denomT))
+        uij[1,0] = (1/(pi*beta**2))*np.outer(sinth,cosph*(gaml/denomL-(1-beta**2/2)/(denomT*gamt)))
+        uij[1,1] = (1/(pi*beta**2))*np.outer(sinth,sinph*(gaml**3/denomL-(1-beta**2/2)*gamt/denomT))
+        ## screw parametrized by cos(theta)
+        uij[2,0] = (-1/(2*pi))*np.outer(np.cos(theta),sinph*gamt/denomT)
+        uij[2,1] = (1/(2*pi))*np.outer(np.cos(theta),cosph*gamt/denomT)
     
     return uij
-
 
 #### Fourier transform of uij, isotropic case
 def fourieruij_iso(beta,ct_over_cl, theta, phi):
@@ -247,14 +263,27 @@ def fourieruij_iso(beta,ct_over_cl, theta, phi):
     gamt = (1-beta**2) ## defined as 1/gamma**2
     gaml = (1-(ct_over_cl*beta)**2)
     uij = np.zeros((3,3,len(theta),len(phi)))
-    ## edge parametrized by sin(theta)
-    uij[0,0] = (-2/(beta**2))*np.outer(np.sin(theta),np.sin(phi)*(1/(1-(ct_over_cl*beta*np.cos(phi))**2)-(1-beta**2/2)/(1-(beta*np.cos(phi))**2)))
-    uij[0,1] = (2/(beta**2))*np.outer(np.sin(theta),np.cos(phi)*(gaml/(1-(ct_over_cl*beta*np.cos(phi))**2)-(1-beta**2/2)*gamt/(1-(beta*np.cos(phi))**2)))
-    uij[1,0] = (2/(beta**2))*np.outer(np.sin(theta),np.cos(phi)*(gaml/(1-(ct_over_cl*beta*np.cos(phi))**2)-(1-beta**2/2)/(1-(beta*np.cos(phi))**2)))
-    uij[1,1] = (2/(beta**2))*np.outer(np.sin(theta),np.sin(phi)*(gaml/(1-(ct_over_cl*beta*np.cos(phi))**2)-(1-beta**2/2)/(1-(beta*np.cos(phi))**2)))
+    sinph = np.sin(phi)
+    cosph = np.cos(phi)
+    sinth = np.sin(theta)
+    denomL = 1-(ct_over_cl*beta*cosph)**2
+    denomT = 1-(beta*cosph)**2
+    if beta==0:
+        crat2 = ct_over_cl**2
+        ## edge parametrized by sin(theta)
+        uij[0,0] = -np.outer(sinth,sinph*(sinph**2 + (2*crat2-1)*cosph**2))
+        uij[0,1] = np.outer(sinth,cosph*(2*(1-crat2)*sinph**2 + 1))
+        uij[1,0] = np.outer(sinth,cosph*(2*(1-crat2)*sinph**2 - 1))
+        uij[1,1] = np.outer(sinth,sinph*(2*(1-crat2)*sinph**2 - 1))
+    else:
+        ## edge parametrized by sin(theta)
+        uij[0,0] = (-2/(beta**2))*np.outer(sinth,sinph*(1/denomL-(1-beta**2/2)/denomT))
+        uij[0,1] = (2/(beta**2))*np.outer(sinth,cosph*(gaml/denomL-(1-beta**2/2)*gamt/denomT))
+        uij[1,0] = (2/(beta**2))*np.outer(sinth,cosph*(gaml/denomL-(1-beta**2/2)/denomT))
+        uij[1,1] = (2/(beta**2))*np.outer(sinth,sinph*(gaml/denomL-(1-beta**2/2)/denomT))
     ## screw parametrized by cos(theta)
-    uij[2,0] = -np.outer(np.cos(theta),np.sin(phi)*1/(1-(beta*np.cos(phi))**2))
-    uij[2,1] = np.outer(np.cos(theta),np.cos(phi)*gamt/(1-(beta*np.cos(phi))**2))
+    uij[2,0] = -np.outer(np.cos(theta),sinph*1/denomT)
+    uij[2,1] = np.outer(np.cos(theta),cosph*gamt/denomT)
     
     return uij
 

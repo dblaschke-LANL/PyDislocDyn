@@ -385,7 +385,7 @@ if __name__ == '__main__':
                 bt2_curr = np.array(Parallel(n_jobs=Ncores)(delayed(compute_bt2)(thi,N,m0,C2,bt2) for thi in range(Ntheta)))
         for X in metal_list:
             bt2_res = np.zeros((3,2),dtype=complex)
-            vcrit[X] = np.zeros((Ntheta,3))
+            vcrit[X] = np.zeros((2,Ntheta,3))
             for thi in range(Ntheta):
                 if Xloop:
                     bt2_X = np.copy(bt2_curr[X][thi])
@@ -401,10 +401,11 @@ if __name__ == '__main__':
                     bt2_res[i,0] = fmin(f,0.001,disp=False)
                     bt2_res[i,1] = bt2_X[i].subs({phi:bt2_res[i,0]})
                 mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
-                vcrit[X][thi] = np.sqrt(c44[X]/mu[X]*np.real(bt2_res[:,1][mask]))
+                vcrit[X][0,thi] = np.sqrt(c44[X]/mu[X]*np.real(bt2_res[:,1][mask]))
+                vcrit[X][1,thi] = np.real(bt2_res[:,0][mask])
         return vcrit
         
-    vcrit = {}
+    vcrit = {} # values contain critical velocities and associated polar angles
     vcrit.update(computevcrit(bfcc,n0fcc,C2cub,Ntheta2,sorted(list(data.fcc_metals.intersection(metal))),symmetric=True))
     vcrit.update(computevcrit(bbcc,n0bcc,C2cub,2*Ntheta2-1,sorted(list(data.bcc_metals.intersection(metal))),symmetric=False))
     if hcpslip=='basal':
@@ -418,35 +419,53 @@ if __name__ == '__main__':
     ## write vcrit results to disk, then plot
     rho = data.CRC_rho ## need densities to convert vcrit to m/s
     with open("vcrit.dat","w") as vcritfile:
-        vcritfile.write("theta/pi\t" + '\t'.join(map("{:.6f}".format,np.linspace(1/2,-1/2,2*Ntheta2-1))) + '\n')
+        vcritfile.write("theta/pi\t" + '\t'.join(map("{:.4f}".format,np.linspace(1/2,-1/2,2*Ntheta2-1))) + '\n')
         vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
         for X in sorted(list(set(metal).intersection(vcrit.keys()))):
             for i in range(3):
-                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.0f}".format,np.flipud(np.sqrt(mu[X]/rho[X])*vcrit[X][:,i]))) + '\n')
+                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.0f}".format,np.flipud(np.sqrt(mu[X]/rho[X])*vcrit[X][0,:,i]))) + '\n')
+        vcritfile.write("\ntheta/pi\t" + '\t'.join(map("{:.4f}".format,np.linspace(1/2,-1/2,2*Ntheta2-1))) + '\n')
+        vcritfile.write("metal / phi(vcrit)[pi] - polar angle at which vcrit occurs (3 solutions per theta)\n")
+        for X in sorted(list(set(metal).intersection(vcrit.keys()))):
+            for i in range(3):
+                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.4f}".format,np.flipud(vcrit[X][1,:,i]/np.pi))) + '\n')
                 
     def mkvcritplot(X,vcrit,Ntheta):
-        fig, ax = plt.subplots(1, 1, figsize=(5.5,4.5))
+        fig, (ax1,ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [2, 1]}, figsize=(5.5,6.0))
+        plt.tight_layout(h_pad=0.0)
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
-        if len(vcrit)==Ntheta:
+        vcrit0 = np.sqrt(mu[X]/rho[X])*vcrit[0]
+        vcrit1 = vcrit[1]/np.pi
+        if len(vcrit0)==Ntheta:
             plt.xticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
             thetapoints = np.linspace(0,np.pi/2,Ntheta)
         else:
             plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
             thetapoints = np.linspace(-np.pi/2,np.pi/2,2*Ntheta-1)
-        ax.axis((min(thetapoints),max(thetapoints),np.min(vcrit)*0.97,np.max(vcrit)*1.02)) ## define plot range
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel(r'$\vartheta$',fontsize=fntsize)
-        ax.set_ylabel(r'$v_c$[m/s]',fontsize=fntsize)
-        ax.set_title("3 vcrit solutions for {}".format(X),fontsize=fntsize)
-        if np.all(np.round(np.max(vcrit,axis=1),6)==round(np.max(vcrit,axis=1)[0],6)) and np.all(np.round(np.min(vcrit,axis=1),6)==round(np.min(vcrit,axis=1)[0],6)):
-            vcrit = np.sort(vcrit)
+        ax1.axis((min(thetapoints),max(thetapoints),np.min(vcrit0)*0.97,np.max(vcrit0)*1.02)) ## define plot range
+        ax1.xaxis.set_minor_locator(AutoMinorLocator())
+        ax1.yaxis.set_minor_locator(AutoMinorLocator())
+        ax1.set_ylabel(r'$v_\mathrm{c}$[m/s]',fontsize=fntsize)
+        ax1.set_title("3 vcrit solutions for {}".format(X),fontsize=fntsize)
+        plt.setp(ax1.get_xticklabels(), visible=False)
+        if np.all(np.round(np.max(vcrit0,axis=1),6)==round(np.max(vcrit0,axis=1)[0],6)) and np.all(np.round(np.min(vcrit0,axis=1),6)==round(np.min(vcrit0,axis=1)[0],6)):
+            vcrit0 = np.sort(vcrit0)
         for i in range(3):
-            ax.plot(thetapoints,vcrit[:,i])
+            ax1.plot(thetapoints,vcrit0[:,i])
+        ##
+        ax2.axis((min(thetapoints),max(thetapoints),np.min(vcrit1)*0.97,np.max(vcrit1)*1.02)) ## define plot range
+        ax2.xaxis.set_minor_locator(AutoMinorLocator())
+        ax2.yaxis.set_minor_locator(AutoMinorLocator())
+        ax2.set_xlabel(r'$\vartheta$',fontsize=fntsize)
+        ax2.set_ylabel(r'$\phi(v_\mathrm{c})/\pi$',fontsize=fntsize)
+        if np.all(np.round(np.max(vcrit1,axis=1),6)==round(np.max(vcrit1,axis=1)[0],6)) and np.all(np.round(np.min(vcrit1,axis=1),6)==round(np.min(vcrit1,axis=1)[0],6)):
+            vcrit1 = np.sort(vcrit1)
+        for i in range(3):
+            ax2.plot(thetapoints,vcrit1[:,i])
         plt.savefig("vcrit_{}.pdf".format(X),format='pdf',bbox_inches='tight')
         plt.close()
     
     for X in sorted(list(set(metal).intersection(vcrit.keys()))):
-        mkvcritplot(X,np.sqrt(mu[X]/rho[X])*vcrit[X],Ntheta2)
+        mkvcritplot(X,vcrit[X],Ntheta2)
         
