@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 26, 2019
+# Date: Nov. 5, 2017 - Sept. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -58,11 +58,11 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
 
 ## if it exists, use fortran-compiled subroutine for maximum performance (instead of the four jit-compiled fcts below):
 try:
-    import phononwindsubroutines as fsub
+    import subroutines as fsub
     usefortran = True
 except ImportError:
-    print("WARNING: module 'phononwindsubroutines' not found, execution will be slower")
-    print("run 'f2py -c phononwindsubroutines.f95 -m phononwindsubroutines' to compile this module\n")
+    print("WARNING: module 'subroutines' not found, execution will be slower")
+    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
 
 ## dragcoeff_iso_computepoly() is currently the bottle neck, as it takes of the order of a few seconds to compute and is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta

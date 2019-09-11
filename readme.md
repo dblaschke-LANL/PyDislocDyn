@@ -22,6 +22,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 numpy,</br>
 sympy,</br>
+scipy,</br>
 matplotlib</br>
 
 ### Optional:
