@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 14, 2019
+# Date: Nov. 3, 2017 - May. 6, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -22,6 +22,9 @@ for X in set(ISO_c11.keys()).difference(ISO_bulk.keys()):
     ISO_bulk[X] = round(ISO_c12[X]+2*ISO_c44[X]/3,-8)
 for X in set(ISO_c11.keys()).difference(ISO_nu.keys()):
     ISO_nu[X] = round(ISO_c12[X]/(2*(ISO_c12[X]+ISO_c44[X])),3)
+ISO_young = {} ## calculate Young's modulus
+for X in ISO_nu.keys():
+    ISO_young[X] = round(2*ISO_c44[X]*(1+ISO_nu[X]),-8)
     
 ## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
 ISO_l = {'Al':-143e9, 'Cu':-160e9,  'Fe':-170e9, 'Nb':-610e9}
@@ -51,7 +54,7 @@ CRC_c13 = {'Be':14.0e9, 'Cd':39.90e9, 'In':40.50e9, 'Mg':21.805e9, 'Sn':44.00e9,
 CRC_c33 = {'Be':336.4e9, 'Cd':50.85e9, 'In':44.40e9, 'Mg':61.55e9, 'Sn':95.52e9, 'Ti':180.70e9, 'Zn':63.47e9, 'Zr':164.8e9}
 CRC_c66 = {'In':12.20e9, 'Sn':23.36e9}
 ## errata: c12['Cu'] is corrected using the original reference, Epstein & Carlson 1965; c44['W'] is corrected using the original reference, Lowrie & Gonas 1967
-CRC_ZenerA = {} ## Zener anisotropy for cubic metals, determined from these numbers below
+CRC_ZenerA = {} ## Zener anisotropy for cubic metals, determined from their SOECs
 
 CRC_a = {'Ag':4.0857e-10, 'Al':4.0496e-10, 'Au':4.0782e-10, 'Be':2.2859e-10, 'Cd':2.9793e-10, 'Cr':2.8848e-10, 'Cu':3.6146e-10, 'In':3.253e-10, 'Ni':3.5240e-10, 'Fe':2.8665e-10, 'K':5.321e-10, 'Mg':3.2094e-10, 'Mo':3.1470e-10, 'Nb':3.3004e-10, 'Sn':5.8318e-10, 'Ta':3.3030e-10, 'Ti':2.9506e-10, 'W':3.1652e-10, 'Zn':2.665e-10, 'Zr':3.2316e-10} # lattice constant in m
 CRC_c = {'Be':3.5845e-10, 'Cd':5.6196e-10, 'In':4.9470e-10, 'Mg':5.2107e-10, 'Sn':3.1818e-10, 'Ti':4.6835e-10, 'Zn':4.947e-10, 'Zr':5.1475e-10}

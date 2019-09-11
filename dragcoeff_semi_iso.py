@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 6, 2019
+# Date: Nov. 5, 2017 - Sept. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -294,9 +294,6 @@ if __name__ == '__main__':
         
     A3rotated = {}
     C2 = {}
-    Cv = {}
-    M = {}
-    N = {}
     for X in metal:
         dislocation = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=NphiX)
         linet[X] = np.round(dislocation.t,15)
