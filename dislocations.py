@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sep. 9, 2019
+# Date: Nov. 3, 2017 - Sep. 17, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -23,13 +23,48 @@ except ImportError:
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
 
+def rotateinto(a,b):
+    '''Computes the rotation matrix to rotates vector 'a' into vector 'b'.
+       Except: if 'b' is a float, this function returns the rotation matrix for a rotation of angle 'b' around axis 'a'.'''
+    old = np.asarray(a)
+    na = np.sqrt(np.sum(old**2))
+    if na>0. and abs(na-1)>1e-12:
+        old = old/na
+    if isinstance(b,float):
+        v=-old
+        sv = np.sin(b)
+        cv = np.cos(b)
+    else:
+        new = np.asarray(b)
+        nb = np.sqrt(np.sum(new**2))
+        if nb>0. and abs(nb-1)>1e-12:
+            new = new/nb
+        v = np.cross(old,new)
+        sv = np.sqrt(np.sum(v**2))
+        cv = np.dot(old,new)
+    vx = np.zeros((3,3))
+    vx[0,1] = -v[2]
+    vx[1,0] = v[2]
+    vx[0,2] = v[1]
+    vx[2,0] = -v[1]
+    vx[1,2] = -v[0]
+    vx[2,1] = v[0]
+    if isinstance(b,float):
+        out = delta +sv*vx + np.dot(vx,vx)*(1-cv)
+    elif abs(sv)<1e-2:
+        out = delta + vx + np.dot(vx,vx)/(1+cv)
+    else:
+        out = delta + vx + np.dot(vx,vx)*(1-cv)/sv**2
+    return out
+
 class StrohGeometry(object):
     '''This class computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
        Required input parameters are: the Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector, 
-       and an array of angles phi to be integrated over.
+       and the resolution Nphi of angles to be integrated over.
        Its initial attributes are: the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
        the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line, as well as the dislocation line direction t and unit vector m0 normal to n0 and t.
-       Methods computeuij(), computeEtot(), and computeLT() call functions of the same name, storing results in attributes uij, Etot, and LT.'''
+       Methods computeuij(), computeEtot(), and computeLT() call functions of the same name, storing results in attributes uij, Etot, and LT.
+       Method computerot finally computes a rotation matrix that will align n0,t with Cartesian y,z directions.'''
     def __init__(self,b, n0, theta, Nphi):
         Ntheta = len(theta)
         self.theta = theta
@@ -56,18 +91,59 @@ class StrohGeometry(object):
         self.beta = 0
         self.C2 = np.zeros((3,3,3,3))
         self.uij = np.zeros((3,3,Ntheta,Nphi))
+        self.uij_aligned = np.zeros((3,3,Ntheta,Nphi))
+        self.rot = np.zeros((Ntheta,3,3))
         self.Etot = np.zeros((Ntheta))
         self.LT = 0
         
     def computeuij(self, beta, C2, r=None, nogradient=False):
+        '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
+           This function returns a 3x3xNthetaxNphi dimensional array.
+           Required input parameters are the dislocation velocity beta and the 2nd order elastic constant tensor C2.
+           If r is provided, the full displacement gradient (a 3x3xNthetaxNrxNphi dimensional array) is returned.
+           If option nogradient is set to True, the displacement field (not its gradient) is returned: a 3xNthetaxNrxNphi dimensional array.
+           In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
         self.beta = beta
         self.C2 = C2
         self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=None, nogradient=False)
         
+    def computerot(self,y = [0,1,0],z = [0,0,1]):
+        '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
+           y, and z are optional arguments whose default values are unit vectors pointing in y and z direction, respectively.)'''
+        pi = np.pi
+        if round(np.dot(self.n0,y),15)==-1:
+            rot1 = rotateinto(z,pi)
+        else:
+            rot1 = rotateinto(self.n0,y)
+        Ntheta = len(self.theta)
+        rot = np.zeros((Ntheta,3,3))
+        for th in range(Ntheta):
+            newt = np.dot(rot1,self.t[th])
+            if round(np.dot(newt,z),15)==-1:
+                rot[th] = np.dot(rotateinto(y,pi),rot1)
+            else:
+                rot[th] = np.dot(rotateinto(newt,z),rot1)
+        self.rot = rot
+    
+    def alignuij(self,accuracy=15):
+        '''Rotates previously computed uij using rotation matrix rot (run computeuij and computerot methods first), and stores the result in attribute uij_aligned.'''
+        n = self.uij.shape
+        uijrotated = np.zeros(n)
+        if len(n)==4:
+            for th in range(len(self.theta)):
+                uijrotated[:,:,th] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th])),15)
+        else:
+            for th in range(len(self.theta)):
+                for ri in range(n[3]):
+                    uijrotated[:,:,th,ri] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th,ri])),15)
+        self.uij_aligned = uijrotated
+        
     def computeEtot(self):
+        '''Computes the self energy of a straight dislocation uij moving at velocity beta. (Requirement: run method .computeuij(beta,C2) first.)'''
         self.Etot = computeEtot(self.uij, self.beta, self.C2, self.Cv, self.phi)
         
     def computeLT(self):
+        '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t. the dislocation character theta.'''
         dtheta = abs(self.theta[1]-self.theta[0])
         self.LT = computeLT(self.Etot, dtheta)
         
