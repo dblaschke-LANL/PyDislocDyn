@@ -246,7 +246,8 @@ if __name__ == '__main__':
         A3 = elasticA3(C2[X],C3)
         A3rotated[X] = np.zeros((len(theta),3,3,3,3,3,3))
         for th in range(len(theta)):
-            A3rotated[X][th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3),12)
+            rotm = rotmat[X][th]
+            A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
     for X in metal:
         # wrap all main computations into a single function definition to be run in a parallelized loop below

@@ -24,7 +24,7 @@ except ImportError:
 delta = np.diag((1,1,1))
 
 def rotateinto(a,b):
-    '''Computes the rotation matrix to rotates vector 'a' into vector 'b'.
+    '''Computes the rotation matrix that rotates vector 'a' into vector 'b'.
        Except: if 'b' is a float, this function returns the rotation matrix for a rotation of angle 'b' around axis 'a'.'''
     old = np.asarray(a)
     na = np.sqrt(np.sum(old**2))
@@ -109,7 +109,7 @@ class StrohGeometry(object):
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
-           y, and z are optional arguments whose default values are unit vectors pointing in y and z direction, respectively.)'''
+           y, and z are optional arguments whose default values are unit vectors pointing in the y and z direction, respectively.)'''
         pi = np.pi
         if round(np.dot(self.n0,y),15)==-1:
             rot1 = rotateinto(z,pi)
@@ -143,7 +143,8 @@ class StrohGeometry(object):
         self.Etot = computeEtot(self.uij, self.beta, self.C2, self.Cv, self.phi)
         
     def computeLT(self):
-        '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t. the dislocation character theta.'''
+        '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t.
+        the dislocation character theta. (Requirements: run methods computeuij(beta,C2) and computeEtot() first.)'''
         dtheta = abs(self.theta[1]-self.theta[0])
         self.LT = computeLT(self.Etot, dtheta)
         
