@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 22, 2019
+# Date: Nov. 5, 2017 - Sept. 18, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -44,7 +44,7 @@ except ImportError:
     Ncores = 1 ## must be 1 (or 0) without joblib
 
 ### choose various resolutions and other parameters:
-Ntheta = 3 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
+Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
 Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
 maxb = 0.99
@@ -91,33 +91,29 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 # metal = sorted(list(data.c111.keys()))
 # metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 # ### compute average elastic constants for these metals:
-# VoigtAverage = {}
-# ReussAverage = {}
-# HillAverage = {}
-# ImprovedAv = {}
 # print("computing averaged elastic constants ...")
+# C2 = {}
+# iso = pca.IsoInvariants(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
 # for X in metal:
-#     pca.C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])/1e9    
-#     pca.S2[X] = pca.ec.elasticS2(pca.C2[X])
-#     pca.C3[X] = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])/1e9
-#     pca.S3[X] = pca.ec.elasticS3(pca.S2[X],pca.C3[X])
-#     VoigtAverage[X] = pca.voigt_average(pca.C2[X],pca.C3[X])    
-#     ReussAverage[X] = pca.reuss_average(pca.S2[X],pca.S3[X]) 
-#     HillAverage[X] = pca.hill_average(VoigtAverage[X], ReussAverage[X])
+#     C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])   
+#     S2 = pca.ec.elasticS2(C2[X])
+#     C3 = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])
+#     S3 = pca.ec.elasticS3(S2,C3)
+#     HillAverage = pca.hill_average(pca.voigt_average(C2[X],C3,iso), pca.reuss_average(S2,S3,iso))
 #     ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
-#     c12[X] = float(HillAverage[X][pca.lam])*1e9
-#     c44[X] = float(HillAverage[X][pca.mu])*1e9
+#     c12[X] = float(HillAverage[pca.lam])
+#     c44[X] = float(HillAverage[pca.mu])
 #     ### use Hill average for Murnaghan constants, as we do not have a better scheme at the moment
-#     cMl[X] = float(HillAverage[X][pca.Murl])*1e9
-#     cMm[X] = float(HillAverage[X][pca.Murm])*1e9
-#     cMn[X] = float(HillAverage[X][pca.Murn])*1e9
+#     cMl[X] = float(HillAverage[pca.Murl])
+#     cMm[X] = float(HillAverage[pca.Murm])
+#     cMn[X] = float(HillAverage[pca.Murn])
 #     
 # # replace Hill with improved averages for effective Lame constants of cubic metals:
 # for X in metal_cubic:
 #     ### don't waste time computing the "improved average" for the Murnaghan constants when we are going to use the Hill average
-#     ImprovedAv[X] = pca.improved_average(X,pca.C2[X],None)
-#     c12[X] = float(ImprovedAv[X][pca.lam])*1e9
-#     c44[X] = float(ImprovedAv[X][pca.mu])*1e9
+#     ImprovedAv = pca.improved_average(C2[X],None,iso)
+#     c12[X] = float(ImprovedAv[pca.lam])
+#     c44[X] = float(ImprovedAv[pca.mu])
 ##################################################
 ct_over_cl = {}
 qBZ = {}

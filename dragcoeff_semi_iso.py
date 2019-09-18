@@ -308,7 +308,8 @@ if __name__ == '__main__':
                 A3T = elasticA3(C2T,C3T)
                 A3Trotated = np.zeros((len(theta),3,3,3,3,3,3))
                 for th in range(len(theta)):
-                    A3Trotated[th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3T),12)
+                    rotm = rotmat[X][th]
+                    A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
                 ##########################
                 dislocation[X].computeuij(beta=betaT, C2=C2T)
                 dislocation[X].alignuij()
