@@ -94,9 +94,9 @@ Murm = Symbol('Murm')
 Murn = Symbol('Murn')
 
 class IsoInvariants(object):
+    '''This class initializes isotropic second and third order elastic tensors and their invariants depending on the provided Lame and Murnaghan constants,
+    which may be sympy symbols or numbers.'''
     def __init__(self,lam,mu,Murl,Murm,Murn):
-        '''This class initializes isotropic second and third order elastic tensors and their invariants depending on the provided Lame and Murnaghan constants
-        (which may be sympy symbols).'''
         self.C2 = ec.elasticC2(c12=lam,c44=mu)
         self.invI1 = sp.factor(invI1(self.C2))
         self.invI2 = sp.factor(invI2(self.C2))
@@ -115,103 +115,85 @@ class IsoInvariants(object):
         self.invI4b = sp.factor(invI4(self.S3))
         self.invI5b = sp.factor(invI5(self.S3))
 
-######### Voigt, Reuss, & Hill averages
-def voigt_average(C2,C3=None,iso=None):
-    '''Computes the Voigt averages of elastic constants using the tensor(s) C2 and C3 of SOEC and TOEC (optional). The output is a dictionary of average values for the Lame and Murnaghan constants.
-       If C3 is omitted (or 'None'), only the average Lame constants are computed.
-       If 'iso', an object of class IsoInvariants(), is passed explicitly, computation is faster since initialization of that class can be bypassed.'''
-    if iso==None:
-        iso = IsoInvariants(lam,mu,Murl,Murm,Murn)
-    out = solve([iso.invI1-invI1(C2),iso.invI2-invI2(C2)],[lam,mu],dict=True)[0]
-    ## combine all five Voigt-averaged answers into one dictionary for each metal (i.e. Voigt is a dictionary of dictionaries)
-    if np.asarray(C3).all()!=None:
-        out.update(solve([iso.invI3-invI3(C3),iso.invI4-invI4(C3),iso.invI5-invI5(C3)],[Murl,Murm,Murn],dict=True)[0])
-    return out
-
-def reuss_average(S2,S3=None,iso=None):
-    '''Computes the Reuss averages of elastic constants using the second and third (optional) order compliances tensor(s) S2 and S3. The output is a dictionary of average values for the Lame and Murnaghan constants.
-       If S3 is omitted (or 'None'), only the average Lame constants are computed.
-       If 'iso', an object of class IsoInvariants(), is passed explicitly, computation is faster since initialization of that class can be bypassed.'''
-    if iso==None:
-        iso = IsoInvariants(lam,mu,Murl,Murm,Murn)
-    out = solve([iso.invI1b-invI1(S2),iso.invI2b-invI2(S2)],[lam,mu],dict=True)[0]
-    ## plug in results for lam and mu to compute l,m,n, then combine the results into one dictionary:
-    if np.asarray(S3).all()!=None:
-        out.update(solve([iso.invI3b.subs(out)-invI3(S3),iso.invI4b.subs(out)-invI4(S3),iso.invI5b.subs(out)-invI5(S3)],[Murl,Murm,Murn],dict=True)[0])
-    return out
-
-def hill_average(voigt,reuss):
-    '''Computes the Hill averages of the Lame and Murnaghan (optional) constants using dictionaries of Voigt and Reuss averages as input.'''
-    out = {lam : (voigt[lam] + reuss[lam])/2}
-    out.update({mu : (voigt[mu] + reuss[mu])/2})
-    if len(reuss.keys())==5:
-        out.update({Murl : (voigt[Murl] + reuss[Murl])/2})
-        out.update({Murm : (voigt[Murm] + reuss[Murm])/2})
-        out.update({Murn : (voigt[Murn] + reuss[Murn])/2})
-    return out
-	
+######### Voigt, Reuss, & Hill averages, etc.
+class IsoAverages(IsoInvariants):
+    '''This class computes a number of polycrystal averages of second and third order elastic constants.
+    These include, Voigt, Reuss, Hill, in general, and "improved" averages for cubic crystals.
+    Required inputs upon initialization are five sympy symbols representing the Lame and Murnaghan constants.'''
     
-############################# for improved method, see Lubarda 1997 and Blaschke 2017
-Sh = Symbol('Sh', real=True)
-def Hmat(Sh):
-    '''helper function for improved_average().'''
-    ### Amat is (x_i x_j x_k x_l + y_i y_j y_k y_l + z_i z_j z_k z_l) where x,y,z are the unit vectors along the crystal axes
-    ### one may easily check that in Voigt notation this construction leads to the diagonal matrix below
-    Amat = UnVoigt(np.diag([1,1,1,0,0,0]))
-    if isinstance(Sh,Symbol) or isinstance(Sh,float):
-        result = ec.elasticC2((Sh,Sh+1/2)) -5*Sh*Amat
-    else:
-        ## play it safe (and slower):
-        Sh2 = Symbol('Sh2', real=True)
-        ### need to convert to sympy matrix in order to use the subs method
-        result = UnVoigt(np.array(sp.Matrix(Voigt(ec.elasticC2(c12=Sh2,c44=Sh2+1/2))).subs(Sh2,Sh))) -5*Sh*Amat
-    return result
+    def voigt_average(self,C2,C3=None):
+        '''Computes the Voigt averages of elastic constants using the tensor(s) C2 and C3 of SOEC and TOEC (optional). The output is a dictionary of average values for the Lame and Murnaghan constants.
+        If C3 is omitted (or 'None'), only the average Lame constants are computed.'''
+        out = solve([self.invI1-invI1(C2),self.invI2-invI2(C2)],[lam,mu],dict=True)[0]
+        ## combine all five Voigt-averaged answers into one dictionary for each metal (i.e. Voigt is a dictionary of dictionaries)
+        if np.asarray(C3).all()!=None:
+            out.update(solve([self.invI3-invI3(C3),self.invI4-invI4(C3),self.invI5-invI5(C3)],[Murl,Murm,Murn],dict=True)[0])
+        self.voigt = out
+        return out
 
-def elasticC2hat(C2,Sh):
-    '''helper function for improved_average().'''
-    correction = np.diag([1,1,1,2,2,2])
-    Sh2 = Symbol('Sh2', real=True)
-    Hm = np.dot(Voigt(Hmat(Sh2/2)),correction)
-    return UnVoigt(np.array(sp.factor(sp.expand(sp.Matrix(np.dot(Hm,np.dot(Voigt(C2),Hm.T)))).subs(Sh2**2,0)).subs(Sh2,Sh)))
+    def reuss_average(self,S2,S3=None):
+        '''Computes the Reuss averages of elastic constants using the second and third (optional) order compliances tensor(s) S2 and S3. The output is a dictionary of average values for the Lame and Murnaghan constants.
+        If S3 is omitted (or 'None'), only the average Lame constants are computed.'''
+        out = solve([self.invI1b-invI1(S2),self.invI2b-invI2(S2)],[lam,mu],dict=True)[0]
+        ## plug in results for lam and mu to compute l,m,n, then combine the results into one dictionary:
+        if np.asarray(S3).all()!=None:
+            out.update(solve([self.invI3b.subs(out)-invI3(S3),self.invI4b.subs(out)-invI4(S3),self.invI5b.subs(out)-invI5(S3)],[Murl,Murm,Murn],dict=True)[0])
+        self.reuss = out
+        return out
+
+    def hill_average(self):
+        '''Computes the Hill averages of the Lame and Murnaghan (optional) constants using dictionaries of previously computed Voigt and Reuss averages.
+        Requirements: run methods voigt_average() and reuss_average() first.'''
+        voigt = self.voigt
+        reuss = self.reuss
+        out = {lam : (voigt[lam] + reuss[lam])/2}
+        out.update({mu : (voigt[mu] + reuss[mu])/2})
+        if len(reuss.keys())==5:
+            out.update({Murl : (voigt[Murl] + reuss[Murl])/2})
+            out.update({Murm : (voigt[Murm] + reuss[Murm])/2})
+            out.update({Murn : (voigt[Murn] + reuss[Murn])/2})
+        self.hill = out
+        return out
     
-def elasticC3hat(C3,Sh):
-    '''helper function for improved_average().'''
-    correction = np.diag([1,1,1,2,2,2])
-    Sh2 = Symbol('Sh2', real=True)
-    Hm = np.dot(Voigt(Hmat(Sh2/2)),correction)
-    result = np.dot(Hm,np.dot(Hm,np.dot(Voigt(C3),Hm.T)))
-    for i in range(6):
-        result[i] = np.array(((sp.expand(sp.Matrix(result[i])).subs(Sh2**2,0)).subs(Sh2**3,0)).subs(Sh2,Sh))
-    return UnVoigt(result)
-
-def improved_average(C2,C3=None,iso=None):
-    '''Compute an improved average for elastic constants of polycrystals whose single crystals are of cubic I symmetry.
-       For the Lame constants, this function will use the self-consistent method of Hershey and Kroener. For the Murnaghan constants, a generalization thereof is used following Blaschke 2017.
-       If 'iso', an object of class IsoInvariants(), is passed explicitly, computation is faster since initialization of that class can be bypassed.'''
-    if iso==None:
-        iso = IsoInvariants(lam,mu,Murl,Murm,Murn)
-    C11 = C2[0,0,0,0]
-    C12 = C2[0,0,1,1]
-    hdenominator = (3*(8*mu**2 + 9*C11*mu + (C11 - C12)*(C11 + 2*C12)))
-    hfactor = (C11 + 2*C12 + 6*mu)*(C11 - C12 - 2*mu)/(3*(8*mu**2 + 9*C11*mu + (C11 - C12)*(C11 + 2*C12)))
-    C2hat = elasticC2hat(C2,hfactor)
-    tmplam = solve(iso.invI1-sp.factor(invI1(C2hat)),lam,dict=True)[0][lam]
-    tmpeqn = sp.factor(hdenominator*(iso.invI2-sp.factor(invI2(C2hat))).subs(lam,tmplam))
-    tmpmu = np.array(solve(tmpeqn,mu),dtype=complex)
-    tmpmu = tmpmu[tmpmu>0]
-    if np.imag(tmpmu)/np.real(tmpmu)<1e-15 and len(tmpmu)==1:
-        tmpmu = np.real(tmpmu)[0]
-    else:
-        print("ERROR: found mu[{0}]={1}; unable to determine solution for mu[{0}]! Setting to 0.".format(X,tmpmu))
-        tmpmu = 0
-    tmplam = tmplam.subs(mu,tmpmu)
-    out = {lam:tmplam, mu:tmpmu}
-    
-    if np.asarray(C3).all()!=None:
-        C3hat = elasticC3hat(C3,hfactor)
-        out.update(solve([(iso.invI3-invI3(C3hat)).subs(out),(iso.invI4-invI4(C3hat)).subs(out),(iso.invI5-invI5(C3hat)).subs(out)],[Murl,Murm,Murn],dict=True)[0])
-
-    return out
+    ############################# for improved method, see Lubarda 1997 and Blaschke 2017
+    def improved_average(self,C2,C3=None):
+        '''Compute an improved average for elastic constants of polycrystals whose single crystals are of cubic I symmetry.
+        For the Lame constants, this function will use the self-consistent method of Hershey and Kroener.
+        For the Murnaghan constants, a (far from perfect) generalization thereof is used following Blaschke 2017.'''
+        C11 = C2[0,0,0,0]
+        C12 = C2[0,0,1,1]
+        hdenominator = (3*(8*mu**2 + 9*C11*mu + (C11 - C12)*(C11 + 2*C12)))
+        hfactor = (C11 + 2*C12 + 6*mu)*(C11 - C12 - 2*mu)/(3*(8*mu**2 + 9*C11*mu + (C11 - C12)*(C11 + 2*C12)))
+        Sh = Symbol('Sh', real=True)
+        ### Amat is (x_i x_j x_k x_l + y_i y_j y_k y_l + z_i z_j z_k z_l) where x,y,z are the unit vectors along the crystal axes
+        ### one may easily check that in Voigt notation this construction leads to the diagonal matrix below
+        Amat = np.diag([1,1,1,0,0,0])
+        Hmat = Voigt(ec.elasticC2(c12=Sh,c44=Sh+1/2)) -5*Sh*Amat
+        correction = np.diag([1,1,1,2,2,2])
+        Hm = np.dot(Hmat,correction)
+        C2hat = UnVoigt(np.array(sp.factor(sp.expand(sp.Matrix(np.dot(Hm,np.dot(Voigt(C2),Hm.T)))).subs(Sh**2,0)).subs(Sh,hfactor/2)))
+        ###
+        tmplam = solve(self.invI1-sp.factor(invI1(C2hat)),lam,dict=True)[0][lam]
+        tmpeqn = sp.factor(hdenominator*(self.invI2-sp.factor(invI2(C2hat))).subs(lam,tmplam))
+        tmpmu = np.array(solve(tmpeqn,mu),dtype=complex)
+        tmpmu = tmpmu[tmpmu>0]
+        if np.imag(tmpmu)/np.real(tmpmu)<1e-15 and len(tmpmu)==1:
+            tmpmu = np.real(tmpmu)[0]
+        else:
+            print("ERROR: found mu[{0}]={1}; unable to determine solution for mu[{0}]! Setting to 0.".format(X,tmpmu))
+            tmpmu = 0
+        tmplam = tmplam.subs(mu,tmpmu)
+        out = {lam:tmplam, mu:tmpmu}
+        
+        if np.asarray(C3).all()!=None:
+            C3hat = np.dot(Hm,np.dot(Hm,np.dot(Voigt(C3),Hm.T)))
+            for i in range(6):
+                C3hat[i] = np.array(((sp.expand(sp.Matrix(C3hat[i])).subs(Sh**2,0)).subs(Sh**3,0)).subs(Sh,hfactor/2))
+            C3hat = UnVoigt(C3hat)
+            out.update(solve([(self.invI3-invI3(C3hat)).subs(out),(self.invI4-invI4(C3hat)).subs(out),(self.invI5-invI5(C3hat)).subs(out)],[Murl,Murm,Murn],dict=True)[0])
+        
+        self.improved = out
+        return out
 
 ############################################################
 
@@ -229,7 +211,7 @@ if __name__ == '__main__':
     HillAverage = {}
     ImprovedAv = {}
     
-    iso = IsoInvariants(lam,mu,Murl,Murm,Murn) ### compute isotropic quantities first    
+    aver = IsoAverages(lam,mu,Murl,Murm,Murn) ### initialize isotropic quantities first
     print("Computing Voigt and Reuss averages for SOEC of {0} metals and for TOEC of {1} metals ...".format(len(metal),len(metal_toec)))
     # do the calculations for various metals:
     C2 = {}
@@ -248,9 +230,9 @@ if __name__ == '__main__':
         S3[X] = ec.elasticS3(S2[X],C3[X])
 
     for X in metal:
-        VoigtAverage[X] = voigt_average(C2[X],C3[X],iso)
-        ReussAverage[X] = reuss_average(S2[X],S3[X],iso)
-        HillAverage[X] = hill_average(VoigtAverage[X], ReussAverage[X])
+        VoigtAverage[X] = aver.voigt_average(C2[X],C3[X])
+        ReussAverage[X] = aver.reuss_average(S2[X],S3[X])
+        HillAverage[X] = aver.hill_average()
     
     ### compute improved averages for cubic metals only:
     metal_cubic = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(set(metal))))
@@ -258,7 +240,7 @@ if __name__ == '__main__':
     print("Computing improved averages for SOEC of {0} cubic metals and for TOEC of {1} cubic metals ...".format(len(metal_cubic),len(metal_toec_cubic)))
     
     for X in metal_cubic:
-        ImprovedAv[X] = improved_average(C2[X],C3[X],iso)
+        ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
     
     ##### write results to files (as LaTeX tables):
     stringofnames = " & $\lambda$ & $\mu$ \\\\ \hline"+"\n"

@@ -93,13 +93,15 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 # ### compute average elastic constants for these metals:
 # print("computing averaged elastic constants ...")
 # C2 = {}
-# iso = pca.IsoInvariants(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
+# aver = pca.IsoAverages(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
 # for X in metal:
 #     C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])   
 #     S2 = pca.ec.elasticS2(C2[X])
 #     C3 = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])
 #     S3 = pca.ec.elasticS3(S2,C3)
-#     HillAverage = pca.hill_average(pca.voigt_average(C2[X],C3,iso), pca.reuss_average(S2,S3,iso))
+#     VoigtAverage = aver.voigt_average(C2[X],C3)
+#     ReussAverage = aver.reuss_average(S2,S3)
+#     HillAverage = aver.hill_average()
 #     ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
 #     c12[X] = float(HillAverage[pca.lam])
 #     c44[X] = float(HillAverage[pca.mu])
@@ -111,7 +113,7 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 # # replace Hill with improved averages for effective Lame constants of cubic metals:
 # for X in metal_cubic:
 #     ### don't waste time computing the "improved average" for the Murnaghan constants when we are going to use the Hill average
-#     ImprovedAv = pca.improved_average(C2[X],None,iso)
+#     ImprovedAv = aver.improved_average(C2[X],None)
 #     c12[X] = float(ImprovedAv[pca.lam])
 #     c44[X] = float(ImprovedAv[pca.mu])
 ##################################################
