@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sep. 17, 2019
+# Date: Nov. 3, 2017 - Sep. 20, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -23,43 +23,22 @@ except ImportError:
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
 
-def rotateinto(a,b):
-    '''Computes the rotation matrix that rotates vector 'a' into vector 'b'.
-       Except: if 'b' is a float, this function returns the rotation matrix for a rotation of angle 'b' around axis 'a'.'''
-    old = np.asarray(a)
-    na = np.sqrt(np.sum(old**2))
-    if na>0. and abs(na-1)>1e-12:
-        old = old/na
-    if isinstance(b,float):
-        v=-old
-        sv = np.sin(b)
-        cv = np.cos(b)
-    else:
-        new = np.asarray(b)
-        nb = np.sqrt(np.sum(new**2))
-        if nb>0. and abs(nb-1)>1e-12:
-            new = new/nb
-        v = np.cross(old,new)
-        sv = np.sqrt(np.sum(v**2))
-        cv = np.dot(old,new)
+@jit
+def rotaround(v,s,c):
+    '''Computes the rotation matrix with unit vector 'v' as the rotation axis and s,c are the sin/cos of the angle.'''
     vx = np.zeros((3,3))
-    vx[0,1] = -v[2]
-    vx[1,0] = v[2]
-    vx[0,2] = v[1]
-    vx[2,0] = -v[1]
-    vx[1,2] = -v[0]
-    vx[2,1] = v[0]
-    if isinstance(b,float):
-        out = delta +sv*vx + np.dot(vx,vx)*(1-cv)
-    elif abs(sv)<1e-2:
-        out = delta + vx + np.dot(vx,vx)/(1+cv)
-    else:
-        out = delta + vx + np.dot(vx,vx)*(1-cv)/sv**2
+    vx[0,1] = v[2]
+    vx[1,0] = -v[2]
+    vx[0,2] = -v[1]
+    vx[2,0] = v[1]
+    vx[1,2] = v[0]
+    vx[2,1] = -v[0]
+    out = delta +s*vx + np.dot(vx,vx)*(1-c)
     return out
 
 class StrohGeometry(object):
     '''This class computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
-       Required input parameters are: the Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector, 
+       Required input parameters are: the unit Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector, 
        and the resolution Nphi of angles to be integrated over.
        Its initial attributes are: the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
        the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line, as well as the dislocation line direction t and unit vector m0 normal to n0 and t.
@@ -69,8 +48,8 @@ class StrohGeometry(object):
         Ntheta = len(theta)
         self.theta = theta
         self.phi = np.linspace(0,2*np.pi,Nphi)
-        self.b = b
-        self.n0=n0
+        self.b = np.asarray(b)
+        self.n0 = np.asarray(n0)
         self.t = np.zeros((Ntheta,3))
         self.m0 = np.zeros((Ntheta,3))
         self.Cv = np.zeros((3,3,3,3,Ntheta))
@@ -110,19 +89,30 @@ class StrohGeometry(object):
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
            y, and z are optional arguments whose default values are unit vectors pointing in the y and z direction, respectively.)'''
-        pi = np.pi
-        if round(np.dot(self.n0,y),15)==-1:
-            rot1 = rotateinto(z,pi)
+        cv = np.vdot(self.n0,y)
+        if round(cv,15)==-1:
+            rot1 = rotaround(z,0,-1)
+        elif round(cv,15)==1:
+            rot1 = delta
         else:
-            rot1 = rotateinto(self.n0,y)
+            v=np.cross(y,self.n0)
+            sv = np.sqrt(np.vdot(v,v))
+            rot1 = rotaround(v/sv,sv,cv)
         Ntheta = len(self.theta)
         rot = np.zeros((Ntheta,3,3))
+        t=np.copy(self.t)
         for th in range(Ntheta):
-            newt = np.dot(rot1,self.t[th])
-            if round(np.dot(newt,z),15)==-1:
-                rot[th] = np.dot(rotateinto(y,pi),rot1)
+            t[th] = np.dot(rot1,t[th])
+        v = np.cross(z,t)
+        for th in range(Ntheta):
+            cv = np.vdot(t[th],z)
+            if round(cv,15)==-1:
+                rot[th] = np.dot(rotaround(y,0,-1),rot1)
+            elif round(cv,15)==1:
+                rot[th] = rot1
             else:
-                rot[th] = np.dot(rotateinto(newt,z),rot1)
+                sv=np.sqrt(np.vdot(v[th],v[th]))
+                rot[th] = np.dot(rotaround(v[th]/sv,sv,cv),rot1)
         self.rot = rot
     
     def alignuij(self,accuracy=15):
