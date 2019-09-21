@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 9, 2019
+# Date: Nov. 5, 2017 - Sept. 17, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -82,15 +82,6 @@ beta = np.linspace(minb,maxb,Nbeta)
 highT = np.linspace(roomT,maxT,NT)
 phi = np.linspace(0,2*np.pi,Nphi)
 phiX = np.linspace(0,2*np.pi,NphiX)
-###
-
-## general rotation matrices
-def Rotx(th):
-    return np.array([[1,0,0],[0,np.cos(th),np.sin(th)],[0,-np.sin(th),np.cos(th)]])
-def Roty(th):
-    return np.array([[np.cos(th),0,-np.sin(th)],[0,1,0],[np.sin(th),0,np.cos(th)]])
-def Rotz(th):
-    return np.array([[np.cos(th),np.sin(th),0],[-np.sin(th),np.cos(th),0],[0,0,1]])
 
 #### isotropic input data:
 ac = data.CRC_a
@@ -206,32 +197,6 @@ for X in data.tetr_metals.intersection(metal):
     burgers[X] = cc[X]
     b[X] = np.array([0,0,-1])
     n0[X] = np.array([0,1,0])
-    
-###
-rotmat = {}
-## for fcc: rotate thz=pi/4, then thx=-atan1/sqrt(2)), then thy=(pi/2-theta)
-def fccrotation(theta):
-    return np.round(np.dot(Roty(np.pi/2-theta),np.round(np.dot(Rotx(-np.arctan2(1,np.sqrt(2))),Rotz(np.pi/4)),15)),15)
-
-## for bcc: rotate thz=-pi/4, then thy=(pi/2-theta) - atan1/sqrt(2))
-def bccrotation(theta):
-    return np.round(np.dot(Roty(np.pi/2-theta-np.arctan2(1,np.sqrt(2))),Rotz(-np.pi/4)),15)
-    
-### rotation needed for the basal slip system (default):
-def hcprotation(theta):
-    return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi/2)),15)
-
-### rotation needed for the prismatic slip
-def hcprotation_pris(theta):
-    return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi)),15)
-    
-### rotation needed for the pyramidal slip (material dependent!!)
-def hcprotation_pyr(theta,X):
-    return np.round(np.dot(Roty(-np.pi/2-theta),Rotx(np.pi/2+np.arcsin(ac[X]/np.sqrt(ac[X]**2+cc[X]**2)))),15)
-    
-### rotation needed for the slip system {010}[001]:
-def tetrrotation(theta):
-    return np.round(Roty(np.pi-theta),15)
 
 ### thermal coefficients:
 alpha_a = data.CRC_alpha_a  ## coefficient of linear thermal expansion at room temperature
@@ -257,33 +222,6 @@ if __name__ == '__main__':
         
         print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
-    ## compute rotation matrices for later use
-    for X in data.fcc_metals.intersection(metal):
-        rotmat[X] = np.zeros((len(theta),3,3))
-        for th in range(len(theta)):
-            rotmat[X][th] = fccrotation(theta[th])
-
-    for X in data.bcc_metals.intersection(metal):
-        rotmat[X] = np.zeros((len(theta),3,3))
-        for th in range(len(theta)):
-            rotmat[X][th] = bccrotation(theta[th])
-            
-    for X in data.hcp_metals.intersection(metal):
-        rotmat[X] = np.zeros((len(theta),3,3))
-        if hcpslip=='prismatic':
-            for th in range(len(theta)):
-                rotmat[X][th] = hcprotation_pris(theta[th])
-        elif hcpslip=='pyramidal':
-            for th in range(len(theta)):
-                rotmat[X][th] = hcprotation_pyr(theta[th],X)
-        else: ## default = basal
-            for th in range(len(theta)):
-                rotmat[X][th] = hcprotation(theta[th])
-            
-    for X in data.tetr_metals.intersection(metal):
-        rotmat[X] = np.zeros((len(theta),3,3))
-        for th in range(len(theta)):
-            rotmat[X][th] = tetrrotation(theta[th])
     ###
     r = [rmin*np.pi,rmax*np.pi] ## qBZ drops out of product q*r, so can rescale both vectors making them dimensionless and independent of the metal
     q = np.linspace(0,1,Nq)
@@ -294,37 +232,39 @@ if __name__ == '__main__':
         
     A3rotated = {}
     C2 = {}
+    dislocation = {}
+    rotmat = {}
     for X in metal:
-        dislocation = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=NphiX)
-        linet[X] = np.round(dislocation.t,15)
-        velm0[X] = np.round(dislocation.m0,15)
+        dislocation[X] = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=NphiX)
+        linet[X] = np.round(dislocation[X].t,15)
+        velm0[X] = np.round(dislocation[X].m0,15)
+        dislocation[X].computerot()
+        rotmat[X] = np.round(dislocation[X].rot,15)
                
         C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/mu[X]
         A3 = elasticA3(C2[X],C3)
         A3rotated[X] = np.zeros((len(theta),3,3,3,3,3,3))
         for th in range(len(theta)):
-            A3rotated[X][th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3),12)
+            rotm = rotmat[X][th]
+            A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
     for X in metal:
-        # r = np.exp(np.linspace(np.log(burgers[X]/5),np.log(100*burgers[X]),125))
-        ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
-        # r = np.exp(np.linspace(np.log(rmin*np.pi/qBZ[X]),np.log(rmax*np.pi/qBZ[X]),Nr))
-        # q = qBZ[X]*np.linspace(0,1,Nq)
-    
         # wrap all main computations into a single function definition to be run in a parallelized loop below
         def maincomputations(bt,X,modes=modes):
             Bmix = np.zeros((len(theta),len(highT)))
                                     
             ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-            dislocation.computeuij(beta=bt, C2=C2[X])
+            dislocation[X].computeuij(beta=bt, C2=C2[X])
+            dislocation[X].alignuij()
             # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
-            uijrotated = np.zeros(dislocation.uij.shape)
-            for th in range(len(theta)):
-                uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],dislocation.uij[:,:,th])),15)
             
-            # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-            dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,sincos=sincos_noq)
+            # r = np.exp(np.linspace(np.log(burgers[X]/5),np.log(100*burgers[X]),125))
+            ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
+            # r = np.exp(np.linspace(np.log(rmin*np.pi/qBZ[X]),np.log(rmax*np.pi/qBZ[X]),Nr))
+            # q = qBZ[X]*np.linspace(0,1,Nq)
+            # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
+            dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
             
             Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
             
@@ -368,16 +308,15 @@ if __name__ == '__main__':
                 A3T = elasticA3(C2T,C3T)
                 A3Trotated = np.zeros((len(theta),3,3,3,3,3,3))
                 for th in range(len(theta)):
-                    A3Trotated[th] = np.round(np.einsum('ab,cd,ef,gh,ik,lm,bdfhkm',rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],rotmat[X][th],A3T),12)
+                    rotm = rotmat[X][th]
+                    A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
                 ##########################
-                dislocation.computeuij(beta=betaT, C2=C2T)
-                uijrotated = np.zeros(dislocation.uij.shape)
-                for th in range(len(theta)):
-                    uijrotated[:,:,th] = np.round(np.dot(rotmat[X][th],np.dot(rotmat[X][th],dislocation.uij[:,:,th])),15)
+                dislocation[X].computeuij(beta=betaT, C2=C2T)
+                dislocation[X].alignuij()
                                     
                 ## rT*qT = r*q, so does not change anything
-                # dij = np.average(dlc.fourieruij(uijrotated,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-                dij = dlc.fourieruij_nocut(uijrotated,phiX,phi,sincos=sincos_noq)
+                # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
+                dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
             
                 Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
                     
