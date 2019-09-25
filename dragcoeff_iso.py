@@ -10,6 +10,7 @@ import sys
 ### make sure we are running a recent version of python
 # assert sys.version_info >= (3,5)
 import numpy as np
+from scipy.optimize import curve_fit, fmin
 ##################
 import matplotlib as mpl
 ##### use pdflatex and specify font through preamble:
@@ -59,7 +60,7 @@ skip_plots=False ## set to True to skip generating plots from the results
 Nphi = 50
 Nphi1 = 50
 Nq1 = 400
-Nt = 321
+Nt = 321 # base value, grid is adaptive in Nt
 ### and range & step sizes
 theta = np.linspace(0,np.pi/2,Ntheta)
 beta = np.linspace(minb,maxb,Nbeta)
@@ -99,8 +100,8 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 #     S2 = pca.ec.elasticS2(C2[X])
 #     C3 = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])
 #     S3 = pca.ec.elasticS3(S2,C3)
-#     VoigtAverage = aver.voigt_average(C2[X],C3)
-#     ReussAverage = aver.reuss_average(S2,S3)
+#     aver.voigt_average(C2[X],C3)
+#     aver.reuss_average(S2,S3)
 #     HillAverage = aver.hill_average()
 #     ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
 #     c12[X] = float(HillAverage[pca.lam])

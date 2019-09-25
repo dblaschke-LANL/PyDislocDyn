@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 17, 2019
+# Date: Nov. 5, 2017 - Sept. 25, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -60,11 +60,14 @@ maxT = 600
 modes = 'all'
 # modes = 'TT'
 skip_plots=False ## set to True to skip generating plots from the results
+use_exp_Lame=True ## if set to True, experimental values (where available) are taken for the Lame constants, isotropic phonon spectrum, and sound speeds
+## missing values (such as Mo, Zr, or all if use_exp_Lame=False) are supplemented by Hill averages, or for cubic crystals the 'improved average' (see 'polycrystal_averaging.py')
+
 # in Fourier space:
 Nphi = 50 # computation time scales linearly with resolution in phi, phi1 and t (each); increase for higher accuracy
 Nphi1 = 50
 Nq1 = 400
-Nt = 321
+Nt = 321 # base value, grid is adaptive in Nt
 Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high resolution if cutoffs are chosen carefully since the q-dependence drops out in that case
 # in x-space (used in numerical Fourier trafo):
 NphiX = 3000
@@ -122,12 +125,40 @@ c366 = data.c366
 # c166 = data.ISO_c166
 # c456 = data.ISO_c456
 
-mu = data.ISO_c44 ## effective shear modulus of polycrystal
-lam = data.ISO_c12
-mu['Mo'] = 125.0e9 ## use the 'improved' average for polycrystalline Mo since we don't have experimental data (see results of 'polycrystal_averaging.py')
-lam['Mo'] = 176.4e9
-mu['Zr'] = 36.0e9 ## use the Hill average for polycrystalline Zr since we don't have experimental data (see results of 'polycrystal_averaging.py')
-lam['Zr'] = 71.3e9
+### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
+metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c111.keys())))
+metal = ['Cu', 'Mo', 'Ti', 'Sn']
+metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
+
+if use_exp_Lame:
+    mu = data.ISO_c44.copy() ## effective shear modulus of polycrystal
+    lam = data.ISO_c12.copy()
+else:
+    mu = {}
+    lam = {}
+#### generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise):
+import polycrystal_averaging as pca
+missingmu = set(metal).difference(mu.keys())
+roundto = -8 ## round averaged values to 0.1GPa, change as needed
+if missingmu !=set():
+    print("computing averaged Lame constants for {} ...".format(sorted(list(missingmu))))
+    C2aver = {}
+    aver = pca.IsoAverages(pca.lam,pca.mu,0,0,0) # don't need Murnaghan constants
+for X in missingmu:
+    C2aver[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])   
+    S2 = pca.ec.elasticS2(C2aver[X])
+    aver.voigt_average(C2aver[X])
+    aver.reuss_average(S2)
+    HillAverage = aver.hill_average()
+    ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
+    lam[X] = round(float(HillAverage[pca.lam]),roundto)
+    mu[X] = round(float(HillAverage[pca.mu]),roundto)
+# replace Hill with improved averages for effective Lame constants of cubic metals:
+for X in metal_cubic.intersection(missingmu):
+    ImprovedAv = aver.improved_average(C2aver[X])
+    lam[X] = round(float(ImprovedAv[pca.lam]),roundto)
+    mu[X] = round(float(ImprovedAv[pca.mu]),roundto)
+##################################################
 
 qBZ = {}
 ct = {} ## may need some "effective" transverse sound speed
@@ -135,10 +166,6 @@ cl = {}
 ct_over_cl = {}
 burgers = {} # magnitude of Burgers vector
 bulk = {}
-
-### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c111.keys()).intersection(mu.keys())))
-metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 
 ### compute various numbers for these metals
 for X in metal_cubic:

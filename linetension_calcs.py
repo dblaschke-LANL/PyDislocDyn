@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 10, 2019
+# Date: Nov. 3, 2017 - Sept. 25, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -34,6 +34,9 @@ fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import metal_data as data
+from elasticconstants import elasticC2
+import dislocations as dlc
+
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
@@ -42,20 +45,25 @@ except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = 1 ## must be 1 without joblib
 
+## choose which shear modulus to use for rescaling to dimensionless quantities
+## allowed values are: 'crude', 'aver', and 'exp
+## choose 'crude' for mu = (c11-c12+2c44)/4, 'aver' for mu=Hill average  (resp. improved average for cubic), and 'exp' for experimental mu supplemented by 'aver' where data are missing
+scale_by_mu = 'crude'
 ### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
 ### and phi is an integration angle used in the integral method for computing dislocations
 Ntheta = 600
 Ntheta2 = 21 ## number of character angles for which to calculate critical velocities (set to None or 0 to bypass entirely)
-Nbeta = 625
+Nbeta = 500 ## set to 0 to bypass line tension calculations
 Nphi = 1000
 ### and range & step sizes
 dtheta = np.pi/(Ntheta-2)
 theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
-beta = np.linspace(0,1,Nbeta+1)
+beta = np.linspace(0,1,Nbeta)
 #####
 
 #### input data:
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
+metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 metal = sorted(metal + ['ISO']) ### test isotropic limit
 
 # 2nd order elastic constants taken from the CRC handbook:
@@ -80,43 +88,33 @@ c66['ISO'] = None
 
 ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
 mu = {}
-for X in c11.keys():
-    mu[X] = (c11[X]-c12[X]+2*c44[X])/4
-    ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
-    
-# we limit calculations to a velocity range close to what we actually need,
-# i.e. the scaling factors are rounded up from the largest critical velocities that we encounter,
-# namely the vcrit for screw disloc. for fcc metals and vcrit for edge disloc. for bcc metals
-beta_scaled = {'Al':0.98*beta, 'Cu':0.85*beta,  'Ni':0.88*beta, 'Fe':0.87*beta, 'Nb':0.97*beta, 'Ta':0.95*beta, 'W':beta}
-## for metals included in the list "metal" but not in "beta_scaled", use default scaling until the user provides a better scaling factor,
-## i.e. ratio of smallest transverse soundspeed for pure screw in fcc and pure egde in bcc to effective one computed from average mu which we use below for all scalings
-## (or 1 if that is the smaller number); in general, this automatic scaling will differ from the optimal user compute one only by a few percent
-
-### ALTERNATIVE SCALING: use average shear modulus of polycrystal (uncomment block below to use this version):
-# mu = data.ISO_c44
-# mu['Mo'] = 125.0e9 ## use the 'improved' average for polycrystalline Mo, K since we don't have experimental data (see results of 'polycrystal_averaging.py')
-# mu['K'] = 0.9e9
-# mu['Be'] = 148.6e9 ## use Hill average for polycrystalline Be, In, Zr (see results of 'polycrystal_averaging.py')
-# mu['In'] = 4.8e9
-# mu['Zr'] = 36.0e9
-# mu['ISO'] = 1
-# metal = sorted(list(set(metal).intersection(mu.keys()))) ## update list of metals since we may not have mu for all elements
-# beta_scaled = {} # reset
-###########################################################
-
-## for hexagonal/tetragonal crystals, we use scaling=1 for now
-scaling = {}
-autoscale = set(metal).difference(beta_scaled.keys())
-for X in autoscale:
-    beta_scaled[X] = beta
-
-for X in autoscale.intersection(data.fcc_metals):
-    scaling[X] = min(1,round(np.sqrt((5*c11[X]+c12[X]+8*c44[X]-np.sqrt(9*c11[X]**2+33*c12[X]**2+72*c12[X]*c44[X]+48*c44[X]**2-6*c11[X]*(c12[X]+4*c44[X])))/(12*mu[X])),2))
-    beta_scaled[X] = beta*scaling[X]
-        
-for X in autoscale.intersection(data.bcc_metals):
-    scaling[X] = min(1,round(np.sqrt((c11[X]-c12[X]+c44[X])/(3*mu[X])),2))
-    beta_scaled[X] = beta*scaling[X]
+if scale_by_mu == 'crude':
+    for X in metal:
+        mu[X] = (c11[X]-c12[X]+2*c44[X])/4
+        ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
+elif scale_by_mu == 'exp':
+    mu = data.ISO_c44.copy() ## or use average shear modulus of polycrystal
+    mu['ISO'] = c44['ISO']
+#### generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise):
+import polycrystal_averaging as pca
+missingmu = set(metal).difference(mu.keys())
+if missingmu !=set():
+    print("computing averaged mu for {} ...".format(sorted(list(missingmu))))
+    C2aver = {}
+    aver = pca.IsoAverages(pca.lam,pca.mu,0,0,0) # don't need Murnaghan constants
+for X in missingmu:
+    C2aver[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])   
+    S2 = pca.ec.elasticS2(C2aver[X])
+    aver.voigt_average(C2aver[X])
+    aver.reuss_average(S2)
+    HillAverage = aver.hill_average()
+    ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
+    mu[X] = float(HillAverage[pca.mu])
+# replace Hill with improved averages for effective Lame constants of cubic metals:
+for X in metal_cubic.intersection(missingmu):
+    ImprovedAv = aver.improved_average(C2aver[X])
+    mu[X] = float(ImprovedAv[pca.mu])
+##################################################
 
 ### define Burgers (unit-)vectors and slip plane normals for all metals
 bfcc = np.array([1,1,0]/np.sqrt(2))
@@ -180,9 +178,12 @@ elif hcpslip=='pyramidal':
     vcrit_smallest['Cd'] = 0.959*np.sqrt(c44['Cd']/mu['Cd'])
     vcrit_smallest['Zn'] = 0.819*np.sqrt(c44['Zn']/mu['Zn'])
 
-### import additional modules
-from elasticconstants import elasticC2
-import dislocations as dlc
+# we limit calculations to a velocity range close to what we actually need,
+scaling = {}
+beta_scaled = {}
+for X in metal:
+    scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
+    beta_scaled[X] = scaling[X]*beta
 
 ## list of metals symmetric in +/-theta:
 metal_symm = sorted(list(data.fcc_metals.union(data.hcp_metals).union(data.tetr_metals).intersection(metal))+['ISO'])
@@ -272,6 +273,8 @@ if __name__ == '__main__':
     # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
     if Ncores == 1:
         [maincomputations(i) for i in range(len(metal))]
+    elif Nbeta<1:
+        print("skipping line tension calculations, Nbeta>0 required")
     else:
         Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
 
