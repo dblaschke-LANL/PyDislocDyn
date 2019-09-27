@@ -228,7 +228,7 @@ if __name__ == '__main__':
             LTfile.write("### dimensionless line tension prefactor LT(beta,theta) for {}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
             LTfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta[1:-1]/np.pi)) + '\n')
             for j in range(len(beta)):
-                LTfile.write("{:.4f}".format(beta[j]) + '\t' + '\t'.join(map("{:.6f}".format,LT[j])) + '\n')
+                LTfile.write("{:.4f}".format(beta_scaled[X][j]) + '\t' + '\t'.join(map("{:.6f}".format,LT[j])) + '\n')
 
         return 0
         
@@ -269,7 +269,7 @@ if __name__ == '__main__':
             
     def mkLTplots(X):
         namestring = "{}".format(X)
-        beta_trunc = [j for j in scaling[X]*beta_plt[X] if j <=vcrit_smallest[X]]
+        beta_trunc = [j for j in beta_plt[X] if j <=vcrit_smallest[X]]
         if X in metal_symm:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
             LT_trunc = LT[X][:len(beta_trunc),int((Ntheta_plt[X]+1)/2):]
