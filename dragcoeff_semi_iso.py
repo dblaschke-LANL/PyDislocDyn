@@ -127,7 +127,6 @@ c366 = data.c366
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c111.keys())))
-metal = ['Cu', 'Mo', 'Ti', 'Sn']
 metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 
 if use_exp_Lame:
