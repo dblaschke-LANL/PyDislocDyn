@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 26, 2019
+# Date: Nov. 3, 2017 - Sept. 30, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -14,6 +14,7 @@ import sys
 import numpy as np
 ##################
 import matplotlib as mpl
+mpl.use('Agg', warn=False) # don't need X-window, allow running in a remote terminal session
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
 # pgf_with_pdflatex = {
@@ -165,24 +166,25 @@ for X in data.tetr_metals.intersection(metal):
 vcrit_smallest = {}
 for X in metal:
     ## happens to be the same formula for both fcc and bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bcc)
-    vcrit_smallest[X] = min(np.sqrt(c44[X]/mu[X]),np.sqrt((c11[X]-c12[X])/(2*mu[X])))
+    vcrit_smallest[X] = min(1,np.sqrt((c11[X]-c12[X])/(2*c44[X]))) ## scaled by c44, will rescale to user's choice below
     ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
 ### ... but not for tetragonal, where vcrit needs to be determined numerically:
 ## numerically determined values:
-vcrit_smallest['In'] = 0.549*np.sqrt(c44['In']/mu['In'])
-vcrit_smallest['Sn'] = 0.749*np.sqrt(c44['Sn']/mu['Sn'])
-vcrit_smallest['Zn'] = 0.998*np.sqrt(c44['Zn']/mu['Zn']) ## for basal slip
+vcrit_smallest['In'] = 0.549
+vcrit_smallest['Sn'] = 0.749
+vcrit_smallest['Zn'] = 0.998 ## for basal slip
 if hcpslip=='prismatic':
-    vcrit_smallest['Cd'] = 0.932*np.sqrt(c44['Cd']/mu['Cd'])
-    vcrit_smallest['Zn'] = 0.766*np.sqrt(c44['Zn']/mu['Zn'])
+    vcrit_smallest['Cd'] = 0.932
+    vcrit_smallest['Zn'] = 0.766
 elif hcpslip=='pyramidal':
-    vcrit_smallest['Cd'] = 0.959*np.sqrt(c44['Cd']/mu['Cd'])
-    vcrit_smallest['Zn'] = 0.819*np.sqrt(c44['Zn']/mu['Zn'])
+    vcrit_smallest['Cd'] = 0.959
+    vcrit_smallest['Zn'] = 0.819
 
 # we limit calculations to a velocity range close to what we actually need,
 scaling = {}
 beta_scaled = {}
 for X in metal:
+    vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(c44[X]/mu[X]) ## rescale to mu instead of c44
     scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
     beta_scaled[X] = scaling[X]*beta
 

@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 25, 2019
+# Date: Nov. 5, 2017 - Sept. 30, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -13,6 +13,7 @@ import numpy as np
 from scipy.optimize import curve_fit, fmin
 ##################
 import matplotlib as mpl
+mpl.use('Agg', warn=False) # don't need X-window, allow running in a remote terminal session
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
 # pgf_with_pdflatex = {
@@ -64,7 +65,7 @@ use_exp_Lame=True ## if set to True, experimental values (where available) are t
 ## missing values (such as Mo, Zr, or all if use_exp_Lame=False) are supplemented by Hill averages, or for cubic crystals the 'improved average' (see 'polycrystal_averaging.py')
 
 # in Fourier space:
-Nphi = 50 # computation time scales linearly with resolution in phi, phi1 and t (each); increase for higher accuracy
+Nphi = 50
 Nphi1 = 50
 Nq1 = 400
 Nt = 321 # base value, grid is adaptive in Nt
