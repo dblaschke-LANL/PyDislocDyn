@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sep. 20, 2019
+# Date: Nov. 3, 2017 - Oct. 29, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -19,6 +19,13 @@ except ImportError:
     nonumba=True
     def jit(func):
         return func
+try:
+    import subroutines as fsub
+    usefortran = True
+except ImportError:
+    print("WARNING: module 'subroutines' not found, execution will be slower")
+    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
+    usefortran = False
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
@@ -75,6 +82,9 @@ class StrohGeometry(object):
         self.Etot = np.zeros((Ntheta))
         self.LT = 0
         
+    def __repr__(self):
+        return "{}".format({'b':self.b, 'n0':self.n0, 'beta':self.beta})
+        
     def computeuij(self, beta, C2, r=None, nogradient=False):
         '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
            This function returns a 3x3xNthetaxNphi dimensional array.
@@ -84,7 +94,10 @@ class StrohGeometry(object):
            In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
         self.beta = beta
         self.C2 = C2
-        self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=None, nogradient=False)
+        if usefortran and not (r is not None) and nogradient==False:
+            self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
+        else:
+            self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=nogradient)
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
@@ -164,13 +177,6 @@ def ArrayDot(A,B):
                 np.add(np.multiply(A[k,o] , B[o,l] , tmp), AB[k,l], AB[k,l])
     return AB
     
-try:
-    import subroutines as fsub
-    usefortran = True
-except ImportError:
-    print("WARNING: module 'subroutines' not found, execution will be slower")
-    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
-    usefortran = False
 ## numba version of elbrak() is just as fast as the fortran implementation, so we use the latter only as a fall-back if numba is missing
 if nonumba and usefortran:
     def elbrak(A,B,elC):
@@ -510,23 +516,30 @@ def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
 
 
 ############# energy and line tension
-@jit
-def computeEtot(uij, betaj, C2, Cv, phi):
-    '''Computes the self energy of a straight dislocation uij moving at velocity betaj.
-    Additional required input parameters are the 2nd order elastic constant tensor C2 (for the strain energy) and its velocity dependent shift Cv (for the kinetic energy),
-    as well as the integration angle phi inside the plane normal to the dislocation line.'''
-    Ntheta = len(uij[0,0,:,0])
-    Nphi = len(phi)
-    Wtot = np.zeros((Ntheta,Nphi))
- 
-    for th in range(Ntheta):
-        for k in range(3):
-            for l in range(3):
-                for o in range(3):
-                    for p in range(3):
-                        Wtot[th] += uij[l,k,th]*uij[o,p,th]*(C2[k,l,o,p] + betaj*betaj*Cv[k,l,o,p,th])
-        
-    return np.trapz(Wtot,x=phi)/2
+if usefortran:
+    def computeEtot(uij, betaj, C2, Cv, phi):
+        '''Computes the self energy of a straight dislocation uij moving at velocity betaj.
+        Additional required input parameters are the 2nd order elastic constant tensor C2 (for the strain energy) and its velocity dependent shift Cv (for the kinetic energy),
+        as well as the integration angle phi inside the plane normal to the dislocation line.'''
+        return fsub.computeetot(np.moveaxis(uij,-1,0),betaj,C2,Cv,phi)
+else:
+    @jit
+    def computeEtot(uij, betaj, C2, Cv, phi):
+        '''Computes the self energy of a straight dislocation uij moving at velocity betaj.
+        Additional required input parameters are the 2nd order elastic constant tensor C2 (for the strain energy) and its velocity dependent shift Cv (for the kinetic energy),
+        as well as the integration angle phi inside the plane normal to the dislocation line.'''
+        Ntheta = len(uij[0,0,:,0])
+        Nphi = len(phi)
+        Wtot = np.zeros((Ntheta,Nphi))
+    
+        for th in range(Ntheta):
+            for k in range(3):
+                for l in range(3):
+                    for o in range(3):
+                        for p in range(3):
+                            Wtot[th] += uij[l,k,th]*uij[o,p,th]*(C2[k,l,o,p] + betaj*betaj*Cv[k,l,o,p,th])
+            
+        return np.trapz(Wtot,x=phi)/2
     
 
 def computeLT(Etot, dtheta):

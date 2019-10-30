@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 9, 2019
+# Date: Nov. 5, 2017 - Oct. 30, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -282,11 +282,13 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
             q1limit = ct_over_cl/OneMinBtqcosph1
             q1mask = (q1mask<=q1limit)
             distri = distri*q1mask
+        ## this is either q1max, or for c1>c2 limited to lower value which might lie <dq1 below actual limit;
+        ## may estimate the latter case by dq1/2 and add to last interval and weight the end point by 2/3 compared to its neighbor; this amounts to doubling the endpoint
+        distri[-1] = 2*distri[-1]
     
-    ## prevent trapz from weighting endpoints by 1/2 (they are not really endpoints after all, just close to them)        
-    distri[0] = 2*distri[0] ## we cut off q1=0, so endpoints need to be weight 1
-    # distri[-1] = 2*distri[-1] ## this is either q1max, needing weight 1, or for c1>c2 limited to lower value which might lie <dq1 below actual limit
-    ## even in former case, we are systematically overestimating since the BZ boundary gives dominant contrib., so maybe better to just keep as is.
+    ## we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval, and weighting end point 3 to 1 compared to its neighbor
+    # however, edge point might introduce rounding errors due to divergence so better just keep underestimating by small value (hence multiply end point by 2 instead of 3)
+    distri[0] = 2*distri[0]
     return np.trapz(distri,x = q1, axis=0)
                
 ### rho x ct^2  = c44, and B is devided by rho^2*ct^4 = c44^2;
@@ -387,7 +389,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                 out_norm = (np.abs(out))[err_mask]
                 out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit/Nchks)))
             refnmts = rec+1
-        if refnmts==maxrec and out_error >= target_accuracy:
+        if refnmts==maxrec and out_error >= target_accuracy and maxrec>0:
             print("warning: max # recursions reached, beta={:.4f}".format(beta),", T=",T,", mode=",mode,", chunks=",chunks,", est. error={:.2f}%".format(100*out_error))
         
         return out
@@ -470,7 +472,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     ### i.e. Nt_total = 1 + #chunks*(Nt-1) where Nt is number of points in each chunk of initial run (we're sharing boundary points!), hence Nt_initial = (Nt_total -1)/#chunks + 1 and Nt_total = (int((Nt_userchoice)/#chunks) + 1) * #chunks + 1 (so that Nt_total>=Nt_userchoice)
     ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we devide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
     if np.asarray(chunks).any()==None:
-        Nt_total = None
+        Nt_total = kthchk = None
     else:
         Nchunks, kthchk = chunks
         Nt_total = 1 + Nchunks*(Nt-1)
@@ -521,16 +523,17 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             tmask = (t>limit[p])
             t1 = t[tmask]
             Btmp = Btmp[tmask]
-            ## don't want "endpoints" generically weighted with 1/2 in trapz:
-            ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin; then we need average weight 1/2 after all
-            ## exception: if we're refining, both endpoints need weight 1
+            ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
+            ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
+            ## also, on updatet runs, we are missing dt/2 intevals on both ends of a chunk since we're computing intermediate points;
+            ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
+            ## this amounts to doubling the endpoints and letting trapz take care of the rest
             if len(Btmp!=0):
                 if updatet:
                     Btmp[0] = 2*Btmp[0]
-                if np.asarray(chunks).any()==None or updatet:
                     Btmp[-1] = 2*Btmp[-1]
-                elif kthchk==Nchunks-1 or updatet:
-                    Btmp[-1] = 2*Btmp[-1]
+                elif kthchk==0 or Nt_total==None:
+                    Btmp[0] = 2*Btmp[0]
             Bt[p] = np.trapz(Btmp,x = t1)
         #     pointskept += len(t1)
         # totalpoints = len(t)*len(phi)
@@ -550,11 +553,18 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             qtmask = (qt<qtlimit[p])
             qt = qt[qtmask]
             Btmp = Btmp[qtmask]
-            ## endpoints weighted with 1/2 in trapz; may not want since Btmp[0], Btmp[-1] may have moved inside due to mask, but also don't know if edge points introduce rounding errors due to divergence so better just keep underestimating by small value
-            ## exception: if we're refining, both endpoints need weight 1, otherwise we end up with many points weighted with 1/2 (namely 2*number of refinements)
-            if updatet and len(Btmp)!=0:
-                Btmp[0] = 2*Btmp[0]
-                Btmp[-1] = 2*Btmp[-1]
+            ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
+            ## also: if we're refining, we are missing dt/2 intevals on both ends of a chunk on updatet runs since we're computing intermediate points;
+            ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
+            ## this amounts to doubling the endpoints and letting trapz take care of the rest
+            if len(Btmp)!=0:
+                if updatet:
+                    Btmp[0] = 2*Btmp[0]
+                    Btmp[-1] = 2*Btmp[-1]
+                elif kthchk==0 or Nt_total==None:
+                    Btmp[0] = 2*Btmp[0]
+                elif kthchk==(Nchunks-1) or Nt_total==None:
+                    Btmp[-1] = 2*Btmp[-1]
             Bt[p] = np.trapz(Btmp,x = qt)
             # pointskept += len(qt)
             ############ for debugging:
