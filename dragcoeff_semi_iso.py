@@ -51,9 +51,9 @@ except ImportError:
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
-Nbeta = 90 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
+Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
-maxb = 0.90
+maxb = 0.99
 NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 roomT = 300 # in Kelvin
 maxT = 600
@@ -65,10 +65,10 @@ use_exp_Lame=True ## if set to True, experimental values (where available) are t
 ## missing values (such as Mo, Zr, or all if use_exp_Lame=False) are supplemented by Hill averages, or for cubic crystals the 'improved average' (see 'polycrystal_averaging.py')
 
 # in Fourier space:
-Nphi = 50 # computation time scales linearly with resolution in phi, phi1 and t (each); increase for higher accuracy
+Nphi = 50
 Nphi1 = 50
 Nq1 = 400
-Nt = 250
+Nt = 321 # base value, grid is adaptive in Nt
 Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high resolution if cutoffs are chosen carefully since the q-dependence drops out in that case
 # in x-space (used in numerical Fourier trafo):
 NphiX = 3000

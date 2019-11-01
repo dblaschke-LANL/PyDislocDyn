@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 18, 2019
+# Date: Nov. 5, 2017 - Sept. 30, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -10,8 +10,10 @@ import sys
 ### make sure we are running a recent version of python
 # assert sys.version_info >= (3,5)
 import numpy as np
+from scipy.optimize import curve_fit, fmin
 ##################
 import matplotlib as mpl
+mpl.use('Agg', warn=False) # don't need X-window, allow running in a remote terminal session
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
 # pgf_with_pdflatex = {
@@ -44,10 +46,10 @@ except ImportError:
     Ncores = 1 ## must be 1 (or 0) without joblib
 
 ### choose various resolutions and other parameters:
-Ntheta = 3 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
-Nbeta = 90 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
+Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
+Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
-maxb = 0.90
+maxb = 0.99
 NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 roomT = 300 # in Kelvin
 maxT = 600
@@ -59,7 +61,7 @@ skip_plots=False ## set to True to skip generating plots from the results
 Nphi = 50
 Nphi1 = 50
 Nq1 = 400
-Nt = 250
+Nt = 321 # base value, grid is adaptive in Nt
 ### and range & step sizes
 theta = np.linspace(0,np.pi/2,Ntheta)
 beta = np.linspace(minb,maxb,Nbeta)
