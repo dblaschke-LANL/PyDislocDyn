@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 18, 2019
+# Date: Nov. 7, 2017 - Oct. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -180,7 +180,7 @@ class IsoAverages(IsoInvariants):
         if np.imag(tmpmu)/np.real(tmpmu)<1e-15 and len(tmpmu)==1:
             tmpmu = np.real(tmpmu)[0]
         else:
-            print("ERROR: found mu[{0}]={1}; unable to determine solution for mu[{0}]! Setting to 0.".format(X,tmpmu))
+            print("ERROR: found mu={}; unable to determine solution for mu! Setting to 0.".format(tmpmu))
             tmpmu = 0
         tmplam = tmplam.subs(mu,tmpmu)
         out = {lam:tmplam, mu:tmpmu}

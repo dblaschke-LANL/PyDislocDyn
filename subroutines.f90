@@ -2,22 +2,22 @@
 ! run 'f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Sept. 9, 2019
+! Date: July 23, 2018 - Oct. 29, 2019
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
 
 implicit none
-
+integer,parameter :: sel = selected_real_kind(6)
 integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
 integer, intent(in) :: lentph, lenph1
-real, intent(in), dimension(lenph1) :: phi1, dphi1
-real, dimension(lentph,3) :: qt, qtshift
-real, dimension(lentph,3,3,3,3) :: A3qt2, part1, part2
-real, intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-real, intent(in), dimension(lentph,3) :: qv
-real, intent(in), dimension(3,3) :: delta1, delta2
-real, intent(in), dimension(3,3,3,3,3,3) :: A3
-real, intent(out), dimension(lentph,3,3,3,3) :: output
+real(kind=sel), intent(in), dimension(lenph1) :: phi1, dphi1
+real(kind=sel), dimension(lentph,3) :: qt, qtshift
+real(kind=sel), dimension(lentph,3,3,3,3) :: A3qt2, part1, part2
+real(kind=sel), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+real(kind=sel), intent(in), dimension(lentph,3) :: qv
+real(kind=sel), intent(in), dimension(3,3) :: delta1, delta2
+real(kind=sel), intent(in), dimension(3,3,3,3,3,3) :: A3
+real(kind=sel), intent(out), dimension(lentph,3,3,3,3) :: output
 
 output(:,:,:,:,:) = 0.0
 qt(:,:) = 0.0
@@ -97,12 +97,13 @@ subroutine dragintegrand(output,prefactor,dij,poly,lent,lenph)
 
 implicit none
 
+integer,parameter :: sel = selected_real_kind(6)
 integer :: i, k, kk, n, nn
 integer, intent(in) :: lent, lenph
-real, intent(in), dimension(lenph,lent) :: prefactor
-real, intent(in), dimension(lenph,3,3) :: dij
-real, intent(in), dimension(lenph,3,3,3,3,lent) :: poly
-real, intent(out), dimension(lenph,lent) :: output
+real(kind=sel), intent(in), dimension(lenph,lent) :: prefactor
+real(kind=sel), intent(in), dimension(lenph,3,3) :: dij
+real(kind=sel), intent(in), dimension(lenph,3,3,3,3,lent) :: poly
+real(kind=sel), intent(out), dimension(lenph,lent) :: output
 
 output(:,:) = 0.0
 
@@ -128,14 +129,13 @@ end subroutine dragintegrand
 SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
 !-----------------------------------------------------------------------
   IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
 !-----------------------------------------------------------------------
-!  Inputs:
   INTEGER, INTENT(IN) :: Ntheta,Nphi
-  REAL(KIND=8), DIMENSION(Nphi,3,Ntheta), INTENT(IN)  :: a, b
-  REAL(KIND=8), DIMENSION(3,3,3,3,Ntheta), INTENT(IN)  :: Cmat
+  REAL(KIND=sel), DIMENSION(Nphi,3,Ntheta), INTENT(IN)  :: a, b
+  REAL(KIND=sel), DIMENSION(3,3,3,3,Ntheta), INTENT(IN)  :: Cmat
 !-----------------------------------------------------------------------
-!  Outputs:
-  REAL(KIND=8), DIMENSION(Nphi,3,3,Ntheta), INTENT(OUT) :: AB
+  REAL(KIND=sel), DIMENSION(Nphi,3,3,Ntheta), INTENT(OUT) :: AB
 !-----------------------------------------------------------------------
   integer l,o,k,p,i
   AB(:,:,:,:) = 0.d0
@@ -153,3 +153,158 @@ SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
   
   RETURN
 END SUBROUTINE elbrak
+
+!!**********************************************************************
+
+SUBROUTINE trapz(f,x,n,intf)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: n
+  REAL(KIND=sel), INTENT(IN), DIMENSION(n)  :: f, x
+  REAL(KIND=sel), INTENT(OUT) :: intf
+ 
+  intf = sum(0.5d0*(f(2:n)+f(1:n-1))*(x(2:n)-x(1:n-1)))
+  
+  RETURN
+END SUBROUTINE trapz
+
+!!**********************************************************************
+
+SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: Ntheta, Nphi
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi,3,3,Ntheta)  :: uij
+  REAL(KIND=sel), INTENT(IN) :: betaj
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3)  :: C2
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3,Ntheta)  :: Cv
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
+  REAL(KIND=sel), INTENT(OUT), DIMENSION(Ntheta) :: Wtot
+  
+  REAL(KIND=sel), DIMENSION(Nphi,Ntheta) :: Wdensity
+  INTEGER :: th, k, l, o, p
+ 
+  Wdensity = 0.d0
+  Wtot = 0.d0
+  do th=1,Ntheta
+    do p=1,3
+      do o=1,3
+        do l=1,3
+          do k=1,3
+            Wdensity(:,th) = Wdensity(:,th) + 0.5d0*uij(:,l,k,th)*uij(:,o,p,th)*(C2(k,l,o,p) + betaj*betaj*Cv(k,l,o,p,th))
+          enddo
+        enddo
+      enddo
+    enddo
+    call trapz(Wdensity(:,th),phi,Nphi,Wtot(th))
+  enddo
+  
+  RETURN
+END SUBROUTINE computeEtot
+
+!!**********************************************************************
+
+SUBROUTINE inv(A,invA)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3)  :: A
+  REAL(KIND=sel), INTENT(OUT), DIMENSION(3,3)  :: invA
+  REAL(KIND=sel) :: det !, eps(3,3,3)
+!~   INTEGER :: i, j, k, l, m, n
+  
+!~   eps = 0.d0
+!~   eps(1,2,3) = 1.d0; eps(3,1,2) = 1.d0; eps(2,3,1) = 1.d0
+!~   eps(3,2,1) = -1.d0; eps(1,3,2) = -1.d0; eps(2,1,3) = -1.d0
+  
+  ! note: hard coding this loop speeds up things by factor 6/27
+!~   do i=1,3; do j=1,3; do k=1,3
+!~     det = det + eps(i,j,k)*A(1,i)*A(2,j)*A(3,k)
+!~   enddo; enddo; enddo
+  det = A(1,1)*A(2,2)*A(3,3) + A(1,3)*A(2,1)*A(3,2) + A(1,2)*A(2,3)*A(3,1) &
+        - A(1,3)*A(2,2)*A(3,1) - A(1,1)*A(2,3)*A(3,2) - A(1,2)*A(2,1)*A(3,3)
+  
+  ! note: hard coding this loop speeds up things by factor 18/27**2
+!~   invA = 0.d0
+!~   do i=1,3; do j=1,3; do k=1,3
+!~     do l=1,3; do m=1,3; do n=1,3
+!~       invA(i,j) = invA(i,j) + 0.5d0*eps(j,k,l)*eps(i,m,n)*A(k,m)*A(l,n)
+!~     enddo; enddo; enddo
+!~   enddo; enddo; enddo
+  invA(1,1) = A(2,2)*A(3,3) - A(2,3)*A(3,2)
+  invA(2,2) = A(1,1)*A(3,3) - A(1,3)*A(3,1)
+  invA(3,3) = A(1,1)*A(2,2) - A(1,2)*A(2,1)
+  invA(1,2) = A(3,2)*A(1,3) - A(3,3)*A(1,2)
+  invA(2,1) = A(2,3)*A(3,1) - A(3,3)*A(2,1)
+  invA(2,3) = A(1,3)*A(2,1) - A(1,1)*A(2,3)
+  invA(3,2) = A(3,1)*A(1,2) - A(1,1)*A(3,2)
+  invA(3,1) = A(2,1)*A(3,2) - A(2,2)*A(3,1)
+  invA(1,3) = A(1,2)*A(2,3) - A(2,2)*A(1,3)
+  
+  invA = invA/det
+  
+  RETURN
+END SUBROUTINE inv
+
+!!**********************************************************************
+
+SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  REAL(KIND=sel), INTENT(IN) :: beta
+  INTEGER, INTENT(IN) :: Ntheta, Nphi
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3)  :: C2
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3,Ntheta)  :: Cv
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3)  :: b
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi,3,Ntheta)  :: M, N
+  REAL(KIND=sel), INTENT(OUT), DIMENSION(Nphi,3,3,Ntheta)  :: uij
+  integer :: i, j, k, th, ph
+  real(kind=sel), dimension(Nphi,3,3,Ntheta) :: MM, NN, MN, NM, NNinv, Sphi, Bphi
+  real(kind=sel), dimension(3,3,3,3,Ntheta) :: tmpC
+  real(kind=sel), dimension(3,3,Ntheta) :: S, BB
+  real(kind=sel), dimension(3,Ntheta) :: Sb, BBb
+  real(kind=sel) :: pi2 = (4.d0*atan(1.d0))**2
+!~   pi2 = (0.5d0*phi(Nphi))**2
+  do th=1,Ntheta
+    tmpC(:,:,:,:,th) = C2(:,:,:,:) - beta*beta*Cv(:,:,:,:,th)
+  enddo
+  call elbrak(M,M,tmpC,Ntheta,Nphi,MM)
+  call elbrak(M,N,tmpC,Ntheta,Nphi,MN)
+  call elbrak(N,M,tmpC,Ntheta,Nphi,NM)
+  call elbrak(N,N,tmpC,Ntheta,Nphi,NN)
+  Sphi = 0.d0; Bphi = 0.d0
+  do th=1,Ntheta; do ph=1,Nphi
+    call inv(NN(ph,:,:,th),NNinv(ph,:,:,th))
+  enddo; enddo
+  do th=1,Ntheta; do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
+    Sphi(ph,i,j,th) = Sphi(ph,i,j,th) - NNinv(ph,i,k,th)*NM(ph,k,j,th)
+  enddo; enddo; enddo; enddo; enddo
+  do th=1,Ntheta; do j=1,3; do i=1,3; do ph=1,Nphi
+    Bphi(ph,i,j,th) = MM(ph,i,j,th)
+    do k=1,3
+      Bphi(ph,i,j,th) = Bphi(ph,i,j,th) + MN(ph,i,k,th)*Sphi(ph,k,j,th)
+    enddo
+  enddo; enddo; enddo; enddo
+  do th=1,Ntheta
+    do i=1,3; do j=1,3
+      call trapz(Sphi(:,j,i,th),phi,Nphi,S(j,i,th))
+      call trapz(Bphi(:,j,i,th),phi,Nphi,BB(j,i,th))
+    enddo; enddo
+    Sb(:,th) = (0.25d0/pi2)*MATMUL(S(:,:,th),b)
+    BBb(:,th) = (0.25d0/pi2)*MATMUL(BB(:,:,th),b)
+  enddo
+  uij = 0.d0
+  do th=1,Ntheta; do j=1,3; do i=1,3; do ph=1,Nphi
+    uij(ph,i,j,th) = uij(ph,i,j,th) - Sb(i,th)*M(ph,j,th) &
+                    + N(ph,j,th)*(DOT_PRODUCT(NNinv(ph,i,:,th),BBb(:,th)) - DOT_PRODUCT(Sphi(ph,i,:,th),Sb(:,th)))
+  enddo; enddo; enddo; enddo
+  RETURN
+END SUBROUTINE computeuij
