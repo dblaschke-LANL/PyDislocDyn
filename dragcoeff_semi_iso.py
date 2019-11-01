@@ -639,3 +639,53 @@ if __name__ == '__main__':
     mkfitplot(metal,"screw","pure screw")
     mkfitplot(metal,"aver","averaged over $\\vartheta$")
     
+    
+    ### finally, also plot Baver as a function of stress using the fits computed above
+    for X in metal:
+        vcrit = ct[X]*vcrit_smallest[X]
+        popt = popt_aver[X]
+        burg = burgers[X]
+        
+        @np.vectorize
+        def B(v):
+            bt = abs(v/vcrit)
+            if bt<1:
+                out = 1e-3*fit_mix(bt, *popt)
+            else:
+                out = np.inf
+            return out
+            
+        @np.vectorize
+        def vr(stress):
+            '''returns the velocity of a dislocation in the drag dominated regime as a function of stress.'''
+            bsig = abs(burg*stress)
+            def nonlinear_equation(v):
+                return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
+            out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
+            zero = abs(nonlinear_equation(out))
+            if zero>1e-5 and zero/bsig>1e-2:
+                print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
+            return out
+            
+        ### compute what stress is needed to move dislocations at velocity v:
+        @np.vectorize
+        def sigma_eff(v):
+            return v*B(v)/burg
+            
+        ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 500 MPa (whichever is smaller)
+        sigma_max = min(5e8,sigma_eff(0.99*vcrit))
+        
+        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
+        ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
+        ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
+        ax.set_title("{}, ".format(X) + "averaged over $\\vartheta$",fontsize=fntsize)
+        sigma = np.linspace(0,sigma_max,300)
+        ax.axis((0,sigma_max/1e6,0,B(vr(sigma_max))*1e3))
+        ax.plot(sigma/1e6,B(vr(sigma))*1e3)
+        plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        plt.savefig("B_of_sigma_{}.pdf".format(X),format='pdf',bbox_inches='tight')
+        plt.close()
+    
