@@ -225,34 +225,65 @@ if __name__ == '__main__':
             
         LT = np.array([compute_lt(j) for j in range(len(beta))])
         
-        # write the results to disk (two different formats for convenience):
+        # write the results to disk:
         with open("LT_{}.dat".format(X),"w") as LTfile:
-            for j in range(Nbeta):
-                LTfile.write('\t'.join(map("{:.6f}".format,LT[j])) + '\n')
+            LTfile.write("### dimensionless line tension prefactor LT(beta,theta) for {}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+            LTfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta[1:-1]/np.pi)) + '\n')
+            for j in range(len(beta)):
+                LTfile.write("{:.4f}".format(beta_scaled[X][j]) + '\t' + '\t'.join(map("{:.6f}".format,LT[j])) + '\n')
+
+        return 0
         
-        with open("LT_betatheta_{}.dat".format(X),"w") as LTbtfile:
-            LTbtfile.write('beta\ttheta\tLT\n')
-            for j in range(Nbeta):
-                for th in range(len(theta[1:-1])):
-                    LTbtfile.write("{:.4f}".format(beta_scaled[X][j]) +'\t' + "{:.4f}".format(theta[th+1]) + '\t' + "{:.3f}".format(LT[j,th]) + '\n')    
-                            
-        ### create plots:
+    # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
+    if Ncores == 1:
+        [maincomputations(i) for i in range(len(metal))]
+    elif Nbeta<1:
+        print("skipping line tension calculations, Nbeta>0 required")
+    else:
+        Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
+
+################## create plots ################
+    if skip_plots:
+        print("skipping plots as requested")
+        plt_metal = []
+    else:
+        plt_metal = metal
+
+## load data from LT calculation
+    LT = {}
+    theta_plt = {}
+    Ntheta_plt = {}
+    beta_plt = {}
+    for X in plt_metal:
+        ## for every X, LT has shape (len(theta+1),Nbeta), first column is beta all others are LT for various dislocation types theta in the range -pi/2 to  pi/2
+        with open("LT_{}.dat".format(X),"r") as LTfile:
+            lines = list(line.rstrip() for line in LTfile)
+            ### first read theta from file (already known, but make this code independent from above)
+            theta_plt[X] = np.pi*np.asarray(lines[1].split()[1:],dtype='float')
+            Ntheta_plt[X] = len(theta_plt[X])
+            ### determine length of beta from file
+            Nbeta_plt = len(lines)-2
+            ### read beta vs drag coeff from file:
+            LT[X] = np.zeros((Nbeta_plt,Ntheta_plt[X]+1))
+            for j in range(Nbeta_plt):
+                LT[X][j] = np.asarray(lines[j+2].split(),dtype='float')
+            beta_plt[X] = LT[X][:,0]
+            
+    def mkLTplots(X):
         namestring = "{}".format(X)
-        beta_trunc = [j for j in beta_scaled[X] if j <=vcrit_smallest[X]]
+        beta_trunc = [j for j in beta_plt[X] if j <=vcrit_smallest[X]]
         if X in metal_symm:
-            # plt.figure(figsize=(4.5,3.2))
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
-            LT_trunc = LT[:len(beta_trunc),int(Ntheta/2)-1:]
-            y_msh , x_msh = np.meshgrid(theta[int(Ntheta/2):-1],beta_trunc)
+            LT_trunc = LT[X][:len(beta_trunc),int((Ntheta_plt[X]+1)/2):]
+            y_msh , x_msh = np.meshgrid(theta_plt[X][int((Ntheta_plt[X]-1)/2):],beta_trunc)
             plt.yticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
         else:
-            # plt.figure(figsize=(4.5,4.5))
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,4.5))
-            LT_trunc = LT[:len(beta_trunc)]
-            y_msh , x_msh = np.meshgrid(theta[1:-1],beta_trunc)
+            LT_trunc = LT[X][:len(beta_trunc),1:]
+            y_msh , x_msh = np.meshgrid(theta_plt[X],beta_trunc)
             plt.yticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$-\pi/2$", r"$-3\pi/8$", r"$-\pi/4$", r"$-\pi/8$", r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
-        # plt.xticks(np.array([0, 0.2, 0.4, 0.6, 0.8]),fontsize=fntsize)
         plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         if X=='ISO':
@@ -268,17 +299,11 @@ if __name__ == '__main__':
         colmsh.set_rasterized(True)
         plt.axhline(0, color='grey', linewidth=0.5, linestyle='dotted')
         plt.savefig("LT_{}.pdf".format(X),format='pdf',bbox_inches='tight',dpi=450)
-        # plt.savefig("LT_{}.png".format(X),format='png',bbox_inches='tight',dpi=450)
         plt.close()
 
-        return 0
-        
-    # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
-    if Ncores == 1:
-        [maincomputations(i) for i in range(len(metal))]
-    else:
-        Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
-
+    for X in plt_metal:
+        mkLTplots(X)
+    
 ################################################    
     import sympy as sp     
     if Ntheta2==0 or Ntheta2==None:
