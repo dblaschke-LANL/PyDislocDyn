@@ -2,7 +2,7 @@
 ! run 'f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 29, 2019
+! Date: July 23, 2018 - Oct. 31, 2019
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
 
@@ -308,3 +308,87 @@ SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
   enddo; enddo; enddo; enddo
   RETURN
 END SUBROUTINE computeuij
+
+!!**********************************************************************
+
+SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: Nphi, Nt, kthchk
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: t
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
+  REAL(KIND=sel), INTENT(IN)  :: beta
+  LOGICAL, INTENT(IN)  :: updatet
+  REAL(KIND=sel), INTENT(OUT) :: Bresult
+  integer :: p, NBtmp
+  real(kind=sel) :: limit(Nphi), Bt(Nphi)
+  real(kind=sel), dimension(:), allocatable :: Btmp, t1
+  logical ::  tmask(Nt)
+  
+  limit = beta*abs(cos(phi))
+  Bt = 0.d0
+  do p=1,Nphi
+    tmask = (t>limit(p))
+    t1 = pack(t,tmask)
+    Btmp = pack(B(:,p),tmask)
+    NBtmp = size(Btmp)
+    Bt(p) = 0.d0
+    if (NBtmp.gt.1) then
+      if ((updatet.eqv..True.).or.(kthchk.eq.0)) then
+        Btmp(1) = 2.d0*Btmp(1)
+      endif
+      if (updatet.eqv..True.) then
+        Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
+      endif
+      call trapz(Btmp(:),t1(:),NBtmp,Bt(p))
+    endif
+  enddo
+  call trapz(Bt,phi,Nphi,Bresult)
+  
+  RETURN
+END SUBROUTINE integratetphi
+
+!!**********************************************************************
+
+SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: Nphi, Nt, kthchk, Nchunks
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B, t
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: qtilde
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
+  REAL(KIND=sel), INTENT(IN)  :: beta1
+  LOGICAL, INTENT(IN)  :: updatet
+  REAL(KIND=sel), INTENT(OUT) :: Bresult
+  integer :: p, NBtmp
+  real(kind=sel) :: qtlimit(Nphi), Bt(Nphi)
+  real(kind=sel), dimension(:), allocatable :: Btmp, qt
+  logical ::  tmask(Nt)
+  
+  qtlimit = 1/(beta1*abs(cos(phi)))
+  Bt = 0.d0
+  do p=1,Nphi
+    tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
+    qt = pack(qtilde,tmask)
+    Btmp = pack(B(:,p),tmask)
+    NBtmp = size(Btmp)
+    Bt(p) = 0.d0
+    if (NBtmp.gt.1) then
+      if ((updatet.eqv..True.).or.(kthchk.eq.0)) then
+        Btmp(1) = 2.d0*Btmp(1)
+      endif
+      if ((updatet.eqv..True.).or.(kthchk.eq.(Nchunks-1))) then
+        Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
+      endif
+      call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
+    endif
+  enddo
+  call trapz(Bt,phi,Nphi,Bresult)
+  
+  RETURN
+END SUBROUTINE integrateqtildephi

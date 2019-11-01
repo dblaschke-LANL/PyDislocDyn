@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 30, 2019
+# Date: Nov. 5, 2017 - Oct. 31, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -16,6 +16,13 @@ except ImportError:
     print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     def jit(func):
         return func
+try:
+    import subroutines as fsub
+    usefortran = True
+except ImportError:
+    print("WARNING: module 'subroutines' not found, execution will be slower")
+    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
+    usefortran = False
 
 delta = np.diag((1,1,1))
 hbar = 1.0545718e-34
@@ -55,15 +62,6 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
                     result1 -= np.outer(prefacOnes,dij[k,kk]*dij[n,nn])*poly[k,kk,n,nn]
                     
     return prefactor*result1
-
-## if it exists, use fortran-compiled subroutine for maximum performance (instead of the four jit-compiled fcts below):
-try:
-    import subroutines as fsub
-    usefortran = True
-except ImportError:
-    print("WARNING: module 'subroutines' not found, execution will be slower")
-    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
-    usefortran = False
 
 ## dragcoeff_iso_computepoly() is currently the bottle neck, as it takes of the order of a few seconds to compute and is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta
 ## jit-compiling some of the subroutines helps somewhat
@@ -448,6 +446,63 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     
     return out
 
+if usefortran:
+    integratetphi = fsub.integratetphi
+    integrateqtildephi = fsub.integrateqtildephi
+else:
+    def integratetphi(B,beta,t,phi,updatet,kthchk):
+        '''Subroutine of dragcoeff_iso().'''
+        limit = beta*np.abs(np.cos(phi))
+        # qtlimit = 1/(beta*np.abs(np.cos(phi))) ## mask not needed for this, as it is always automatically fulfilled in the present coordinates and with the limit above
+        Bt = np.zeros((len(phi)))
+        for p in range(len(phi)):
+            Btmp = B[:,p]
+            # qtmask = (qtilde[:,p]<qtlimit[p])
+            # t1 = t[qtmask]
+            # Btmp = Btmp[qtmask]
+            # tmask = (t1>limit[p])
+            # t1 = t1[tmask]
+            tmask = (t>limit[p])
+            t1 = t[tmask]
+            Btmp = Btmp[tmask]
+            ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
+            ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
+            ## also, on updatet runs, we are missing dt/2 intevals on both ends of a chunk since we're computing intermediate points;
+            ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
+            ## this amounts to doubling the endpoints and letting trapz take care of the rest
+            if len(Btmp!=0):
+                if updatet:
+                    Btmp[0] = 2*Btmp[0]
+                    Btmp[-1] = 2*Btmp[-1]
+                elif kthchk==0:
+                    Btmp[0] = 2*Btmp[0]
+            Bt[p] = np.trapz(Btmp,x = t1)
+        return np.trapz(Bt,x = phi)
+
+    def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
+        '''Subroutine of dragcoeff_iso().'''
+        Bt = np.zeros((len(phi)))
+        ## energy conservation tells us w1-Wq>0, and hence qtilde<c1/v*cosphi=1/beta1*cosphi;
+        qtlimit = 1/(beta1*np.abs(np.cos(phi)))
+        for p in range(len(phi)):
+            tmask = (abs(t[:,p])<1)
+            qt = qtilde[tmask]
+            Btmp = B[:,p]
+            Btmp = Btmp[tmask]
+            qtmask = (qt<qtlimit[p])
+            qt = qt[qtmask]
+            Btmp = Btmp[qtmask]
+            ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
+            ## also: if we're refining, we are missing dt/2 intevals on both ends of a chunk on updatet runs since we're computing intermediate points;
+            ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
+            ## this amounts to doubling the endpoints and letting trapz take care of the rest
+            if len(Btmp)!=0:
+                if updatet or kthchk==0:
+                    Btmp[0] = 2*Btmp[0]
+                if updatet or kthchk==(Nchunks-1):
+                    Btmp[-1] = 2*Btmp[-1]
+            Bt[p] = np.trapz(Btmp,x = qt)
+        return np.trapz(Bt,x = phi)
 
 def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, Nphi1=50, Debye_series=False, beta_long=False, update=None, chunks=None, r0cut=None):
     '''Subroutine of dragcoeff_iso(): Computes one of the four modes (TT, LL, TL, LT where T=transverse, L=longitudinal) contributing to the drag coefficient from phonon wind for an isotropic crystal.
@@ -468,7 +523,9 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     ### i.e. Nt_total = 1 + #chunks*(Nt-1) where Nt is number of points in each chunk of initial run (we're sharing boundary points!), hence Nt_initial = (Nt_total -1)/#chunks + 1 and Nt_total = (int((Nt_userchoice)/#chunks) + 1) * #chunks + 1 (so that Nt_total>=Nt_userchoice)
     ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we devide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
     if np.asarray(chunks).any()==None:
-        Nt_total = kthchk = None
+        Nt_total = None
+        kthchk = 0
+        Nchunks = 1
     else:
         Nchunks, kthchk = chunks
         Nt_total = 1 + Nchunks*(Nt-1)
@@ -503,77 +560,6 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
                 +((hbar*cs*qBZ/(T*kB))**6/(42*5*720))*(1-(1-beta*qtilde*CsPhi)**5))
             
         return distri
-    
-    def integratetphi(B,beta,t,phi):
-        limit = beta*np.abs(np.cos(phi))
-        # qtlimit = 1/(beta*np.abs(np.cos(phi))) ## mask not needed for this, as it is always automatically fulfilled in the present coordinates and with the limit above
-        Bt = np.zeros((len(phi)))
-        # pointskept = 0
-        for p in range(len(phi)):
-            Btmp = B[:,p]
-            # qtmask = (qtilde[:,p]<qtlimit[p])
-            # t1 = t[qtmask]
-            # Btmp = Btmp[qtmask]
-            # tmask = (t1>limit[p])
-            # t1 = t1[tmask]
-            tmask = (t>limit[p])
-            t1 = t[tmask]
-            Btmp = Btmp[tmask]
-            ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
-            ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
-            ## also, on updatet runs, we are missing dt/2 intevals on both ends of a chunk since we're computing intermediate points;
-            ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
-            ## this amounts to doubling the endpoints and letting trapz take care of the rest
-            if len(Btmp!=0):
-                if updatet:
-                    Btmp[0] = 2*Btmp[0]
-                    Btmp[-1] = 2*Btmp[-1]
-                elif kthchk==0 or Nt_total==None:
-                    Btmp[0] = 2*Btmp[0]
-            Bt[p] = np.trapz(Btmp,x = t1)
-        #     pointskept += len(t1)
-        # totalpoints = len(t)*len(phi)
-        # print("fraction of points dropped: ",1-pointskept/totalpoints)
-        return np.trapz(Bt,x = phi)
-
-    def integrateqtildephi(B,beta1,qtilde,t,phi):
-        Bt = np.zeros((len(phi)))
-        ## energy conservation tells us w1-Wq>0, and hence qtilde<c1/v*cosphi=1/beta1*cosphi;
-        qtlimit = 1/(beta1*np.abs(np.cos(phi)))
-        # pointskept = 0
-        for p in range(len(phi)):
-            tmask = (abs(t[:,p])<1)
-            qt = qtilde[tmask]
-            Btmp = B[:,p]
-            Btmp = Btmp[tmask]
-            qtmask = (qt<qtlimit[p])
-            qt = qt[qtmask]
-            Btmp = Btmp[qtmask]
-            ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
-            ## also: if we're refining, we are missing dt/2 intevals on both ends of a chunk on updatet runs since we're computing intermediate points;
-            ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
-            ## this amounts to doubling the endpoints and letting trapz take care of the rest
-            if len(Btmp)!=0:
-                if updatet:
-                    Btmp[0] = 2*Btmp[0]
-                    Btmp[-1] = 2*Btmp[-1]
-                elif kthchk==0 or Nt_total==None:
-                    Btmp[0] = 2*Btmp[0]
-                elif kthchk==(Nchunks-1) or Nt_total==None:
-                    Btmp[-1] = 2*Btmp[-1]
-            Bt[p] = np.trapz(Btmp,x = qt)
-            # pointskept += len(qt)
-            ############ for debugging:
-            # nowdropping = 1-len(qt)/len(qtilde)
-            # if nowdropping<0.01:
-            #     print(tmask)
-            #     if qtlimit[p]>0:
-            #         print(qtmask)
-            #     print(".")
-            ###############
-        # totalpoints = len(qtilde)*len(phi)
-        # print("fraction of points dropped: ",1-pointskept/totalpoints)
-        return np.trapz(Bt,x = phi)
         
     ### initialize arrays
     Nphi = len(dij[0,0,0])
@@ -698,12 +684,12 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             else:
                 Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
             if isinstance(cs, list):
-                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi)
+                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi,updatet,kthchk,Nchunks)
             else:
                 if beta_long==False:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi,updatet,kthchk)
                 else:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet,kthchk)
     else:
         for th in range(Ntheta):
             poly = dragcoeff_iso_computepoly(A3[th], phi, qvec, qtilde, t, phi1, longitud)
@@ -712,11 +698,11 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             else:
                 Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
             if isinstance(cs, list):
-                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi)
+                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi,updatet,kthchk,Nchunks)
             else:
                 if beta_long==False:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi,updatet,kthchk)
                 else:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet,kthchk)
     
     return Bmixfinal
