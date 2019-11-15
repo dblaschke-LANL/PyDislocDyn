@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 30, 2019
+# Date: Nov. 5, 2017 - Nov. 14, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -641,6 +641,8 @@ if __name__ == '__main__':
     
     
     ### finally, also plot Baver as a function of stress using the fits computed above
+    B_of_sig = {}
+    sigma = {}
     for X in metal:
         vcrit = ct[X]*vcrit_smallest[X]
         popt = popt_aver[X]
@@ -673,15 +675,16 @@ if __name__ == '__main__':
             return v*B(v)/burg
             
         ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 500 MPa (whichever is smaller)
-        sigma_max = min(5e8,sigma_eff(0.99*vcrit))
+        sigma_max = min(1e9,sigma_eff(0.99*vcrit))
         
         fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
         ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
         ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
         ax.set_title("{}, ".format(X) + "averaged over $\\vartheta$",fontsize=fntsize)
-        sigma = np.linspace(0,sigma_max,300)
-        ax.axis((0,sigma_max/1e6,0,B(vr(sigma_max))*1e3))
-        ax.plot(sigma/1e6,B(vr(sigma))*1e3)
+        sigma[X] = np.linspace(0,sigma_max,500)
+        B_of_sig[X] = B(vr(sigma[X]))
+        ax.axis((0,sigma[X][-1]/1e6,0,B_of_sig[X][-1]*1e3))
+        ax.plot(sigma[X]/1e6,B_of_sig[X]*1e3)
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
         ax.xaxis.set_minor_locator(AutoMinorLocator())

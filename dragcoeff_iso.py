@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 30, 2019
+# Date: Nov. 5, 2017 - Nov. 14, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -295,3 +295,131 @@ if __name__ == '__main__':
         plt.savefig("B_iso_{:.4f}.pdf".format(theta[th]),format='pdf',bbox_inches='tight')
         plt.close()
         
+    ## define fitting fcts.:
+    if modes=='TT': ## degree of divergence is reduced for purely transverse modes
+        print("fitting for transverse modes only (assuming reduced degrees of divergence)")
+        def fit_edge(x, c0, c1, c2, c3, c4):
+            return c0 - c1*x + c2*x**2 + c3*np.log(1-x**2) + c4*(1/np.sqrt(1-x**2) - 1)
+            
+        def fit_screw(x, c0, c1, c2, c3, c4):
+            return c0 - c1*x + c2*x**2 + c3*x**4 + c4*x**16
+    else:
+        def fit_edge(x, c0, c1, c2, c3, c4):
+            return c0 - c1*x + c2*np.log(1-x**2) + c3*(1/(1-x**2)**(1/2) - 1) + c4*(1/(1-x**2)**(3/2) - 1)
+            
+        def fit_screw(x, c0, c1, c2, c3, c4):
+            return c0 - c1*x + c2*x**2 + c3*np.log(1-x**2) + c4*(1/np.sqrt(1-x**2) - 1)
+    
+    popt_edge = {}
+    pcov_edge = {}
+    popt_screw = {}
+    pcov_screw = {}
+    Bmax_fit = 0.20 ## only fit up to Bmax_fit [mPas]
+    for X in metal:
+        popt_edge[X], pcov_edge[X] = curve_fit(fit_edge, beta, Broom[X][:,Ntheta], bounds=([0.9*Broom[X][0,Ntheta],0.,-0.,-0., -0.], [1.1*Broom[X][0,Ntheta], 2*Broom[X][0,Ntheta], 1., 1.,1.]))
+        popt_screw[X], pcov_screw[X] = curve_fit(fit_screw, beta, Broom[X][:,1], bounds=([0.9*Broom[X][0,1],0.,-0.,-0.,-0.], [1.1*Broom[X][0,1], 2*Broom[X][0,1], 1., 1., 1.]))
+    
+    with open("drag_iso_fit.txt","w") as fitfile:
+        if modes=='TT': ## degree of divergence is reduced for purely transverse modes
+            fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature (transverse modes only):\nEdge dislocations:\n")
+            for X in metal:
+                fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_edge[X]))
+            fitfile.write("\nScrew dislocations:\n")
+            for X in metal:
+                fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*x**4 + {4:.2f}*x**16\n".format(*1e3*popt_screw[X]))
+        else:
+            fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature:\nEdge dislocations:\n")
+            for X in metal:
+                fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*log(1-x**2) + {3:.2f}*(1/(1-x**2)**(1/2) - 1) + {4:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
+            fitfile.write("\nScrew dislocations:\n")
+            for X in metal:
+                fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_screw[X]))
+        fitfile.write("\nwhere $x=v/c_{\mathrm{t}$\n\n")
+        fitfile.write(" & "+" & ".join((metal))+" \\\\\hline\hline")
+        fitfile.write("\n $c_{\mathrm{t}}$")
+        for X in metal:
+            fitfile.write(" & "+"{:.0f}".format(ct[X]))
+
+    def mkfitplot(metal_list,filename):
+        fig, ax = plt.subplots(1, 1, figsize=(4.5,4.))
+        plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
+        ax.set_xticks(np.arange(11)/10)
+        ax.set_yticks(np.arange(12)/100)
+        ax.axis((0,maxb,0,0.11)) ## define plot range
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.set_xlabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
+        ax.set_ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
+        ax.set_title(filename,fontsize=fntsize)
+        for X in metal_list:
+            beta_highres = np.linspace(0,1,1000)
+            if filename=="edge":
+                ax.plot(beta,Broom[X][:,Ntheta],color=metalcolors[X],label=X)
+                ax.plot(beta_highres,fit_edge(beta_highres,*popt_edge[X]),':',color='gray')
+            elif filename=="screw":
+                ax.plot(beta,Broom[X][:,1],color=metalcolors[X],label=X)
+                ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
+            else:
+                raise ValueError("keyword 'filename'={} undefined.".format(filename))
+        ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
+        plt.savefig("B_iso_{0}K_{1}+fits.pdf".format(roomT,filename),format='pdf',bbox_inches='tight')
+        plt.close()
+        
+    mkfitplot(metal,"edge")
+    mkfitplot(metal,"screw")
+
+
+    ### finally, also plot Baver as a function of stress using the fits computed above
+    B_of_sig = {}
+    sigma = {}
+    for X in metal:
+        popt_e = popt_edge[X]
+        popt_s = popt_screw[X]
+        vcrit = ct[X]
+        burg = burgers[X]
+        
+        @np.vectorize
+        def B(v):
+            bt = abs(v/vcrit)
+            if bt<1:
+                out = 1e-3*(fit_edge(bt, *popt_e)+fit_screw(bt, *popt_s))/2
+            else:
+                out = np.inf
+            return out
+            
+        @np.vectorize
+        def vr(stress):
+            '''returns the velocity of a dislocation in the drag dominated regime as a function of stress.'''
+            bsig = abs(burg*stress)
+            def nonlinear_equation(v):
+                return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
+            out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
+            zero = abs(nonlinear_equation(out))
+            if zero>1e-5 and zero/bsig>1e-2:
+                print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
+            return out
+            
+        ### compute what stress is needed to move dislocations at velocity v:
+        @np.vectorize
+        def sigma_eff(v):
+            return v*B(v)/burg
+            
+        ## determine stress that will lead to velocity of 95% transverse sound speed and stop plotting there, or at 1.5GPa (whichever is smaller)
+        sigma_max = min(1.5e9,sigma_eff(0.95*vcrit))
+        
+        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
+        ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
+        ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
+        ax.set_title("{}, ".format(X) + "averaged over $\\vartheta$",fontsize=fntsize)
+        sigma[X] = np.linspace(0,sigma_max,500)
+        B_of_sig[X] = B(vr(sigma[X]))
+        ax.axis((0,sigma[X][-1]/1e6,0,B_of_sig[X][-1]*1e3))
+        ax.plot(sigma[X]/1e6,B_of_sig[X]*1e3)
+        plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        plt.savefig("Biso_of_sigma_{}.pdf".format(X),format='pdf',bbox_inches='tight')
+        plt.close()
+    
