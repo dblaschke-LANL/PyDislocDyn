@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 14, 2019
+# Date: Nov. 5, 2017 - Nov. 20, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -28,8 +28,6 @@ mpl.use('Agg', warn=False) # don't need X-window, allow running in a remote term
 # mpl.rcParams.update(pgf_with_pdflatex)
 ##################
 import matplotlib.pyplot as plt
-# plt.rc('font',**{'family':'Liberation Mono','size':'11'})
-# plt.rc('font',**{'family':'Liberation Sans Narrow','size':'11'})
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 from matplotlib import gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -55,6 +53,7 @@ Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as frac
 minb = 0.01
 maxb = 0.99
 NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
+constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > roomT
 roomT = 300 # in Kelvin
 maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
@@ -87,7 +86,6 @@ highT = np.linspace(roomT,maxT,NT)
 phi = np.linspace(0,2*np.pi,Nphi)
 phiX = np.linspace(0,2*np.pi,NphiX)
 
-#### isotropic input data:
 ac = data.CRC_a
 cc = data.CRC_c
 rho = data.CRC_rho
@@ -276,79 +274,75 @@ if __name__ == '__main__':
             rotm = rotmat[X][th]
             A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
-    for X in metal:
-        # wrap all main computations into a single function definition to be run in a parallelized loop below
-        def maincomputations(bt,X,modes=modes):
-            Bmix = np.zeros((len(theta),len(highT)))
-                                    
-            ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-            dislocation[X].computeuij(beta=bt, C2=C2[X])
+    # wrap all main computations into a single function definition to be run in a parallelized loop below
+    def maincomputations(bt,X,modes=modes):
+        Bmix = np.zeros((len(theta),len(highT)))
+        ### compute dislocation displacement gradient uij, then its Fourier transform dij:
+        dislocation[X].computeuij(beta=bt, C2=C2[X])
+        dislocation[X].alignuij()
+        # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
+        # r = np.exp(np.linspace(np.log(burgers[X]/5),np.log(100*burgers[X]),125))
+        ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
+        # r = np.exp(np.linspace(np.log(rmin*np.pi/qBZ[X]),np.log(rmax*np.pi/qBZ[X]),Nr))
+        # q = qBZ[X]*np.linspace(0,1,Nq)
+        # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
+        dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
+        Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+        
+        for Ti in range(len(highT)-1):
+            T = highT[Ti+1]
+            expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
+            if constantrho == True:
+                expansionratio = 1 ## turn off expansion
+            qBZT = qBZ[X]/expansionratio
+            burgersT = burgers[X]*expansionratio
+            rhoT = rho[X]/expansionratio**3
+            muT = mu[X] ## TODO: need to implement T dependence of shear modulus!
+            lamT = bulk[X] - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
+            ctT = np.sqrt(muT/rhoT)
+            ct_over_cl_T = np.sqrt(muT/(lamT+2*muT))
+            clT = ctT/ct_over_cl_T
+            ## beta, as it appears in the equations, is v/ctT, therefore:
+            betaT = bt*ct[X]/ctT
+            ###### T dependence of elastic constants (TODO)
+            c11T = c11[X]
+            c12T = c12[X]
+            c44T = c44[X]
+            c13T = c13[X]
+            c33T = c33[X]
+            c66T = c66[X]
+            c111T = c111[X]
+            c112T = c112[X]
+            c113T = c113[X]
+            c123T = c123[X]
+            c133T = c133[X]
+            c144T = c144[X]
+            c155T = c155[X]
+            c166T = c166[X]
+            c222T = c222[X]
+            c333T = c333[X]
+            c344T = c344[X]
+            c366T = c366[X]
+            c456T = c456[X]
+            ###
+            C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T)/muT
+            C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T)/muT
+            A3T = elasticA3(C2T,C3T)
+            A3Trotated = np.zeros((len(theta),3,3,3,3,3,3))
+            for th in range(len(theta)):
+                rotm = rotmat[X][th]
+                A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
+            ##########################
+            dislocation[X].computeuij(beta=betaT, C2=C2T)
             dislocation[X].alignuij()
-            # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
-            
-            # r = np.exp(np.linspace(np.log(burgers[X]/5),np.log(100*burgers[X]),125))
-            ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
-            # r = np.exp(np.linspace(np.log(rmin*np.pi/qBZ[X]),np.log(rmax*np.pi/qBZ[X]),Nr))
-            # q = qBZ[X]*np.linspace(0,1,Nq)
+            ## rT*qT = r*q, so does not change anything
             # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
             dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-            
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
-            
-            for Ti in range(len(highT)-1):
-                T = highT[Ti+1]
-                expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
-                qBZT = qBZ[X]/expansionratio
-                burgersT = burgers[X]*expansionratio
-                rhoT = rho[X]/expansionratio**3
-                muT = mu[X] ## TODO: need to implement T dependence of shear modulus!
-                lamT = bulk[X] - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
-                ctT = np.sqrt(muT/rhoT)
-                ct_over_cl_T = np.sqrt(muT/(lamT+2*muT))
-                clT = ctT/ct_over_cl_T
-                ## beta, as it appears in the equations, is v/ctT, therefore:
-                betaT = bt*ct[X]/ctT
-                    
-                ###### T dependence of elastic constants (TODO)
-                c11T = c11[X]
-                c12T = c12[X]
-                c44T = c44[X]
-                c13T = c13[X]
-                c33T = c33[X]
-                c66T = c66[X]
-                c111T = c111[X]
-                c112T = c112[X]
-                c113T = c113[X]
-                c123T = c123[X]
-                c133T = c133[X]
-                c144T = c144[X]
-                c155T = c155[X]
-                c166T = c166[X]
-                c222T = c222[X]
-                c333T = c333[X]
-                c344T = c344[X]
-                c366T = c366[X]
-                c456T = c456[X]
-                ###
-                C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T)/muT
-                C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T)/muT
-                A3T = elasticA3(C2T,C3T)
-                A3Trotated = np.zeros((len(theta),3,3,3,3,3,3))
-                for th in range(len(theta)):
-                    rotm = rotmat[X][th]
-                    A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
-                ##########################
-                dislocation[X].computeuij(beta=betaT, C2=C2T)
-                dislocation[X].alignuij()
-                                    
-                ## rT*qT = r*q, so does not change anything
-                # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-                dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-            
-                Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
-                    
-            return Bmix
+            Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+        
+        return Bmix
 
+    for X in metal:
         # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
         if Ncores == 1:
             Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
@@ -356,7 +350,6 @@ if __name__ == '__main__':
             pass
         else:
             Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,X,modes) for bt in beta))
-
 
         # and write the results to disk (in various formats)
         if Ncores != 0:
@@ -532,8 +525,7 @@ if __name__ == '__main__':
         plt.savefig("B_{}.pdf".format(X),format='pdf',bbox_inches='tight',dpi=300)
         plt.close()
     
-    ## define line styles for every metal in the same plot
-    lnstyles = {'Al':'-', 'Cu':'--', 'Fe':':', 'Nb':'-.', 'Cd':'-', 'Mg':'--', 'Zn':':', 'Sn':'-.', 'Ni':'-.', 'Mo':'--', 'Ag':':', 'Au':'-.', 'Ti':'-', 'Zr':'-.'}
+    ## define line colors for every metal in the same plot
     metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'darkgreen', 'Nb':'firebrick', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
         
     ## define fitting fct.:

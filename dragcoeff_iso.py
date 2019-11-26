@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 14, 2019
+# Date: Nov. 5, 2017 - Nov. 20, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -51,6 +51,7 @@ Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as frac
 minb = 0.01
 maxb = 0.99
 NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
+constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > roomT
 roomT = 300 # in Kelvin
 maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
@@ -187,6 +188,8 @@ if __name__ == '__main__':
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
                 expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
+                if constantrho == True:
+                    expansionratio = 1 ## turn off expansion
                 qBZT = qBZ[X]/expansionratio
                 burgersT = burgers[X]*expansionratio
                 rhoT = rho[X]/expansionratio**3
