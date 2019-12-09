@@ -1,20 +1,19 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Oct. 9, 2019
+# Date: Nov. 7, 2017 - Dec. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
 
 import sys
 ### make sure we are running a recent version of python
-# assert sys.version_info >= (3,5)
+# assert sys.version_info >= (3,6)
 from sympy import Symbol
 from sympy.solvers import solve 
 import sympy as sp
 import numpy as np
-from elasticconstants import Voigt, UnVoigt
-import elasticconstants as ec
+from elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
 import metal_data as data
 
 ### vectorize some sympy fcts to make them work on numpy arrays
@@ -22,44 +21,10 @@ import metal_data as data
 Expand = np.vectorize(sp.expand)
 Factor = np.vectorize(sp.factor)
 Simplify = np.vectorize(sp.simplify)
-###############
-
-delta = ec.delta
 Delta = sp.KroneckerDelta
 
-#### input data:
-## numbers from the CRC handbook
-c11 = data.CRC_c11
-c12 = data.CRC_c12
-c44 = data.CRC_c44
-c13 = data.CRC_c13
-c33 = data.CRC_c33
-c66 = data.CRC_c66
-
-## numbers from Thomas:1968, Hiki:1966, Leese:1968, Powell:1984, and Graham:1968
-## (these were used for arXiv:1706.07132)
-# c11 = data.THLPG_c11
-# c12 = data.THLPG_c12
-# c44 = data.THLPG_c44
-
-c111 = data.c111
-c112 = data.c112
-c123 = data.c123
-c144 = data.c144
-c166 = data.c166
-c456 = data.c456
-
-c113 = data.c113
-c133 = data.c133
-c155 = data.c155
-c222 = data.c222
-c333 = data.c333
-c344 = data.c344
-c366 = data.c366
-
 ### generate a list of those fcc, bcc, hcp metals for which we have sufficient data
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c11.keys())))
-
+metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.CRC_c11.keys())))
 ### compute various contractions/invariants of elastic constant/compliance tensors:
 def invI1(C2):
     '''Computes the trace C_iijj of SOEC.'''
@@ -97,20 +62,20 @@ class IsoInvariants(object):
     '''This class initializes isotropic second and third order elastic tensors and their invariants depending on the provided Lame and Murnaghan constants,
     which may be sympy symbols or numbers.'''
     def __init__(self,lam,mu,Murl,Murm,Murn):
-        self.C2 = ec.elasticC2(c12=lam,c44=mu)
+        self.C2 = elasticC2(c12=lam,c44=mu)
         self.invI1 = sp.factor(invI1(self.C2))
         self.invI2 = sp.factor(invI2(self.C2))
         
-        self.C3 = ec.elasticC3(l=Murl,m=Murm,n=Murn)
+        self.C3 = elasticC3(l=Murl,m=Murm,n=Murn)
         self.invI3 = sp.factor(invI3(self.C3))
         self.invI4 = sp.factor(invI4(self.C3))
         self.invI5 = sp.factor(invI5(self.C3))
         
-        self.S2 = ec.elasticS2(self.C2)
+        self.S2 = elasticS2(self.C2)
         self.invI1b = sp.factor(invI1(self.S2))
         self.invI2b = sp.factor(invI2(self.S2))
         
-        self.S3 = ec.elasticS3(self.S2,self.C3)
+        self.S3 = elasticS3(self.S2,self.C3)
         self.invI3b = sp.factor(invI3(self.S3))
         self.invI4b = sp.factor(invI4(self.S3))
         self.invI5b = sp.factor(invI5(self.S3))
@@ -168,7 +133,7 @@ class IsoAverages(IsoInvariants):
         ### Amat is (x_i x_j x_k x_l + y_i y_j y_k y_l + z_i z_j z_k z_l) where x,y,z are the unit vectors along the crystal axes
         ### one may easily check that in Voigt notation this construction leads to the diagonal matrix below
         Amat = np.diag([1,1,1,0,0,0])
-        Hmat = Voigt(ec.elasticC2(c12=Sh,c44=Sh+1/2)) -5*Sh*Amat
+        Hmat = Voigt(elasticC2(c12=Sh,c44=Sh+1/2)) -5*Sh*Amat
         correction = np.diag([1,1,1,2,2,2])
         Hm = np.dot(Hmat,correction)
         C2hat = UnVoigt(np.array(sp.factor(sp.expand(sp.Matrix(np.dot(Hm,np.dot(Voigt(C2),Hm.T)))).subs(Sh**2,0)).subs(Sh,hfactor/2)))
@@ -195,15 +160,255 @@ class IsoAverages(IsoInvariants):
         self.improved = out
         return out
 
+
+########### re-organize metal data within a class (so that we can perform calculations also on data read from input files, not just from metal_data dicts):
+class metal_props:
+    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr'
+    and this will define which input parameters (such as elastic constants) are set/expected by the various initializing functions.'''
+    def __init__(self,sym='iso', name='some_crystal'):
+        self.sym=sym
+        self.name = name
+        self.T=300
+        self.ac = self.cc = 0
+        self.rho = 0
+        self.c11=self.c12=self.c44=0
+        self.c13=self.c33=self.c66=0
+        self.c111=self.c112=self.c123=0
+        self.c144=self.c166=self.c456=0
+        self.c113=self.c133=self.c155=0
+        self.c222=self.c333=self.c344=self.c366=0
+        self.C2=np.zeros((6,6)) #tensor of SOEC in Voigt notation
+        self.C3=np.zeros((6,6,6)) # tensor of TOEC in Voigt notation
+        self.mu=self.lam=self.bulk=None ## polycrystal averages
+        self.ct=self.cl=self.ct_over_cl=0 ## polycrystal averages
+        self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
+        self.burgers=0 # length of Burgers vector
+        self.b=self.n0=np.zeros((3)) ## unit vectors in the direction of Burgers and slip plane normal
+        self.vcrit_smallest=self.vcrit_screw=self.vcrit_edge=None
+        self.alpha_a=0 # thermal expansion coefficient at temperature self.T, set to 0 for constant rho calculations
+        if sym=='tetr':
+            self.c222=None
+        elif sym=='hcp':
+            self.c66=self.c166=self.c366=self.c456=None
+        elif sym=='fcc' or sym=='bcc'or sym=='iso':
+            self.cc=self.c13=self.c33=self.c66=None
+            self.c113=self.c133=self.c155=self.c222=self.c333=self.c344=self.c366=None
+        if sym=='iso':
+            self.c11=self.c111=self.c112=self.c166=None
+            
+    def __repr__(self):
+        return  "{}".format({'name':self.name, 'sym':self.sym, 'T':self.T, 'ac':self.ac, 'cc':self.cc, 'rho':self.rho, 'ct':self.ct, 'cl':self.cl})
+            
+    def init_C2(self):
+        self.C2=elasticC2(c11=self.c11,c12=self.c12,c13=self.c13,c33=self.c33,c44=self.c44,c66=self.c66,voigt=True)
+    
+    def init_C3(self):
+        self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,voigt=True)
+    
+    def compute_Lame(self, roundto=-8):
+        aver = IsoAverages(lam,mu,0,0,0) # don't need Murnaghan constants
+        C2 = UnVoigt(self.C2)
+        if self.sym=='iso':
+            self.lam=self.c12
+            self.mu=self.c44
+        elif self.sym=='fcc' or self.sym=='bcc':
+            ImprovedAv = aver.improved_average(C2)
+            self.lam = round(float(ImprovedAv[lam]),roundto)
+            self.mu = round(float(ImprovedAv[mu]),roundto)
+        else:
+            S2 = elasticS2(C2)
+            aver.voigt_average(C2)
+            aver.reuss_average(S2)
+            HillAverage = aver.hill_average()
+            ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
+            self.lam = round(float(HillAverage[lam]),roundto)
+            self.mu = round(float(HillAverage[mu]),roundto)
+        self.bulk = self.lam + 2*self.mu/3
+    
+    def init_sound(self):
+        self.ct = np.sqrt(self.mu/self.rho)
+        self.cl = np.sqrt((self.lam+2*self.mu)/self.rho)
+        self.ct_over_cl = self.ct/self.cl
+        
+    def init_qBZ(self):
+        if self.sym=='iso' or self.sym=='fcc' or self.sym=='bcc':
+            self.qBZ = ((6*np.pi**2)**(1/3))/self.ac
+        elif self.sym=='hcp':
+            self.qBZ = ((4*np.pi**2/(self.ac*self.ac*self.cc*np.sqrt(3)))**(1/3))
+        elif self.sym=='tetr':
+            self.qBZ = ((6*np.pi**2/(self.ac*self.ac*self.cc))**(1/3))
+    
+    def init_all(self):
+        self.init_C2()
+        self.init_C3()      
+        if self.mu==None:
+            self.compute_Lame()
+        else:
+            self.bulk=self.lam + 2*self.mu/3
+        self.init_sound()
+        if self.ac>0: self.init_qBZ()
+        
+### read an inputfile like the one generated by writeinputfile() defined in metal_data.py (some of these data are only needed by other parts of PyDislocDyn)
+def readinputfile(fname):
+    inputparams={}
+    with open(fname,"r") as inputfile:
+        lines = inputfile.readlines()
+        for line in lines:
+            if "#" == line[0]:
+                pass
+            else:
+                currentline = line.lstrip().rstrip().split()
+                if len(currentline) > 2:
+                    key  = currentline[0]
+                    if len(currentline)==3 or currentline[3]=='#':
+                        value = currentline[2]
+                        if value[-1] == '#':
+                            value = value[:-1]
+                    else:
+                        value = currentline[2]
+                        for i in range(len(currentline)-3):
+                            addval = currentline[i+3]
+                            if addval[0] == '#':
+                                break
+                            elif value[-1] == '#':
+                                value = value[:-1]
+                                break
+                            else:
+                                value += addval
+                    inputparams[key] = value
+    sym = inputparams['sym']
+    out = metal_props(sym)
+    keys=inputparams.keys()
+    if 'name' in keys:
+        out.name = inputparams['name']
+    else:
+        out.name = str(fname)
+    if 'T' in keys:
+        out.T=float(inputparams['T'])
+    out.b=np.asarray(inputparams['b'].split(','),dtype=float)
+    out.b = out.b/np.sqrt(np.dot(out.b,out.b))
+    out.burgers=float(inputparams['burgers'])
+    out.n0=np.asarray(inputparams['n0'].split(','),dtype=float)
+    out.n0 = out.n0/np.sqrt(np.dot(out.n0,out.n0))
+    if 'lam' in keys and 'mu' in keys:
+        out.lam=float(inputparams['lam'])
+        out.mu=float(inputparams['mu'])
+    out.ac=float(inputparams['a'])
+    out.rho = float(inputparams['rho'])
+    if sym !='iso':
+        out.c11 = float(inputparams['c11'])
+    out.c12 = float(inputparams['c12'])
+    out.c44 = float(inputparams['c44'])
+    if sym=='hcp' or sym=='tetr':
+        out.cc = float(inputparams['c'])
+        out.c13 = float(inputparams['c13'])
+        out.c33 = float(inputparams['c33'])
+        if 'c113' in inputparams.keys():
+            out.c113 = float(inputparams['c113'])
+            out.c133 = float(inputparams['c133'])
+            out.c155 = float(inputparams['c155'])
+            out.c333 = float(inputparams['c333'])
+            out.c344 = float(inputparams['c344'])
+    if sym=='tetr':
+        out.c66 = float(inputparams['c66'])
+        if 'c366' in inputparams.keys():
+            out.c366 = float(inputparams['c366'])
+    if 'c111' in inputparams.keys() and sym != 'iso':
+        out.c111 = float(inputparams['c111'])
+        out.c112 = float(inputparams['c112'])
+    if 'c123' in inputparams.keys():
+        out.c123 = float(inputparams['c123'])
+        out.c144 = float(inputparams['c144'])
+        if sym != 'hcp' and sym != 'iso':
+            out.c166 = float(inputparams['c166'])
+        if sym !='hcp':
+            out.c456 = float(inputparams['c456'])
+        if sym =='hcp':
+            out.c222 = float(inputparams['c222'])
+    if 'vcrit_smallest' in keys:
+        out.vcrit_smallest = float(inputparams['vcrit_smallest'])
+    if 'vcrit_screw' in keys:
+        out.vcrit_screw = float(inputparams['vcrit_screw'])
+    if 'vcrit_edge' in keys:
+        out.vcrit_edge = float(inputparams['vcrit_edge'])
+    if 'alpha_a' in keys:
+        out.alpha_a = float(inputparams['alpha_a'])
+    out.init_all()
+    return out
+
 ############################################################
 
 if __name__ == '__main__':
+    Y={}
+    inputdata = {}
+    metal_list = []
     if len(sys.argv) > 1:
-        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
-        metal = sys.argv[1].split()
+        args = sys.argv[1:]
+        try:
+            for i in range(len(args)):
+                inputdata[i]=readinputfile(args[i])
+                X = inputdata[i].name
+                metal_list.append(X)
+                Y[X] = inputdata[i]
+            metal_symm = metal = set([])
+            print("success reading input files ",args)
+        except FileNotFoundError:
+            ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
+            metal = sys.argv[1].split()
+    
+    sym={}
+    for X in data.fcc_metals.intersection(metal): sym[X]='fcc'
+    for X in data.bcc_metals.intersection(metal): sym[X]='bcc'
+    for X in data.hcp_metals.intersection(metal): sym[X]='hcp'
+    for X in data.tetr_metals.intersection(metal): sym[X]='tetr'
+    for X in metal:
+        Y[X] = metal_props(sym[X])
+        # 2nd order elastic constants taken from the CRC handbook:
+        Y[X].c11 = data.CRC_c11[X]
+        Y[X].c12 = data.CRC_c12[X]
+        Y[X].c44 = data.CRC_c44[X]
+        Y[X].c13 = data.CRC_c13[X]
+        Y[X].c33 = data.CRC_c33[X]
+        Y[X].c66 = data.CRC_c66[X]
+        ## numbers from Thomas:1968, Hiki:1966, Leese:1968, Powell:1984, and Graham:1968
+        ## (these were used for arXiv:1706.07132)
+        # if X in data.THLPG_c11.keys():
+        #     Y[X].c11 = data.THLPG_c11[X]
+        #     Y[X].c12 = data.THLPG_c12[X]
+        #     Y[X].c44 = data.THLPG_c44[X]
+        Y[X].init_C2()
+        ## TOEC from various refs.
+        if X in data.c123.keys():
+            Y[X].c111 = data.c111[X]
+            Y[X].c112 = data.c112[X]
+            Y[X].c123 = data.c123[X]
+            Y[X].c144 = data.c144[X]
+            Y[X].c166 = data.c166[X]
+            Y[X].c456 = data.c456[X]
+            Y[X].c113 = data.c113[X]
+            Y[X].c133 = data.c133[X]
+            Y[X].c155 = data.c155[X]
+            Y[X].c222 = data.c222[X]
+            Y[X].c333 = data.c333[X]
+            Y[X].c344 = data.c344[X]
+            Y[X].c366 = data.c366[X]
+            Y[X].init_C3()
+    
+    if metal == set([]):
+        metal = metal_list ## triggers only if user provided one or more inputdata files
+        
+    metal_cubic = []
+    metal_toec = []
+    metal_toec_cubic = []
+    for X in metal:
+        ### will compute improved averages for cubic metals only:
+        if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
+            metal_cubic.append(X)
+        if abs(Y[X].c123)>0: ### subset for which we have TOEC
+            metal_toec.append(X)
+            if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
+                metal_toec_cubic.append(X)
     print("Computing for: {0} (={1} metals)".format(metal,len(metal)))
-    ### subset for which we have TOEC:
-    metal_toec = sorted(list(set(metal).intersection(c111.keys())))
 
     # results to be stored in the following dictionaries (for various metals)
     VoigtAverage = {}
@@ -220,23 +425,20 @@ if __name__ == '__main__':
     S3 = {}
     for X in metal:
         #### devide by 1e9 to get the results in units of GPa
-        C2[X] = ec.elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/1e9    
-        S2[X] = ec.elasticS2(C2[X])
+        C2[X] = UnVoigt(Y[X].C2/1e9)
+        S2[X] = elasticS2(C2[X])
         C3[X] = None
         S3[X] = None
     
     for X in metal_toec:
-        C3[X] = ec.elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/1e9
-        S3[X] = ec.elasticS3(S2[X],C3[X])
+        C3[X] = UnVoigt(Y[X].C3/1e9)
+        S3[X] = elasticS3(S2[X],C3[X])
 
     for X in metal:
         VoigtAverage[X] = aver.voigt_average(C2[X],C3[X])
         ReussAverage[X] = aver.reuss_average(S2[X],S3[X])
         HillAverage[X] = aver.hill_average()
     
-    ### compute improved averages for cubic metals only:
-    metal_cubic = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(set(metal))))
-    metal_toec_cubic = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(set(metal_toec))))
     print("Computing improved averages for SOEC of {0} cubic metals and for TOEC of {1} cubic metals ...".format(len(metal_cubic),len(metal_toec_cubic)))
     
     for X in metal_cubic:
@@ -252,45 +454,37 @@ if __name__ == '__main__':
         return X+" & "+"{:.1f}".format(float(dictionary[X][lam]))+" & "+"{:.1f}".format(float(dictionary[X][mu]))+" & "+"{:.0f}".format(float(dictionary[X][Murl]))+" & "+"{:.0f}".format(float(dictionary[X][Murm]))+" & "+"{:.0f}".format(float(dictionary[X][Murn]))+" \\\\"+"\n"
     
     with open("averaged_elastic_constants.txt","w") as averfile:
-        averfile.write("Voigt averages [GPa]:\n")
-        averfile.write(stringofnames)
+        averfile.write("Voigt averages [GPa]:\n"+stringofnames)
         for X in metal:
             averfile.write(stringofresults(VoigtAverage,X))
-        averfile.write("\n\n")    
-        averfile.write(stringofnames_toec)
+        if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
         for X in metal_toec:
             averfile.write(stringofresults_toec(VoigtAverage,X))
         averfile.write("\n\n")
         
-        averfile.write("Reuss averages [GPa]:\n")
-        averfile.write(stringofnames)
+        averfile.write("Reuss averages [GPa]:\n"+stringofnames)
         for X in metal:
             averfile.write(stringofresults(ReussAverage,X))
-        averfile.write("\n\n")
-        averfile.write(stringofnames_toec)
+        if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
         for X in metal_toec:
             averfile.write(stringofresults_toec(ReussAverage,X)) 
         averfile.write("\n\n")
         
-        averfile.write("Hill averages [GPa]:\n")
-        averfile.write(stringofnames)
+        averfile.write("Hill averages [GPa]:\n"+stringofnames)
         for X in metal:
             averfile.write(stringofresults(HillAverage,X))
-        averfile.write("\n\n")
-        averfile.write(stringofnames_toec)
+        if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
         for X in metal_toec:
             averfile.write(stringofresults_toec(HillAverage,X)) 
         averfile.write("\n\n") 
-    
-        averfile.write("improved averages [GPa]:\n")
-        averfile.write(stringofnames)
-        for X in metal_cubic:
-            averfile.write(stringofresults(ImprovedAv,X))
-        averfile.write("\n\n")
-        averfile.write(stringofnames_toec)
-        for X in metal_toec_cubic:
-            averfile.write(stringofresults_toec(ImprovedAv,X))
-        averfile.write("\n\n")
-
-    print("done.")
         
+        if len(metal_cubic)>0:
+            averfile.write("improved averages [GPa]:\n"+stringofnames)
+            for X in metal_cubic:
+                averfile.write(stringofresults(ImprovedAv,X))
+            if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
+            for X in metal_toec_cubic:
+                averfile.write(stringofresults_toec(ImprovedAv,X))
+            averfile.write("\n\n")
+    print("done.")
+    

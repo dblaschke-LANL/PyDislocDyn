@@ -1,14 +1,14 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 20, 2019
+# Date: Nov. 5, 2017 - Nov. 30, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
 
 import sys
 ### make sure we are running a recent version of python
-# assert sys.version_info >= (3,5)
+# assert sys.version_info >= (3,6)
 import numpy as np
 from scipy.optimize import curve_fit, fmin
 ##################
@@ -52,6 +52,7 @@ minb = 0.01
 maxb = 0.99
 NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > roomT
+beta_reference = 'base'  ## define beta=v/ct, choosing ct at roomT ('base') or current T ('current') as we increase temperature
 roomT = 300 # in Kelvin
 maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
@@ -99,9 +100,9 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 # aver = pca.IsoAverages(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
 # for X in metal:
 #     C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])   
-#     S2 = pca.ec.elasticS2(C2[X])
+#     S2 = pca.elasticS2(C2[X])
 #     C3 = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])
-#     S3 = pca.ec.elasticS3(S2,C3)
+#     S3 = pca.elasticS3(S2,C3)
 #     aver.voigt_average(C2[X],C3)
 #     aver.reuss_average(S2,S3)
 #     HillAverage = aver.hill_average()
@@ -177,7 +178,6 @@ if __name__ == '__main__':
     for X in metal:
         A3[X] = elasticA3(elasticC2(c12=c12[X], c44=c44[X]), elasticC3(l=cMl[X], m=cMm[X], n=cMn[X]))/c44[X]
     for X in metal:
-        
         # wrap all main computations into a single function definition to be run in a parallelized loop below
         def maincomputations(bt,X,modes=modes):
             Bmix = np.zeros((len(theta),len(highT)))
@@ -199,7 +199,10 @@ if __name__ == '__main__':
                 ct_over_cl_T = np.sqrt(c44T/(c12T+2*c44T))
                 clT = ctT/ct_over_cl_T
                 ## beta, as it appears in the equations, is v/ctT, therefore:
-                betaT = bt*ct[X]/ctT
+                if beta_reference == 'current':
+                    betaT = bt
+                else:
+                    betaT = bt*ct[X]/ctT
                 
                 dij = fourieruij_iso(betaT, ct_over_cl_T, theta, phi)
                 ### TODO: need models for T dependence of Murnaghan constants!

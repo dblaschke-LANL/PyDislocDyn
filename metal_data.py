@@ -1,10 +1,11 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May. 6, 2019
+# Date: Nov. 3, 2017 - Dec. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
+import numpy as np
 
 ## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012 and from Kaye & Laby online (kayelaby.npl.co.uk)
 ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Cd':19.2e9, 'Cr':115.4e9, 'Cu':48.3e9,  'Fe':81.6e9, 'Mg':17.3e9, 'Nb':37.5e9, 'Ni':76.0e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'W':160.6e9, 'Zn':43.4e9}
@@ -114,3 +115,64 @@ for X in hcp_metals.intersection(c111.keys()):
     
 for X in tetr_metals.intersection(c111.keys()):
     c222[X] = None
+
+
+#####################################################################################
+def writeinputfile(X,fname,iso=False):
+    '''write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn'''
+    with open(fname,"w") as outf:
+        outf.write("# input parameters for {} at ambient conditions\n\n".format(X))
+        outf.write("name = {}\n".format(X))
+        if X in fcc_metals:
+            outf.write("sym = fcc\n\n")
+            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\n")
+            outf.write("burgers = {} \t# a/sqrt(2)\n".format(CRC_a[X]/np.sqrt(2)))
+            outf.write("n0 = "+", ".join(map("{}".format,(np.array([-1,1,-1])/np.sqrt(3))))+"\n\n")
+        elif X in bcc_metals:
+            outf.write("sym = bcc\n\n")
+            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,-1,1])/np.sqrt(3))))+"\n")
+            outf.write("burgers = {} \t# a*sqrt(3)/2\n".format(CRC_a[X]*np.sqrt(3)/2))
+            outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\n\n")
+        elif X in hcp_metals:
+            outf.write("sym = hcp\n\n")
+            outf.write("# example slip systems:\n")
+            outf.write("b = "+", ".join(map("{}".format,(np.array([-1,0,0]))))+"\n")
+            outf.write("burgers = {} \t# a\n".format(CRC_a[X]))
+            outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n")
+            outf.write("# n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip (uncomment to use)\n")
+            outf.write("# n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]])/np.sqrt(CRC_a[X]**2+CRC_c[X]**2))))+"\t# pyramidal slip (uncomment to use)\n\n")
+        elif X in tetr_metals:
+            outf.write("sym = tetr\n\n")
+            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([0,0,-1]))))+"\n")
+            outf.write("burgers = {} \t# c\n".format(CRC_c[X]))
+            outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,1,0]))))+"\n\n")
+        outf.write("# temperature, latticeconstant(s), density, and thermal expansion coefficient:\nT = 300\na = {}\n".format(CRC_a[X]))
+        if X in CRC_c.keys():
+            outf.write("c = {}\n".format(CRC_c[X]))
+        outf.write("rho = {}\n".format(CRC_rho[X]))
+        outf.write("alpha_a = {}\n".format(CRC_alpha_a[X]))
+        outf.write("\n#soec\n")
+        if iso==True:
+            outf.write("\nsym = iso\t# (overwrites previous entry)\n\n")
+            soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
+        else:
+            soec = {"c11":CRC_c11, "c12":CRC_c12, "c44":CRC_c44, "c13":CRC_c13, "c33":CRC_c33, "c66":CRC_c66}
+        for c2 in soec.keys():
+            val = soec[c2][X]
+            if val != None:
+                outf.write("{} = {:e}\n".format(c2,val))
+        outf.write("\n#toec\n")
+        if iso==True:
+            toec = {"c123":ISO_c123, "c144":ISO_c144, "c456":ISO_c456}
+        else:
+            toec = {"c111":c111, "c112":c112, "c113":c113, "c123":c123, "c133":c133, "c144":c144, "c155":c155, "c166":c166, "c222":c222, "c333":c333, "c344":c344, "c366":c366, "c456":c456}
+        for c3 in toec.keys():
+            if X in toec[c3].keys():
+                val = toec[c3][X]
+                if val != None:
+                    outf.write("{} = {:e}\n".format(c3,val))
+        if X in ISO_c44.keys() and iso==False:
+            outf.write("\n## optional - if omitted, averages will be used:\n")
+            outf.write("lam = {:e}\n".format(ISO_c12[X]))
+            outf.write("mu = {:e}\n".format(ISO_c44[X]))
+            

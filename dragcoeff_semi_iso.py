@@ -1,14 +1,14 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 20, 2019
+# Date: Nov. 5, 2017 - Dec. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
 
 import sys
 ### make sure we are running a recent version of python
-# assert sys.version_info >= (3,5)
+# assert sys.version_info >= (3,6)
 import numpy as np
 from scipy.optimize import curve_fit, fmin
 ##################
@@ -35,9 +35,15 @@ fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import metal_data as data
-from elasticconstants import elasticC2, elasticC3
+from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
+import polycrystal_averaging as pca
 import dislocations as dlc
 from phononwind import elasticA3, dragcoeff_iso
+## work around for python 2:
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
@@ -52,17 +58,18 @@ Ntheta = 21 # number of angles between burgers vector and dislocation line (mini
 Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
 maxb = 0.99
-NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
-constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > roomT
-roomT = 300 # in Kelvin
-maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
 modes = 'all'
 # modes = 'TT'
 skip_plots=False ## set to True to skip generating plots from the results
 use_exp_Lame=True ## if set to True, experimental values (where available) are taken for the Lame constants, isotropic phonon spectrum, and sound speeds
 ## missing values (such as Mo, Zr, or all if use_exp_Lame=False) are supplemented by Hill averages, or for cubic crystals the 'improved average' (see 'polycrystal_averaging.py')
-
+#####
+NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
+constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
+increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
+beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature
+#####
 # in Fourier space:
 Nphi = 50
 Nphi1 = 50
@@ -78,54 +85,17 @@ NphiX = 3000
 ### rmin smaller converges nicely, rmax bigger initially converges but if it gets to large (several hundred) we start getting numerical artefacts due to rapid oscillations
 rmin = 0
 rmax = 250
-# r_reg = 3500 ## dimensionless regulator for Fourier transform with removed cutoffs rmax/rmin
 ### and range & step sizes
 theta = np.linspace(0,np.pi/2,Ntheta)  ## note: some slip systems (such as bcc defined below) are asymmetric wrt theta->-theta
 beta = np.linspace(minb,maxb,Nbeta)
-highT = np.linspace(roomT,maxT,NT)
 phi = np.linspace(0,2*np.pi,Nphi)
 phiX = np.linspace(0,2*np.pi,NphiX)
 
 ac = data.CRC_a
 cc = data.CRC_c
-rho = data.CRC_rho
-# rho = data.CRC_rho_sc
-# 2nd order elastic constants taken from the CRC handbook:
-c11 = data.CRC_c11
-c12 = data.CRC_c12
-c44 = data.CRC_c44
-c13 = data.CRC_c13
-c33 = data.CRC_c33
-c66 = data.CRC_c66
-## TOEC from various refs.
-c111 = data.c111
-c112 = data.c112
-c123 = data.c123
-c144 = data.c144
-c166 = data.c166
-c456 = data.c456
-
-c113 = data.c113
-c133 = data.c133
-c155 = data.c155
-c222 = data.c222
-c333 = data.c333
-c344 = data.c344
-c366 = data.c366
-
-### check with isotropic constants:
-# c11 = data.ISO_c11
-# c12 = data.ISO_c12
-# c44 = data.ISO_c44
-# c111 = data.ISO_c111
-# c112 = data.ISO_c112
-# c123 = data.ISO_c123
-# c144 = data.ISO_c144
-# c166 = data.ISO_c166
-# c456 = data.ISO_c456
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(c111.keys())))
+metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.c123.keys())))
 metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 
 if use_exp_Lame:
@@ -135,67 +105,28 @@ else:
     mu = {}
     lam = {}
 #### generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise):
-import polycrystal_averaging as pca
 missingmu = set(metal).difference(mu.keys())
-roundto = -8 ## round averaged values to 0.1GPa, change as needed
-if missingmu !=set():
-    print("computing averaged Lame constants for {} ...".format(sorted(list(missingmu))))
-    C2aver = {}
-    aver = pca.IsoAverages(pca.lam,pca.mu,0,0,0) # don't need Murnaghan constants
 for X in missingmu:
-    C2aver[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])   
-    S2 = pca.ec.elasticS2(C2aver[X])
-    aver.voigt_average(C2aver[X])
-    aver.reuss_average(S2)
-    HillAverage = aver.hill_average()
-    ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
-    lam[X] = round(float(HillAverage[pca.lam]),roundto)
-    mu[X] = round(float(HillAverage[pca.mu]),roundto)
-# replace Hill with improved averages for effective Lame constants of cubic metals:
-for X in metal_cubic.intersection(missingmu):
-    ImprovedAv = aver.improved_average(C2aver[X])
-    lam[X] = round(float(ImprovedAv[pca.lam]),roundto)
-    mu[X] = round(float(ImprovedAv[pca.mu]),roundto)
-##################################################
+    lam[X]=None
+    mu[X]=None
 
-qBZ = {}
-ct = {} ## may need some "effective" transverse sound speed
-cl = {}
-ct_over_cl = {}
 burgers = {} # magnitude of Burgers vector
-bulk = {}
-
-### compute various numbers for these metals
-for X in metal_cubic:
-    qBZ[X] = ((6*np.pi**2)**(1/3))/ac[X]
-###
-for X in data.hcp_metals.intersection(metal):
-    qBZ[X] = ((4*np.pi**2/(ac[X]*ac[X]*cc[X]*np.sqrt(3)))**(1/3))
-for X in data.tetr_metals.intersection(metal):
-    qBZ[X] = ((6*np.pi**2/(ac[X]*ac[X]*cc[X]))**(1/3))
-###
-for X in metal:
-    ## want to scale everything by the average (polycrystalline) shear modulus and thereby calculate in dimensionless quantities
-    ct[X] = np.sqrt(mu[X]/rho[X])
-    cl[X] = np.sqrt((lam[X]+2*mu[X])/rho[X])
-    bulk[X] = lam[X] + 2*mu[X]/3
-    ct_over_cl[X] = ct[X]/cl[X]
-
 ### define Burgers (unit-)vectors and slip plane normals for all metals
 b = {}
 n0 = {}
-linet = {}
-velm0 = {}
+sym={}
 ####
 for X in data.fcc_metals.intersection(metal):
     burgers[X] = ac[X]/np.sqrt(2)
     b[X] = np.array([1,1,0]/np.sqrt(2))
     n0[X] = -np.array([1,-1,1]/np.sqrt(3))
+    sym[X]='fcc'
 
 for X in data.bcc_metals.intersection(metal):
     burgers[X] = ac[X]*np.sqrt(3)/2
     b[X] = np.array([1,-1,1]/np.sqrt(3))
     n0[X] = np.array([1,1,0]/np.sqrt(2))
+    sym[X]='bcc'
 
 ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
 ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
@@ -206,6 +137,7 @@ hcpslip = 'basal' ## default
 for X in data.hcp_metals.intersection(metal):
     burgers[X] = ac[X]
     b[X] = np.array([-1,0,0])
+    sym[X]='hcp'
     ## basal slip:
     n0[X] = np.array([0,0,1]) ## slip plane normal = normal to basal plane
     if hcpslip=='prismatic':
@@ -222,16 +154,73 @@ for X in data.tetr_metals.intersection(metal):
     burgers[X] = cc[X]
     b[X] = np.array([0,0,-1])
     n0[X] = np.array([0,1,0])
-
-### thermal coefficients:
-alpha_a = data.CRC_alpha_a  ## coefficient of linear thermal expansion at room temperature
-## TODO: need to implement T dependence of alpha_a!
+    sym[X]='tetr'
 
 #########
 if __name__ == '__main__':
+    Y={}
+    inputdata = {}
+    metal_list = []
     if len(sys.argv) > 1:
-        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
-        metal = sys.argv[1].split()
+        args = sys.argv[1:]
+        try:
+            for i in range(len(args)):
+                inputdata[i]=pca.readinputfile(args[i])
+                X = inputdata[i].name
+                metal_list.append(X)
+                Y[X] = inputdata[i]
+            metal = set([])
+            print("success reading input files ",args)
+        except FileNotFoundError:
+            ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
+            metal = sys.argv[1].split()
+        
+    for X in metal:
+        # sym[X] = 'iso' ## uncomment to calculate using isotropic elastic constants
+        Y[X] = pca.metal_props(sym[X])
+        Y[X].b=b[X]
+        Y[X].burgers=burgers[X]
+        Y[X].n0=n0[X]
+        Y[X].lam=lam[X]
+        Y[X].mu=mu[X]
+        Y[X].ac=data.CRC_a[X]
+        Y[X].rho = data.CRC_rho[X]
+        Y[X].alpha_a = data.CRC_alpha_a[X]  ## coefficient of linear thermal expansion at room temperature (TODO: need to implement T dependence of alpha_a)
+        if Y[X].sym=='hcp' or Y[X].sym=='tetr':
+            Y[X].cc = data.CRC_c[X]
+        if sym[X] == 'iso': ### load isotropic constants:
+            Y[X].c12 = data.ISO_c12[X]
+            Y[X].c44 = data.ISO_c44[X]
+            Y[X].c123 = data.ISO_c123[X]
+            Y[X].c144 = data.ISO_c144[X]
+            Y[X].c456 = data.ISO_c456[X]
+        else:
+            # 2nd order elastic constants taken from the CRC handbook:
+            Y[X].c11 = data.CRC_c11[X]
+            Y[X].c12 = data.CRC_c12[X]
+            Y[X].c44 = data.CRC_c44[X]
+            Y[X].c13 = data.CRC_c13[X]
+            Y[X].c33 = data.CRC_c33[X]
+            Y[X].c66 = data.CRC_c66[X]
+            ## TOEC from various refs.
+            Y[X].c111 = data.c111[X]
+            Y[X].c112 = data.c112[X]
+            Y[X].c123 = data.c123[X]
+            Y[X].c144 = data.c144[X]
+            Y[X].c166 = data.c166[X]
+            Y[X].c456 = data.c456[X]
+            Y[X].c113 = data.c113[X]
+            Y[X].c133 = data.c133[X]
+            Y[X].c155 = data.c155[X]
+            Y[X].c222 = data.c222[X]
+            Y[X].c333 = data.c333[X]
+            Y[X].c344 = data.c344[X]
+            Y[X].c366 = data.c366[X]
+        ###
+        Y[X].init_all()
+    
+    if metal == set([]):
+        metal = metal_list ## triggers only if user provided one or more inputdata files
     
     if Ncores == 0:
         print("skipping phonon wind calculations as requested")
@@ -241,9 +230,6 @@ if __name__ == '__main__':
     
         with open("theta.dat","w") as thetafile:
             thetafile.write('\n'.join(map("{:.6f}".format,theta)))
-    
-        with open("temperatures.dat","w") as Tfile:
-            Tfile.write('\n'.join(map("{:.1f}".format,highT)))  
         
         print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
@@ -257,17 +243,28 @@ if __name__ == '__main__':
         
     A3rotated = {}
     C2 = {}
+    highT = {}
     dislocation = {}
     rotmat = {}
+    linet = {}
+    velm0 = {}
     for X in metal:
-        dislocation[X] = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=NphiX)
+        highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
+        if constantrho==True:
+            Y[X].alpha_a = 0
+        ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
+        if len(highT[X])>1 and Ncores !=0:
+            with open("temperatures_{}.dat".format(X),"w") as Tfile:
+                Tfile.write('\n'.join(map("{:.2f}".format,highT[X])))
+        
+        dislocation[X] = dlc.StrohGeometry(b=Y[X].b, n0=Y[X].n0, theta=theta, Nphi=NphiX)
         linet[X] = np.round(dislocation[X].t,15)
         velm0[X] = np.round(dislocation[X].m0,15)
         dislocation[X].computerot()
         rotmat[X] = np.round(dislocation[X].rot,15)
                
-        C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
-        C3 = elasticC3(c111=c111[X], c112=c112[X], c113=c113[X], c123=c123[X], c133=c133[X], c144=c144[X], c155=c155[X], c166=c166[X], c222=c222[X], c333=c333[X], c344=c344[X], c366=c366[X], c456=c456[X])/mu[X]
+        C2[X] = UnVoigt(Y[X].C2/Y[X].mu)  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
+        C3 = UnVoigt(Y[X].C3/Y[X].mu)
         A3 = elasticA3(C2[X],C3)
         A3rotated[X] = np.zeros((len(theta),3,3,3,3,3,3))
         for th in range(len(theta)):
@@ -276,54 +273,55 @@ if __name__ == '__main__':
         
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(bt,X,modes=modes):
-        Bmix = np.zeros((len(theta),len(highT)))
+        Bmix = np.zeros((len(theta),len(highT[X])))
         ### compute dislocation displacement gradient uij, then its Fourier transform dij:
         dislocation[X].computeuij(beta=bt, C2=C2[X])
         dislocation[X].alignuij()
-        # uij_iso = dlc.computeuij_iso(bt,ct_over_cl[X], theta, phiX)
-        # r = np.exp(np.linspace(np.log(burgers[X]/5),np.log(100*burgers[X]),125))
+        # uij_iso = dlc.computeuij_iso(bt,Y[X].ct_over_cl, theta, phiX)
+        # r = np.exp(np.linspace(np.log(Y[X].burgers/5),np.log(100*Y[X].burgers),125))
         ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
-        # r = np.exp(np.linspace(np.log(rmin*np.pi/qBZ[X]),np.log(rmax*np.pi/qBZ[X]),Nr))
-        # q = qBZ[X]*np.linspace(0,1,Nq)
+        # r = np.exp(np.linspace(np.log(rmin*np.pi/Y[X].qBZ),np.log(rmax*np.pi/Y[X].qBZ),Nr))
+        # q = Y[X].qBZ*np.linspace(0,1,Nq)
         # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
         dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-        Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+        Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
         
-        for Ti in range(len(highT)-1):
-            T = highT[Ti+1]
-            expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
-            if constantrho == True:
-                expansionratio = 1 ## turn off expansion
-            qBZT = qBZ[X]/expansionratio
-            burgersT = burgers[X]*expansionratio
-            rhoT = rho[X]/expansionratio**3
-            muT = mu[X] ## TODO: need to implement T dependence of shear modulus!
-            lamT = bulk[X] - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
+        for Ti in range(len(highT[X])-1):
+            T = highT[X][Ti+1]
+            expansionratio = (1 + Y[X].alpha_a*(T - Y[X].T)) ## TODO: replace with values from eos!
+            qBZT = Y[X].qBZ/expansionratio
+            burgersT = Y[X].burgers*expansionratio
+            rhoT = Y[X].rho/expansionratio**3
+            muT = Y[X].mu ## TODO: need to implement T dependence of shear modulus!
+            lamT = Y[X].bulk - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
             ctT = np.sqrt(muT/rhoT)
             ct_over_cl_T = np.sqrt(muT/(lamT+2*muT))
             clT = ctT/ct_over_cl_T
             ## beta, as it appears in the equations, is v/ctT, therefore:
-            betaT = bt*ct[X]/ctT
+            if beta_reference == 'current':
+                betaT = bt
+            else:
+                betaT = bt*Y[X].ct/ctT
             ###### T dependence of elastic constants (TODO)
-            c11T = c11[X]
-            c12T = c12[X]
-            c44T = c44[X]
-            c13T = c13[X]
-            c33T = c33[X]
-            c66T = c66[X]
-            c111T = c111[X]
-            c112T = c112[X]
-            c113T = c113[X]
-            c123T = c123[X]
-            c133T = c133[X]
-            c144T = c144[X]
-            c155T = c155[X]
-            c166T = c166[X]
-            c222T = c222[X]
-            c333T = c333[X]
-            c344T = c344[X]
-            c366T = c366[X]
-            c456T = c456[X]
+            c11T = Y[X].c11
+            c12T = Y[X].c12
+            c44T = Y[X].c44
+            c13T = Y[X].c13
+            c33T = Y[X].c33
+            c66T = Y[X].c66
+            c111T = Y[X].c111
+            c112T = Y[X].c112
+            c113T = Y[X].c113
+            c123T = Y[X].c123
+            c133T = Y[X].c133
+            c144T = Y[X].c144
+            c155T = Y[X].c155
+            c166T = Y[X].c166
+            c222T = Y[X].c222
+            c333T = Y[X].c333
+            c344T = Y[X].c344
+            c366T = Y[X].c366
+            c456T = Y[X].c456
             ###
             C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T)/muT
             C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T)/muT
@@ -360,12 +358,12 @@ if __name__ == '__main__':
                     Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
-        if len(highT)>1 and Ncores !=0:
+        if len(highT[X])>1 and Ncores !=0:
             with open("drag_anis_T_{}.dat".format(X),"w") as Bfile:
                 Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
-                    for Ti in range(len(highT)):
-                        Bfile.write("{:.1f}".format(highT[Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
+                    for Ti in range(len(highT[X])):
+                        Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
                 
             with open("drag_anis_T_screw_{}.dat".format(X),"w") as Bscrewfile:
                 for bi in range(len(beta)):
@@ -388,24 +386,36 @@ if __name__ == '__main__':
     
     ###### plot room temperature results:
     print("Creating plots")
-    ## compute smallest critical velocity in ratio to the scaling velocity and plot only up to this velocity
+    ## compute smallest critical velocity in ratio (for those data provided in metal_data) to the scaling velocity and plot only up to this velocity
+    vcrit_screw = {}
+    vcrit_edge = {}
     vcrit_smallest = {}
     for X in metal:
-        vcrit_smallest[X] = min(np.sqrt(c44[X]/mu[X]),np.sqrt((c11[X]-c12[X])/(2*mu[X])))
-    ## above is correct for fcc, bcc and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
-    ## numerically determined values (rounded):
-    vcrit_smallest['Sn'] = 0.818
-    vcrit_smallest['Zn'] = 0.943 ## for basal slip
-    # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
-    vcrit_screw = {'Ag': 0.973, 'Al': 1.005, 'Au': 0.996, 'Cd': 1.398, 'Cu': 0.976, 'Fe': 0.803, 'Mg': 0.982, 'Mo': 0.987, 'Nb': 0.955, 'Ni': 1.036, 'Sn': 1.092, 'Zn': 1.211, 'Zr': 0.990}
-    vcrit_edge = {'Fe': 0.852, 'Mo': 1.033, 'Nb': 1.026, 'Sn': 1.092, 'Ti': 1.033}
-    for X in data.fcc_metals.union(data.hcp_metals).intersection(metal):
-        if X in ['Ti']:
-            vcrit_screw[X] = vcrit_smallest[X]
+        if Y[X].sym=='iso':
+            vcrit_smallest[X] = 1
         else:
-            vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
+            vcrit_smallest[X] = min(np.sqrt(Y[X].c44/Y[X].mu),np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu)))
+    ## above is correct for fcc, bcc and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
+    ## numerically determined values at T=300K for metals in metal_data.py (rounded):
+    if metal_list == []: ## only True if no input file was read
+        vcrit_smallest['Sn'] = 0.818
+        vcrit_smallest['Zn'] = 0.943 ## for basal slip
+        # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
+        vcrit_screw = {'Ag': 0.973, 'Al': 1.005, 'Au': 0.996, 'Cd': 1.398, 'Cu': 0.976, 'Fe': 0.803, 'Mg': 0.982, 'Mo': 0.987, 'Nb': 0.955, 'Ni': 1.036, 'Sn': 1.092, 'Zn': 1.211, 'Zr': 0.990}
+        vcrit_edge = {'Fe': 0.852, 'Mo': 1.033, 'Nb': 1.026, 'Sn': 1.092, 'Ti': 1.033}
+        for X in data.fcc_metals.union(data.hcp_metals).intersection(metal):
+            if X in ['Ti']:
+                vcrit_screw[X] = vcrit_smallest[X]
+            else:
+                vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
+    
+    for X in metal:
+        if X not in vcrit_screw.keys(): ## fall back to this:
+            vcrit_screw[X] = vcrit_smallest[X]
+        if X not in vcrit_edge.keys():
+            vcrit_edge[X] = vcrit_smallest[X]
 
-    if hcpslip=='prismatic':
+    if hcpslip=='prismatic' and metal_list == []:
         for X in data.hcp_metals.intersection(metal):
             if X in ['Ti']:
                 vcrit_screw[X] = vcrit_edge[X]
@@ -416,7 +426,7 @@ if __name__ == '__main__':
         vcrit_screw['Zn'] = 0.945
         vcrit_smallest['Cd'] = 0.948
         vcrit_smallest['Zn'] = 0.724
-    elif hcpslip=='pyramidal':
+    elif hcpslip=='pyramidal' and metal_list == []:
         vcrit_screw['Cd'] = 1.278
         vcrit_screw['Mg'] = 0.979
         vcrit_screw['Ti'] = 0.930
@@ -426,7 +436,16 @@ if __name__ == '__main__':
         vcrit_edge['Zn'] = 0.945
         vcrit_smallest['Cd'] = 0.975
         vcrit_smallest['Zn'] = 0.775
-    
+        
+    ## overwrite any of these values with data from input file, if available:
+    for X in metal:
+        if Y[X].vcrit_smallest != None:
+            vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
+        if Y[X].vcrit_screw != None:
+            vcrit_screw[X] = Y[X].vcrit_screw/Y[X].ct
+        if Y[X].vcrit_edge != None:
+            vcrit_edge[X] = Y[X].vcrit_edge/Y[X].ct
+        
     ## load data from semi-isotropic calculation
     Broom = {}
     theta = {}
@@ -543,8 +562,10 @@ if __name__ == '__main__':
     popt_aver = {}
     pcov_aver = {}
     scrind = {}
-    Bmax_fit = 0.20 ## only fit up to Bmax_fit [mPas]
+    scale_plot = 1 ## need to increase plot and fitting range for higher temperatures
     for X in metal:
+        scale_plot = max(scale_plot,int(scale_plot*Y[X].T/30)/10)
+        Bmax_fit = int(20*Y[X].T/300)/100 ## only fit up to Bmax_fit [mPas]
         if X in data.bcc_metals and (np.all(theta[X]>=0) or np.all(theta[X]<=0)):
             print("warning: missing data for a range of dislocation character angles of bcc {}, average will be inaccurate!".format(X))
         if theta[X][0]==0.:
@@ -577,7 +598,7 @@ if __name__ == '__main__':
         fitfile.write(" & "+" & ".join((metal))+" \\\\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(" & "+"{:.0f}".format(ct[X]))
+            fitfile.write(" & "+"{:.0f}".format(Y[X].ct))
         fitfile.write(" \\\\\n $v_c^{\mathrm{e}}/c_{\mathrm{t}}$")
         for X in metal:
             fitfile.write(" & "+"{:.3f}".format(vcrit_edge[X]))
@@ -595,8 +616,8 @@ if __name__ == '__main__':
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
         ax.set_xticks(np.arange(11)/10)
-        ax.set_yticks(np.arange(12)/100)
-        ax.axis((0,maxb,0,0.11)) ## define plot range
+        ax.set_yticks(np.arange(12)*scale_plot/100)
+        ax.axis((0,maxb,0,0.11*scale_plot)) ## define plot range
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
@@ -620,11 +641,14 @@ if __name__ == '__main__':
                 B = Baver[X][beta<cutat]
             else:
                 raise ValueError("keyword 'filename'={} undefined.".format(filename))
-            ax.plot(beta[beta<cutat],B,color=metalcolors[X],label=X)
+            if X in metalcolors.keys():
+                ax.plot(beta[beta<cutat],B,color=metalcolors[X],label=X)
+            else:
+                ax.plot(beta[beta<cutat],B,label=X) ## fall back to automatic colors
             beta_highres = np.linspace(0,vcrit,1000)
             ax.plot(beta_highres,fit_mix(beta_highres/vcrit,*popt),':',color='gray')
         ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
-        plt.savefig("B_{0}K_{1}+fits.pdf".format(roomT,filename),format='pdf',bbox_inches='tight')
+        plt.savefig("B_{0}K_{1}+fits.pdf".format(Y[X].T,filename),format='pdf',bbox_inches='tight')
         plt.close()
         
     mkfitplot(metal,"edge","pure edge")
@@ -636,9 +660,9 @@ if __name__ == '__main__':
     B_of_sig = {}
     sigma = {}
     for X in metal:
-        vcrit = ct[X]*vcrit_smallest[X]
+        vcrit = Y[X].ct*vcrit_smallest[X]
         popt = popt_aver[X]
-        burg = burgers[X]
+        burg = Y[X].burgers
         
         @np.vectorize
         def B(v):

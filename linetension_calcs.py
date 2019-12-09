@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 30, 2019
+# Date: Nov. 3, 2017 - Dec. 9, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
 
 import sys
 ### make sure we are running a recent version of python
-# assert sys.version_info >= (3,5)
+# assert sys.version_info >= (3,6)
 #################################
 import numpy as np
 ##################
@@ -30,14 +29,18 @@ mpl.use('Agg', warn=False) # don't need X-window, allow running in a remote term
 ##################
 import matplotlib.pyplot as plt
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
-# plt.rc('font',**{'family':'Liberation Sans Narrow','size':'11'})
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import metal_data as data
-from elasticconstants import elasticC2
+from elasticconstants import elasticC2, Voigt, UnVoigt
+import polycrystal_averaging as pca
 import dislocations as dlc
-
+## work around for python 2:
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
@@ -68,55 +71,18 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals
 metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
 metal = sorted(metal + ['ISO']) ### test isotropic limit
 
-# 2nd order elastic constants taken from the CRC handbook:
-c11 = data.CRC_c11
-c12 = data.CRC_c12
-c44 = data.CRC_c44
-c13 = data.CRC_c13
-c33 = data.CRC_c33
-c66 = data.CRC_c66
 ## lattice constants needed for normalization of some slip plane normals
 ac = data.CRC_a
 cc = data.CRC_c
 
 ### define some isotropic constants to check isotropic limit:
-c44['ISO'] = 1
+data.CRC_c44['ISO'] = data.CRC_a['ISO'] = data.CRC_rho['ISO'] = 1
 nu = 1/3 ## define Poisson's ratio
-c12['ISO'] = round(c44['ISO']*2*nu/(1-2*nu),2)
-c11['ISO'] = c12['ISO']+2*c44['ISO']
-c13['ISO'] = None
-c33['ISO'] = None
-c66['ISO'] = None
-
-## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
-mu = {}
-if scale_by_mu == 'crude':
-    for X in metal:
-        mu[X] = (c11[X]-c12[X]+2*c44[X])/4
-        ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
-elif scale_by_mu == 'exp':
-    mu = data.ISO_c44.copy() ## or use average shear modulus of polycrystal
-    mu['ISO'] = c44['ISO']
-#### generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise):
-import polycrystal_averaging as pca
-missingmu = set(metal).difference(mu.keys())
-if missingmu !=set():
-    print("computing averaged mu for {} ...".format(sorted(list(missingmu))))
-    C2aver = {}
-    aver = pca.IsoAverages(pca.lam,pca.mu,0,0,0) # don't need Murnaghan constants
-for X in missingmu:
-    C2aver[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])   
-    S2 = pca.ec.elasticS2(C2aver[X])
-    aver.voigt_average(C2aver[X])
-    aver.reuss_average(S2)
-    HillAverage = aver.hill_average()
-    ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
-    mu[X] = float(HillAverage[pca.mu])
-# replace Hill with improved averages for effective Lame constants of cubic metals:
-for X in metal_cubic.intersection(missingmu):
-    ImprovedAv = aver.improved_average(C2aver[X])
-    mu[X] = float(ImprovedAv[pca.mu])
-##################################################
+data.CRC_c12['ISO'] = round(data.CRC_c44['ISO']*2*nu/(1-2*nu),2)
+data.CRC_c11['ISO'] = data.CRC_c12['ISO']+2*data.CRC_c44['ISO']
+data.CRC_c13['ISO'] = None
+data.CRC_c33['ISO'] = None
+data.CRC_c66['ISO'] = None
 
 ### define Burgers (unit-)vectors and slip plane normals for all metals
 bfcc = np.array([1,1,0]/np.sqrt(2))
@@ -127,15 +93,19 @@ n0bcc = np.array([1,1,0]/np.sqrt(2))
 
 b = {}
 n0 = {}
+sym={}
 b['ISO'] = np.array([1,0,0]) ### take any direction in the isotropic limit
 n0['ISO'] = np.array([0,1,0])
+sym['ISO'] = 'iso'
 for X in data.fcc_metals.intersection(metal):
     b[X] = bfcc
     n0[X] = n0fcc
+    sym[X] = 'fcc'
 
 for X in data.bcc_metals.intersection(metal):
     b[X] = bbcc
     n0[X] = n0bcc
+    sym[X] = 'bcc'
 
 ### slip directions for hcp are the [1,1,bar-2,0] directions; since the SOEC are invariant under rotations about the z-axis, we may align e.g. the x-axis with b:
 ### (comment: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement is typically done with x-axis aligned with one of the slip directions,
@@ -147,6 +117,7 @@ for X in data.hcp_metals.intersection(metal):
     b[X] = np.array([-1,0,0]) ## any direction in the x-y plane (=slip plane) is possible, as hexagonal metals are isotropic in the basal plane, see H+L
     ## basal slip:
     n0[X] = np.array([0,0,1]) ## slip plane normal = normal to basal plane
+    sym[X] = 'hcp'
     if hcpslip=='prismatic':
         ## prismatic slip:
         n0[X] = np.array([0,-1,0])
@@ -159,62 +130,108 @@ for X in data.hcp_metals.intersection(metal):
 for X in data.tetr_metals.intersection(metal):
     b[X] = np.array([0,0,-1])
     n0[X] = np.array([0,1,0])
-####
+    sym[X] = 'tetr'
 
-## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
-## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
-vcrit_smallest = {}
-for X in metal:
-    ## happens to be the same formula for both fcc and bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bcc)
-    vcrit_smallest[X] = min(1,np.sqrt((c11[X]-c12[X])/(2*c44[X]))) ## scaled by c44, will rescale to user's choice below
-    ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
-### ... but not for tetragonal, where vcrit needs to be determined numerically:
-## numerically determined values:
-vcrit_smallest['In'] = 0.549
-vcrit_smallest['Sn'] = 0.749
-vcrit_smallest['Zn'] = 0.998 ## for basal slip
-if hcpslip=='prismatic':
-    vcrit_smallest['Cd'] = 0.932
-    vcrit_smallest['Zn'] = 0.766
-elif hcpslip=='pyramidal':
-    vcrit_smallest['Cd'] = 0.959
-    vcrit_smallest['Zn'] = 0.819
-
-# we limit calculations to a velocity range close to what we actually need,
-scaling = {}
-beta_scaled = {}
-for X in metal:
-    vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(c44[X]/mu[X]) ## rescale to mu instead of c44
-    scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
-    beta_scaled[X] = scaling[X]*beta
-
-## list of metals symmetric in +/-theta:
+## list of metals symmetric in +/-theta (for the slip systems defined above):
 metal_symm = sorted(list(data.fcc_metals.union(data.hcp_metals).union(data.tetr_metals).intersection(metal))+['ISO'])
 
 ### start the calculations
 if __name__ == '__main__':
-
+    Y={}
+    inputdata = {}
+    metal_list = []
     if len(sys.argv) > 1:
-        ## only compute the metals the user has asked us to
-        metal = sys.argv[1].split()
+        args = sys.argv[1:]
+        try:
+            for i in range(len(args)):
+                inputdata[i]=pca.readinputfile(args[i])
+                X = inputdata[i].name
+                metal_list.append(X)
+                Y[X] = inputdata[i]
+            metal_symm = metal = set([])
+            print("success reading input files ",args)
+        except FileNotFoundError:
+            ## only compute the metals the user has asked us to
+            metal = sys.argv[1].split()
+    
+    for X in metal:
+        Y[X] = pca.metal_props(sym[X])
+        Y[X].ac=data.CRC_a[X]
+        Y[X].rho = data.CRC_rho[X]
+        if Y[X].sym=='hcp' or Y[X].sym=='tetr':
+            Y[X].cc = data.CRC_c[X]
+        Y[X].b=b[X]
+        Y[X].n0=n0[X]
+        # 2nd order elastic constants taken from the CRC handbook:
+        Y[X].c11 = data.CRC_c11[X]
+        Y[X].c12 = data.CRC_c12[X]
+        Y[X].c44 = data.CRC_c44[X]
+        Y[X].c13 = data.CRC_c13[X]
+        Y[X].c33 = data.CRC_c33[X]
+        Y[X].c66 = data.CRC_c66[X]
+        Y[X].init_C2()
+        ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
+        if scale_by_mu == 'crude':
+            Y[X].mu = (Y[X].c11-Y[X].c12+2*Y[X].c44)/4  
+        elif scale_by_mu == 'exp' and X in data.ISO_c44.keys():
+            Y[X].mu = data.ISO_c44[X] ## use average shear modulus of polycrystal
+        #### will generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise)
+        ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
+        if Y[X].mu==None:
+            Y[X].compute_Lame()
+    
+    if metal == set([]):
+        metal = metal_list ## triggers only if user provided one or more inputdata files
 
     print("Computing the line tension for: ",metal)
 
-    with open("theta.dat","w") as thetafile:
-        thetafile.write('\n'.join(map("{:.6f}".format,theta[1:-1])))        
+    if Nbeta > 0:
+        with open("theta.dat","w") as thetafile:
+            thetafile.write('\n'.join("{:.6f}".format(thi) for thi in theta[1:-1]))
                            
     C2 = {}
-    for X in metal:  
+    scaling = {}
+    beta_scaled = {}
+    ## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
+    ## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
+    vcrit_smallest = {}
+    for X in metal:
+        if Y[X].sym=='iso':
+            vcrit_smallest[X] = 1
+        else:
+            ## happens to be the same formula for both fcc and bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bcc)
+            vcrit_smallest[X] = min(1,np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].c44))) ## scaled by c44, will rescale to user's choice below
+            ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
+            ### ... but not for tetragonal, where vcrit needs to be determined numerically:
+    ## numerically determined values at T=300K for metals in metal_data.py:
+    if metal_list == []: ## only True if no input file was read
+        vcrit_smallest['In'] = 0.549
+        vcrit_smallest['Sn'] = 0.749
+        vcrit_smallest['Zn'] = 0.998 ## for basal slip
+        if hcpslip=='prismatic':
+            vcrit_smallest['Cd'] = 0.932
+            vcrit_smallest['Zn'] = 0.766
+        elif hcpslip=='pyramidal':
+            vcrit_smallest['Cd'] = 0.959
+            vcrit_smallest['Zn'] = 0.819
+    for X in metal:
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
-        C2[X] = elasticC2(c11=c11[X], c12=c12[X], c44=c44[X], c13=c13[X], c33=c33[X], c66=c66[X])/mu[X]
+        C2[X] = UnVoigt(Y[X].C2/Y[X].mu)
+        # we limit calculations to a velocity range close to what we actually need,
+        vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(Y[X].c44/Y[X].mu) ## rescale to mu instead of c44
+        if Y[X].vcrit_smallest != None: ## overwrite with data from input file, if available
+            vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct ## ct was determined from mu above and thus may not be the actual transverse sound speed (if scale_by_mu='crude')
+        scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
+        beta_scaled[X] = scaling[X]*beta
+
         
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(i):
         X = metal[i]
         with open("beta_{}.dat".format(X),"w") as betafile:
-            betafile.write('\n'.join(map("{:.5f}".format,beta_scaled[X])))
+            betafile.write('\n'.join("{:.5f}".format(bti) for bti in beta_scaled[X]))
     
-        dislocation = dlc.StrohGeometry(b=b[X], n0=n0[X], theta=theta, Nphi=Nphi)
+        dislocation = dlc.StrohGeometry(b=Y[X].b, n0=Y[X].n0, theta=theta, Nphi=Nphi)
         
         ### compute dislocation displacement gradient uij and line tension LT
         def compute_lt(j):
@@ -228,9 +245,9 @@ if __name__ == '__main__':
         # write the results to disk:
         with open("LT_{}.dat".format(X),"w") as LTfile:
             LTfile.write("### dimensionless line tension prefactor LT(beta,theta) for {}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
-            LTfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta[1:-1]/np.pi)) + '\n')
+            LTfile.write('beta/theta[pi]\t' + '\t'.join("{:.4f}".format(thi) for thi in theta[1:-1]/np.pi) + '\n')
             for j in range(len(beta)):
-                LTfile.write("{:.4f}".format(beta_scaled[X][j]) + '\t' + '\t'.join(map("{:.6f}".format,LT[j])) + '\n')
+                LTfile.write("{:.4f}".format(beta_scaled[X][j]) + '\t' + '\t'.join("{:.6f}".format(thi) for thi in LT[j]) + '\n')
 
         return 0
         
@@ -248,6 +265,7 @@ if __name__ == '__main__':
         plt_metal = []
     else:
         plt_metal = metal
+        skip_plt = []
 
 ## load data from LT calculation
     LT = {}
@@ -256,18 +274,21 @@ if __name__ == '__main__':
     beta_plt = {}
     for X in plt_metal:
         ## for every X, LT has shape (len(theta+1),Nbeta), first column is beta all others are LT for various dislocation types theta in the range -pi/2 to  pi/2
-        with open("LT_{}.dat".format(X),"r") as LTfile:
-            lines = list(line.rstrip() for line in LTfile)
-            ### first read theta from file (already known, but make this code independent from above)
-            theta_plt[X] = np.pi*np.asarray(lines[1].split()[1:],dtype='float')
-            Ntheta_plt[X] = len(theta_plt[X])
-            ### determine length of beta from file
-            Nbeta_plt = len(lines)-2
-            ### read beta vs drag coeff from file:
-            LT[X] = np.zeros((Nbeta_plt,Ntheta_plt[X]+1))
-            for j in range(Nbeta_plt):
-                LT[X][j] = np.asarray(lines[j+2].split(),dtype='float')
-            beta_plt[X] = LT[X][:,0]
+        try:
+            with open("LT_{}.dat".format(X),"r") as LTfile:
+                lines = list(line.rstrip() for line in LTfile)
+                ### first read theta from file (already known, but make this code independent from above)
+                theta_plt[X] = np.pi*np.asarray(lines[1].split()[1:],dtype='float')
+                Ntheta_plt[X] = len(theta_plt[X])
+                ### determine length of beta from file
+                Nbeta_plt = len(lines)-2
+                ### read beta vs drag coeff from file:
+                LT[X] = np.zeros((Nbeta_plt,Ntheta_plt[X]+1))
+                for j in range(Nbeta_plt):
+                    LT[X][j] = np.asarray(lines[j+2].split(),dtype='float')
+                beta_plt[X] = LT[X][:,0]
+        except FileNotFoundError:
+            skip_plt.append(X)
             
     def mkLTplots(X):
         namestring = "{}".format(X)
@@ -301,7 +322,7 @@ if __name__ == '__main__':
         plt.savefig("LT_{}.pdf".format(X),format='pdf',bbox_inches='tight',dpi=450)
         plt.close()
 
-    for X in plt_metal:
+    for X in set(plt_metal).difference(set(skip_plt)):
         mkLTplots(X)
     
 ################################################    
@@ -315,23 +336,27 @@ if __name__ == '__main__':
     print("Computing critical velocities for: ",metal)
     from scipy.optimize import fmin
     ### define some symbols and functions of symbols
-    cc11 = sp.Symbol('cc11', real=True)
-    cc12 = sp.Symbol('cc12', real=True)
-    cc44 = sp.Symbol('cc44', real=True)
-    cc13 = sp.Symbol('cc13', real=True)
-    cc33 = sp.Symbol('cc33', real=True)
-    cc66 = sp.Symbol('cc66', real=True)
+    cc11, cc12, cc13, cc33, cc44, cc66 = sp.symbols('cc11, cc12, cc13, cc33, cc44, cc66', real=True)
     substitutions = {}
+    cubic_metals = []
+    hcp_metals = []
+    tetr_metals = []
     for X in metal:
         ## substitute SOEC in units of GPa to minimize rounding errors from huge/tiny floats in intermediate steps
-        substitutions[X] = {cc11:c11[X]/1e9, cc12:c12[X]/1e9, cc44:c44[X]/1e9}
-        if c13[X]!=None:
-            substitutions[X].update({cc13:c13[X]/1e9, cc33:c33[X]/1e9})
-        if c66[X]!=None:
-            substitutions[X].update({cc66:c66[X]/1e9})
+        substitutions[X] = {cc12:Y[X].c12/1e9, cc44:Y[X].c44/1e9}
+        if Y[X].c11!=None: substitutions[X].update({cc11:Y[X].c11/1e9})
+        if Y[X].c13!=None:
+            substitutions[X].update({cc13:Y[X].c13/1e9, cc33:Y[X].c33/1e9})
+        if Y[X].c66!=None:
+            substitutions[X].update({cc66:Y[X].c66/1e9})
+        if Y[X].sym=='iso' or Y[X].sym=='fcc' or Y[X].sym=='fcc':
+            cubic_metals.append(X)
+        elif Y[X].sym=='hcp':
+            hcp_metals.append(X)
+        elif Y[X].sym=='tetr':
+            tetr_metals.append(X)
         
-    bt2 = sp.Symbol('bt2', real=True)
-    phi = sp.Symbol('phi', real=True)
+    bt2, phi = sp.symbols('bt2, phi', real=True)
     C2cub = elasticC2(c11=cc11,c12=cc12,c44=cc44)
     C2hex = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33)
     C2tetr = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33,c66=cc66)
@@ -351,7 +376,7 @@ if __name__ == '__main__':
     #pyramidal:
     n0pyr = {}
     for X in data.hcp_metals.intersection(metal):
-        n0pyr[X] = np.array([0,-ac[X],cc[X]])/sp.sqrt(ac[X]**2+cc[X]**2)
+        n0pyr[X] = np.array([0,-Y[X].ac,Y[X].cc])/sp.sqrt(Y[X].ac**2+Y[X].cc**2)
     
     btetr = np.array([0,0,-1])
     n0tetr = np.array([0,1,0])
@@ -430,41 +455,52 @@ if __name__ == '__main__':
                     bt2_res[i,0] = fmin(f,0.001,disp=False)
                     bt2_res[i,1] = bt2_X[i].subs({phi:bt2_res[i,0]})
                 mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
-                vcrit[X][0,thi] = np.sqrt(c44[X]/mu[X]*np.real(bt2_res[:,1][mask]))
+                vcrit[X][0,thi] = np.sqrt(Y[X].c44/Y[X].mu*np.real(bt2_res[:,1][mask]))
                 vcrit[X][1,thi] = np.real(bt2_res[:,0][mask])
         return vcrit
         
     vcrit = {} # values contain critical velocities and associated polar angles
-    vcrit.update(computevcrit(bfcc,n0fcc,C2cub,Ntheta2,sorted(list(data.fcc_metals.intersection(metal))),symmetric=True))
-    vcrit.update(computevcrit(bbcc,n0bcc,C2cub,2*Ntheta2-1,sorted(list(data.bcc_metals.intersection(metal))),symmetric=False))
-    if hcpslip=='basal':
-        vcrit.update(computevcrit(bhcp,n0hcp,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
-    elif hcpslip=='prismatic':
-        vcrit.update(computevcrit(bhcp,n0pris,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
-    elif hcpslip=='pyramidal':
-        vcrit.update(computevcrit(bhcp,n0pyr,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
-    vcrit.update(computevcrit(btetr,n0tetr,C2tetr,Ntheta2,sorted(list(data.tetr_metals.intersection(metal))),symmetric=True))
+    if metal_list == []:
+        if len(cubic_metals)>0:
+            vcrit.update(computevcrit(bfcc,n0fcc,C2cub,Ntheta2,sorted(list(data.fcc_metals.intersection(metal))),symmetric=True))
+            vcrit.update(computevcrit(bbcc,n0bcc,C2cub,2*Ntheta2-1,sorted(list(data.bcc_metals.intersection(metal))),symmetric=False))
+        if hcpslip=='basal' and len(hcp_metals)>0:
+            vcrit.update(computevcrit(bhcp,n0hcp,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
+        elif hcpslip=='prismatic' and len(hcp_metals)>0:
+            vcrit.update(computevcrit(bhcp,n0pris,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
+        elif hcpslip=='pyramidal' and len(hcp_metals)>0:
+            vcrit.update(computevcrit(bhcp,n0pyr,C2hex,Ntheta2,sorted(list(data.hcp_metals.intersection(metal))),symmetric=True))
+        if len(tetr_metals)>0:
+            vcrit.update(computevcrit(btetr,n0tetr,C2tetr,Ntheta2,sorted(list(data.tetr_metals.intersection(metal))),symmetric=True))
+    else:
+        for X in metal:
+            if Y[X].sym=='iso': print("skipping isotropic {}, vcrit=ct".format(X))
+            elif Y[X].sym=='fcc' or Y[X].sym=='bcc':
+                vcrit.update(computevcrit(Y[X].b,Y[X].n0,C2cub,2*Ntheta2-1,[X],symmetric=False))
+            elif Y[X].sym=='hcp':
+                vcrit.update(computevcrit(Y[X].b,Y[X].n0,C2hex,2*Ntheta2-1,[X],symmetric=False))
+            elif Y[X].sym=='tetr':
+                vcrit.update(computevcrit(Y[X].b,Y[X].n0,C2tetr,2*Ntheta2-1,[X],symmetric=False))
 
     ## write vcrit results to disk, then plot
-    rho = data.CRC_rho ## need densities to convert vcrit to m/s
     with open("vcrit.dat","w") as vcritfile:
-        vcritfile.write("theta/pi\t" + '\t'.join(map("{:.4f}".format,np.linspace(1/2,-1/2,2*Ntheta2-1))) + '\n')
+        vcritfile.write("theta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*Ntheta2-1)) + '\n')
         vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
         for X in sorted(list(set(metal).intersection(vcrit.keys()))):
             for i in range(3):
-                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.0f}".format,np.flipud(np.sqrt(mu[X]/rho[X])*vcrit[X][0,:,i]))) + '\n')
-        vcritfile.write("\ntheta/pi\t" + '\t'.join(map("{:.4f}".format,np.linspace(1/2,-1/2,2*Ntheta2-1))) + '\n')
+                vcritfile.write("{}\t".format(X) + '\t'.join("{:.0f}".format(thi) for thi in np.flipud(np.sqrt(Y[X].mu/Y[X].rho)*vcrit[X][0,:,i])) + '\n')
+        vcritfile.write("\ntheta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*Ntheta2-1)) + '\n')
         vcritfile.write("metal / phi(vcrit)[pi] - polar angle at which vcrit occurs (3 solutions per theta)\n")
         for X in sorted(list(set(metal).intersection(vcrit.keys()))):
             for i in range(3):
-                vcritfile.write("{}\t".format(X) + '\t'.join(map("{:.4f}".format,np.flipud(vcrit[X][1,:,i]/np.pi))) + '\n')
+                vcritfile.write("{}\t".format(X) + '\t'.join("{:.4f}".format(thi) for thi in np.flipud(vcrit[X][1,:,i]/np.pi)) + '\n')
                 
     def mkvcritplot(X,vcrit,Ntheta):
         fig, (ax1,ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [2, 1]}, figsize=(5.5,6.0))
         plt.tight_layout(h_pad=0.0)
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
-        vcrit0 = np.sqrt(mu[X]/rho[X])*vcrit[0]
+        vcrit0 = np.sqrt(Y[X].mu/Y[X].rho)*vcrit[0]
         vcrit1 = vcrit[1]/np.pi
         if len(vcrit0)==Ntheta:
             plt.xticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)

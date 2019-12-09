@@ -20,16 +20,17 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Prerequisites
 
-numpy,</br>
-sympy,</br>
+<!--Python 3.6 or higher,</br>-->
+numpy (>=1.13),</br>
+sympy (>=1.0),</br>
 scipy,</br>
-matplotlib</br>
+matplotlib (>=2.0)</br>
 
 ### Optional:
 
-numba,</br>
+numba (>=0.36),</br>
 joblib,</br>
-f2py + a Fortran compiler (to use the alternative faster Fortran implementations of some subroutines)
+f2py + a Fortran 90 compiler (to use the alternative faster Fortran implementations of some subroutines)
 
 ## PyDislocDyn consists of:
 
