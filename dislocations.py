@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 29, 2019
+# Date: Nov. 3, 2017 - Dec. 19, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -30,7 +30,7 @@ except ImportError:
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
 
-@jit
+# @jit
 def rotaround(v,s,c):
     '''Computes the rotation matrix with unit vector 'v' as the rotation axis and s,c are the sin/cos of the angle.'''
     vx = np.zeros((3,3))
@@ -468,7 +468,7 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
     result = np.zeros((3,3,Ntheta,qres,phres))
     ph_ones = np.ones((phres))
     uij_array = np.zeros((3,3,phres*phiXres))
-    if np.asarray(sincos).all()==None:
+    if np.asarray(sincos).all() is None:
         sincos = fourieruij_sincos(r,phiX,q,ph)
     
     for th in range(Ntheta):
@@ -499,7 +499,7 @@ def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
     result = np.zeros((3,3,Ntheta,phres))
     ph_ones = np.ones((phres))
     uij_array = np.zeros((3,3,ph2res))
-    if np.asarray(sincos).all()==None:
+    if np.asarray(sincos).all() is None:
         cosphimph = np.reshape(np.cos(np.outer(np.ones((phres)),phiX)-np.outer(ph,np.ones((phiXres)))),(ph2res))
         sincos = (1-np.cos(regul*cosphimph))/cosphimph
     

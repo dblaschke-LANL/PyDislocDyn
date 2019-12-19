@@ -428,4 +428,23 @@ if __name__ == '__main__':
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         plt.savefig("Biso_of_sigma_{}.pdf".format(X),format='pdf',bbox_inches='tight')
         plt.close()
+        
+        
+    fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.5,3.5))
+    ax.set_xlabel(r'$\sigma b/(c_\mathrm{t}B_0)$',fontsize=fntsize)
+    ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
+    ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
+    ax.axis((0,1.8,0.4,2))
+    B0 = {}
+    for X in metal:
+        B0[X] = np.mean(Broom[X][0,1:])
+        sig0 = ct[X]*B0[X]/(1e3*burgers[X])
+        ax.plot(sigma[X]/sig0,B_of_sig[X]*1e3/B0[X],label="{}, $B_0={:.1f}\mu$Pas".format(X,1e3*B0[X]))
+    plt.xticks(fontsize=fntsize)
+    plt.yticks(fontsize=fntsize)
+    ax.legend(loc='best',handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    plt.savefig("Biso_of_sigma_all.pdf",format='pdf',bbox_inches='tight')
+    plt.close()
     

@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 9, 2019
+# Date: Nov. 5, 2017 - Dec. 19, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -234,7 +234,7 @@ if __name__ == '__main__':
         print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
     ###
-    r = [rmin*np.pi,rmax*np.pi] ## qBZ drops out of product q*r, so can rescale both vectors making them dimensionless and independent of the metal
+    r = np.array([rmin*np.pi,rmax*np.pi]) ## qBZ drops out of product q*r, so can rescale both vectors making them dimensionless and independent of the metal
     q = np.linspace(0,1,Nq)
     ## needed for the Fourier transform of uij (but does not depend on beta or T, so we compute it only once here)
     # sincos = dlc.fourieruij_sincos(r,phiX,q,phi)
@@ -707,4 +707,23 @@ if __name__ == '__main__':
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         plt.savefig("B_of_sigma_{}.pdf".format(X),format='pdf',bbox_inches='tight')
         plt.close()
+        
+        
+    fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.5,5.5))
+    ax.set_xlabel(r'$\sigma b/(v_\mathrm{c}B_0)$',fontsize=fntsize)
+    ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
+    ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
+    ax.axis((0,1.8,0.4,2))
+    B0 = {}
+    for X in metal:
+        B0[X] = np.mean(Broom[X][0,1:])
+        sig0 = Y[X].ct*vcrit_smallest[X]*B0[X]/(1e3*burgers[X])
+        ax.plot(sigma[X]/sig0,B_of_sig[X]*1e3/B0[X],label="{}, $B_0\!=\!{:.1f}\mu$Pas".format(X,1e3*B0[X]))
+    plt.xticks(fontsize=fntsize)
+    plt.yticks(fontsize=fntsize)
+    ax.legend(loc='best', ncol=2, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    plt.savefig("B_of_sigma_all.pdf",format='pdf',bbox_inches='tight')
+    plt.close()
     
