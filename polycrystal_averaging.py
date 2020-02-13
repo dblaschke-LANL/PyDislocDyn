@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Dec. 9, 2019
+# Date: Nov. 7, 2017 - Dec. 12, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -9,19 +9,11 @@ from __future__ import print_function
 import sys
 ### make sure we are running a recent version of python
 # assert sys.version_info >= (3,6)
-from sympy import Symbol
 from sympy.solvers import solve 
 import sympy as sp
 import numpy as np
 from elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
 import metal_data as data
-
-### vectorize some sympy fcts to make them work on numpy arrays
-### (as an alternative to loops and/or converting to and from sympy matrices):
-Expand = np.vectorize(sp.expand)
-Factor = np.vectorize(sp.factor)
-Simplify = np.vectorize(sp.simplify)
-Delta = sp.KroneckerDelta
 
 ### generate a list of those fcc, bcc, hcp metals for which we have sufficient data
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.CRC_c11.keys())))
@@ -47,16 +39,9 @@ def invI5(C3):
     '''Computes the trace C_ijkijk of TOEC.'''
     return np.trace(np.trace(np.trace(C3,axis1=0,axis2=3),axis1=0,axis2=2))
     
-## can use these same fcts for the invariants of S2 and S3
-
 ### define some symbols and functions of symbols for the effective isotropic side of our calculations
-# Symbols for Lame constants:
-lam = Symbol('lam')
-mu = Symbol('mu')
-# Symbols for Murnaghan constants:
-Murl = Symbol('Murl')
-Murm = Symbol('Murm')
-Murn = Symbol('Murn')
+lam, mu = sp.symbols('lam mu') ## Symbols for Lame constants
+Murl, Murm, Murn = sp.symbols('Murl Murm Murn') ## Symbols for Murnaghan constants
 
 class IsoInvariants(object):
     '''This class initializes isotropic second and third order elastic tensors and their invariants depending on the provided Lame and Murnaghan constants,
@@ -129,13 +114,12 @@ class IsoAverages(IsoInvariants):
         C12 = C2[0,0,1,1]
         hdenominator = (3*(8*mu**2 + 9*C11*mu + (C11 - C12)*(C11 + 2*C12)))
         hfactor = (C11 + 2*C12 + 6*mu)*(C11 - C12 - 2*mu)/(3*(8*mu**2 + 9*C11*mu + (C11 - C12)*(C11 + 2*C12)))
-        Sh = Symbol('Sh', real=True)
+        Sh = sp.Symbol('Sh', real=True)
         ### Amat is (x_i x_j x_k x_l + y_i y_j y_k y_l + z_i z_j z_k z_l) where x,y,z are the unit vectors along the crystal axes
         ### one may easily check that in Voigt notation this construction leads to the diagonal matrix below
         Amat = np.diag([1,1,1,0,0,0])
         Hmat = Voigt(elasticC2(c12=Sh,c44=Sh+1/2)) -5*Sh*Amat
-        correction = np.diag([1,1,1,2,2,2])
-        Hm = np.dot(Hmat,correction)
+        Hm = np.dot(Hmat,np.diag([1,1,1,2,2,2]))
         C2hat = UnVoigt(np.array(sp.factor(sp.expand(sp.Matrix(np.dot(Hm,np.dot(Voigt(C2),Hm.T)))).subs(Sh**2,0)).subs(Sh,hfactor/2)))
         ###
         tmplam = solve(self.invI1-sp.factor(invI1(C2hat)),lam,dict=True)[0][lam]
@@ -160,7 +144,6 @@ class IsoAverages(IsoInvariants):
         self.improved = out
         return out
 
-
 ########### re-organize metal data within a class (so that we can perform calculations also on data read from input files, not just from metal_data dicts):
 class metal_props:
     '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr'
@@ -183,7 +166,8 @@ class metal_props:
         self.ct=self.cl=self.ct_over_cl=0 ## polycrystal averages
         self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
         self.burgers=0 # length of Burgers vector
-        self.b=self.n0=np.zeros((3)) ## unit vectors in the direction of Burgers and slip plane normal
+        self.b=np.zeros((3)) ## unit Burgers vector 
+        self.n0=np.zeros((3)) ## slip plane normal
         self.vcrit_smallest=self.vcrit_screw=self.vcrit_edge=None
         self.alpha_a=0 # thermal expansion coefficient at temperature self.T, set to 0 for constant rho calculations
         if sym=='tetr':
@@ -254,9 +238,7 @@ def readinputfile(fname):
     with open(fname,"r") as inputfile:
         lines = inputfile.readlines()
         for line in lines:
-            if "#" == line[0]:
-                pass
-            else:
+            if "#" != line[0]:
                 currentline = line.lstrip().rstrip().split()
                 if len(currentline) > 2:
                     key  = currentline[0]

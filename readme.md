@@ -1,7 +1,7 @@
 # PyDislocDyn
 
 PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with simple crystal symmetries in the continuum limit. In particular, one of its main purposes is to calculate dislocation drag from phonon wind. Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field and the calculation of dislocation self-energy and line tension.
-This code was first used for the computations leading to [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) and [Materials 12 (2019) 948](https://doi.org/10.3390/ma12060948) ([arxiv.org/abs/1902.02451](https://arxiv.org/abs/1902.02451)).
+This code was first used for the computations leading to [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) and [Materials 12 (2019) 948](https://doi.org/10.3390/ma12060948) ([arxiv.org/abs/1902.02451](https://arxiv.org/abs/1902.02451)), as well as Sec. 3 of [arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
 ## Author
@@ -21,16 +21,18 @@ The LANL development team asks that any forks or derivative works include approp
 ## Prerequisites
 
 <!--Python 3.6 or higher,</br>-->
-numpy (>=1.13),</br>
-sympy (>=1.0),</br>
-scipy,</br>
-matplotlib (>=2.0)</br>
+Python >=3.5 (currently works with deprecated 2.7, but will drop support soon),</br>
+[numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
+[scipy](https://docs.scipy.org/doc/scipy/reference/),</br>
+[sympy](https://www.sympy.org) >=1.0,</br>
+[matplotlib](https://matplotlib.org/) >=2.0</br>
 
 ### Optional:
 
-numba (>=0.36),</br>
-joblib,</br>
-f2py + a Fortran 90 compiler (to use the alternative faster Fortran implementations of some subroutines)
+[numba](https://numba.pydata.org/) >=0.36 (for speedup via just-in-time compilation of some subroutines),</br>
+[joblib](https://joblib.readthedocs.io) (for parallelization),</br>
+a Fortran 90 compiler
+(to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/); run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use)
 
 ## PyDislocDyn consists of:
 
@@ -46,7 +48,7 @@ See [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443)  ([arx
 
 * dragcoeff_iso.py</br>
 Computes the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal.
-See LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)) and [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.
+See LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [Phil. Mag. 100 (2020) 571&ndash;600](https://doi.org/10.1080/14786435.2019.1696484) ([arxiv.org/abs/1907.00101](https://arxiv.org/abs/1907.00101)), and [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.
 
 * dragcoeff_semi_iso.py</br>
 Computes the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation, where only the phonon spectrum is isotropic and everything else (i.e. the dislocation field and the elastic constants) respect the crystal symmetry. See [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.

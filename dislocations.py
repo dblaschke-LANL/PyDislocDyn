@@ -1,14 +1,14 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 19, 2019
+# Date: Nov. 3, 2017 - Jan. 15, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
 
 # from sys import version_info
 ### make sure we are running a recent version of python
-# assert version_info >= (3,5)
+# assert version_info >= (3,6)
 import numpy as np
 from scipy.integrate import cumtrapz
 nonumba=False
@@ -177,8 +177,7 @@ def ArrayDot(A,B):
                 np.add(np.multiply(A[k,o] , B[o,l] , tmp), AB[k,l], AB[k,l])
     return AB
     
-## numba version of elbrak() is just as fast as the fortran implementation, so we use the latter only as a fall-back if numba is missing
-if nonumba and usefortran:
+if usefortran:
     def elbrak(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
         return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
@@ -214,8 +213,6 @@ def elbrak_alt(A,B,elC):
             for l in range(3):
                 for o in range(3):
                     for p in range(3):
-                        # AB[th] += A[k,l,th]*B[o,p,th]*elC[k,l,o,p]
-                        #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
                         np.add(AB[th] , np.multiply(np.multiply(A[k,l,th],elC[k,l,o,p],tmp),B[o,p,th],tmp) , AB[th])
         
     return AB
@@ -313,22 +310,11 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
  
     return uij
 
-
-if np.version.version<'1.13':
-    ## work around missing np.heaviside() in older versions of numpy
-    @jit
-    def artan(x,y):
-        '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
-        out = np.arctan2(x,y)
-        sgn = np.sign(-out)
-        out += 2*np.pi*sgn*(sgn+1)/2
-        return out
-else:
-    def artan(x,y):
-        '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
-        out = np.arctan2(x,y)
-        out += 2*np.pi*np.heaviside(-out,0)
-        return out
+def artan(x,y):
+    '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
+    out = np.arctan2(x,y)
+    out += 2*np.pi*np.heaviside(-out,0)
+    return out
 
 ############# isotropic case
 def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
@@ -444,11 +430,9 @@ def fourieruij_sincos(r,phiX,q,ph):
     phres = len(ph)
     qres = len(q)
     phiXres = len(phiX)
-    # rprime = np.outer(q,r)
     cosphimph = np.reshape(np.cos(np.outer(np.ones((phres)),phiX)-np.outer(ph,np.ones((phiXres)))),(phres*phiXres))
     out = np.zeros((qres,phres*phiXres))
     for iq in range(qres):
-        # out[iq] = np.trapz(np.sin(np.outer(rprime[iq],cosphimph)),x=rprime[iq], axis=0)
         out[iq] = (np.cos(q[iq]*r[0]*cosphimph)-np.cos(q[iq]*r[-1]*cosphimph))/cosphimph
         
     return out
@@ -464,7 +448,6 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
     phiXres = len(phiX)
     Ntheta = len(uij[0,0])
     ### computing just the non-vanishing purely imaginary part allows us to do everything with real numbers which is faster
-    # result = np.zeros((3,3,Ntheta,qres,phres),dtype=complex)
     result = np.zeros((3,3,Ntheta,qres,phres))
     ph_ones = np.ones((phres))
     uij_array = np.zeros((3,3,phres*phiXres))
@@ -477,7 +460,6 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
             for j in range(3):
                 uij_array[i,j] = np.reshape(np.outer(ph_ones,uij[i,j,th]),(phres*phiXres))
                 for iq in range(qres):
-                    # integrand[i,j,iq] = uij_array[i,j]*sincos[iq]
                     np.multiply(uij_array[i,j] , sincos[iq] , integrand[i,j,iq])
     
         result[:,:,th] = np.trapz(np.reshape(integrand,(3,3,qres,phres,phiXres)),x=phiX)
