@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 15, 2020
+# Date: Nov. 3, 2017 - Mar. 10, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -265,7 +265,7 @@ if __name__ == '__main__':
         plt_metal = []
     else:
         plt_metal = metal
-        skip_plt = []
+    skip_plt = []
 
 ## load data from LT calculation
     LT = {}
@@ -346,7 +346,7 @@ if __name__ == '__main__':
             substitutions[X].update({cc13:Y[X].c13/1e9, cc33:Y[X].c33/1e9})
         if Y[X].c66!=None:
             substitutions[X].update({cc66:Y[X].c66/1e9})
-        if Y[X].sym=='iso' or Y[X].sym=='fcc' or Y[X].sym=='fcc':
+        if Y[X].sym=='iso' or Y[X].sym=='fcc' or Y[X].sym=='bcc':
             cubic_metals.append(X)
         elif Y[X].sym=='hcp':
             hcp_metals.append(X)
