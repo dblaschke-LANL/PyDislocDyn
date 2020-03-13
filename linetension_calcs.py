@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 10, 2020
+# Date: Nov. 3, 2017 - Mar. 11, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -88,8 +88,15 @@ data.CRC_c66['ISO'] = None
 bfcc = np.array([1,1,0]/np.sqrt(2))
 n0fcc = -np.array([1,-1,1]/np.sqrt(3))
 
+bccslip = '110' ## default
+# bccslip = '112' ## uncomment to use
+# bccslip = '123' ## uncomment to use
 bbcc = np.array([1,-1,1]/np.sqrt(3))
 n0bcc = np.array([1,1,0]/np.sqrt(2))
+if bccslip=='112':
+    n0bcc = np.array([1,-1,-2]/np.sqrt(6))
+elif bccslip=='123':
+    n0bcc = np.array([1,-2,-3]/np.sqrt(14))
 
 b = {}
 n0 = {}
@@ -199,10 +206,10 @@ if __name__ == '__main__':
         if Y[X].sym=='iso':
             vcrit_smallest[X] = 1
         else:
-            ## happens to be the same formula for both fcc and bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bcc)
+            ## happens to be the same formula for both fcc and some bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bccslip='110', pure screw for bccslip='112')
             vcrit_smallest[X] = min(1,np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].c44))) ## scaled by c44, will rescale to user's choice below
             ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
-            ### ... but not for tetragonal, where vcrit needs to be determined numerically:
+            ### ... but not for tetragonal and bccslip='123', where vcrit needs to be determined numerically:
     ## numerically determined values at T=300K for metals in metal_data.py:
     if metal_list == []: ## only True if no input file was read
         vcrit_smallest['In'] = 0.549
@@ -214,6 +221,10 @@ if __name__ == '__main__':
         elif hcpslip=='pyramidal':
             vcrit_smallest['Cd'] = 0.959
             vcrit_smallest['Zn'] = 0.819
+        if bccslip=='123':
+            vcrit_smallest['Fe'] = 0.616
+            vcrit_smallest['K'] = 0.393
+            vcrit_smallest['Ta'] = 0.807
     for X in metal:
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
         C2[X] = UnVoigt(Y[X].C2/Y[X].mu)
@@ -364,6 +375,10 @@ if __name__ == '__main__':
     
     bbcc = np.array([1,-1,1])/sp.sqrt(3)
     n0bcc = np.array([1,1,0])/sp.sqrt(2)
+    if bccslip=='112':
+        n0bcc = np.array([1,-1,-2])/sp.sqrt(6)
+    elif bccslip=='123':
+        n0bcc = np.array([1,-2,-3])/sp.sqrt(14)
     
     #basal:
     bhcp = np.array([-1,0,0])
@@ -528,6 +543,10 @@ if __name__ == '__main__':
         plt.savefig("vcrit_{}.pdf".format(X),format='pdf',bbox_inches='tight')
         plt.close()
     
+    vcrit_smallest_new = {}
     for X in sorted(list(set(metal).intersection(vcrit.keys()))):
         mkvcritplot(X,vcrit[X],Ntheta2)
+        ## (re-)compute smallest critical velocities: needs high resolution in Ntheta2 to be accurate
+        vcrit_smallest_new[X] = np.min(vcrit[X][0])*np.sqrt(Y[X].mu/Y[X].rho) ## in m/s suitable for input files
+        # vcrit_smallest_new[X] = np.min(vcrit[X][0])*np.sqrt(Y[X].mu/Y[X].c44) ## scaled by c44 (for input from metal_data, this is what was hard coded above for speed)
         

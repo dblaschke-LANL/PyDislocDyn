@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 9, 2019
+# Date: Nov. 3, 2017 - Mar. 12, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -118,11 +118,14 @@ for X in tetr_metals.intersection(c111.keys()):
 
 
 #####################################################################################
-def writeinputfile(X,fname,iso=False):
-    '''write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn'''
+def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
+    '''Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
+       Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.
+       To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
+       'prismatic', or 'pyramidal'.'''
     with open(fname,"w") as outf:
         outf.write("# input parameters for {} at ambient conditions\n\n".format(X))
-        outf.write("name = {}\n".format(X))
+        outf.write("name = {}\n".format(fname))
         if X in fcc_metals:
             outf.write("sym = fcc\n\n")
             outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\n")
@@ -132,15 +135,23 @@ def writeinputfile(X,fname,iso=False):
             outf.write("sym = bcc\n\n")
             outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,-1,1])/np.sqrt(3))))+"\n")
             outf.write("burgers = {} \t# a*sqrt(3)/2\n".format(CRC_a[X]*np.sqrt(3)/2))
-            outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\n\n")
+            if bccslip=='112':
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,-1,-2])/np.sqrt(6))))+"\t# slip in 112 plane\n\n")
+            elif bccslip=='123':
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,-2,-3])/np.sqrt(14))))+"\t# slip in 123 plane\n\n")
+            else:
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\t# slip in 110 plane\n\n")
         elif X in hcp_metals:
             outf.write("sym = hcp\n\n")
             outf.write("# example slip systems:\n")
             outf.write("b = "+", ".join(map("{}".format,(np.array([-1,0,0]))))+"\n")
             outf.write("burgers = {} \t# a\n".format(CRC_a[X]))
-            outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n")
-            outf.write("# n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip (uncomment to use)\n")
-            outf.write("# n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]])/np.sqrt(CRC_a[X]**2+CRC_c[X]**2))))+"\t# pyramidal slip (uncomment to use)\n\n")
+            if hcpslip=='prismatic':
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip\n\n")
+            elif hcpslip=='pyramidal':
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]])/np.sqrt(CRC_a[X]**2+CRC_c[X]**2))))+"\t# pyramidal slip\n\n")
+            else:
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n\n")
         elif X in tetr_metals:
             outf.write("sym = tetr\n\n")
             outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([0,0,-1]))))+"\n")

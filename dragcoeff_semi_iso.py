@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 15, 2020
+# Date: Nov. 5, 2017 - Mar. 11, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -86,7 +86,8 @@ NphiX = 3000
 rmin = 0
 rmax = 250
 ### and range & step sizes
-theta = np.linspace(0,np.pi/2,Ntheta)  ## note: some slip systems (such as bcc defined below) are asymmetric wrt theta->-theta
+theta = np.linspace(0,np.pi/2,Ntheta)  ## note: some slip systems (such as bcc defined below) are asymmetric wrt theta->-theta, in that case uncomment line below:
+# theta = np.linspace(-np.pi/2,np.pi/2,Ntheta)
 beta = np.linspace(minb,maxb,Nbeta)
 phi = np.linspace(0,2*np.pi,Nphi)
 phiX = np.linspace(0,2*np.pi,NphiX)
@@ -122,11 +123,18 @@ for X in data.fcc_metals.intersection(metal):
     n0[X] = -np.array([1,-1,1]/np.sqrt(3))
     sym[X]='fcc'
 
+bccslip = '110' ## default
+# bccslip = '112' ## uncomment to use
+# bccslip = '123' ## uncomment to use
 for X in data.bcc_metals.intersection(metal):
     burgers[X] = ac[X]*np.sqrt(3)/2
     b[X] = np.array([1,-1,1]/np.sqrt(3))
     n0[X] = np.array([1,1,0]/np.sqrt(2))
     sym[X]='bcc'
+    if bccslip=='112':
+        n0[X] = np.array([1,-1,-2]/np.sqrt(6))
+    elif bccslip=='123':
+        n0[X] = np.array([1,-2,-3]/np.sqrt(14))
 
 ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
 ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
@@ -395,7 +403,7 @@ if __name__ == '__main__':
             vcrit_smallest[X] = 1
         else:
             vcrit_smallest[X] = min(np.sqrt(Y[X].c44/Y[X].mu),np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu)))
-    ## above is correct for fcc, bcc and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
+    ## above is correct for fcc, bcc (except 123 planes) and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
     ## numerically determined values at T=300K for metals in metal_data.py (rounded):
     if metal_list == []: ## only True if no input file was read
         vcrit_smallest['Sn'] = 0.818
@@ -437,6 +445,16 @@ if __name__ == '__main__':
         vcrit_smallest['Cd'] = 0.975
         vcrit_smallest['Zn'] = 0.775
         
+    if bccslip=='112' and metal_list == []:
+        for X in data.bcc_metals.intersection(metal):
+            vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes
+        vcrit_edge['Fe'] = 0.817
+    elif bccslip=='123' and metal_list == []:
+        vcrit_smallest['Fe'] = 0.735
+        for X in data.bcc_metals.intersection(metal):
+            vcrit_screw[X] = vcrit_smallest[X] ## close enough
+        vcrit_edge['Fe'] = 0.825
+    
     ## overwrite any of these values with data from input file, if available:
     for X in metal:
         if Y[X].vcrit_smallest != None:
