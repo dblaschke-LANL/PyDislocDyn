@@ -128,19 +128,19 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
         outf.write("name = {}\n".format(fname))
         if X in fcc_metals:
             outf.write("sym = fcc\n\n")
-            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\n")
+            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,1,0]))))+"\t# normalization 1/sqrt(2) applied automatically upon reading\n")
             outf.write("burgers = {} \t# a/sqrt(2)\n".format(CRC_a[X]/np.sqrt(2)))
-            outf.write("n0 = "+", ".join(map("{}".format,(np.array([-1,1,-1])/np.sqrt(3))))+"\n\n")
+            outf.write("n0 = "+", ".join(map("{}".format,(np.array([-1,1,-1]))))+"\t# normalization 1/sqrt(3) applied automatically upon reading\n\n")
         elif X in bcc_metals:
             outf.write("sym = bcc\n\n")
-            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,-1,1])/np.sqrt(3))))+"\n")
+            outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,-1,1]))))+"\t# normalization 1/sqrt(3) applied automatically upon reading\n")
             outf.write("burgers = {} \t# a*sqrt(3)/2\n".format(CRC_a[X]*np.sqrt(3)/2))
             if bccslip=='112':
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,-1,-2])/np.sqrt(6))))+"\t# slip in 112 plane\n\n")
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,-1,-2]))))+"\t# slip in 112 plane, normalization 1/sqrt(6) applied automatically upon reading\n\n")
             elif bccslip=='123':
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,-2,-3])/np.sqrt(14))))+"\t# slip in 123 plane\n\n")
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,-2,-3]))))+"\t# slip in 123 plane, normalization 1/sqrt(14) applied automatically upon reading\n\n")
             else:
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,1,0])/np.sqrt(2))))+"\t# slip in 110 plane\n\n")
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([1,1,0]))))+"\t# slip in 110 plane, normalization 1/sqrt(2) applied automatically upon reading\n\n")
         elif X in hcp_metals:
             outf.write("sym = hcp\n\n")
             outf.write("# example slip systems:\n")
@@ -149,7 +149,7 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             if hcpslip=='prismatic':
                 outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip\n\n")
             elif hcpslip=='pyramidal':
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]])/np.sqrt(CRC_a[X]**2+CRC_c[X]**2))))+"\t# pyramidal slip\n\n")
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]]))))+"\t# pyramidal slip, normalization 1/sqrt(a**2+c**2) applied automatically upon reading\n\n")
             else:
                 outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n\n")
         elif X in tetr_metals:

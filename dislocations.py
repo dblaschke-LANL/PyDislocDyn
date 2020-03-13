@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 15, 2020
+# Date: Nov. 3, 2017 - Mar. 11, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -53,10 +53,16 @@ class StrohGeometry(object):
        Method computerot finally computes a rotation matrix that will align n0,t with Cartesian y,z directions.'''
     def __init__(self,b, n0, theta, Nphi):
         Ntheta = len(theta)
-        self.theta = theta
+        self.theta = np.asarray(theta)
         self.phi = np.linspace(0,2*np.pi,Nphi)
         self.b = np.asarray(b)
+        bsq = np.dot(self.b,self.b)
+        if bsq>1e-12 and abs(bsq-1)>1e-12:
+            self.b = self.b/np.sqrt(bsq)
         self.n0 = np.asarray(n0)
+        nsq = np.dot(self.n0,self.n0)
+        if nsq>1e-12 and abs(nsq-1)>1e-12:
+            self.n0 = self.n0/np.sqrt(nsq)
         self.t = np.zeros((Ntheta,3))
         self.m0 = np.zeros((Ntheta,3))
         self.Cv = np.zeros((3,3,3,3,Ntheta))
