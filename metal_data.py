@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 12, 2020
+# Date: Nov. 3, 2017 - Mar. 13, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -152,11 +152,17 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
                 outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]]))))+"\t# pyramidal slip, normalization 1/sqrt(a**2+c**2) applied automatically upon reading\n\n")
             else:
                 outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n\n")
+            ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
+            ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
+            ### therefore, may choose b parallel to x-axis
         elif X in tetr_metals:
             outf.write("sym = tetr\n\n")
             outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([0,0,-1]))))+"\n")
             outf.write("burgers = {} \t# c\n".format(CRC_c[X]))
             outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,1,0]))))+"\n\n")
+            ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
+            ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
+            ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
         outf.write("# temperature, latticeconstant(s), density, and thermal expansion coefficient:\nT = 300\na = {}\n".format(CRC_a[X]))
         if X in CRC_c.keys():
             outf.write("c = {}\n".format(CRC_c[X]))
