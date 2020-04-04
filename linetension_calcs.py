@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 18, 2020
+# Date: Nov. 3, 2017 - Apr. 3, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -12,7 +12,8 @@ import os
 # assert sys.version_info >= (3,6)
 #################################
 import numpy as np
-import sympy as sp     
+import sympy as sp
+import scipy
 from scipy.optimize import fmin
 ##################
 import matplotlib as mpl
@@ -105,6 +106,12 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
         Ntheta=len(Theta)
     if Ntheta==1:
         Theta = np.array([Theta])
+    ## workaround for sympy<1.3:
+    if sp.__version__ < "1.3":
+        ldfymod=["math", "mpmath"]
+    else:
+        ldfymod=["scipy"]
+    ###
     def compute_bt2(N,m0,C2,bt2,cc44=cc44):
         NC2N = np.dot(N,np.dot(N,C2))
         thedot = np.dot(N,m0)
@@ -139,10 +146,10 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
             bt2_res = np.zeros((3,2),dtype=complex)
             for i in range(len(bt2_curr)):
                 bt2_curr[i] = (bt2_curr[i].subs(substitutions))
-                fphi = sp.lambdify((phi),bt2_curr[i],modules=["math", "mpmath", "sympy"])
+                fphi = sp.lambdify((phi),bt2_curr[i],modules=ldfymod)
                 def f(x):
                     out = fphi(x)
-                    return sp.re(out)
+                    return scipy.real(out)
                 bt2_res[i,0] = fmin(f,0.001,disp=False)
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
             mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
@@ -227,7 +234,7 @@ if __name__ == '__main__':
         os.chdir("..")
         metal = metal_list
         ## list of metals symmetric in +/-theta (for the predefined slip systems):
-        metal_symm = sorted(list(data.fcc_metals.union(hcp_metals).union(data.tetr_metals).intersection(metal)))
+        metal_symm = sorted(list({'ISO'}.union(data.fcc_metals).union(hcp_metals).union(data.tetr_metals).intersection(metal)))
     else:
         metal_symm = set([]) ## fall back to computing for character angles of both signs if we don't know for sure that the present slip system is symmetric
 
@@ -269,7 +276,7 @@ if __name__ == '__main__':
         if hcpslip=='prismatic' or hcpslip=='all':
             vcrit_smallest['Cdprismatic'] = 0.932
             vcrit_smallest['Znprismatic'] = 0.766
-        elif hcpslip=='pyramidal' or hcpslip=='all':
+        if hcpslip=='pyramidal' or hcpslip=='all':
             vcrit_smallest['Cdpyramidal'] = 0.959
             vcrit_smallest['Znpyramidal'] = 0.819
         if bccslip=='123' or bccslip=='all':
