@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 3, 2020
+# Date: Nov. 5, 2017 - Apr. 7, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -345,23 +345,15 @@ if __name__ == '__main__':
         # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
         vcrit_screw = {'Ag': 0.973, 'Al': 1.005, 'Au': 0.996, 'Cdbasal': 1.398, 'Cu': 0.976, 'Fe110': 0.803, 'Mgbasal': 0.982, 'Mo110': 0.987, 'Nb110': 0.955, 'Ni': 1.036, 'Sn': 1.092, 'Tiprismatic': 1.033, 'Znbasal': 1.211, 'Zrbasal': 0.990}
         vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Nb110': 1.026, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Zrprismatic': 0.990}
-        for X in hcp_metals.intersection(metal):
-            if X in ['Tibasal']:
-                vcrit_screw[X] = vcrit_smallest[X]
     
     for X in metal:
-        if X not in vcrit_screw.keys(): ## fall back to this:
-            vcrit_screw[X] = vcrit_smallest[X]
+        if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be by this code)
+            vcrit_screw[X] = vcrit_smallest[X] ## coincide for some hcp-prismatic slip systems
         if X not in vcrit_edge.keys():
             vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
 
     if use_metaldata:
         if hcpslip=='prismatic' or hcpslip=='all':
-            for X in hcp_metals.intersection(metal):
-                if X in ['Tiprismatic']:
-                    vcrit_edge[X] = vcrit_smallest[X]
-                elif "prismatic" in X:
-                    vcrit_screw[X] = vcrit_smallest[X]
             vcrit_screw['Znprismatic'] = 0.945
             vcrit_smallest['Cdprismatic'] = 0.948
             vcrit_smallest['Znprismatic'] = 0.724
@@ -371,7 +363,6 @@ if __name__ == '__main__':
             vcrit_screw['Tipyramidal'] = 0.930
             vcrit_screw['Znpyramidal'] = 1.132
             vcrit_screw['Zrpyramidal'] =0.976
-            vcrit_edge['Tipyramidal'] = vcrit_smallest['Tipyramidal']
             vcrit_edge['Znpyramidal'] = 0.945
             vcrit_smallest['Cdpyramidal'] = 0.975
             vcrit_smallest['Znpyramidal'] = 0.775
