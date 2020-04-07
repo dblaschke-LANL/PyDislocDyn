@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 11, 2020
+# Date: Nov. 3, 2017 - Apr. 4, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -17,14 +17,17 @@ try:
 except ImportError:
     print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     nonumba=True
-    def jit(func):
+    from functools import partial
+    def jit(func=None,forceobj=True,nopython=False):
+        if func is None:
+            return partial(jit, forceobj=forceobj,nopython=nopython)
         return func
 try:
     import subroutines as fsub
     usefortran = True
 except ImportError:
     print("WARNING: module 'subroutines' not found, execution will be slower")
-    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
+    print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
 
 ### define the Kronecker delta
@@ -184,6 +187,7 @@ def ArrayDot(A,B):
     return AB
     
 if usefortran:
+    ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
     def elbrak(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
         return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
@@ -223,7 +227,7 @@ def elbrak_alt(A,B,elC):
         
     return AB
 
-@jit
+@jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError
 def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
     '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi as explained below),
@@ -282,8 +286,8 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
                 for o in range(3):
                     np.add(B[k,l,th] , np.multiply(MN[k,o,th] , S[o,l,th] , tmp) , B[k,l,th])
                     
-    Sb = (1/(4*pi*pi))*np.tensordot(np.trapz(S,x=phi),b,axes = ([1],[0]))
-    B = (1/(4*pi*pi))*np.tensordot(np.trapz(B,x=phi),b,axes = ([1],[0]))
+    Sb = (1/(4*pi*pi))*np.dot(b,np.trapz(S,x=phi))
+    B = (1/(4*pi*pi))*np.dot(b,np.trapz(B,x=phi))
     
     if nogradient==True:
         if Nr==0:
@@ -293,14 +297,10 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
         
         tmpu = np.zeros((3,Ntheta,Nphi))
         for th in range(Ntheta):
-            # tmpu = np.zeros((3,Nphi))
             for j in range(3):
                 for p in range(3):
                     tmpu[j,th] += (NNinv[j,p,th]*B[p,th] - S[j,p,th]*Sb[p,th])
         uiphi = cumtrapz(tmpu,x=phi,initial=0)
-        # for ph in range(Nphi):
-        #     uiphi[:,:,ph] = np.trapz(tmpu[:,:,:ph],x=phi[:ph])
-        
         uij=np.moveaxis(np.reshape(np.outer(np.ones(Nr),uiphi)-np.outer(np.log(r/r0),np.outer(Sb,np.ones(Nphi))),(Nr,3,Ntheta,Nphi)),0,-2)
     else:
         uij = np.zeros((3,3,Ntheta,Nphi))
