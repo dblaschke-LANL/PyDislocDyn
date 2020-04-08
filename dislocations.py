@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 4, 2020
+# Date: Nov. 3, 2017 - Apr. 8, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -33,7 +33,6 @@ except ImportError:
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
 
-# @jit
 def rotaround(v,s,c):
     '''Computes the rotation matrix with unit vector 'v' as the rotation axis and s,c are the sin/cos of the angle.'''
     vx = np.zeros((3,3))
@@ -72,12 +71,12 @@ class StrohGeometry(object):
         self.M = np.zeros((3,Ntheta,Nphi))
         self.N = np.zeros((3,Ntheta,Nphi))
         
-        self.t = np.outer(np.cos(theta),b) + np.outer(np.sin(theta),np.cross(b,n0))
-        self.m0 = np.cross(n0,self.t)
+        self.t = np.outer(np.cos(self.theta),self.b) + np.outer(np.sin(self.theta),np.cross(self.b,self.n0))
+        self.m0 = np.cross(self.n0,self.t)
         
         for i in range(3):
-            self.M[i] = np.outer(self.m0[:,i],np.cos(self.phi)) + np.outer(np.repeat(n0[i],Ntheta),np.sin(self.phi))
-            self.N[i] = np.outer(np.repeat(n0[i],Ntheta),np.cos(self.phi)) - np.outer(self.m0[:,i],np.sin(self.phi))
+            self.M[i] = np.outer(self.m0[:,i],np.cos(self.phi)) + np.outer(np.repeat(self.n0[i],Ntheta),np.sin(self.phi))
+            self.N[i] = np.outer(np.repeat(self.n0[i],Ntheta),np.cos(self.phi)) - np.outer(self.m0[:,i],np.sin(self.phi))
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
