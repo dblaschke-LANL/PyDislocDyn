@@ -12,6 +12,7 @@ Daniel N. Blaschke
 PyDislocDyn is distributed according to the [license.txt](license.txt) file. All contributions made by employees of Los Alamos National Laboratory are governed by that license.
 
 C Number: C18073</br>
+doi: [10.11578/dc.20180619.15](https://doi.org/10.11578/dc.20180619.15)</br>
 
 Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 

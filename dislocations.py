@@ -142,11 +142,11 @@ class StrohGeometry(object):
         uijrotated = np.zeros(n)
         if len(n)==4:
             for th in range(len(self.theta)):
-                uijrotated[:,:,th] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th])),15)
+                uijrotated[:,:,th] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th])),accuracy)
         else:
             for th in range(len(self.theta)):
                 for ri in range(n[3]):
-                    uijrotated[:,:,th,ri] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th,ri])),15)
+                    uijrotated[:,:,th,ri] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th,ri])),accuracy)
         self.uij_aligned = uijrotated
         
     def computeEtot(self):

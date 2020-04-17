@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 7, 2020
+# Date: Nov. 5, 2017 - Apr. 17, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -347,7 +347,7 @@ if __name__ == '__main__':
         vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Nb110': 1.026, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Zrprismatic': 0.990}
     
     for X in metal:
-        if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be by this code)
+        if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
             vcrit_screw[X] = vcrit_smallest[X] ## coincide for some hcp-prismatic slip systems
         if X not in vcrit_edge.keys():
             vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
@@ -379,8 +379,18 @@ if __name__ == '__main__':
                     vcrit_screw[X] = vcrit_smallest[X] ## close enough
             vcrit_edge['Fe123'] = 0.825
     
-    ## overwrite any of these values with data from input file, if available:
+    ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:
+        if not use_metaldata and Y[X].vcrit_screw is None and Y[X].vcrit_edge is None:
+            print("estimating missing critical velocities (i.e. falling back to smallest shear wave speeds) for edge and screw for ",X)
+            scrindm0 = int((len(velm0[X])-1)/2)
+            if abs(theta[scrindm0]) < 1e-12:
+                Y[X].sound_screw = Y[X].computesound(velm0[X][scrindm0])
+            else:
+                Y[X].sound_screw = Y[X].computesound(velm0[X][0])
+            Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
+            Y[X].vcrit_screw = np.min(Y[X].sound_screw)
+            Y[X].vcrit_edge = np.min(Y[X].sound_edge)
         if Y[X].vcrit_smallest != None:
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
         if Y[X].vcrit_screw != None:
