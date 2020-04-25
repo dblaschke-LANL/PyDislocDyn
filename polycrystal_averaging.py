@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 17, 2019
+# Date: Nov. 7, 2017 - Apr. 24, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -242,7 +242,11 @@ class metal_props:
         thedet = sp.det(sp.Matrix(thematrix))
         solution = sp.solve(thedet,bt2)
         for i in range(len(solution)):
-            solution[i] = np.sqrt(float(sp.re(solution[i])) * self.c44/self.rho)
+            solution[i] = solution[i]  * self.c44/self.rho
+            if solution[i].free_symbols == set():
+                solution[i] = np.sqrt(float(sp.re(solution[i])))
+            else:
+                solution[i] = sp.sqrt(solution[i])
         return solution
         
 def readinputfile(fname,init=True):

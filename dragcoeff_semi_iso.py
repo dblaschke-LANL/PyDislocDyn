@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 17, 2020
+# Date: Nov. 5, 2017 - Apr. 25, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -322,12 +322,6 @@ if __name__ == '__main__':
 
     #############################################################################################################################
 
-    if skip_plots:
-        print("skipping plots as requested")
-        sys.exit()
-    
-    ###### plot room temperature results:
-    print("Creating plots")
     ## compute smallest critical velocity in ratio (for those data provided in metal_data) to the scaling velocity and plot only up to this velocity
     vcrit_screw = {}
     vcrit_edge = {}
@@ -344,11 +338,11 @@ if __name__ == '__main__':
         vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
         # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
         vcrit_screw = {'Ag': 0.973, 'Al': 1.005, 'Au': 0.996, 'Cdbasal': 1.398, 'Cu': 0.976, 'Fe110': 0.803, 'Mgbasal': 0.982, 'Mo110': 0.987, 'Nb110': 0.955, 'Ni': 1.036, 'Sn': 1.092, 'Tiprismatic': 1.033, 'Znbasal': 1.211, 'Zrbasal': 0.990}
-        vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Nb110': 1.026, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Zrprismatic': 0.990}
+        vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Nb110': 1.026, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Znpyramidal': 0.945, 'Zrprismatic': 0.990}
     
     for X in metal:
         if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
-            vcrit_screw[X] = vcrit_smallest[X] ## coincide for some hcp-prismatic slip systems
+            vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes and for some hcp-prismatic slip systems; close enough for bcc slip with 123 planes
         if X not in vcrit_edge.keys():
             vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
 
@@ -363,21 +357,10 @@ if __name__ == '__main__':
             vcrit_screw['Tipyramidal'] = 0.930
             vcrit_screw['Znpyramidal'] = 1.132
             vcrit_screw['Zrpyramidal'] =0.976
-            vcrit_edge['Znpyramidal'] = 0.945
             vcrit_smallest['Cdpyramidal'] = 0.975
             vcrit_smallest['Znpyramidal'] = 0.775
-            
-        if bccslip=='112' or bccslip=='all':
-            for X in bcc_metals.intersection(metal):
-                if '112' in X:
-                    vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes
-            vcrit_edge['Fe112'] = 0.817
-        elif bccslip=='123' or bccslip=='all':
+        if bccslip=='123' or bccslip=='all':
             vcrit_smallest['Fe123'] = 0.735
-            for X in bcc_metals.intersection(metal):
-                if '123' in X:
-                    vcrit_screw[X] = vcrit_smallest[X] ## close enough
-            vcrit_edge['Fe123'] = 0.825
     
     ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:
@@ -398,6 +381,12 @@ if __name__ == '__main__':
         if Y[X].vcrit_edge != None:
             vcrit_edge[X] = Y[X].vcrit_edge/Y[X].ct
         
+    if skip_plots:
+        print("skipping plots as requested")
+        sys.exit()
+    
+    ###### plot room temperature results:
+    print("Creating plots")
     ## load data from semi-isotropic calculation
     Broom = {}
     theta = {}
