@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 25, 2020
+# Date: Nov. 5, 2017 - Apr. 27, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -329,50 +329,58 @@ if __name__ == '__main__':
     for X in metal:
         if Y[X].sym=='iso':
             vcrit_smallest[X] = 1
+            Y[X].c11 = Y[X].C2[0,0] # not previously set, but needed below
         else:
             vcrit_smallest[X] = min(np.sqrt(Y[X].c44/Y[X].mu),np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu)))
     ## above is correct for fcc, bcc (except 123 planes) and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
     ## numerically determined values at T=300K for metals in metal_data.py (rounded):
-    if use_metaldata:
+    if use_metaldata and not use_iso and use_exp_Lame:
         vcrit_smallest['Sn'] = 0.818
         vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
+        vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
         # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
-        vcrit_screw = {'Ag': 0.973, 'Al': 1.005, 'Au': 0.996, 'Cdbasal': 1.398, 'Cu': 0.976, 'Fe110': 0.803, 'Mgbasal': 0.982, 'Mo110': 0.987, 'Nb110': 0.955, 'Ni': 1.036, 'Sn': 1.092, 'Tiprismatic': 1.033, 'Znbasal': 1.211, 'Zrbasal': 0.990}
-        vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Nb110': 1.026, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Znpyramidal': 0.945, 'Zrprismatic': 0.990}
-    
-    for X in metal:
-        if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
-            vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes and for some hcp-prismatic slip systems; close enough for bcc slip with 123 planes
-        if X not in vcrit_edge.keys():
-            vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
-
+        vcrit_screw = {'Fe110': 0.803, 'Fe123': 0.736, 'Mo110': 0.987, 'Mo123': 0.942, 'Nb110': 0.955, 'Nb123': 0.886}
+        vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Mo112': 1.026, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb112': 1.005, 'Nb123': 1.008, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Znpyramidal': 0.945, 'Zrprismatic': 0.990}
     if use_metaldata:
+        ## use exact analytic results where we have them:
+        for X in data.fcc_metals.intersection(metal):
+            vcrit_screw[X] = np.sqrt(3*Y[X].c44*(Y[X].c11-Y[X].c12)/(2*Y[X].mu*(Y[X].c44+Y[X].c11-Y[X].c12)))
+        for X in hcp_metals:
+            if 'prismatic' in X:
+                vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
+            elif 'basal' in X:
+                vcrit_screw[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
+            elif 'pyramidal' in X:
+                vcrit_screw[X] = np.sqrt(Y[X].c44*(Y[X].c11-Y[X].c12)*(Y[X].ac**2+Y[X].cc**2)/(2*(Y[X].c44*Y[X].cc**2+Y[X].ac**2*(Y[X].c11-Y[X].c12)/2)*Y[X].mu))
+        for X in data.tetr_metals.intersection(metal):
+            vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
+    if use_metaldata and (use_iso or use_exp_Lame):
+        for X in metal:
+            if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
+                vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes and for some hcp-prismatic slip systems
+            if X not in vcrit_edge.keys():
+                vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
+    if use_metaldata and not use_iso and use_exp_Lame:
         if hcpslip=='prismatic' or hcpslip=='all':
-            vcrit_screw['Znprismatic'] = 0.945
             vcrit_smallest['Cdprismatic'] = 0.948
             vcrit_smallest['Znprismatic'] = 0.724
         if hcpslip=='pyramidal' or hcpslip=='all':
-            vcrit_screw['Cdpyramidal'] = 1.278
-            vcrit_screw['Mgpyramidal'] = 0.979
-            vcrit_screw['Tipyramidal'] = 0.930
-            vcrit_screw['Znpyramidal'] = 1.132
-            vcrit_screw['Zrpyramidal'] =0.976
             vcrit_smallest['Cdpyramidal'] = 0.975
             vcrit_smallest['Znpyramidal'] = 0.775
-        if bccslip=='123' or bccslip=='all':
-            vcrit_smallest['Fe123'] = 0.735
     
     ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:
-        if not use_metaldata and Y[X].vcrit_screw is None and Y[X].vcrit_edge is None:
-            print("estimating missing critical velocities (i.e. falling back to smallest shear wave speeds) for edge and screw for ",X)
+        if (not use_metaldata and Y[X].vcrit_screw is None) or (use_metaldata and X not in vcrit_screw.keys()):
+            print("estimating missing critical velocity (i.e. falling back to smallest shear wave speed) for screw for ",X)
             scrindm0 = int((len(velm0[X])-1)/2)
             if abs(theta[scrindm0]) < 1e-12:
                 Y[X].sound_screw = Y[X].computesound(velm0[X][scrindm0])
             else:
                 Y[X].sound_screw = Y[X].computesound(velm0[X][0])
-            Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
             Y[X].vcrit_screw = np.min(Y[X].sound_screw)
+        if (not use_metaldata and Y[X].vcrit_edge is None) or (use_metaldata and X not in vcrit_edge.keys()):
+            print("estimating missing critical velocity (i.e. falling back to smallest shear wave speed) for edge for ",X)
+            Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
             Y[X].vcrit_edge = np.min(Y[X].sound_edge)
         if Y[X].vcrit_smallest != None:
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
