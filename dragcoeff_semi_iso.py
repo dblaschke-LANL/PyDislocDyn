@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 27, 2020
+# Date: Nov. 5, 2017 - Apr. 30, 2020
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -14,7 +14,7 @@ import numpy as np
 from scipy.optimize import curve_fit, fmin
 ##################
 import matplotlib as mpl
-mpl.use('Agg', warn=False) # don't need X-window, allow running in a remote terminal session
+mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
 # pgf_with_pdflatex = {
