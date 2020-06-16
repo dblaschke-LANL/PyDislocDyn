@@ -109,7 +109,7 @@ class StrohGeometry(object):
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
-           y, and z are optional arguments whose default values are unit vectors pointing in the y and z direction, respectively.)'''
+           y, and z are optional arguments whose default values are unit vectors pointing in the y and z direction, respectively.'''
         cv = np.vdot(self.n0,y)
         if round(cv,15)==-1:
             rot1 = rotaround(z,0,-1)

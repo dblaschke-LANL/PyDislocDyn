@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 24, 2019
+# Date: Nov. 7, 2017 - Apr. 30, 2019
 #################################
 from __future__ import division
 from __future__ import print_function
@@ -363,7 +363,7 @@ if __name__ == '__main__':
     for X in data.hcp_metals.intersection(metal): sym[X]='hcp'
     for X in data.tetr_metals.intersection(metal): sym[X]='tetr'
     for X in metal:
-        Y[X] = metal_props(sym[X])
+        Y[X] = metal_props(sym[X],name=X)
         # 2nd order elastic constants taken from the CRC handbook:
         Y[X].c11 = data.CRC_c11[X]
         Y[X].c12 = data.CRC_c12[X]
