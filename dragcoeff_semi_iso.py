@@ -1,17 +1,12 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 30, 2020
+# Date: Nov. 5, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
-
 import sys
 import os
-### make sure we are running a recent version of python
-# assert sys.version_info >= (3,6)
 import numpy as np
-from scipy.optimize import curve_fit, fmin
+from scipy.optimize import curve_fit, fmin, fsolve
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -40,11 +35,6 @@ from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 import polycrystal_averaging as pca
 import dislocations as dlc
 from phononwind import elasticA3, dragcoeff_iso
-## work around for python 2:
-try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = IOError
 try:
     from joblib import Parallel, delayed, cpu_count
     ## detect number of cpus present:
@@ -482,7 +472,7 @@ if __name__ == '__main__':
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
         mksmallbetaplot(X,ylab=True,xlab=True)
         divider = make_axes_locatable(ax1)
-        cax = divider.append_axes("right", size="{}%".format(wspc))
+        cax = divider.append_axes("right", size="{}%".format(wspc), pad=0)
         cax.set_facecolor('none')
         for axis in ['top','bottom','left','right']:
             cax.spines[axis].set_linewidth(0)
@@ -560,7 +550,10 @@ if __name__ == '__main__':
             fitfile.write(" & "+"{:.3f}".format(vcrit_smallest[X]))
         
     def mkfitplot(metal_list,filename,figtitle):
-        fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
+        if len(metal_list)<5:
+            fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
+        else:
+            fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
         ax.set_xticks(np.arange(11)/10)
@@ -604,14 +597,26 @@ if __name__ == '__main__':
     mkfitplot(metal,"aver","averaged over $\\vartheta$")
     
     
-    ### finally, also plot Baver as a function of stress using the fits computed above
-    B_of_sig = {}
-    sigma = {}
-    B0 = {}
-    Boffset = {}
-    for X in metal:
-        vcrit = Y[X].ct*vcrit_smallest[X]
-        popt = popt_aver[X]
+    ### finally, also plot B as a function of stress using the fits computed above
+    def B_of_sigma(X,character,mkplot=True,B0fit='weighted',resolution=500):
+        '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
+           or a weighted average of the two (B0fit='weighted',default) and vcrit is the critical velocity for character (='screw', 'edge', or else an average is computed).
+           A plot of the results is saved to disk if mkplot=True (default).'''
+        if character=='screw':
+            vcrit = Y[X].ct*vcrit_screw[X]
+            popt = popt_screw[X]
+            fname = "B_of_sigma_screw_{}.pdf".format(X)
+            ftitle = "{}, ".format(X) + "screw"
+        elif character=='edge':
+            vcrit = Y[X].ct*vcrit_edge[X]
+            popt = popt_edge[X]
+            fname = "B_of_sigma_edge_{}.pdf".format(X)
+            ftitle = "{}, ".format(X) + "edge"
+        else: ## 'aver' = default
+            vcrit = Y[X].ct*vcrit_smallest[X]
+            popt = popt_aver[X]
+            fname = "B_of_sigma_{}.pdf".format(X)
+            ftitle = "{}, ".format(X) + "averaged over $\\vartheta$"
         burg = Y[X].burgers
         
         @np.vectorize
@@ -632,7 +637,9 @@ if __name__ == '__main__':
             out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
             zero = abs(nonlinear_equation(out))
             if zero>1e-5 and zero/bsig>1e-2:
-                print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
+                # print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
+                # fall back to (slower) fsolve:
+                out = float(fsolve(nonlinear_equation,0.01*vcrit))
             return out
             
         ### compute what stress is needed to move dislocations at velocity v:
@@ -650,50 +657,81 @@ if __name__ == '__main__':
         def Bsimple(sigma,B0):
             return B0*np.sqrt(1+(sigma*burg/(vcrit*B0))**2)
             
-        ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1GPa (whichever is smaller)
-        sigma_max = min(1e9,sigma_eff(0.99*vcrit))
-        # print("{}: sigma(99%vcrit) = {:.1f} MPa".format(X,sigma_max/1e6))
-        Boffset[X] = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
+        ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1.5GPa (whichever is smaller)
+        sigma_max = sigma_eff(0.99*vcrit)
+        # print("{}, {}: sigma(99%vcrit) = {:.1f} MPa".format(X,character,sigma_max/1e6))
+        if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
+            sigma_max = sigma_eff(0.999*vcrit)
+            # print("{}, {}: sigma(99.9%vcrit) = {:.1f} MPa".format(X,character,sigma_max/1e6))
+        sigma_max = min(1.5e9,sigma_max)
+        Boffset = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
+        if Boffset < 0: Boffset=0 ## don't allow negative values
         ## find min(B(v)) to use for B0 in Bsimple():
-        B0[X] = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
-        B0[X] = (B(0)+3*B0[X])/4 ## or use some weighted average between Bmin and B(0)
-        # print("{}: Boffset={:.4f}mPas, B0={:.4f}mPas".format(X,1e3*Boffset[X],1e3*B0[X]))
+        B0 = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
+        if B0fit == 'weighted':
+            B0 = (B(0)+3*B0)/4 ## or use some weighted average between Bmin and B(0)
+        elif B0fit == 'zero':
+            B0 = B(0)
+        # print("{}: Boffset={:.4f}mPas, B0={:.4f}mPas".format(X,1e3*Boffset,1e3*B0))
         
-        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
-        ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
-        ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
-        ax.set_title("{}, ".format(X) + "averaged over $\\vartheta$",fontsize=fntsize)
-        sigma[X] = np.linspace(0,sigma_max,500)
-        B_of_sig[X] = B(vr(sigma[X]))
-        ax.axis((0,sigma[X][-1]/1e6,0,B_of_sig[X][-1]*1e3))
-        ax.plot(sigma[X]/1e6,Bsimple(sigma[X],B0[X])*1e3,':',color='gray',label="$\sqrt{B_0^2\!+\!\\left(\\frac{\sigma b}{v_\mathrm{c}}\\right)^2}$, $B_0=$"+"{:.1f}".format(1e6*B0[X])+"$\mu$Pas")
-        ax.plot(sigma[X]/1e6,Bstraight(sigma[X],Boffset[X])*1e3,':',color='green',label="$B_0+\\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+"{:.1f}".format(1e6*Boffset[X])+"$\mu$Pas")
-        ax.plot(sigma[X]/1e6,B_of_sig[X]*1e3,label="$B_\mathrm{fit}(v(\sigma))$")
+        sigma = np.linspace(0,sigma_max,resolution)
+        B_of_sig = B(vr(sigma))
+        if mkplot:
+            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
+            ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
+            ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
+            ax.set_title(ftitle,fontsize=fntsize)
+            ax.axis((0,sigma[-1]/1e6,0,B_of_sig[-1]*1e3))
+            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label="$\sqrt{B_0^2\!+\!\\left(\\frac{\sigma b}{v_\mathrm{c}}\\right)^2}$, $B_0=$"+"{:.1f}".format(1e6*B0)+"$\mu$Pas")
+            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label="$B_0+\\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+"{:.1f}".format(1e6*Boffset)+"$\mu$Pas")
+            ax.plot(sigma/1e6,B_of_sig*1e3,label="$B_\mathrm{fit}(v(\sigma))$")
+            plt.xticks(fontsize=fntsize)
+            plt.yticks(fontsize=fntsize)
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.legend(loc='upper left',handlelength=1.1, frameon=False, shadow=False,fontsize=8)
+            plt.savefig(fname,format='pdf',bbox_inches='tight')
+            plt.close()
+        return (B0,vcrit,sigma,B_of_sig)
+        
+    B_of_sig = {}
+    sigma = {}
+    B0 = {}
+    vc = {}
+    for character in ['aver', 'screw', 'edge']:
+        for X in metal:
+            Xc = X+character
+            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=True,B0fit='weighted')
+    
+        if len(metal)<5:
+            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
+            legendops={'loc':'best','ncol':1}
+        else:
+            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.,5.))
+            legendops={'loc':'upper left','bbox_to_anchor':(1.01,1),'ncol':1}
+        ax.set_xlabel(r'$\sigma b/(v_\mathrm{c}B_0)$',fontsize=fntsize)
+        ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
+        if character=='screw':
+            ax.set_title("screw",fontsize=fntsize)
+            fname = "B_of_sigma_all_screw.pdf"
+        elif character=='edge':
+            ax.set_title("edge",fontsize=fntsize)
+            fname = "B_of_sigma_all_edge.pdf"
+        else:
+            ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
+            fname = "B_of_sigma_all.pdf"
+        sig_norm = np.linspace(0,3.5,500)
+        ax.axis((0,sig_norm[-1],0.5,4.5))
+        for X in metal:
+            Xc = X+character
+            sig0 = vc[Xc]*B0[Xc]/Y[X].burgers
+            ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label="{}, $B_0\!=\!{:.1f}\mu$Pas, ".format(X,1e6*B0[Xc])+"$v_\mathrm{c}\!=\!"+"{:.2f}$km/s".format(vc[Xc]/1e3))
+        ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label="$\sqrt{1+\\left(\\frac{\sigma b}{v_\mathrm{c}B_0}\\right)^2}$")
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
+        ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.legend(loc='upper left',handlelength=1.1, frameon=False, shadow=False,fontsize=8)
-        plt.savefig("B_of_sigma_{}.pdf".format(X),format='pdf',bbox_inches='tight')
+        plt.savefig(fname,format='pdf',bbox_inches='tight')
         plt.close()
-        
-        
-    fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.5,5.5))
-    ax.set_xlabel(r'$\sigma b/(v_\mathrm{c}B_0)$',fontsize=fntsize)
-    ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
-    ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
-    sig_norm = np.linspace(0,3.5,500)
-    ax.axis((0,sig_norm[-1],0.5,4.5))
-    for X in metal:
-        sig0 = Y[X].ct*vcrit_smallest[X]*B0[X]/Y[X].burgers
-        ax.plot(sigma[X]/sig0,B_of_sig[X]/B0[X],label="{}, $B_0\!=\!{:.1f}\mu$Pas".format(X,1e6*B0[X]))
-    ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label="$\sqrt{1+\\left(\\frac{\sigma b}{v_\mathrm{c}B_0}\\right)^2}$")
-    ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{v_\mathrm{c}B_0}$")
-    plt.xticks(fontsize=fntsize)
-    plt.yticks(fontsize=fntsize)
-    ax.legend(loc='best', ncol=2, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
-    ax.xaxis.set_minor_locator(AutoMinorLocator())
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    plt.savefig("B_of_sigma_all.pdf",format='pdf',bbox_inches='tight')
-    plt.close()
     

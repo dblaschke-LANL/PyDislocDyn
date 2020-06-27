@@ -22,7 +22,7 @@ The LANL development team asks that any forks or derivative works include approp
 ## Prerequisites
 
 <!--Python 3.6 or higher,</br>-->
-Python >=3.5 (currently works with deprecated 2.7, but will drop support soon),</br>
+Python >=3.5,</br>
 [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
 [scipy](https://docs.scipy.org/doc/scipy/reference/),</br>
 [sympy](https://www.sympy.org) >=1.0,</br>

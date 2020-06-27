@@ -1,14 +1,8 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 8, 2020
+# Date: Nov. 3, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
-
-# from sys import version_info
-### make sure we are running a recent version of python
-# assert version_info >= (3,6)
 import numpy as np
 from scipy.integrate import cumtrapz
 nonumba=False

@@ -1,13 +1,8 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Oct. 7, 2019
+# Date: Nov. 7, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
-# from sys import version_info
-### make sure we are running a recent version of python
-# assert version_info >= (3,5)
 import sympy as sp
 import numpy as np
 

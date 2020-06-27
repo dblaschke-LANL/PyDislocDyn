@@ -1,10 +1,8 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 13, 2020
+# Date: Nov. 3, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
 import numpy as np
 
 ## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012 and from Kaye & Laby online (kayelaby.npl.co.uk)

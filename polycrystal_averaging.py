@@ -1,14 +1,9 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 30, 2019
+# Date: Nov. 7, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
-
 import sys
-### make sure we are running a recent version of python
-# assert sys.version_info >= (3,6)
 from sympy.solvers import solve 
 import sympy as sp
 import numpy as np

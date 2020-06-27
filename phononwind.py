@@ -1,14 +1,8 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 31, 2019
+# Date: Nov. 5, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
-
-# from sys import version_info
-### make sure we are running a recent version of python
-# assert version_info >= (3,5)
 import numpy as np
 try:
     from numba import jit
@@ -21,7 +15,7 @@ try:
     usefortran = True
 except ImportError:
     print("WARNING: module 'subroutines' not found, execution will be slower")
-    print("run 'f2py -c subroutines.f90 -m subroutines' to compile this module\n")
+    print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
 
 delta = np.diag((1,1,1))
@@ -104,7 +98,6 @@ def dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dphi1,lentph):
             for l in range(3):
                 for j in range(3):
                     for m in range(3):
-                        # part2[l,j,n,nn] = part2[l,j,n,nn] + (delta2[j,m] - qtshift[j]*qtshift[m]/mag)*A3qt2[l,m,n,nn]
                         np.add(part2[l,j,n,nn] , np.multiply(np.subtract(delta2[j,m] , np.divide(np.multiply(qtshift[j] , qtshift[m] , tmp) , mag , tmp) , tmp) , A3qt2[l,m,n,nn] , tmp) , part2[l,j,n,nn])
     np.multiply(part2, dphi1, part2)
     return part2
@@ -124,7 +117,6 @@ def dragcoeff_iso_computepoly_foldpart12(result_previous,part1,part2,lentph):
                             
     return result
 
-# @jit
 def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False):
     '''Subroutine of dragcoeff_iso(). Flag "longitudinal" may be "False" for purely transverse, or "True" for purely longitudinal or an integer 1 or 2 telling us which of the two phonons is longitudinal.
     If the latter mixed modes are considered, variable qtilde is the ratio of q/q1, and variable t is a function of q and other variables, and that is what needs to be passed to this function.'''
@@ -440,7 +432,6 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             thi = theta_calcd[th] # retrieve theta-index to use below
             out[thi] = BTT[th] + BLL[th] + BTL[th] + BLT[th]
     
-    # if not out.any(): ## may be zero for other reasons
     if modes not in modes_allowed:
         raise ValueError("Error: invalid keyword modes='{}'.".format(modes))
     

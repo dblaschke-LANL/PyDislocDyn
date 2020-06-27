@@ -1,5 +1,5 @@
 ! Some subroutines meant to be compiled for phononwind.py and dislocations.py via f2py
-! run 'f2py -c subroutines.f90 -m subroutines' to use
+! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ! Date: July 23, 2018 - Oct. 31, 2019

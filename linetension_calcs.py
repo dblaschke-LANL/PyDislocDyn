@@ -1,16 +1,10 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 30, 2020
+# Date: Nov. 3, 2017 - June 26, 2020
 #################################
-from __future__ import division
-from __future__ import print_function
-
 import sys
 import os
-### make sure we are running a recent version of python
-# assert sys.version_info >= (3,6)
-#################################
 import numpy as np
 import sympy as sp
 import scipy
@@ -40,11 +34,6 @@ import metal_data as data
 from elasticconstants import elasticC2, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, readinputfile
 import dislocations as dlc
-## work around for python 2:
-try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = IOError
 try:
     from joblib import Parallel, delayed, cpu_count
     ## detect number of cpus present:
