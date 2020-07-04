@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 26, 2020
+# Date: Nov. 3, 2017 - June 30, 2020
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz
@@ -29,7 +29,10 @@ delta = np.diag((1,1,1))
 
 def rotaround(v,s,c):
     '''Computes the rotation matrix with unit vector 'v' as the rotation axis and s,c are the sin/cos of the angle.'''
-    vx = np.zeros((3,3))
+    if type(v)==np.ndarray and v.dtype == np.dtype('O'):
+        vx = np.zeros((3,3),dtype=object)
+    else:
+        vx = np.zeros((3,3))
     vx[0,1] = v[2]
     vx[1,0] = -v[2]
     vx[0,2] = -v[1]
@@ -77,7 +80,7 @@ class StrohGeometry(object):
                         self.Cv[i,j,k,l] = self.m0[:,i]*delta[j,k]*self.m0[:,l]
         
         self.beta = 0
-        self.C2 = np.zeros((3,3,3,3))
+        self.C2norm = np.zeros((3,3,3,3)) # normalized
         self.uij = np.zeros((3,3,Ntheta,Nphi))
         self.uij_aligned = np.zeros((3,3,Ntheta,Nphi))
         self.rot = np.zeros((Ntheta,3,3))
@@ -87,7 +90,7 @@ class StrohGeometry(object):
     def __repr__(self):
         return "{}".format({'b':self.b, 'n0':self.n0, 'beta':self.beta})
         
-    def computeuij(self, beta, C2, r=None, nogradient=False):
+    def computeuij(self, beta, C2=None, r=None, nogradient=False, debug=False):
         '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
            This function returns a 3x3xNthetaxNphi dimensional array.
            Required input parameters are the dislocation velocity beta and the 2nd order elastic constant tensor C2.
@@ -95,11 +98,19 @@ class StrohGeometry(object):
            If option nogradient is set to True, the displacement field (not its gradient) is returned: a 3xNthetaxNrxNphi dimensional array.
            In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
         self.beta = beta
-        self.C2 = C2
-        if usefortran and not (r is not None) and nogradient==False:
+        if C2 is None:
+            C2 = self.C2norm
+        else:
+            self.C2norm = C2
+        if usefortran and (r is None) and nogradient==False and debug==False:
             self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
         else:
-            self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=nogradient)
+            self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=nogradient, debug=debug)
+        if debug:
+            self.Sb = self.uij['S.b']
+            self.Bb = self.uij['B.b']
+            self.NN = self.uij['NN']
+            self.uij = self.uij['uij']
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
@@ -220,8 +231,8 @@ def elbrak_alt(A,B,elC):
         
     return AB
 
-@jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError
-def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
+@jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError / debug option
+def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False):
     '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi as explained below),
        which corresponds to the displacement gradient multiplied by the radius r (i.e. we only return the angular dependence).
@@ -306,6 +317,8 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False):
                         
         if Nr != 0:
             uij = np.moveaxis(np.reshape(np.outer(1/r,uij),(Nr,3,3,Ntheta,Nphi)),0,-2)
+    if debug:
+        uij = {'uij':uij,'S.b':Sb,'B.b':B,'NN':NN}
  
     return uij
 

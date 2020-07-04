@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 26, 2020
+# Date: Nov. 5, 2017 - June 27, 2020
 #################################
 import sys
 import os
@@ -598,10 +598,12 @@ if __name__ == '__main__':
     
     
     ### finally, also plot B as a function of stress using the fits computed above
-    def B_of_sigma(X,character,mkplot=True,B0fit='weighted',resolution=500):
+    def B_of_sigma(X,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False):
         '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
            or a weighted average of the two (B0fit='weighted',default) and vcrit is the critical velocity for character (='screw', 'edge', or else an average is computed).
-           A plot of the results is saved to disk if mkplot=True (default).'''
+           A plot of the results is saved to disk if mkplot=True (default).
+           If option indirect=False sigma will be evenly spaced (default), whereas if indirect=True sigma will be calculated from an evenly spaced velocity array.
+           The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.'''
         if character=='screw':
             vcrit = Y[X].ct*vcrit_screw[X]
             popt = popt_screw[X]
@@ -675,13 +677,23 @@ if __name__ == '__main__':
         # print("{}: Boffset={:.4f}mPas, B0={:.4f}mPas".format(X,1e3*Boffset,1e3*B0))
         
         sigma = np.linspace(0,sigma_max,resolution)
-        B_of_sig = B(vr(sigma))
+        if indirect==False:
+            B_of_sig = B(vr(sigma))
+            Bmax = B_of_sig[-1]
+        if indirect or (np.max(B_of_sig) < 1.01*B(0)):
+            # print("\nWARNING: using fall back for v(sigma) for {}, {}\n".format(X,character))
+            v = vcrit*np.linspace(0,0.999,resolution)
+            sigma = sigma_eff(v)
+            B_of_sig = B(v)
+            Bmax = B_of_sig[-1]
+            if sigma[-1]>1.1*sigma_max:
+                Bmax = 1.15*B_of_sig[sigma<sigma_max][-1]
         if mkplot:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
             ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
             ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
             ax.set_title(ftitle,fontsize=fntsize)
-            ax.axis((0,sigma[-1]/1e6,0,B_of_sig[-1]*1e3))
+            ax.axis((0,sigma_max/1e6,0,Bmax*1e3))
             ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label="$\sqrt{B_0^2\!+\!\\left(\\frac{\sigma b}{v_\mathrm{c}}\\right)^2}$, $B_0=$"+"{:.1f}".format(1e6*B0)+"$\mu$Pas")
             ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label="$B_0+\\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+"{:.1f}".format(1e6*Boffset)+"$\mu$Pas")
             ax.plot(sigma/1e6,B_of_sig*1e3,label="$B_\mathrm{fit}(v(\sigma))$")
@@ -701,7 +713,7 @@ if __name__ == '__main__':
     for character in ['aver', 'screw', 'edge']:
         for X in metal:
             Xc = X+character
-            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=True,B0fit='weighted')
+            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=True,B0fit='weighted',indirect=False)
     
         if len(metal)<5:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
