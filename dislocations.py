@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 30, 2020
+# Date: Nov. 3, 2017 - Aug. 12, 2020
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz
@@ -156,7 +156,7 @@ class StrohGeometry(object):
         
     def computeEtot(self):
         '''Computes the self energy of a straight dislocation uij moving at velocity beta. (Requirement: run method .computeuij(beta,C2) first.)'''
-        self.Etot = computeEtot(self.uij, self.beta, self.C2, self.Cv, self.phi)
+        self.Etot = computeEtot(self.uij, self.beta, self.C2norm, self.Cv, self.phi)
         
     def computeLT(self):
         '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t.
