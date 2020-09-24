@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 27, 2020
+# Date: Nov. 5, 2017 - Sept. 23, 2020
 #################################
 import sys
 import os
@@ -254,9 +254,12 @@ if __name__ == '__main__':
             c344T = Y[X].c344
             c366T = Y[X].c366
             c456T = Y[X].c456
+            ##
+            cijT = Y[X].cij
+            cijkT = Y[X].cijk
             ###
-            C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T)/muT
-            C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T)/muT
+            C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T, cij=cijT)/muT
+            C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T, cijk=cijkT)/muT
             A3T = elasticA3(C2T,C3T)
             A3Trotated = np.zeros((len(theta),3,3,3,3,3,3))
             for th in range(len(theta)):

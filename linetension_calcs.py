@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 26, 2020
+# Date: Nov. 3, 2017 - Sept. 23, 2020
 #################################
 import sys
 import os
@@ -49,7 +49,7 @@ except ImportError:
 ## allowed values are: 'crude', 'aver', and 'exp'
 ## choose 'crude' for mu = (c11-c12+2c44)/4, 'aver' for mu=Hill average  (resp. improved average for cubic), and 'exp' for experimental mu supplemented by 'aver' where data are missing
 ## (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided in that file will be used and an average is only computed if mu is missing)
-scale_by_mu = 'crude'
+scale_by_mu = 'exp'
 skip_plots=False ## set to True to skip generating line tension plots from the results
 ### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
 ### and phi is an integration angle used in the integral method for computing dislocations
@@ -74,20 +74,40 @@ metal = sorted(metal + ['ISO']) ### test isotropic limit
 def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
     '''Computes the 'critical velocities' of a dislocation for the number Ntheta (resp. 2*Ntheta-1) of character angles in the interval [0,pi/2] (resp. [-pi/2, pi/2] if symmetric=False),
        i.e. the velocities that will lead to det=0 within the StrohGeometry.
-       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr'.'''
-    cc11, cc12, cc13, cc33, cc44, cc66 = sp.symbols('cc11, cc12, cc13, cc33, cc44, cc66', real=True)
+       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric'.'''
+    cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66 = sp.symbols('cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66', real=True)
     bt2, phi = sp.symbols('bt2, phi', real=True)
     substitutions = {cc11:self.C2[0,0]/1e9, cc12:self.C2[0,1]/1e9, cc44:self.C2[3,3]/1e9}
-    if self.sym=='hcp' or self.sym=='tetr':
+    if self.sym in ['hcp', 'tetr', 'trig', 'orth', 'mono', 'tric']:
         substitutions.update({cc13:self.C2[0,2]/1e9, cc33:self.C2[2,2]/1e9})
-    if self.sym=='tetr':
+    if self.sym in ['tetr', 'orth', 'mono', 'tric']:
         substitutions.update({cc66:self.C2[5,5]/1e9})
+    if self.sym=='trig' or self.sym=='tric':
+        substitutions.update({cc14:self.C2[0,3]/1e9})
+    if self.sym in ['orth', 'mono', 'tric']:
+        substitutions.update({cc22:self.C2[1,1]/1e9, cc23:self.C2[1,2]/1e9, cc55:self.C2[4,4]/1e9})
+    if self.sym=='mono' or self.sym=='tric':
+        cc15, cc25, cc35, cc46 = sp.symbols('cc15, cc25, cc35, cc46', real=True)
+        substitutions.update({cc15:self.C2[0,4]/1e9, cc25:self.C2[1,4]/1e9, cc35:self.C2[2,4]/1e9, cc46:self.C2[3,5]/1e9})
+    if self.sym=='tric':
+        cc16, cc24, cc26, cc34, cc36, cc45, cc56 = sp.symbols('cc16, cc24, cc26, cc34, cc36, cc45, cc56', real=True)
+        substitutions.update({cc16:self.C2[0,5]/1e9, cc24:self.C2[1,3]/1e9, cc26:self.C2[1,5]/1e9, cc34:self.C2[2,3]/1e9, cc36:self.C2[2,5]/1e9, cc45:self.C2[3,4]/1e9, cc56:self.C2[4,5]/1e9})
     if self.sym=='iso' or self.sym=='fcc' or self.sym=='bcc':
         C2 = elasticC2(c11=cc11,c12=cc12,c44=cc44)
     elif self.sym=='hcp':
         C2 = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33)
     elif self.sym=='tetr':
         C2 = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33,c66=cc66)
+    elif self.sym=='trig':
+        C2 = elasticC2(cij=(cc11,cc12,cc13,cc14,cc33,cc44))
+    elif self.sym=='orth':
+        C2 = elasticC2(cij=(cc11,cc12,cc13,cc22,cc23,cc33,cc44,cc55,cc66))
+    elif self.sym=='mono':
+        C2 = elasticC2(cij=(cc11,cc12,cc13,cc15,cc22,cc23,cc25,cc33,cc35,cc44,cc46,cc55,cc66))
+    elif self.sym=='tric':
+        C2 = elasticC2(cij=(cc11,cc12,cc13,cc14,cc15,cc16,cc22,cc23,cc24,cc25,cc26,cc33,cc34,cc35,cc36,cc44,cc45,cc46,cc55,cc56,cc66))
+    else:
+        raise ValueError("sym={} not implemented".format(self.sym))
     if symmetric or Ntheta==1:
         Theta = (sp.pi/2)*np.linspace(0,1,Ntheta)
     else:
@@ -228,12 +248,12 @@ if __name__ == '__main__':
         metal_symm = set([]) ## fall back to computing for character angles of both signs if we don't know for sure that the present slip system is symmetric
 
     for X in metal:
+        Y[X].init_C2()
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
         if scale_by_mu == 'crude':
             Y[X].mu = (Y[X].c11-Y[X].c12+2*Y[X].c44)/4
         #### will generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise)
         ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
-        Y[X].init_C2()
         if Y[X].mu==None:
             Y[X].compute_Lame()
 
@@ -278,6 +298,7 @@ if __name__ == '__main__':
         # we limit calculations to a velocity range close to what we actually need,
         vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(Y[X].c44/Y[X].mu) ## rescale to mu instead of c44
         if Y[X].vcrit_smallest != None: ## overwrite with data from input file, if available
+            Y[X].ct = np.sqrt(Y[X].mu/Y[X].rho)
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct ## ct was determined from mu above and thus may not be the actual transverse sound speed (if scale_by_mu='crude')
         scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
         beta_scaled[X] = scaling[X]*beta

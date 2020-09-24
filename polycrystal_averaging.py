@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 26, 2020
+# Date: Nov. 7, 2017 - Sept. 24, 2020
 #################################
 import sys
 from sympy.solvers import solve 
@@ -141,16 +141,27 @@ class IsoAverages(IsoInvariants):
 
 ########### re-organize metal data within a class (so that we can perform calculations also on data read from input files, not just from metal_data dicts):
 class metal_props:
-    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr'
-    and this will define which input parameters (such as elastic constants) are set/expected by the various initializing functions.'''
+    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric',
+    and this will define which input parameters (such as elastic constants) are set/expected by the various initializing functions.
+    In particular, symmetries 'iso'--'tetr' require individual elastic constants, such as .c44 and .c123, to be set, whereas lower symmetries require a
+    list of all independent elastic constants to be stored in attribute .cij.
+    Methods .init_C2() and .init_C3() (which are called by .init_all()) will compute the tensors of elastic constants and store them in Voigt notation as .C2 and .C3.
+    Other attributes of this class are: temperature .T, density .rho, thermal expansion coefficient .alpha_a, and lattice constants .ac, .bc, .cc where the latter two are required only if they differ from .ac.
+    For monoclinic and triclinic crystals, the unit cell volume .Vc must also be given.
+    The slip system to be studied is passed via Burgers vector length .burgers, unit Burgers vector .b, and slip plane normal .n0.
+    Additional optional attributes are polycrystal averages for Lame constants .mu and .lam (these are calculated via .init_all(), which calls .compute_Lame(), if not given), 
+    as well as critical velocities .vcrit_smallest, .vcrit_screw, .vcrit_edge. Finally, .init_sound() (called by .init_all()) computes the average transverse/longitudinal sound speeds of the polycrystal, .ct and .cl.
+    Method .computesound(v) computes the sound speeds along vector v.'''
     def __init__(self,sym='iso', name='some_crystal'):
         self.sym=sym
         self.name = name
         self.T=300
-        self.ac = self.cc = 0
+        self.ac = self.cc = self.bc = 0
         self.rho = 0
         self.c11=self.c12=self.c44=0
         self.c13=self.c33=self.c66=0
+        self.cij=None ## list of 2nd order elastic constants for lower symmetries (trigonal/rhombohedral I, orthorhombic, monoclinic, and triclinic)
+        self.cijk=None ## list of 3rd order elastic constants for lower symmetries
         self.c111=self.c112=self.c123=0
         self.c144=self.c166=self.c456=0
         self.c113=self.c133=self.c155=0
@@ -159,6 +170,7 @@ class metal_props:
         self.C3=np.zeros((6,6,6)) # tensor of TOEC in Voigt notation
         self.mu=self.lam=self.bulk=None ## polycrystal averages
         self.ct=self.cl=self.ct_over_cl=0 ## polycrystal averages
+        self.Vc=0 ## unit cell volume
         self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
         self.burgers=0 # length of Burgers vector
         self.b=np.zeros((3)) ## unit Burgers vector 
@@ -176,13 +188,19 @@ class metal_props:
             self.c11=self.c111=self.c112=self.c166=None
             
     def __repr__(self):
-        return  "{}".format({'name':self.name, 'sym':self.sym, 'T':self.T, 'ac':self.ac, 'cc':self.cc, 'rho':self.rho, 'ct':self.ct, 'cl':self.cl})
+        return  "{}".format({'name':self.name, 'sym':self.sym, 'T':self.T, 'ac':self.ac, 'bc':self.bc, 'cc':self.cc, 'Vc':self.Vc, 'rho':self.rho, 'ct':self.ct, 'cl':self.cl})
             
     def init_C2(self):
-        self.C2=elasticC2(c11=self.c11,c12=self.c12,c13=self.c13,c33=self.c33,c44=self.c44,c66=self.c66,voigt=True)
+        self.C2=elasticC2(c11=self.c11,c12=self.c12,c13=self.c13,c33=self.c33,c44=self.c44,c66=self.c66,cij=self.cij,voigt=True)
+        if self.cij is not None:
+            self.c44 = self.C2[3,3] ## some legacy code expect these to be set
+            self.c11 = self.C2[0,0]
+            self.c12 = self.C2[0,1]
     
     def init_C3(self):
-        self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,voigt=True)
+        self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,cijk=self.cijk,voigt=True)
+        if self.cijk is not None:
+            self.c123 = self.C3[0,1,2] ## some legacy code expect these to be set
     
     def compute_Lame(self, roundto=-8):
         aver = IsoAverages(lam,mu,0,0,0) # don't need Murnaghan constants
@@ -212,15 +230,23 @@ class metal_props:
         
     def init_qBZ(self):
         if self.sym=='iso' or self.sym=='fcc' or self.sym=='bcc':
-            self.qBZ = ((6*np.pi**2)**(1/3))/self.ac
+            self.Vc = self.ac**3
         elif self.sym=='hcp':
-            self.qBZ = ((4*np.pi**2/(self.ac*self.ac*self.cc*np.sqrt(3)))**(1/3))
+            self.Vc = self.ac*self.ac*self.cc*(3/2)*np.sqrt(3) ## 3*sin(pi/3)
         elif self.sym=='tetr':
-            self.qBZ = ((6*np.pi**2/(self.ac*self.ac*self.cc))**(1/3))
+            self.Vc = self.ac*self.ac*self.cc
+        elif self.sym=='orth': ## orthorhombic
+            self.Vc = self.ac*self.bc*self.cc
+        elif self.sym=='trig': ## trigonal/rhombohedral I
+            self.Vc = self.ac*self.ac*self.cc*np.sqrt(3)/2
+        elif self.Vc<=0 and self.sym in ['mono', 'tric']:
+            raise ValueError("need unit cell volume Vc")
+        self.qBZ = ((6*np.pi**2/self.Vc)**(1/3))
     
     def init_all(self):
         self.init_C2()
-        self.init_C3()      
+        if self.c123!=0 or self.cijk is not None:
+            self.init_C3()
         if self.mu==None:
             self.compute_Lame()
         else:
@@ -233,11 +259,12 @@ class metal_props:
         bt2 = sp.symbols('bt2')
         v = np.asarray(v)
         v = v/np.sqrt(np.dot(v , v))
-        thematrix = np.dot(v , np.dot(UnVoigt(self.C2/self.c44) , v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
+        c44 = self.C2[3,3]
+        thematrix = np.dot(v , np.dot(UnVoigt(self.C2/c44) , v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
         thedet = sp.det(sp.Matrix(thematrix))
         solution = sp.solve(thedet,bt2)
         for i in range(len(solution)):
-            solution[i] = solution[i]  * self.c44/self.rho
+            solution[i] = solution[i]  * c44/self.rho
             if solution[i].free_symbols == set():
                 solution[i] = np.sqrt(float(sp.re(solution[i])))
             else:
@@ -290,10 +317,12 @@ def readinputfile(fname,init=True):
         out.mu=float(inputparams['mu'])
     out.ac=float(inputparams['a'])
     out.rho = float(inputparams['rho'])
-    if sym !='iso':
+    if 'c11' in inputparams.keys():
         out.c11 = float(inputparams['c11'])
-    out.c12 = float(inputparams['c12'])
-    out.c44 = float(inputparams['c44'])
+    if 'c12' in inputparams.keys():
+        out.c12 = float(inputparams['c12'])
+    if 'c44' in inputparams.keys():
+        out.c44 = float(inputparams['c44'])
     if sym=='hcp' or sym=='tetr':
         out.cc = float(inputparams['c'])
         out.c13 = float(inputparams['c13'])
@@ -308,6 +337,15 @@ def readinputfile(fname,init=True):
         out.c66 = float(inputparams['c66'])
         if 'c366' in inputparams.keys():
             out.c366 = float(inputparams['c366'])
+    if sym not in ['iso', 'fcc', 'bcc', 'hcp', 'tetr']: ## support for other/lower crystal symmetries
+        out.cc = float(inputparams['c'])
+        if 'lcb' in inputparams.keys():
+            out.bc = float(inputparams['lcb'])
+        if 'Vc' in inputparams.keys():
+            out.Vc = float(inputparams['Vc'])
+        out.cij = np.asarray(inputparams['cij'].split(','),dtype=float) ## expect a list of cij in ascending order
+        if 'cijk' in inputparams.keys():
+            out.cijk = np.asarray(inputparams['cijk'].split(','),dtype=float) ## expect a list of cijk in ascending order
     if 'c111' in inputparams.keys() and sym != 'iso':
         out.c111 = float(inputparams['c111'])
         out.c112 = float(inputparams['c112'])
