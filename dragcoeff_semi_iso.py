@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 23, 2020
+# Date: Nov. 5, 2017 - Sept. 30, 2020
 #################################
 import sys
 import os
@@ -344,7 +344,7 @@ if __name__ == '__main__':
             elif 'basal' in X:
                 vcrit_screw[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
             elif 'pyramidal' in X:
-                vcrit_screw[X] = np.sqrt(Y[X].c44*(Y[X].c11-Y[X].c12)*(Y[X].ac**2+Y[X].cc**2)/(2*(Y[X].c44*Y[X].cc**2+Y[X].ac**2*(Y[X].c11-Y[X].c12)/2)*Y[X].mu))
+                vcrit_screw[X] = np.sqrt(Y[X].c44*(Y[X].c11-Y[X].c12)*(3*Y[X].ac**2/4+Y[X].cc**2)/(2*(Y[X].c44*3*Y[X].ac**2/4+Y[X].cc**2*(Y[X].c11-Y[X].c12)/2)*Y[X].mu))
         for X in data.tetr_metals.intersection(metal):
             vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
     if use_metaldata and (use_iso or use_exp_Lame):
@@ -354,12 +354,9 @@ if __name__ == '__main__':
             if X not in vcrit_edge.keys():
                 vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
     if use_metaldata and not use_iso and use_exp_Lame:
-        if hcpslip=='prismatic' or hcpslip=='all':
-            vcrit_smallest['Cdprismatic'] = 0.948
-            vcrit_smallest['Znprismatic'] = 0.724
-        if hcpslip=='pyramidal' or hcpslip=='all':
-            vcrit_smallest['Cdpyramidal'] = 0.975
-            vcrit_smallest['Znpyramidal'] = 0.775
+        if hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all':
+            vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.948
+            vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.724
     
     ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:

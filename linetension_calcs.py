@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 23, 2020
+# Date: Nov. 3, 2017 - Sept. 30, 2020
 #################################
 import sys
 import os
@@ -282,12 +282,9 @@ if __name__ == '__main__':
         vcrit_smallest['In'] = 0.549
         vcrit_smallest['Sn'] = 0.749
         vcrit_smallest['Znbasal'] = 0.998 ## for basal slip
-        if hcpslip=='prismatic' or hcpslip=='all':
-            vcrit_smallest['Cdprismatic'] = 0.932
-            vcrit_smallest['Znprismatic'] = 0.766
-        if hcpslip=='pyramidal' or hcpslip=='all':
-            vcrit_smallest['Cdpyramidal'] = 0.959
-            vcrit_smallest['Znpyramidal'] = 0.819
+        if hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all':
+            vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.932
+            vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.766
         if bccslip=='123' or bccslip=='all':
             vcrit_smallest['Fe123'] = 0.616
             vcrit_smallest['K123'] = 0.393

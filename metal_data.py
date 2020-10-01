@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 26, 2020
+# Date: Nov. 3, 2017 - Sept. 30, 2020
 #################################
 import numpy as np
 
@@ -147,7 +147,7 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             if hcpslip=='prismatic':
                 outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip\n\n")
             elif hcpslip=='pyramidal':
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_a[X],CRC_c[X]]))))+"\t# pyramidal slip, normalization 1/sqrt(a**2+c**2) applied automatically upon reading\n\n")
+                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_c[X],(np.sqrt(3)/2)*CRC_a[X]]))))+"\t# pyramidal slip, normalization 1/sqrt(3*a**2/4+c**2) applied automatically upon reading\n\n")
             else:
                 outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n\n")
             ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
