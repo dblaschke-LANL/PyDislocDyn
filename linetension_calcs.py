@@ -71,9 +71,10 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals
 metal = sorted(metal + ['ISO']) ### test isotropic limit
 
 ## define a new method to compute critical velocities within the imported pca.metal_props class:
-def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
+def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_list=None):
     '''Computes the 'critical velocities' of a dislocation for the number Ntheta (resp. 2*Ntheta-1) of character angles in the interval [0,pi/2] (resp. [-pi/2, pi/2] if symmetric=False),
        i.e. the velocities that will lead to det=0 within the StrohGeometry.
+       Optionally, an explicit list of angles in units of pi/2 may be passed via theta_list (Ntheta is a required argument, but is ignored in this case).
        Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric'.'''
     cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66 = sp.symbols('cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66', real=True)
     bt2, phi = sp.symbols('bt2, phi', real=True)
@@ -115,6 +116,9 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
         Ntheta=len(Theta)
     if Ntheta==1:
         Theta = np.array([Theta])
+    if theta_list is not None:
+        Theta = (sp.pi/2)*np.asarray(theta_list)
+        Ntheta = len(Theta)
     ## workaround for sympy<1.3:
     if sp.__version__ < "1.3":
         ldfymod=["math", "mpmath"]
@@ -130,7 +134,7 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
         thematrix = NC2N - bt2*cc44*(thedot**2)*np.diag((1,1,1))
         thedet = sp.det(sp.Matrix(thematrix))
         return sp.solve(thedet,bt2)
-    def computevcrit(b,n0,C2,Ntheta,symmetric=symmetric,bt2=bt2,Ncores=Ncores):
+    def computevcrit(b,n0,C2,Ntheta,bt2=bt2,Ncores=Ncores):
         Ncores = min(Ncores,Ncpus) # don't over-commit and don't fail if joblib not loaded
         t = np.zeros((Ntheta,3))
         m0 = np.zeros((Ntheta,3))
@@ -170,7 +174,7 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False):
             vcrit = np.moveaxis(np.array(Parallel(n_jobs=Ncores)(delayed(findmin)(bt2_curr[thi],substitutions,phi,self.C2[3,3]/self.rho) for thi in range(Ntheta))),1,0)
         return vcrit
     
-    self.vcrit = computevcrit(self.b,self.n0,C2,Ntheta,symmetric=symmetric,Ncores=Ncores)
+    self.vcrit = computevcrit(self.b,self.n0,C2,Ntheta,Ncores=Ncores)
     return self.vcrit[0]
 metal_props.computevcrit=computevcrit
     

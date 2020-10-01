@@ -142,14 +142,18 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
         elif X in hcp_metals:
             outf.write("sym = hcp\n\n")
             outf.write("# example slip systems:\n")
-            outf.write("b = "+", ".join(map("{}".format,(np.array([-1,0,0]))))+"\n")
+            # outf.write("b = "+", ".join(map("{}".format,(np.array([-1,0,0]))))+"\n") ## Cartesian coordinates, normalized upon reading, but Millerb takes precedence if present
+            outf.write("Millerb = "+", ".join(map("{}".format,[-2, 1, 1, 0]))+"\n") ## Miller indices are converted to normalized Cartesian upon reading
             outf.write("burgers = {} \t# a\n".format(CRC_a[X]))
             if hcpslip=='prismatic':
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip\n\n")
+                # outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-1,0]))))+"\t# prismatic slip\n\n")## Cartesian coordinates, normalized upon reading, but Millern0 takes precedence
+                outf.write("Millern0 = "+", ".join(map("{}".format,[-1,0,1,0]))+"\t# prismatic slip\n\n")
             elif hcpslip=='pyramidal':
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_c[X],(np.sqrt(3)/2)*CRC_a[X]]))))+"\t# pyramidal slip, normalization 1/sqrt(3*a**2/4+c**2) applied automatically upon reading\n\n")
+                # outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,-CRC_c[X],(np.sqrt(3)/2)*CRC_a[X]]))))+"\t# pyramidal slip, normalization 1/sqrt(3*a**2/4+c**2) applied automatically upon reading\n\n")
+                outf.write("Millern0 = "+", ".join(map("{}".format,[-1,0,1,1]))+"\t# pyramidal slip, normalization applied automatically upon reading\n\n")
             else:
-                outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n\n")
+                # outf.write("n0 = "+", ".join(map("{}".format,(np.array([0,0,1]))))+"\t# basal slip\n\n")
+                outf.write("Millern0 = "+", ".join(map("{}".format,[0,0,0,1]))+"\t# basal slip\n\n")
             ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
             ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
             ### therefore, may choose b parallel to x-axis

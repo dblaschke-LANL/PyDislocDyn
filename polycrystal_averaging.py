@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 24, 2020
+# Date: Nov. 7, 2017 - Sept. 30, 2020
 #################################
 import sys
 from sympy.solvers import solve 
@@ -148,7 +148,7 @@ class metal_props:
     Methods .init_C2() and .init_C3() (which are called by .init_all()) will compute the tensors of elastic constants and store them in Voigt notation as .C2 and .C3.
     Other attributes of this class are: temperature .T, density .rho, thermal expansion coefficient .alpha_a, and lattice constants .ac, .bc, .cc where the latter two are required only if they differ from .ac.
     For monoclinic and triclinic crystals, the unit cell volume .Vc must also be given.
-    The slip system to be studied is passed via Burgers vector length .burgers, unit Burgers vector .b, and slip plane normal .n0.
+    The slip system to be studied is passed via Burgers vector length .burgers, unit Burgers vector .b, and slip plane normal .n0 in Cartesian coordinates,
     Additional optional attributes are polycrystal averages for Lame constants .mu and .lam (these are calculated via .init_all(), which calls .compute_Lame(), if not given), 
     as well as critical velocities .vcrit_smallest, .vcrit_screw, .vcrit_edge. Finally, .init_sound() (called by .init_all()) computes the average transverse/longitudinal sound speeds of the polycrystal, .ct and .cl.
     Method .computesound(v) computes the sound speeds along vector v.'''
@@ -156,7 +156,14 @@ class metal_props:
         self.sym=sym
         self.name = name
         self.T=300
-        self.ac = self.cc = self.bc = 0
+        self.ac = self.cc = self.bc = 0 ## lattice constants
+        self.alpha = None ## angle between bc and cc, etc.; only needed for low symmetries like triclinic (None = determined from sym)
+        self.beta = None
+        self.gamma = None
+        if self.sym not in ['tric']: self.alpha=np.pi/2
+        if self.sym not in ['tric','mono']: self.beta=np.pi/2
+        if self.sym not in ['tric','trig','hcp']: self.gamma=np.pi/2
+        elif self.sym in ['trig','hcp']: self.gamma=2*np.pi/3
         self.rho = 0
         self.c11=self.c12=self.c44=0
         self.c13=self.c33=self.c66=0
@@ -254,11 +261,14 @@ class metal_props:
         self.init_sound()
         if self.ac>0: self.init_qBZ()
         
-    def computesound(self,v):
+    def computesound(self,v,Miller=False,reziprocal=False):
         '''Computes the sound speeds of the crystal propagating in the direction of unit vector v.'''
         bt2 = sp.symbols('bt2')
-        v = np.asarray(v)
-        v = v/np.sqrt(np.dot(v , v))
+        if Miller or len(v)==4:
+            v = self.Miller_to_Cart(v,reziprocal=reziprocal)
+        else:
+            v = np.asarray(v)
+            v = v/np.sqrt(np.dot(v , v))
         c44 = self.C2[3,3]
         thematrix = np.dot(v , np.dot(UnVoigt(self.C2/c44) , v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
         thedet = sp.det(sp.Matrix(thematrix))
@@ -270,6 +280,36 @@ class metal_props:
             else:
                 solution[i] = sp.sqrt(solution[i])
         return solution
+    
+    def Miller_to_Cart(self,v,normalize=True,reziprocal=False,accuracy=15):
+        '''Converts vector v from Miller indices to Cartesian coordinates rounded to 'accuracy' digits (15 by default). If normalize=True, a unit vector is returned.
+        See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
+        By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.'''
+        if self.ac==None or self.ac==0: a=1
+        else: a=self.ac
+        if self.bc==None or self.bc==0: b=a
+        else: b=self.bc
+        if self.cc==None or self.cc==0 : c=a
+        else:c=self.cc
+        d = c*(np.cos(self.alpha)-np.cos(self.gamma)*np.cos(self.beta))/np.sin(self.gamma)
+        T = np.array([[a,b*np.cos(self.gamma),c*np.cos(self.beta)],\
+                      [0,b*np.sin(self.gamma),d],\
+                      [0,0,np.sqrt((c*np.sin(self.beta))**2-d**2)]])
+        if reziprocal:
+            ## real space basis vectors a_i = T[:,i]
+            V = np.dot(np.cross(T[:,0],T[:,1]),T[:,2])
+            R = np.empty(T.shape)
+            R[:,0] = np.cross(T[:,1],T[:,2])/V
+            R[:,1] = np.cross(T[:,2],T[:,0])/V
+            R[:,2] = np.cross(T[:,0],T[:,1])/V
+            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-15: v = [v[0]+v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+            out = np.dot(R,v)
+        else:
+            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-15: v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+            out = np.dot(T,v)
+        if normalize:
+            out = out/np.sqrt(np.dot(out,out))
+        return np.round(out,accuracy)
         
 def readinputfile(fname,init=True):
     '''Reads an inputfile like the one generated by writeinputfile() defined in metal_data.py (some of these data are only needed by other parts of PyDislocDyn),
@@ -307,11 +347,7 @@ def readinputfile(fname,init=True):
         out.name = str(fname)
     if 'T' in keys:
         out.T=float(inputparams['T'])
-    out.b=np.asarray(inputparams['b'].split(','),dtype=float)
-    out.b = out.b/np.sqrt(np.dot(out.b,out.b))
     out.burgers=float(inputparams['burgers'])
-    out.n0=np.asarray(inputparams['n0'].split(','),dtype=float)
-    out.n0 = out.n0/np.sqrt(np.dot(out.n0,out.n0))
     if 'lam' in keys and 'mu' in keys:
         out.lam=float(inputparams['lam'])
         out.mu=float(inputparams['mu'])
@@ -358,6 +394,23 @@ def readinputfile(fname,init=True):
             out.c456 = float(inputparams['c456'])
         if sym =='hcp':
             out.c222 = float(inputparams['c222'])
+    if 'alpha' in keys: out.alpha=inputparams['alpha']
+    if 'beta' in keys: out.beta=inputparams['beta']
+    if 'gamma' in keys: out.gamma=inputparams['gamma']
+    if 'Millerb' in keys:
+        out.Millerb = np.asarray(inputparams['Millerb'].split(','),dtype=float)
+        out.b = out.Miller_to_Cart(out.Millerb)
+    else:
+        out.b=np.asarray(inputparams['b'].split(','),dtype=float)
+        out.b = out.b/np.sqrt(np.dot(out.b,out.b))
+    if 'Millern0' in keys:
+        out.Millern0 = np.asarray(inputparams['Millern0'].split(','),dtype=float)
+        out.n0 = out.Miller_to_Cart(out.Millern0,reziprocal=True)
+    else:
+        out.n0=np.asarray(inputparams['n0'].split(','),dtype=float)
+        out.n0 = out.n0/np.sqrt(np.dot(out.n0,out.n0))
+    if abs(np.dot(out.b,out.n0))>1e-15:
+        print("ERROR: Burgers vector does not lie in the slip plane; .b and .n0 must be normal to each other!")
     if 'vcrit_smallest' in keys:
         out.vcrit_smallest = float(inputparams['vcrit_smallest'])
     if 'vcrit_screw' in keys:
