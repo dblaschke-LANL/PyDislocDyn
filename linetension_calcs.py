@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 30, 2020
+# Date: Nov. 3, 2017 - Oct. 1, 2020
 #################################
 import sys
 import os
@@ -162,7 +162,7 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_lis
                 fphi = sp.lambdify((phi),bt2_curr[i],modules=ldfymod)
                 def f(x):
                     out = fphi(x)
-                    return scipy.real(out)
+                    return np.real(out)
                 bt2_res[i,0] = fmin(f,0.001,disp=False)
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
             mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
@@ -414,9 +414,6 @@ if __name__ == '__main__':
     ### setup predefined slip-geometries for symbolic calculations:
     b_pre = [np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3)]
     n0_pre = [-np.array([1,-1,1])/sp.sqrt(3), np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,-2])/sp.sqrt(6), np.array([1,-2,-3])/sp.sqrt(14)]
-    for X in hcp_metals.intersection(metal):
-        b_pre.append(np.array([-1,0,0]))
-        n0_pre.append(np.array([0,-Y[X].ac,Y[X].cc])/sp.sqrt(Y[X].ac**2+Y[X].cc**2))
     for X in metal:
         for i in range(len(b_pre)):
             if abs(np.dot(b_pre[i],Y[X].b)-1)<1e-15 and abs(np.dot(n0_pre[i],Y[X].n0)-1)<1e-15:
