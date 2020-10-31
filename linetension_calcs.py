@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 1, 2020
+# Date: Nov. 3, 2017 - Oct. 30, 2020
 #################################
 import sys
 import os
@@ -163,7 +163,7 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_lis
                 def f(x):
                     out = fphi(x)
                     return np.real(out)
-                bt2_res[i,0] = fmin(f,0.001,disp=False)
+                bt2_res[i,0] = fmin(f,0.01,disp=False)
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
             mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
             return np.array([np.sqrt(norm*np.real(bt2_res[:,1][mask])),np.real(bt2_res[:,0][mask])])
