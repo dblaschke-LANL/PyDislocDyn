@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 30, 2020
+# Date: Nov. 5, 2017 - Nov. 30, 2020
 #################################
 import sys
 import os
@@ -41,11 +41,17 @@ try:
     Ncpus = cpu_count()
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
-    Ncores = max(1,int(Ncpus/2)) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
+    Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     # Ncores = -2
+    if dlc.ompthreads == 0: # check if subroutines were compiled with OpenMP support
+        print("using joblib parallelization with ",Ncores," cores")
+    else:
+        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads, total = ",Ncores*dlc.ompthreads)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = 1 ## must be 1 (or 0) without joblib
+    if dlc.ompthreads > 0:
+        print("using OpenMP parallelization with ",dlc.ompthreads," threads")
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)

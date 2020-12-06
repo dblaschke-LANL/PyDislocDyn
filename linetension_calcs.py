@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 30, 2020
+# Date: Nov. 3, 2017 - Dec. 1, 2020
 #################################
 import sys
 import os
@@ -39,11 +39,17 @@ try:
     ## detect number of cpus present:
     Ncpus = cpu_count()
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    Ncores = max(1,int(Ncpus/2)) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
+    Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
     # Ncores = -2
+    if dlc.ompthreads == 0: # check if subroutines were compiled with OpenMP support
+        print("using joblib parallelization with ",Ncores," cores")
+    else:
+        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads")
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
+    if dlc.ompthreads > 0:
+        print("using OpenMP parallelization with ",dlc.ompthreads," threads")
 
 ## choose which shear modulus to use for rescaling to dimensionless quantities
 ## allowed values are: 'crude', 'aver', and 'exp'
@@ -411,6 +417,9 @@ if __name__ == '__main__':
     
     print("Computing critical velocities for: ",metal)
     
+    ## if Ncores was set automatically considering the number of OpenMP threads, increase it here (no OpenMP support in computevcrit):
+    if dlc.ompthreads > 1 and Ncores == max(1,int(Ncpus/max(2,dlc.ompthreads))):
+        Ncores = max(1,int(Ncpus/2))
     ### setup predefined slip-geometries for symbolic calculations:
     b_pre = [np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3)]
     n0_pre = [-np.array([1,-1,1])/sp.sqrt(3), np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,-2])/sp.sqrt(6), np.array([1,-2,-3])/sp.sqrt(14)]

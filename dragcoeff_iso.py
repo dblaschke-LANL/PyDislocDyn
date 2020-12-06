@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 26, 2020
+# Date: Nov. 5, 2017 - Dec 1, 2020
 #################################
 import sys
 import numpy as np
@@ -29,7 +29,7 @@ from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 ##################
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3
-from dislocations import fourieruij_iso
+from dislocations import fourieruij_iso, ompthreads
 from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed, cpu_count
@@ -37,11 +37,17 @@ try:
     Ncpus = cpu_count()
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
-    Ncores = max(1,int(Ncpus/2)) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
+    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     # Ncores = -2
+    if ompthreads == 0: # check if subroutines were compiled with OpenMP support
+        print("using joblib parallelization with ",Ncores," cores")
+    else:
+        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",ompthreads," threads, total = ",Ncores*ompthreads)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = 1 ## must be 1 (or 0) without joblib
+    if ompthreads > 0:
+        print("using OpenMP parallelization with ",ompthreads," threads")
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)

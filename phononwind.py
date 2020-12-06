@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 26, 2020
+# Date: Nov. 5, 2017 - Nov. 30, 2020
 #################################
 import numpy as np
 try:
@@ -13,10 +13,12 @@ except ImportError:
 try:
     import subroutines as fsub
     usefortran = True
+    ompthreads = fsub.ompinfo()
 except ImportError:
     print("WARNING: module 'subroutines' not found, execution will be slower")
     print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
+    ompthreads = 0
 
 delta = np.diag((1,1,1))
 hbar = 1.0545718e-34
@@ -170,7 +172,7 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
 
     if usefortran:
         ### use fortran implementation:
-        result = np.moveaxis(fsub.thesum(tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv.T,delta1,delta2,mag,A3,phi1[:-1],dphi1,lenph1-1,lentph),0,4)
+        result = np.moveaxis(fsub.parathesum(tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv.T,delta1,delta2,mag,A3,phi1[:-1],dphi1,lenph,lent,lenph1-1,lentph),0,4)
         lenph1 = 1 ## ensure we bypass the python loop below
 
     ### else use jit-compiled python implementation:

@@ -2,10 +2,48 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 31, 2019
+! Date: July 23, 2018 - Dec. 5, 2020
+subroutine ompinfo(nthreads)
+!$   Use omp_lib
+integer, intent(out) :: nthreads
+nthreads = 0
+!$   nthreads = omp_get_max_threads()
+!~ !$   print*, 'OpenMP: using ',nthreads,' of ',omp_get_num_procs(),' processors'
+!~ !$   print*, 'type "export OMP_NUM_THREADS=n" before running this prog. to change'
+return
+end subroutine ompinfo
+
+subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
+                      lenp,lent,lenph1,lentph)
+!$   Use omp_lib
+implicit none
+integer,parameter :: sel = selected_real_kind(6)
+
+integer, intent(in) :: lentph, lenph1, lenp, lent
+real(kind=sel), intent(in), dimension(lenph1) :: phi1, dphi1
+real(kind=sel), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+real(kind=sel), intent(in), dimension(lentph,3) :: qv
+real(kind=sel), intent(in), dimension(3,3) :: delta1, delta2
+real(kind=sel), intent(in), dimension(3,3,3,3,3,3) :: A3
+real(kind=sel), intent(out), dimension(lentph,3,3,3,3) :: output
+!$ integer :: i,j,k, nthreads
+output(:,:,:,:,:) = 0.0
+!$ call ompinfo(nthreads)
+!$ if (nthreads .ge. 2) then
+!$OMP PARALLEL DO default(shared), private(i,j,k)
+!$ do i=1,lenp
+!$ j=(i-1)*lent+1
+!$ k=i*lent
+!$ call thesum(output(j:k,:,:,:,:),tcosphi(j:k),sqrtsinphi(j:k),tsinphi(j:k),sqrtcosphi(j:k),sqrtt(j:k), &
+!$              qv(j:k,:),delta1,delta2,mag(j:k),A3,phi1,dphi1,lenph1,lent)
+!$ enddo
+!$OMP END PARALLEL DO
+!$ else
+call thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
+!$ endif
+end subroutine parathesum
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
-
 implicit none
 integer,parameter :: sel = selected_real_kind(6)
 integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
@@ -17,12 +55,12 @@ real(kind=sel), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinp
 real(kind=sel), intent(in), dimension(lentph,3) :: qv
 real(kind=sel), intent(in), dimension(3,3) :: delta1, delta2
 real(kind=sel), intent(in), dimension(3,3,3,3,3,3) :: A3
-real(kind=sel), intent(out), dimension(lentph,3,3,3,3) :: output
+real(kind=sel), intent(inout), dimension(lentph,3,3,3,3) :: output
 
-output(:,:,:,:,:) = 0.0
-qt(:,:) = 0.0
-qtshift(:,:) = 0.0
-
+!~ ! problem: openmp puts private variables in the stack, and if maxrec>3 arrays can get too large and cause a segfault
+!~ !$OMP PARALLEL DO default(shared), private(i, j, k, l, ii, jj, kk, n, nn, m, p, &
+!~ !$omp                      qt,qtshift,A3qt2,part1,part2) &
+!~ !$omp& reduction(+:output)
 do p = 1,lenph1
 
 qt(:,1) = tcosphi - sqrtsinphi*cos(phi1(p))
@@ -87,6 +125,7 @@ do nn = 1,3
 end do
 
 end do
+!~ !$OMP END PARALLEL DO
 
 return
 end subroutine thesum
@@ -139,6 +178,7 @@ SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
 !-----------------------------------------------------------------------
   integer l,o,k,p,i
   AB(:,:,:,:) = 0.d0
+  !$OMP PARALLEL DO IF(Ntheta > 20) DEFAULT(SHARED) PRIVATE(i,p,o,l,k)
   do i=1, Ntheta
     do p=1,3
       do o=1,3
@@ -150,9 +190,36 @@ SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
       enddo
     enddo
   enddo
+  !$OMP END PARALLEL DO
   
   RETURN
 END SUBROUTINE elbrak
+
+SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: Nphi
+  REAL(KIND=sel), DIMENSION(Nphi,3), INTENT(IN)  :: a, b
+  REAL(KIND=sel), DIMENSION(3,3,3,3), INTENT(IN)  :: Cmat
+!-----------------------------------------------------------------------
+  REAL(KIND=sel), DIMENSION(Nphi,3,3), INTENT(OUT) :: AB
+!-----------------------------------------------------------------------
+  integer l,o,k,p
+  AB(:,:,:) = 0.d0
+  do p=1,3
+    do o=1,3
+      do l=1,3
+        do k=1,3
+          AB(:,l,o) = AB(:,l,o) + a(:,k)*Cmat(k,l,o,p)*b(:,p)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  RETURN
+END SUBROUTINE elbrak1d
 
 !!**********************************************************************
 
@@ -185,23 +252,25 @@ SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
   REAL(KIND=sel), INTENT(OUT), DIMENSION(Ntheta) :: Wtot
   
-  REAL(KIND=sel), DIMENSION(Nphi,Ntheta) :: Wdensity
+  REAL(KIND=sel), DIMENSION(Nphi) :: Wdensity
   INTEGER :: th, k, l, o, p
  
-  Wdensity = 0.d0
   Wtot = 0.d0
+  !$OMP PARALLEL DO IF(Ntheta > 20) DEFAULT(SHARED) PRIVATE(th,p,o,l,k,Wdensity)
   do th=1,Ntheta
+    Wdensity = 0.d0
     do p=1,3
       do o=1,3
         do l=1,3
           do k=1,3
-            Wdensity(:,th) = Wdensity(:,th) + 0.5d0*uij(:,l,k,th)*uij(:,o,p,th)*(C2(k,l,o,p) + betaj*betaj*Cv(k,l,o,p,th))
+            Wdensity(:) = Wdensity(:) + 0.5d0*uij(:,l,k,th)*uij(:,o,p,th)*(C2(k,l,o,p) + betaj*betaj*Cv(k,l,o,p,th))
           enddo
         enddo
       enddo
     enddo
-    call trapz(Wdensity(:,th),phi,Nphi,Wtot(th))
+    call trapz(Wdensity,phi,Nphi,Wtot(th))
   enddo
+  !$OMP END PARALLEL DO
   
   RETURN
 END SUBROUTINE computeEtot
@@ -267,45 +336,44 @@ SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi,3,Ntheta)  :: M, N
   REAL(KIND=sel), INTENT(OUT), DIMENSION(Nphi,3,3,Ntheta)  :: uij
   integer :: i, j, k, th, ph
-  real(kind=sel), dimension(Nphi,3,3,Ntheta) :: MM, NN, MN, NM, NNinv, Sphi, Bphi
-  real(kind=sel), dimension(3,3,3,3,Ntheta) :: tmpC
-  real(kind=sel), dimension(3,3,Ntheta) :: S, BB
-  real(kind=sel), dimension(3,Ntheta) :: Sb, BBb
+  real(kind=sel), dimension(Nphi,3,3) :: MM, NN, MN, NM, NNinv, Sphi, Bphi
+  real(kind=sel), dimension(3,3,3,3) :: tmpC
+  real(kind=sel), dimension(3,3) :: S, BB
+  real(kind=sel), dimension(3) :: Sb, BBb
   real(kind=sel) :: pi2 = (4.d0*atan(1.d0))**2
-!~   pi2 = (0.5d0*phi(Nphi))**2
-  do th=1,Ntheta
-    tmpC(:,:,:,:,th) = C2(:,:,:,:) - beta*beta*Cv(:,:,:,:,th)
-  enddo
-  call elbrak(M,M,tmpC,Ntheta,Nphi,MM)
-  call elbrak(M,N,tmpC,Ntheta,Nphi,MN)
-  call elbrak(N,M,tmpC,Ntheta,Nphi,NM)
-  call elbrak(N,N,tmpC,Ntheta,Nphi,NN)
-  Sphi = 0.d0; Bphi = 0.d0
-  do th=1,Ntheta; do ph=1,Nphi
-    call inv(NN(ph,:,:,th),NNinv(ph,:,:,th))
-  enddo; enddo
-  do th=1,Ntheta; do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
-    Sphi(ph,i,j,th) = Sphi(ph,i,j,th) - NNinv(ph,i,k,th)*NM(ph,k,j,th)
-  enddo; enddo; enddo; enddo; enddo
-  do th=1,Ntheta; do j=1,3; do i=1,3; do ph=1,Nphi
-    Bphi(ph,i,j,th) = MM(ph,i,j,th)
-    do k=1,3
-      Bphi(ph,i,j,th) = Bphi(ph,i,j,th) + MN(ph,i,k,th)*Sphi(ph,k,j,th)
-    enddo
-  enddo; enddo; enddo; enddo
-  do th=1,Ntheta
-    do i=1,3; do j=1,3
-      call trapz(Sphi(:,j,i,th),phi,Nphi,S(j,i,th))
-      call trapz(Bphi(:,j,i,th),phi,Nphi,BB(j,i,th))
-    enddo; enddo
-    Sb(:,th) = (0.25d0/pi2)*MATMUL(S(:,:,th),b)
-    BBb(:,th) = (0.25d0/pi2)*MATMUL(BB(:,:,th),b)
-  enddo
   uij = 0.d0
-  do th=1,Ntheta; do j=1,3; do i=1,3; do ph=1,Nphi
-    uij(ph,i,j,th) = uij(ph,i,j,th) - Sb(i,th)*M(ph,j,th) &
-                    + N(ph,j,th)*(DOT_PRODUCT(NNinv(ph,i,:,th),BBb(:,th)) - DOT_PRODUCT(Sphi(ph,i,:,th),Sb(:,th)))
+  !$OMP PARALLEL DO default(shared), private(th,ph,j,k,i, &
+  !$OMP                   MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb)
+  do th=1,Ntheta
+  Sphi = 0.d0; Bphi = 0.d0
+  tmpC(:,:,:,:) = C2(:,:,:,:) - beta*beta*Cv(:,:,:,:,th)
+  call elbrak1d(M(:,:,th),M(:,:,th),tmpC,Nphi,MM)
+  call elbrak1d(M(:,:,th),N(:,:,th),tmpC,Nphi,MN)
+  call elbrak1d(N(:,:,th),M(:,:,th),tmpC,Nphi,NM)
+  call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
+  do ph=1,Nphi
+    call inv(NN(ph,:,:),NNinv(ph,:,:))
+  enddo
+  do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
+    Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
   enddo; enddo; enddo; enddo
+  do j=1,3; do i=1,3; do ph=1,Nphi
+    Bphi(ph,i,j) = MM(ph,i,j)
+    do k=1,3
+      Bphi(ph,i,j) = Bphi(ph,i,j) + MN(ph,i,k)*Sphi(ph,k,j)
+    enddo
+  enddo; enddo; enddo
+    do i=1,3; do j=1,3
+      call trapz(Sphi(:,j,i),phi,Nphi,S(j,i))
+      call trapz(Bphi(:,j,i),phi,Nphi,BB(j,i))
+    enddo; enddo
+    Sb(:) = (0.25d0/pi2)*MATMUL(S(:,:),b)
+    BBb(:) = (0.25d0/pi2)*MATMUL(BB(:,:),b)
+  do j=1,3; do i=1,3; do ph=1,Nphi
+    uij(ph,i,j,th) = uij(ph,i,j,th) - Sb(i)*M(ph,j,th) &
+                    + N(ph,j,th)*(DOT_PRODUCT(NNinv(ph,i,:),BBb(:)) - DOT_PRODUCT(Sphi(ph,i,:),Sb(:)))
+  enddo; enddo; enddo; enddo
+  !$OMP END PARALLEL DO
   RETURN
 END SUBROUTINE computeuij
 
@@ -330,6 +398,7 @@ SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
   
   limit = beta*abs(cos(phi))
   Bt = 0.d0
+  !$OMP PARALLEL DO default(shared), private(p,tmask,t1,Btmp,NBtmp)
   do p=1,Nphi
     tmask = (t>limit(p))
     t1 = pack(t,tmask)
@@ -346,6 +415,7 @@ SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
       call trapz(Btmp(:),t1(:),NBtmp,Bt(p))
     endif
   enddo
+  !$OMP END PARALLEL DO
   call trapz(Bt,phi,Nphi,Bresult)
   
   RETURN
@@ -372,6 +442,7 @@ SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,N
   
   qtlimit = 1/(beta1*abs(cos(phi)))
   Bt = 0.d0
+  !$OMP PARALLEL DO default(shared), private(p,tmask,qt,Btmp,NBtmp)
   do p=1,Nphi
     tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
     qt = pack(qtilde,tmask)
@@ -388,6 +459,7 @@ SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,N
       call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
     endif
   enddo
+  !$OMP END PARALLEL DO
   call trapz(Bt,phi,Nphi,Bresult)
   
   RETURN

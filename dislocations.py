@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 12, 2020
+# Date: Nov. 3, 2017 - Nov. 30, 2020
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz
@@ -19,10 +19,12 @@ except ImportError:
 try:
     import subroutines as fsub
     usefortran = True
+    ompthreads = fsub.ompinfo()
 except ImportError:
     print("WARNING: module 'subroutines' not found, execution will be slower")
     print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
+    ompthreads = 0
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
