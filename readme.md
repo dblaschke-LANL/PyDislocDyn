@@ -1,7 +1,8 @@
 # PyDislocDyn
 
 PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with simple crystal symmetries in the continuum limit. In particular, one of its main purposes is to calculate dislocation drag from phonon wind. Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field and the calculation of dislocation self-energy and line tension.
-This code was first used for the computations leading to [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) and [Materials 12 (2019) 948](https://doi.org/10.3390/ma12060948) ([arxiv.org/abs/1902.02451](https://arxiv.org/abs/1902.02451)), as well as Sec. 3 of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j.ijplas.2020.102750) ([arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851)) .
+This code was first used for the computations leading to [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) and [Materials 12 (2019) 948](https://doi.org/10.3390/ma12060948) ([arxiv.org/abs/1902.02451](https://arxiv.org/abs/1902.02451)),
+as well as Sec. 3 of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j.ijplas.2020.102750) ([arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851)) and some of the figures in [arxiv.org/abs/2009.00167](https://arxiv.org/abs/2009.00167).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
 ## Author
@@ -33,7 +34,9 @@ Python >=3.5,</br>
 [numba](https://numba.pydata.org/) >=0.36 (for speedup via just-in-time compilation of some subroutines),</br>
 [joblib](https://joblib.readthedocs.io) (for parallelization),</br>
 a Fortran 90 compiler
-(to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/); run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use)
+to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
+run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
+(or add appropriate options to build with OpenMP support, e.g. with gfortran: 'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines')
 
 ## PyDislocDyn consists of:
 
@@ -60,7 +63,7 @@ Computes the drag coefficient of a moving dislocation from phonon wind in a semi
 Defines functions to generate tensors of elastic constants and compliances.
 
 * dislocations.py</br>
-Defines functions to compute dislocation displacement gradient fields, self energy and line tension.
+Defines functions and classes to compute dislocation displacement gradient fields, self energy, and line tension.
 
 * phononwind.py</br>
 Defines functions to compute the drag coefficient from phonon wind.
