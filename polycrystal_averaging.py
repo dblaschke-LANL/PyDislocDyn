@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 30, 2020
+# Date: Nov. 7, 2017 - Dec. 19, 2020
 #################################
 import sys
 from sympy.solvers import solve 
@@ -157,13 +157,13 @@ class metal_props:
         self.name = name
         self.T=300
         self.ac = self.cc = self.bc = 0 ## lattice constants
-        self.alpha = None ## angle between bc and cc, etc.; only needed for low symmetries like triclinic (None = determined from sym)
-        self.beta = None
-        self.gamma = None
-        if self.sym not in ['tric']: self.alpha=np.pi/2
-        if self.sym not in ['tric','mono']: self.beta=np.pi/2
-        if self.sym not in ['tric','trig','hcp']: self.gamma=np.pi/2
-        elif self.sym in ['trig','hcp']: self.gamma=2*np.pi/3
+        self.alphac = None ## angle between bc and cc, etc.; only needed for low symmetries like triclinic (None = determined from sym)
+        self.betac = None
+        self.gammac = None
+        if self.sym not in ['tric']: self.alphac=np.pi/2
+        if self.sym not in ['tric','mono']: self.betac=np.pi/2
+        if self.sym not in ['tric','trig','hcp']: self.gammac=np.pi/2
+        elif self.sym in ['trig','hcp']: self.gammac=2*np.pi/3
         self.rho = 0
         self.c11=self.c12=self.c44=0
         self.c13=self.c33=self.c66=0
@@ -291,10 +291,10 @@ class metal_props:
         else: b=self.bc
         if self.cc==None or self.cc==0 : c=a
         else:c=self.cc
-        d = c*(np.cos(self.alpha)-np.cos(self.gamma)*np.cos(self.beta))/np.sin(self.gamma)
-        T = np.array([[a,b*np.cos(self.gamma),c*np.cos(self.beta)],\
-                      [0,b*np.sin(self.gamma),d],\
-                      [0,0,np.sqrt((c*np.sin(self.beta))**2-d**2)]])
+        d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)
+        T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],\
+                      [0,b*np.sin(self.gammac),d],\
+                      [0,0,np.sqrt((c*np.sin(self.betac))**2-d**2)]])
         if reziprocal:
             ## real space basis vectors a_i = T[:,i]
             V = np.dot(np.cross(T[:,0],T[:,1]),T[:,2])
@@ -394,9 +394,9 @@ def readinputfile(fname,init=True):
             out.c456 = float(inputparams['c456'])
         if sym =='hcp':
             out.c222 = float(inputparams['c222'])
-    if 'alpha' in keys: out.alpha=inputparams['alpha']
-    if 'beta' in keys: out.beta=inputparams['beta']
-    if 'gamma' in keys: out.gamma=inputparams['gamma']
+    if 'alpha' in keys: out.alphac=inputparams['alpha']
+    if 'beta' in keys: out.betac=inputparams['beta']
+    if 'gamma' in keys: out.gammac=inputparams['gamma']
     if 'Millerb' in keys:
         out.Millerb = np.asarray(inputparams['Millerb'].split(','),dtype=float)
         out.b = out.Miller_to_Cart(out.Millerb)
