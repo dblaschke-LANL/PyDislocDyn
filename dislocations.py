@@ -1,10 +1,10 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Nov. 30, 2020
+# Date: Nov. 3, 2017 - Dec. 18, 2020
 #################################
 import numpy as np
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumtrapz, quad
 nonumba=False
 try:
     from numba import jit
@@ -83,6 +83,7 @@ class StrohGeometry(object):
         
         self.beta = 0
         self.C2norm = np.zeros((3,3,3,3)) # normalized
+        self.sym = None ## keyword defining crystal symmetry, unknown until C2norm is set
         self.uij = np.zeros((3,3,Ntheta,Nphi))
         self.uij_aligned = np.zeros((3,3,Ntheta,Nphi))
         self.rot = np.zeros((Ntheta,3,3))
@@ -113,6 +114,63 @@ class StrohGeometry(object):
             self.Bb = self.uij['B.b']
             self.NN = self.uij['NN']
             self.uij = self.uij['uij']
+        
+    def computeuij_acc(self,a,beta,burgers=None,rho=None,C2=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,slipsystem=None,a_over_c=0,fastapprox=False):
+        '''EXPERIMENTAL (VERY SLOW) IMPLEMENTATION OF AN ACCELERATING SCREW DISLOCATION (based on arxiv.org/abs/2009.00167).
+           For now, only pure screw is implemented for slip systems with the required symmetry properties, that is all 12 fcc slip systems, the 3 hcp slip systems mentioned above,
+           and only one slip system for tetragonal symmetry is currently implemented, i.e. sym='tetr' assumes b=[0,0,c] and n0=[0,1,0].
+           In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
+           Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
+           C2 is the tensor of SOECs in VOIGT notation, and r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
+           x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi).
+           Implemented slip systems are automatically determined from self.C2 (set if C2 is passed here), self.b, and self.n0; use keyword slipsystem to override.
+           The ratio of lattice constants a_over_c is only required for slipsystem='hcp_pyramidal'.
+           Finally, more general dislocation motion can be defined via funcion eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
+           likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
+           Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
+        self.beta = beta
+        slip = ""
+        ### auto-detect crystal symmetry and slip system from C2, b, and n0:
+        if C2 is None:
+            C2 = self.C2
+        else:
+            self.C2 = C2
+        if self.sym is None:
+            if C2[0,2]==C2[0,1] and C2[0,0]==C2[2,2] and C2[5,5]==C2[3,3]:
+                if abs(C2[0,1]+2*C2[3,3]-C2[0,0])<1e-15:
+                    self.sym = 'iso'
+                elif abs(self.b[0])==abs(self.b[1])==abs(self.b[2]):
+                    self.sym = 'bcc'
+                else:
+                    self.sym = 'fcc'
+            elif abs(C2[5,5]-C2[0,0]/2+C2[0,1]/2) < 1e-15:
+                self.sym = 'hcp'
+            elif abs((C2[0,0]-C2[1,1])*(C2[3,3]-C2[4,4])) < 1e-15:
+                self.sym = 'tetr'
+        if self.sym == 'hcp':
+            if (np.all(np.where(self.b!=0)==np.array([0])) and np.all(np.where(self.n0!=0)==np.array([1]))) or (np.all(np.where(self.b!=0)==np.array([1])) and np.all(np.where(self.n0!=0)==np.array([0]))):
+                slip = "_prismatic"
+            elif (np.all(np.where(self.b!=0)==np.array([1])) or np.all(np.where(self.b!=0)==np.array([0]))) and np.all(np.where(self.n0!=0)==np.array([2])):
+                slip = "_basal"
+            elif (np.all(np.where(self.b!=0)==np.array([1])) or np.all(np.where(self.b!=0)==np.array([0]))) and (np.all(np.where(self.n0==0)==np.array([0])) or np.all(np.where(self.n0==0)==np.array([1]))):
+                slip = "_pyramidal"
+            else:
+                slip = "_unknown"
+        if burgers is None:
+            burgers = self.burgers
+        else:
+            self.burgers = burgers
+        if rho is None:
+            rho = self.rho
+        else:
+            self.rho = rho
+        if phi is None: phi=self.phi
+        if r is None: r=np.linspace(0,1,250)
+        if slipsystem is None:
+            slipsystem = self.sym+slip
+        if slipsystem not in ['fcc', "hcp_prismatic", "hcp_basal", "hcp_pyramidal", 'tetr', 'iso']:
+            raise ValueError("slip system = {} not implemented!".format(slipsystem))
+        self.uij_acc_aligned = computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,sym=slipsystem,a_over_c=a_over_c,fastapprox=fastapprox)
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
@@ -232,6 +290,150 @@ def elbrak_alt(A,B,elC):
                         np.add(AB[th] , np.multiply(np.multiply(A[k,l,th],elC[k,l,o,p],tmp),B[o,p,th],tmp) , AB[th])
         
     return AB
+
+@jit
+def heaviside(x):
+    '''step function with convention heaviside(0)=1/2'''
+    return (np.sign(x)+1)/2
+
+# @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
+def computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,sym='iso',a_over_c=0,fastapprox=False,beta_normalization=1):
+    '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
+       In particular, keyword sym may be given any of the following values: 'iso', 'fcc', 'hcp_basal', 'hcp_prismatic', 'hcp_pyramidal', and 'tetr'. 
+       a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
+       vectors b and n0 define the slip system and C2 is the tensor of SOECs in VOIGT notation.
+       Furthermore, x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi),
+       i.e. r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core.
+       The ratio of lattice constants a_over_c is only required for sym='hcp_pyramidal'.
+       Only one slip system for tetragonal symmetry is currently implemented, i.e. sym='tetr' assumes b=[0,0,c] and n0=[0,1,0].
+       Finally, more general dislocation motion can be defined via funcions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
+       likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
+       Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
+    cp = (C2[0,0] - C2[0,1])/2
+    c44 = C2[3,3]
+    if sym == 'iso':
+        A = c44
+        C = c44
+        B  = 0
+    elif sym == 'fcc':
+        A = (cp + 2*c44)/3
+        C = (c44 + 2*cp)/3
+        B = (c44 - cp)*2*np.sqrt(2)/3
+    elif sym=='hcp_basal':
+        A = cp
+        B = 0
+        C = c44
+    elif sym=='hcp_prismatic':
+        A = c44
+        B = 0
+        C = cp
+    elif sym=='hcp_pyramidal':
+        ac = np.sqrt(3)/2 ## set a to 1, but we need sqrt(3)/2 times a below
+        cc = 1/a_over_c
+        A = (c44*cc**2 + cp*ac**2)/(ac**2+cc*2)
+        B = 2*ac*cc*(cp-c44)/(ac**2+cc*2)
+        C = (cp*cc**2 + c44*ac**2)/(ac**2+cc*2)
+    elif sym=='tetr':
+        A = c44
+        B = 0
+        C = c44
+    cA = np.sqrt(A/rho)
+    ABC = (1-B**2/(4*A*C))
+    Ct = C/A
+    if beta_normalization==1:
+        v = beta*cA
+    else:
+        v = beta*beta_normalization
+    if eta_kw is None:
+        t = v/a
+        shift = a*t**2/2  ## = v**2/(2*a) # distance covered by the disloc. when achieving target velocity
+        # print("time we reach beta={}: t={}".format(beta,t))
+    uxz = np.zeros((len(r),len(phi),2))
+    uyz = np.zeros((len(r),len(phi),2))
+    R = np.zeros((len(r),len(phi)))
+    X = np.zeros((len(r),len(phi)))
+    Y = np.zeros((len(r),len(phi)))
+    uij = np.zeros((3,3,len(r),len(phi)))
+    ### integrate.quad options (to trade-off accuracy for speed in the kinetic eqns.)
+    quadepsabs=1.49e-04 ## absolute error tolerance; default: 1.49e-08
+    quadepsrel=1.49e-04 ## relative error tolerance; default: 1.49e-08
+    quadlimit=30 ## max no of subintervals; default: 50
+    def xintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
+        Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
+        if eta_kw is None:
+            eta = np.sqrt(2*xpr/a)
+            etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
+        else:
+            eta = eta_kw(xpr)
+            etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+        tau = t - eta
+        tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+        stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
+        
+        tau2 = t - etatilde
+        tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+        stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+        xintegrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
+        return xintegrand - stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
+    def yintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
+        Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
+        if eta_kw is None:
+            eta = np.sqrt(2*xpr/a)
+            etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
+        else:
+            eta = eta_kw(xpr)
+            etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+        tau = t - eta
+        tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+        stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
+        
+        tau2 = t - etatilde
+        tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+        stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+        yintegrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
+        return  yintegrand - stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
+    ###
+    tv = t*np.array([1-deltat/2,1+deltat/2])
+    for ri in range(len(r)):
+        if abs(r[ri]) < 1e-25:
+            r[ri]=1e-25
+        for ph in range(len(phi)):
+            x = r[ri]*np.cos(phi[ph]) + shift ### shift x to move with the dislocations
+            y = r[ri]*np.sin(phi[ph])
+            R[ri,ph] = np.sqrt(x**2 - x*y*B/C + y**2/Ct)
+            X[ri,ph] = x
+            Y[ri,ph] = y
+            if fastapprox != True: ## allow bypassing
+                for ti in range(2):
+                    uxz[ri,ph,ti] = quad(lambda xpr: xintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = quad(lambda xpr: yintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+    ## add static part and include burgers vector:
+    if eta_kw is None:
+        eta = np.sign(X)*np.sqrt(2*np.abs(X)/a)
+        etapr = eta/(2*X)
+        tau = t-0.5*eta
+    else:
+        eta = eta_kw(X)
+        etapr = etapr_kw(X)
+        tau = t-(eta-etapr*X)
+    denom = tau*(tau-2*etapr*(X-Y*B/(2*C))) + (etapr*R)**2 - Y**2/(Ct*cA**2)
+    heaviadd = heaviside(tau - R/(cA*np.sqrt(ABC)))
+    rootadd = np.sqrt(np.abs(tau**2*ABC/Ct-R**2/(Ct*cA**2)))
+    uxz_added = heaviadd*(Y/rootadd)\
+        *(2*etapr*((X-Y*B/(2*C))/Ct)*(tau**2*ABC-(R**2)/(2*cA**2)) - tau*(tau**2-Y**2/(Ct*cA**2))*ABC/Ct)\
+        /(R**2*(denom))
+    uxz_static = Y*np.sqrt(ABC/Ct)/R**2
+    # uxz_static = 0 ## for testing purposes
+    # uxz_added = 0 ## for testing purposes
+    uyz_added = (heaviadd/rootadd)\
+        *(tau**2*(etapr)*ABC*(Y**2/Ct-X**2) + (X*etapr-tau)*(R**2/cA**2)*(X-Y*B/(2*C)) + X*tau*ABC*(tau**2-Y**2/(Ct*cA**2)))\
+        /(R**2*Ct*(denom))
+    uyz_static =  - X*np.sqrt(ABC/Ct)/R**2
+    # uyz_static = 0 ## for testing purposes
+    # uyz_added = 0 ## for testing purposes
+    uij[2,0] = (burgers/(2*np.pi))*((uxz[:,:,1]-uxz[:,:,0])/deltat + uxz_static + uxz_added)
+    uij[2,1] = (burgers/(2*np.pi))*((uyz[:,:,1]-uyz[:,:,0])/deltat + uyz_static + uyz_added)
+    return uij
 
 @jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError / debug option
 def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False):
