@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 18, 2020
+# Date: Nov. 3, 2017 - Jan. 8, 2021
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -56,6 +56,7 @@ class StrohGeometry(object):
         Ntheta = len(theta)
         self.theta = np.asarray(theta)
         self.phi = np.linspace(0,2*np.pi,Nphi)
+        self.r = None
         self.b = np.asarray(b)
         bsq = np.dot(self.b,self.b)
         if bsq>1e-12 and abs(bsq-1)>1e-12:
@@ -105,6 +106,10 @@ class StrohGeometry(object):
             C2 = self.C2norm
         else:
             self.C2norm = C2
+        if r is None:
+            r = self.r
+        else:
+            self.r = r
         if usefortran and (r is None) and nogradient==False and debug==False:
             self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
         else:
@@ -115,7 +120,7 @@ class StrohGeometry(object):
             self.NN = self.uij['NN']
             self.uij = self.uij['uij']
         
-    def computeuij_acc(self,a,beta,burgers=None,rho=None,C2=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,slipsystem=None,a_over_c=0,fastapprox=False):
+    def computeuij_acc(self,a,beta,burgers=None,rho=None,C2=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,slipsystem=None,a_over_c=0,fastapprox=False,beta_normalization=1):
         '''EXPERIMENTAL (VERY SLOW) IMPLEMENTATION OF AN ACCELERATING SCREW DISLOCATION (based on arxiv.org/abs/2009.00167).
            For now, only pure screw is implemented for slip systems with the required symmetry properties, that is all 12 fcc slip systems, the 3 hcp slip systems mentioned above,
            and only one slip system for tetragonal symmetry is currently implemented, i.e. sym='tetr' assumes b=[0,0,c] and n0=[0,1,0].
@@ -135,6 +140,10 @@ class StrohGeometry(object):
             C2 = self.C2
         else:
             self.C2 = C2
+        if r is None:
+            r = self.r
+        else:
+            self.r = r
         if self.sym is None:
             if C2[0,2]==C2[0,1] and C2[0,0]==C2[2,2] and C2[5,5]==C2[3,3]:
                 if abs(C2[0,1]+2*C2[3,3]-C2[0,0])<1e-15:
@@ -170,7 +179,7 @@ class StrohGeometry(object):
             slipsystem = self.sym+slip
         if slipsystem not in ['fcc', "hcp_prismatic", "hcp_basal", "hcp_pyramidal", 'tetr', 'iso']:
             raise ValueError("slip system = {} not implemented!".format(slipsystem))
-        self.uij_acc_aligned = computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,sym=slipsystem,a_over_c=a_over_c,fastapprox=fastapprox)
+        self.uij_acc_aligned = computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,sym=slipsystem,a_over_c=a_over_c,fastapprox=fastapprox,beta_normalization=beta_normalization)
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
