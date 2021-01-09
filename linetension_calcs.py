@@ -120,8 +120,6 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_lis
     else:
         Theta = (sp.pi/2)*np.linspace(-1,1,2*Ntheta-1)
         Ntheta=len(Theta)
-    if Ntheta==1:
-        Theta = np.array([Theta])
     if theta_list is not None:
         Theta = (sp.pi/2)*np.asarray(theta_list)
         Ntheta = len(Theta)
@@ -340,7 +338,7 @@ if __name__ == '__main__':
             vcrit_smallest['Ta123'] = 0.807
     for X in metal:
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
-        C2[X] = UnVoigt(Y[X].C2/Y[X].mu)
+        Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)
         # we limit calculations to a velocity range close to what we actually need,
         vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(Y[X].c44/Y[X].mu) ## rescale to mu instead of c44
         if Y[X].vcrit_smallest != None: ## overwrite with data from input file, if available
@@ -360,7 +358,7 @@ if __name__ == '__main__':
         
         ### compute dislocation displacement gradient uij and line tension LT
         def compute_lt(j):
-            dislocation.computeuij(beta=beta_scaled[X][j], C2=C2[X])
+            dislocation.computeuij(beta=beta_scaled[X][j])
             dislocation.computeEtot()
             dislocation.computeLT()
             return 4*np.pi*dislocation.LT
@@ -450,6 +448,62 @@ if __name__ == '__main__':
     for X in set(plt_metal).difference(set(skip_plt)):
         mkLTplots(X)
     
+    ### plot dislocation displacement gradient:
+    def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,slipsystem=None,fastapprox=False,Nr=250):
+        '''Generates a plot of the requested component of the dislocation displacement gradient.
+           Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
+           Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is 
+           a list of two indices indicating which component of displacement gradient u[ij] to plot.
+           The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case, 
+           'slipsystem' is required except for those metals where its keyword coincides with disloc.sym (see documentation of disloc.computeuij_acc() 
+           for details on capabilities and limitations of the current implementation of the accelerating solution).'''
+        if slipsystem is None:
+            slipsystem = disloc.sym
+        if disloc.ct==0:
+            disloc.ct = np.sqrt(disloc.mu/disloc.rho)
+        ## create mesh grid from phi and r, and convert to Cartesian for later use:
+        r = np.linspace(0.0,1,Nr)
+        disloc.phi_msh , disloc.r_msh = np.meshgrid(disloc.phi,disloc.burgers*r)
+        disloc.x_msh = disloc.r_msh*np.cos(disloc.phi_msh)/disloc.burgers
+        disloc.y_msh = disloc.r_msh*np.sin(disloc.phi_msh)/disloc.burgers
+        plt.figure(figsize=(3.5,4.0))
+        plt.axis((-0.5,0.5,-0.5,0.5))
+        plt.xticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
+        plt.yticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
+        plt.xlabel(r'$x[b]$',fontsize=fntsize)
+        plt.ylabel(r'$y[b]$',fontsize=fntsize)
+        xylabel = {0:'x',1:'y',2:'z'}
+        if a is None and eta_kw is None:
+            disloc.computeuij(beta=beta, r=r) ## compute steady state field
+            disloc.computerot()
+            disloc.alignuij()
+            if character == 'screw':
+                index = int(np.where(abs(disloc.theta)<1e-12)[0])
+            elif character == 'edge':
+                index = int(np.where(abs(disloc.theta-np.pi/2)<1e-12)[0])
+            else:
+                index=character
+            namestring = "u{2}{3}{4}_{0}_v{1:.0f}.pdf".format(disloc.name,beta*disloc.ct,xylabel[component[0]],xylabel[component[1]],character)
+            uijtoplot = disloc.uij_aligned[component[0],component[1],index]
+        elif character=='screw':
+            if disloc.cc is not None and disloc.cc>0:
+                a_over_c=disloc.ac/disloc.cc
+            else:
+                a_over_c = 0
+            disloc.computeuij_acc(a,beta,burgers=disloc.burgers,slipsystem=slipsystem,a_over_c=a_over_c,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+            if a is None: acc = '_of_t'
+            else: acc = "{:.0e}".format(a)
+            namestring = "u{3}{4}screw_{0}_v{1:.0f}_a{2:}.pdf".format(disloc.name,beta*disloc.ct,acc,xylabel[component[0]],xylabel[component[1]])
+            uijtoplot = disloc.uij_acc_aligned[component[0],component[1]]
+        else:
+            raise ValueError("not implemented")
+        plt.title(namestring,fontsize=fntsize)
+        colmsh = plt.pcolormesh(disloc.x_msh,disloc.y_msh,uijtoplot,vmin=-1, vmax=1,cmap = plt.cm.rainbow)
+        colmsh.set_rasterized(True)
+        plt.colorbar()
+        plt.savefig(namestring,format='pdf',bbox_inches='tight')
+        plt.close()
+            
 ################################################    
     if Ntheta2==0 or Ntheta2==None:
         sys.exit()
@@ -544,4 +598,10 @@ if __name__ == '__main__':
         ## (re-)compute smallest critical velocities: needs high resolution in Ntheta2 to be accurate
         vcrit_smallest_new[X] = np.min(vcrit[X][0]) ## in m/s suitable for input files
         # vcrit_smallest_new[X] = np.min(vcrit[X][0])*np.sqrt(Y[X].rho/Y[X].c44) ## scaled by c44 (for input from metal_data, this is what was hard coded above for speed)
+        
+    for X in metal:
+        for i in range(len(b_pre)):
+            if abs(np.dot(b_pre[i],Y[X].b)-1)<1e-15 and abs(np.dot(n0_pre[i],Y[X].n0)-1)<1e-15:
+                Y[X].b=np.asarray(Y[X].b,dtype=float)
+                Y[X].n0=np.asarray(Y[X].n0,dtype=float) ## convert back to arrays of floats
         
