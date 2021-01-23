@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 23, 2020
+# Date: Nov. 7, 2017 - Jan. 15, 2021
 #################################
 import sympy as sp
 import numpy as np
@@ -27,7 +27,7 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
     For lower/other symmetries, input must be given via keyword cij as a tuple or list containing all required elastic constants
     (21 for triclinic, 13 for monoclinic, 9 for orthorhombic, and 6 for trigonal/rhombohedral I) in ascending order where i<=j in cij,
     i.e. cij=(c11, c12, c13, ...); see D. C. Wallace, Solid State Physics 25 (1970) 301 and K. Brugger, J. Appl. Phys. 36 (1965) 759.
-    Option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
+    Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
     if cij is None:
         if c22==None or c23==None or c55==None:
             if c13==None or c33==None:
@@ -79,7 +79,7 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
     For lower/other symmetries, input must be given via keyword cijk as a tuple or list containing all required elastic constants
     (56 for triclinic, 32 for monoclinic, 20 for orthorhombic, and 14 for trigonal/rhombohedral I) in ascending order where i<=j<=k in cijk,
     i.e. cij=(c111, c112, ..., c122, ...); K. Brugger, J. Appl. Phys. 36 (1965) 759.
-    Option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
+    Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
     if cijk is None and c333==None: ### assume cubic I or isotropic
         if c111==None or c112==None or c166==None:
             if c123==None or c144==None or c456==None:
@@ -161,7 +161,7 @@ VoigtIndices = [0,4,8,5,2,1]
 UnVoigtIndices = [0,5,4,5,1,3,4,3,2]
 
 def Voigt(elasticC):
-    '''Converts Voigt-symmetric tensors of ranks 2, 4, and 6 (such as strain/stress tensors or 2nd and 3rd order elastic constants) into Voigt notation.
+    '''Converts Voigt-symmetric tensors of ranks 2, 4, 6, and 8 (such as strain/stress tensors or 2nd, 3rd, and 4th order elastic constants) into Voigt notation.
     Both input and output are numpy arrays. Warning: this function does not check the input for Voigt symmetry, use CheckVoigt() instead.'''
     CVoigt = np.asarray(elasticC)
     if CVoigt.ndim == 2:
@@ -177,7 +177,7 @@ def Voigt(elasticC):
     return CVoigt
 
 def UnVoigt(CVoigt):
-    '''Converts tensors of ranks 1, 2, and 3 (such as strain/stress tensors or 2nd and 3rd order elastic constants) from Voigt to conventional tensor notation.
+    '''Converts tensors of ranks 1, 2, 3, and 4 (such as strain/stress tensors or 2nd, 3rd, and 4th order elastic constants) from Voigt to conventional tensor notation.
     Both input and output are numpy arrays.'''
     elasticC = np.asarray(CVoigt)
     if elasticC.ndim == 1:
@@ -195,13 +195,13 @@ def UnVoigt(CVoigt):
 ## check for Voigt symmetry
 def CheckVoigt(tensor):
     '''Quick and dirty check for Voigt symmetry: only checks UnVoigt(Voigt(tensor).T)==tensor, so don't rely on it entirely.
-    Input must be a (numpy array) tensor of rank 2, 4, or 6.'''
+    Input must be a (numpy array) tensor of rank 2, 4, 6, or 8.'''
     return np.all(UnVoigt(Voigt(tensor).T)==tensor)
     
 ##### generate tensors of elastic compliances
 def elasticS2(elasticC2,voigt=False):
     '''Generates the tensor of second order elastic compliances using a second order elastic constants tensor, elasticC2, as input data.
-    Input may be in Voigt or in Cartesian notation, output notation is controlled by option 'voigt' (default=Cartesian).'''
+    Input may be in Voigt or in Cartesian notation, output notation is controlled by Boolean option 'voigt' (default=False, i.e. Cartesian).'''
     sprimetos = np.diag([1,1,1,0.5,0.5,0.5])
     if len(elasticC2)==3:
         C2=Voigt(elasticC2)
@@ -219,7 +219,7 @@ def elasticS2(elasticC2,voigt=False):
         
 def elasticS3(elasticS2,elasticC3,voigt=False):
     '''Generates the tensor of third order elastic compliances using the second order elastic compliances tensor, elasticS2, and the third order elastic constants tensor, elasticC3, as input data.
-    Input may be in Voigt or in Cartesian notation, output notation is controlled by option 'voigt' (default=Cartesian).'''
+    Input may be in Voigt or in Cartesian notation, output notation is controlled by Boolean option 'voigt' (default=False, i.e. Cartesian).'''
     if len(elasticS2)==3:
         S2=Voigt(elasticS2)
     else:
