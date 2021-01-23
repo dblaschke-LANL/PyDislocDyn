@@ -1,12 +1,17 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Jan. 8, 2020
+# Date: Nov. 7, 2017 - Jan. 23, 2021
 #################################
 import sys
 from sympy.solvers import solve 
 import sympy as sp
 import numpy as np
+## workaround for spyder's runfile() command when cwd is somewhere else:
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(dir_path)
+##
 from elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
 import metal_data as data
 

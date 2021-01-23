@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 9, 2021
+# Date: Nov. 3, 2017 - Jan. 23, 2021
 #################################
 import sys
 import os
@@ -30,6 +30,10 @@ plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
+## workaround for spyder's runfile() command when cwd is somewhere else:
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(dir_path)
+##
 import metal_data as data
 from elasticconstants import elasticC2, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, loadinputfile

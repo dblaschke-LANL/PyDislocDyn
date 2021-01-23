@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 30, 2020
+# Date: Nov. 5, 2017 - Jan. 23, 2021
 #################################
 import sys
 import os
@@ -30,6 +30,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
+## workaround for spyder's runfile() command when cwd is somewhere else:
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(dir_path)
+##
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 import polycrystal_averaging as pca
