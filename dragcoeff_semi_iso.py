@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 23, 2021
+# Date: Nov. 5, 2017 - Feb. 5, 2021
 #################################
 import sys
 import os
@@ -47,9 +47,9 @@ try:
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
     Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     # Ncores = -2
-    if dlc.ompthreads == 0: # check if subroutines were compiled with OpenMP support
+    if dlc.ompthreads == 0 and Ncores != 0: # check if subroutines were compiled with OpenMP support
         print("using joblib parallelization with ",Ncores," cores")
-    else:
+    elif Ncores != 0:
         print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads, total = ",Ncores*dlc.ompthreads)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
@@ -512,7 +512,7 @@ if __name__ == '__main__':
     scrind = {}
     scale_plot = 1 ## need to increase plot and fitting range for higher temperatures
     for X in metal:
-        scale_plot = max(scale_plot,int(scale_plot*Y[X].T/30)/10)
+        scale_plot = max(scale_plot,int(Y[X].T/30)/10)
         Bmax_fit = int(20*Y[X].T/300)/100 ## only fit up to Bmax_fit [mPas]
         if X in bcc_metals and (np.all(theta[X]>=0) or np.all(theta[X]<=0)):
             print("warning: missing data for a range of dislocation character angles of bcc {}, average will be inaccurate!".format(X))
@@ -562,8 +562,10 @@ if __name__ == '__main__':
     def mkfitplot(metal_list,filename,figtitle):
         if len(metal_list)<5:
             fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
+            ncols=2
         else:
             fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
+            ncols=3
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
         ax.set_xticks(np.arange(11)/10)
@@ -597,9 +599,10 @@ if __name__ == '__main__':
             else:
                 ax.plot(beta[beta<cutat],B,label=X) ## fall back to automatic colors
             beta_highres = np.linspace(0,vcrit,1000)
-            ax.plot(beta_highres,fit_mix(beta_highres/vcrit,*popt),':',color='gray')
-        ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
-        plt.savefig("B_{0:.0f}K_{1}+fits.pdf".format(Y[X].T,filename),format='pdf',bbox_inches='tight')
+            with np.errstate(divide='ignore'):
+                ax.plot(beta_highres,fit_mix(beta_highres/vcrit,*popt),':',color='gray')
+        ax.legend(loc='upper left', ncol=ncols, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
+        plt.savefig("B_{}+fits.pdf".format(filename),format='pdf',bbox_inches='tight')
         plt.close()
         
     mkfitplot(metal,"edge","pure edge")
