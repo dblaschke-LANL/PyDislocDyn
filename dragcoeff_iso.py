@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 23, 2021
+# Date: Nov. 5, 2017 - Mar. 2, 2021
 #################################
 import sys
 import numpy as np
@@ -13,12 +13,7 @@ mpl.use('Agg', force=False) # don't need X-window, allow running in a remote ter
 # mpl.use("pgf")
 # pgf_with_pdflatex = {
 #     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": [
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#           ]
+#     "pgf.preamble": r"\usepackage[utf8x]{inputenc} \usepackage[T1]{fontenc} \usepackage{fouriernc} \usepackage{amsmath}"
 # }
 # mpl.rcParams.update(pgf_with_pdflatex)
 ##################
@@ -44,9 +39,9 @@ try:
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
     Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     # Ncores = -2
-    if ompthreads == 0: # check if subroutines were compiled with OpenMP support
+    if ompthreads == 0 and Ncores != 0: # check if subroutines were compiled with OpenMP support
         print("using joblib parallelization with ",Ncores," cores")
-    else:
+    elif Ncores != 0:
         print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",ompthreads," threads, total = ",Ncores*ompthreads)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
@@ -369,10 +364,12 @@ if __name__ == '__main__':
             beta_highres = np.linspace(0,1,1000)
             if filename=="edge":
                 ax.plot(beta,Broom[X][:,Ntheta],color=metalcolors[X],label=X)
-                ax.plot(beta_highres,fit_edge(beta_highres,*popt_edge[X]),':',color='gray')
+                with np.errstate(all='ignore'):
+                    ax.plot(beta_highres,fit_edge(beta_highres,*popt_edge[X]),':',color='gray')
             elif filename=="screw":
                 ax.plot(beta,Broom[X][:,1],color=metalcolors[X],label=X)
-                ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
+                with np.errstate(all='ignore'):
+                    ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
             else:
                 raise ValueError("keyword 'filename'={} undefined.".format(filename))
         ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)

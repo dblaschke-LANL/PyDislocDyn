@@ -16,12 +16,7 @@ mpl.use('Agg', force=False) # don't need X-window, allow running in a remote ter
 # mpl.use("pgf")
 # pgf_with_pdflatex = {
 #     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": [
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#           ]
+#     "pgf.preamble": r"\usepackage[utf8x]{inputenc} \usepackage[T1]{fontenc} \usepackage{fouriernc} \usepackage{amsmath}"
 # }
 # mpl.rcParams.update(pgf_with_pdflatex)
 ##################
