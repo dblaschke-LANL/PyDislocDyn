@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 8, 2021
+# Date: Nov. 3, 2017 - Apr. 3, 2021
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -339,9 +339,9 @@ def computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,
     elif sym=='hcp_pyramidal':
         ac = np.sqrt(3)/2 ## set a to 1, but we need sqrt(3)/2 times a below
         cc = 1/a_over_c
-        A = (c44*cc**2 + cp*ac**2)/(ac**2+cc*2)
-        B = 2*ac*cc*(cp-c44)/(ac**2+cc*2)
-        C = (cp*cc**2 + c44*ac**2)/(ac**2+cc*2)
+        A = (c44*cc**2 + cp*ac**2)/(ac**2+cc**2)
+        B = 2*ac*cc*(cp-c44)/(ac**2+cc**2)
+        C = (cp*cc**2 + c44*ac**2)/(ac**2+cc**2)
     elif sym=='tetr':
         A = c44
         B = 0
