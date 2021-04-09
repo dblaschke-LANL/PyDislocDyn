@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Jan. 23, 2021
+# Date: Nov. 7, 2017 - Apr. 7, 2021
 #################################
 import sys
 from sympy.solvers import solve 
@@ -180,7 +180,7 @@ class metal_props:
         self.c222=self.c333=self.c344=self.c366=0
         self.C2=np.zeros((6,6)) #tensor of SOEC in Voigt notation
         self.C3=np.zeros((6,6,6)) # tensor of TOEC in Voigt notation
-        self.mu=self.lam=self.bulk=None ## polycrystal averages
+        self.mu=self.lam=self.bulk=self.poisson=self.young=None ## polycrystal averages
         self.ct=self.cl=self.ct_over_cl=0 ## polycrystal averages
         self.Vc=0 ## unit cell volume
         self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
@@ -233,6 +233,8 @@ class metal_props:
             self.lam = round(float(HillAverage[lam]),roundto)
             self.mu = round(float(HillAverage[mu]),roundto)
         self.bulk = self.lam + 2*self.mu/3
+        self.poisson = self.lam/(2*(self.lam+self.mu)) ## average Poisson ratio nu
+        self.young = 2*self.mu*(1+self.poisson)
     
     def init_sound(self):
         '''Computes the effective sound speeds of a polycrystal from its averaged Lame constants.'''
@@ -328,6 +330,9 @@ class metal_props:
         if 'lam' in keys and 'mu' in keys:
             self.lam=float(inputparams['lam'])
             self.mu=float(inputparams['mu'])
+            self.bulk = self.lam + 2*self.mu/3
+            self.poisson = self.lam/(2*(self.lam+self.mu)) ## average Poisson ratio nu
+            self.young = 2*self.mu*(1+self.poisson)
         self.ac=float(inputparams['a'])
         self.rho = float(inputparams['rho'])
         if 'c11' in inputparams.keys():

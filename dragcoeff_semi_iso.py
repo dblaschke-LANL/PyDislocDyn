@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 5, 2021
+# Date: Nov. 5, 2017 - Apr. 7, 2021
 #################################
 import sys
 import os
@@ -31,8 +31,8 @@ sys.path.append(dir_path)
 ##
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
-import polycrystal_averaging as pca
 import dislocations as dlc
+from linetension_calcs import readinputfile, Dislocation
 from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed, cpu_count
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         args = sys.argv[1:]
         try:
             for i in range(len(args)):
-                inputdata[i]=pca.readinputfile(args[i])
+                inputdata[i]=readinputfile(args[i], theta=theta, Nphi=NphiX)
                 X = inputdata[i].name
                 metal_list.append(X)
                 Y[X] = inputdata[i]
@@ -155,7 +155,7 @@ if __name__ == '__main__':
                 data.writeinputfile(X,X,iso=isokeywd) # write temporary input files for requested X of metal_data
                 metal_list.append(X)
         for X in metal_list:
-            Y[X] = pca.readinputfile(X)
+            Y[X] = readinputfile(X, theta=theta, Nphi=NphiX)
         os.chdir("..")
         metal = metal_list
     
@@ -181,7 +181,6 @@ if __name__ == '__main__':
     A3rotated = {}
     C2 = {}
     highT = {}
-    dislocation = {}
     rotmat = {}
     linet = {}
     velm0 = {}
@@ -194,15 +193,14 @@ if __name__ == '__main__':
             with open("temperatures_{}.dat".format(X),"w") as Tfile:
                 Tfile.write('\n'.join(map("{:.2f}".format,highT[X])))
         
-        dislocation[X] = dlc.StrohGeometry(b=Y[X].b, n0=Y[X].n0, theta=theta, Nphi=NphiX)
-        linet[X] = np.round(dislocation[X].t,15)
-        velm0[X] = np.round(dislocation[X].m0,15)
-        dislocation[X].computerot()
-        rotmat[X] = np.round(dislocation[X].rot,15)
+        linet[X] = np.round(Y[X].t,15)
+        velm0[X] = np.round(Y[X].m0,15)
+        Y[X].computerot()
+        rotmat[X] = np.round(Y[X].rot,15)
                
-        C2[X] = UnVoigt(Y[X].C2/Y[X].mu)  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
+        Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = UnVoigt(Y[X].C3/Y[X].mu)
-        A3 = elasticA3(C2[X],C3)
+        A3 = elasticA3(Y[X].C2norm,C3)
         A3rotated[X] = np.zeros((len(theta),3,3,3,3,3,3))
         for th in range(len(theta)):
             rotm = rotmat[X][th]
@@ -212,15 +210,15 @@ if __name__ == '__main__':
     def maincomputations(bt,X,modes=modes):
         Bmix = np.zeros((len(theta),len(highT[X])))
         ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-        dislocation[X].computeuij(beta=bt, C2=C2[X])
-        dislocation[X].alignuij()
+        Y[X].computeuij(beta=bt)
+        Y[X].alignuij()
         # uij_iso = dlc.computeuij_iso(bt,Y[X].ct_over_cl, theta, phiX)
         # r = np.exp(np.linspace(np.log(Y[X].burgers/5),np.log(100*Y[X].burgers),125))
         ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
         # r = np.exp(np.linspace(np.log(rmin*np.pi/Y[X].qBZ),np.log(rmax*np.pi/Y[X].qBZ),Nr))
         # q = Y[X].qBZ*np.linspace(0,1,Nq)
         # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-        dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
+        dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
         Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
         
         for Ti in range(len(highT[X])-1):
@@ -271,11 +269,11 @@ if __name__ == '__main__':
                 rotm = rotmat[X][th]
                 A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
             ##########################
-            dislocation[X].computeuij(beta=betaT, C2=C2T)
-            dislocation[X].alignuij()
+            Y[X].computeuij(beta=betaT, C2=C2T) ## Y[X].C2norm will be overwritten with C2T here
+            Y[X].alignuij()
             ## rT*qT = r*q, so does not change anything
             # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-            dij = dlc.fourieruij_nocut(dislocation[X].uij_aligned,phiX,phi,sincos=sincos_noq)
+            dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
             Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
         
         return Bmix
@@ -338,7 +336,7 @@ if __name__ == '__main__':
         vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
         # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
         vcrit_screw = {'Fe110': 0.803, 'Fe123': 0.736, 'Mo110': 0.987, 'Mo123': 0.942, 'Nb110': 0.955, 'Nb123': 0.886}
-        vcrit_edge = {'Cdprismatic': 1.398, 'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mgprismatic': 0.982, 'Mo110': 1.033, 'Mo112': 1.026, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb112': 1.005, 'Nb123': 1.008, 'Sn': 1.092, 'Tibasal': 1.033, 'Znprismatic': 1.211, 'Znpyramidal': 0.945, 'Zrprismatic': 0.990}
+        vcrit_edge = {'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mo110': 1.033, 'Mo112': 1.026, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb112': 1.005, 'Nb123': 1.008, 'Znpyramidal': 0.945}
     if use_metaldata:
         ## use exact analytic results where we have them:
         for X in data.fcc_metals.intersection(metal):
@@ -346,12 +344,15 @@ if __name__ == '__main__':
         for X in hcp_metals:
             if 'prismatic' in X:
                 vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
+                vcrit_edge[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
             elif 'basal' in X:
                 vcrit_screw[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
+                vcrit_edge[X] = np.sqrt(Y[X].c44/Y[X].mu)
             elif 'pyramidal' in X:
                 vcrit_screw[X] = np.sqrt(Y[X].c44*(Y[X].c11-Y[X].c12)*(3*Y[X].ac**2/4+Y[X].cc**2)/(2*(Y[X].c44*3*Y[X].ac**2/4+Y[X].cc**2*(Y[X].c11-Y[X].c12)/2)*Y[X].mu))
         for X in data.tetr_metals.intersection(metal):
             vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
+            vcrit_edge[X] = vcrit_screw[X]
     if use_metaldata and (use_iso or use_exp_Lame):
         for X in metal:
             if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
@@ -365,18 +366,27 @@ if __name__ == '__main__':
     
     ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:
-        if (not use_metaldata and Y[X].vcrit_screw is None) or (use_metaldata and X not in vcrit_screw.keys()):
-            print("estimating missing critical velocity (i.e. falling back to smallest shear wave speed) for screw for ",X)
-            scrindm0 = int((len(velm0[X])-1)/2)
-            if abs(theta[scrindm0]) < 1e-12:
-                Y[X].sound_screw = Y[X].computesound(velm0[X][scrindm0])
-            else:
-                Y[X].sound_screw = Y[X].computesound(velm0[X][0])
-            Y[X].vcrit_screw = np.min(Y[X].sound_screw)
-        if (not use_metaldata and Y[X].vcrit_edge is None) or (use_metaldata and X not in vcrit_edge.keys()):
-            print("estimating missing critical velocity (i.e. falling back to smallest shear wave speed) for edge for ",X)
-            Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
-            Y[X].vcrit_edge = np.min(Y[X].sound_edge)
+        if not use_metaldata and Y[X].vcrit_screw is None:
+            print("computing missing critical velocity for screw for ",X)
+            Y[X].computevcrit_screw() ## only implemented for certain symmetry properties, no result otherwise
+        if not use_metaldata and Y[X].vcrit_edge is None:
+            print("computing missing critical velocity for edge for ",X)
+            Y[X].computevcrit_edge() ## only implemented for certain symmetry properties, no result otherwise
+        if not use_metaldata and (Y[X].vcrit_screw is None or Y[X].vcrit_edge is None):
+            Y[X].computevcrit(2,symmetric=False) ## only compute vcrit if no values are provided in the input file
+            if Y[X].vcrit_screw is None: Y[X].vcrit_screw = np.min(Y[X].vcrit[0,1])
+            if Y[X].vcrit_edge is None: Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
+        ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
+        scrindm0 = int((len(velm0[X])-1)/2)
+        if abs(theta[scrindm0]) < 1e-12:
+            Y[X].sound_screw = Y[X].computesound(velm0[X][scrindm0])
+        else:
+            Y[X].sound_screw = Y[X].computesound(velm0[X][0])
+        Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
+        if not use_metaldata and Y[X].vcrit_smallest is None:
+            print("estimating missing smallest critical velocity for {} (this may be inaccurate)".format(X))
+            vcrit_smallest[X] = min(vcrit_smallest[X],np.min(Y[X].sound_screw)/Y[X].ct,np.min(Y[X].sound_edge)/Y[X].ct)
+        ## need vcrit in ratio to ct:
         if Y[X].vcrit_smallest != None:
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
         if Y[X].vcrit_screw != None:

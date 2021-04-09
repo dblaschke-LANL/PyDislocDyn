@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 23, 2021
+# Date: Nov. 3, 2017 - Apr. 6, 2021
 #################################
 import sys
 import os
@@ -56,6 +56,7 @@ except ImportError:
 ## (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided in that file will be used and an average is only computed if mu is missing)
 scale_by_mu = 'exp'
 skip_plots=False ## set to True to skip generating line tension plots from the results
+write_vcrit=False ## if set to True and input files with missing vcrit are processed, append vcrit_smallest to that input file (increase Ntheta2 below for increased accuracy of vcrit_smallest)
 ### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
 ### and phi is an integration angle used in the integral method for computing dislocations
 Ntheta = 600
@@ -193,6 +194,42 @@ class Dislocation(dlc.StrohGeometry,metal_props):
             n0 = self.Miller_to_Cart(self.Millern0,reziprocal=True)
         dlc.StrohGeometry.__init__(self, b, n0, theta, Nphi)
         self.sym = sym
+        self.C2_aligned=None
+    
+    def alignC2(self):
+        '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
+        self.computerot()
+        Ntheta=len(self.theta)
+        self.C2_aligned = np.zeros((Ntheta,6,6)) ## compute C2 rotated into dislocation coordinates
+        for th in range(Ntheta):
+            self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
+    
+    def computevcrit_screw(self):
+        '''Compute the limiting velocity of a pure screw dislocation analytically, provided the slip plane is a reflection plane, use computevcrit() otherwise.'''
+        if self.C2_aligned is None:
+            self.alignC2()
+        scrind = int((len(self.theta)-1)/2)
+        if abs(self.theta[scrind]) > 1e-12:
+            scrind=0
+        A = self.C2_aligned[scrind][4,4]
+        B = 2*self.C2_aligned[scrind][3,4]
+        C = self.C2_aligned[scrind][3,3]
+        test = np.abs(self.C2_aligned[scrind]/self.C2[3,3]) ## check for symmetry requirements
+        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
+            self.vcrit_screw = np.sqrt((A-B**2/(4*C))/self.rho)
+        return self.vcrit_screw
+    
+    def computevcrit_edge(self):
+        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise. (TODO: generalize Teutonico's result)'''
+        if self.C2_aligned is None:
+            self.alignC2()
+        edgind = int(np.where(np.abs(self.theta-np.pi/2)<1e-12)[0])
+        test = np.abs(self.C2_aligned[edgind]/self.C2[3,3]) ## check for symmetry requirements
+        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12 and test[0,5] + test[1,5] < 1e-12:
+            ## TODO; relax latter condition of vanishing 05 and 15 components (just a simplifying assumption of Teutonico)
+            self.vcrit_edge = np.sqrt(self.C2_aligned[edgind][5,5]/self.rho)
+        return self.vcrit_edge
+        
     def __repr__(self):
         return  metal_props.__repr__(self) + "\n" + dlc.StrohGeometry.__repr__(self)
 
@@ -216,6 +253,7 @@ def readinputfile(fname,init=True,theta=[0,np.pi/2],Nphi=500):
         n0 = np.asarray(inputparams['n0'].split(','),dtype=float)
     out = Dislocation(sym=sym, name=name, b=b, n0=n0, theta=theta, Nphi=Nphi)
     out.populate_from_dict(inputparams)
+    out.filename = fname ## remember which file we read
     if init:
         out.init_all()
     return out
@@ -448,7 +486,7 @@ if __name__ == '__main__':
         mkLTplots(X)
     
     ### plot dislocation displacement gradient:
-    def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,slipsystem=None,fastapprox=False,Nr=250):
+    def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250):
         '''Generates a plot of the requested component of the dislocation displacement gradient.
            Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
            Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is 
@@ -456,8 +494,6 @@ if __name__ == '__main__':
            The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case, 
            'slipsystem' is required except for those metals where its keyword coincides with disloc.sym (see documentation of disloc.computeuij_acc() 
            for details on capabilities and limitations of the current implementation of the accelerating solution).'''
-        if slipsystem is None:
-            slipsystem = disloc.sym
         if disloc.ct==0:
             disloc.ct = np.sqrt(disloc.mu/disloc.rho)
         ## create mesh grid from phi and r, and convert to Cartesian for later use:
@@ -485,11 +521,7 @@ if __name__ == '__main__':
             namestring = "u{2}{3}{4}_{0}_v{1:.0f}.pdf".format(disloc.name,beta*disloc.ct,xylabel[component[0]],xylabel[component[1]],character)
             uijtoplot = disloc.uij_aligned[component[0],component[1],index]
         elif character=='screw':
-            if disloc.cc is not None and disloc.cc>0:
-                a_over_c=disloc.ac/disloc.cc
-            else:
-                a_over_c = 0
-            disloc.computeuij_acc(a,beta,burgers=disloc.burgers,slipsystem=slipsystem,a_over_c=a_over_c,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+            disloc.computeuij_acc(a,beta,burgers=disloc.burgers,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
             if a is None: acc = '_of_t'
             else: acc = "{:.0e}".format(a)
             namestring = "u{3}{4}screw_{0}_v{1:.0f}_a{2:}.pdf".format(disloc.name,beta*disloc.ct,acc,xylabel[component[0]],xylabel[component[1]])
@@ -541,6 +573,12 @@ if __name__ == '__main__':
         else:
             Y[X].computevcrit(Ntheta2,symmetric=current_symm,cache=bt2_cache[foundcache][2])
             vcrit[X]=Y[X].vcrit
+        
+    for X in metal:
+        for i in range(len(b_pre)):
+            if abs(np.dot(b_pre[i],Y[X].b)-1)<1e-15 and abs(np.dot(n0_pre[i],Y[X].n0)-1)<1e-15:
+                Y[X].b=np.asarray(Y[X].b,dtype=float)
+                Y[X].n0=np.asarray(Y[X].n0,dtype=float) ## convert back to arrays of floats
 
     ## write vcrit results to disk, then plot
     with open("vcrit.dat","w") as vcritfile:
@@ -596,11 +634,33 @@ if __name__ == '__main__':
         mkvcritplot(X,vcrit[X],Ntheta2)
         ## (re-)compute smallest critical velocities: needs high resolution in Ntheta2 to be accurate
         vcrit_smallest_new[X] = np.min(vcrit[X][0]) ## in m/s suitable for input files
+        if write_vcrit and not use_metaldata:
+            with open(Y[X].filename,"a") as outf:
+                if len(vcrit[X][0])>Ntheta2:
+                    scrind = Ntheta2-1
+                else:
+                    scrind=0
+                if Y[X].vcrit_smallest is None:
+                    print("writing vcrit_smallest to {}; WARNING: will be inaccurate unless Ntheta2 is large enough!".format(X))
+                    outf.write("vcrit_smallest = {:.0f}\n".format(vcrit_smallest_new[X]))
+                if Y[X].vcrit_edge is None:
+                    print("writing vcrit_edge to {}".format(X))
+                    Y[X].computevcrit_edge()
+                    if Y[X].vcrit_edge is None: ## the case if the slip plane is not a reflection plane
+                        # print("not a reflection plane / not implemented")
+                        if scrind>0:
+                            outf.write("vcrit_edge = {:.0f}\n".format(min(np.min(vcrit[X][0][0]),np.min(vcrit[X][0][-1]))))
+                        else:
+                            outf.write("vcrit_edge = {:.0f}\n".format(np.min(vcrit[X][0][-1])))
+                    else:
+                        outf.write("vcrit_edge = {:.0f}\n".format(Y[X].vcrit_edge))
+                if Y[X].vcrit_screw is None:
+                    print("writing vcrit_screw to {}".format(X))
+                    Y[X].computevcrit_screw()
+                    if Y[X].vcrit_screw is None: ## the case if the slip plane is not a reflection plane
+                        # print("not a reflection plane")
+                        outf.write("vcrit_screw = {:.0f}\n".format(np.min(vcrit[X][0][scrind])))
+                    else:
+                        outf.write("vcrit_screw = {:.0f}\n".format(Y[X].vcrit_screw))
         # vcrit_smallest_new[X] = np.min(vcrit[X][0])*np.sqrt(Y[X].rho/Y[X].c44) ## scaled by c44 (for input from metal_data, this is what was hard coded above for speed)
-        
-    for X in metal:
-        for i in range(len(b_pre)):
-            if abs(np.dot(b_pre[i],Y[X].b)-1)<1e-15 and abs(np.dot(n0_pre[i],Y[X].n0)-1)<1e-15:
-                Y[X].b=np.asarray(Y[X].b,dtype=float)
-                Y[X].n0=np.asarray(Y[X].n0,dtype=float) ## convert back to arrays of floats
         

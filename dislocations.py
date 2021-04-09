@@ -120,51 +120,30 @@ class StrohGeometry(object):
             self.NN = self.uij['NN']
             self.uij = self.uij['uij']
         
-    def computeuij_acc(self,a,beta,burgers=None,rho=None,C2=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,slipsystem=None,a_over_c=0,fastapprox=False,beta_normalization=1):
+    def computeuij_acc(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
         '''EXPERIMENTAL (VERY SLOW) IMPLEMENTATION OF AN ACCELERATING SCREW DISLOCATION (based on arxiv.org/abs/2009.00167).
-           For now, only pure screw is implemented for slip systems with the required symmetry properties, that is all 12 fcc slip systems, the 3 hcp slip systems mentioned above,
-           and only one slip system for tetragonal symmetry is currently implemented, i.e. sym='tetr' assumes b=[0,0,c] and n0=[0,1,0].
+           For now, only pure screw is implemented for slip systems with the required symmetry properties, that is the slip plane must be a reflection plane.
            In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
            Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
-           C2 is the tensor of SOECs in VOIGT notation, and r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
+           C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+           r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
            x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi).
-           Implemented slip systems are automatically determined from self.C2 (set if C2 is passed here), self.b, and self.n0; use keyword slipsystem to override.
-           The ratio of lattice constants a_over_c is only required for slipsystem='hcp_pyramidal'.
            Finally, more general dislocation motion can be defined via funcion eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
            likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
            Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
         self.beta = beta
-        slip = ""
-        ### auto-detect crystal symmetry and slip system from C2, b, and n0:
-        if C2 is None:
-            C2 = self.C2
-        else:
-            self.C2 = C2
+        scrind = int((len(self.theta)-1)/2)
+        if abs(self.theta[scrind]) > 1e-12:
+            scrind=0
+        if C2_aligned is None:
+            C2_aligned = self.C2_aligned
+        elif C2_aligned.shape==(6,6): ## check if we received C2_aligned only for screw rather than all characters
+            C2_aligned=[C2_aligned]
+            scrind=0
         if r is None:
             r = self.r
         else:
             self.r = r
-        if self.sym is None:
-            if C2[0,2]==C2[0,1] and C2[0,0]==C2[2,2] and C2[5,5]==C2[3,3]:
-                if abs(C2[0,1]+2*C2[3,3]-C2[0,0])<1e-15:
-                    self.sym = 'iso'
-                elif abs(self.b[0])==abs(self.b[1])==abs(self.b[2]):
-                    self.sym = 'bcc'
-                else:
-                    self.sym = 'fcc'
-            elif abs(C2[5,5]-C2[0,0]/2+C2[0,1]/2) < 1e-15:
-                self.sym = 'hcp'
-            elif abs((C2[0,0]-C2[1,1])*(C2[3,3]-C2[4,4])) < 1e-15:
-                self.sym = 'tetr'
-        if self.sym == 'hcp':
-            if (np.all(np.where(self.b!=0)==np.array([0])) and np.all(np.where(self.n0!=0)==np.array([1]))) or (np.all(np.where(self.b!=0)==np.array([1])) and np.all(np.where(self.n0!=0)==np.array([0]))):
-                slip = "_prismatic"
-            elif (np.all(np.where(self.b!=0)==np.array([1])) or np.all(np.where(self.b!=0)==np.array([0]))) and np.all(np.where(self.n0!=0)==np.array([2])):
-                slip = "_basal"
-            elif (np.all(np.where(self.b!=0)==np.array([1])) or np.all(np.where(self.b!=0)==np.array([0]))) and (np.all(np.where(self.n0==0)==np.array([0])) or np.all(np.where(self.n0==0)==np.array([1]))):
-                slip = "_pyramidal"
-            else:
-                slip = "_unknown"
         if burgers is None:
             burgers = self.burgers
         else:
@@ -175,11 +154,10 @@ class StrohGeometry(object):
             self.rho = rho
         if phi is None: phi=self.phi
         if r is None: r=np.linspace(0,1,250)
-        if slipsystem is None:
-            slipsystem = self.sym+slip
-        if slipsystem not in ['fcc', "hcp_prismatic", "hcp_basal", "hcp_pyramidal", 'tetr', 'iso']:
-            raise ValueError("slip system = {} not implemented!".format(slipsystem))
-        self.uij_acc_aligned = computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,sym=slipsystem,a_over_c=a_over_c,fastapprox=fastapprox,beta_normalization=beta_normalization)
+        test = np.abs(self.C2_aligned[scrind]/self.C2[3,3]) ## check for symmetry requirements
+        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
+            raise ValueError("not implemented - slip plane is not a reflection plane")
+        self.uij_acc_aligned = computeuij_acc(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
@@ -306,46 +284,18 @@ def heaviside(x):
     return (np.sign(x)+1)/2
 
 # @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
-def computeuij_acc(a,beta,burgers,C2,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,sym='iso',a_over_c=0,fastapprox=False,beta_normalization=1):
+def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
-       In particular, keyword sym may be given any of the following values: 'iso', 'fcc', 'hcp_basal', 'hcp_prismatic', 'hcp_pyramidal', and 'tetr'. 
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
-       vectors b and n0 define the slip system and C2 is the tensor of SOECs in VOIGT notation.
+       C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
        Furthermore, x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi),
        i.e. r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core.
-       The ratio of lattice constants a_over_c is only required for sym='hcp_pyramidal'.
-       Only one slip system for tetragonal symmetry is currently implemented, i.e. sym='tetr' assumes b=[0,0,c] and n0=[0,1,0].
        Finally, more general dislocation motion can be defined via funcions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
        likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
        Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
-    cp = (C2[0,0] - C2[0,1])/2
-    c44 = C2[3,3]
-    if sym == 'iso':
-        A = c44
-        C = c44
-        B  = 0
-    elif sym == 'fcc':
-        A = (cp + 2*c44)/3
-        C = (c44 + 2*cp)/3
-        B = (c44 - cp)*2*np.sqrt(2)/3
-    elif sym=='hcp_basal':
-        A = cp
-        B = 0
-        C = c44
-    elif sym=='hcp_prismatic':
-        A = c44
-        B = 0
-        C = cp
-    elif sym=='hcp_pyramidal':
-        ac = np.sqrt(3)/2 ## set a to 1, but we need sqrt(3)/2 times a below
-        cc = 1/a_over_c
-        A = (c44*cc**2 + cp*ac**2)/(ac**2+cc**2)
-        B = 2*ac*cc*(cp-c44)/(ac**2+cc**2)
-        C = (cp*cc**2 + c44*ac**2)/(ac**2+cc**2)
-    elif sym=='tetr':
-        A = c44
-        B = 0
-        C = c44
+    A = C2_aligned[4,4]
+    B = 2*C2_aligned[3,4]
+    C = C2_aligned[3,3]
     cA = np.sqrt(A/rho)
     ABC = (1-B**2/(4*A*C))
     Ct = C/A
