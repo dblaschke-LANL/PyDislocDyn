@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 6, 2021
+# Date: Nov. 3, 2017 - Apr. 20, 2021
 #################################
 import sys
 import os
@@ -40,15 +40,9 @@ try:
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
     Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
     # Ncores = -2
-    if dlc.ompthreads == 0: # check if subroutines were compiled with OpenMP support
-        print("using joblib parallelization with ",Ncores," cores")
-    else:
-        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads")
 except ImportError:
-    print("WARNING: module 'joblib' not found, will run on only one core\n")
+    if Ncores > 1: print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
-    if dlc.ompthreads > 0:
-        print("using OpenMP parallelization with ",dlc.ompthreads," threads")
 
 ## choose which shear modulus to use for rescaling to dimensionless quantities
 ## allowed values are: 'crude', 'aver', and 'exp'
@@ -77,11 +71,13 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals
 metal = sorted(metal + ['ISO']) ### test isotropic limit
 
 ## define a new method to compute critical velocities within the imported pca.metal_props class:
-def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_list=None):
+def computevcrit_stroh(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_list=None):
     '''Computes the 'critical velocities' of a dislocation for the number Ntheta (resp. 2*Ntheta-1) of character angles in the interval [0,pi/2] (resp. [-pi/2, pi/2] if symmetric=False),
        i.e. the velocities that will lead to det=0 within the StrohGeometry.
        Optionally, an explicit list of angles in units of pi/2 may be passed via theta_list (Ntheta is a required argument, but is ignored in this case).
-       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric'.'''
+       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric'.
+       Note that this function does not check for subtle cancellations that may occur in the dislocation displacement gradient at those velocities;
+       use the Dislocation class and its .computevcrit(theta) method for fully automated determination of the lowest critical velcity at each character angle.'''
     cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66 = sp.symbols('cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66', real=True)
     bt2, phi = sp.symbols('bt2, phi', real=True)
     substitutions = {cc11:self.C2[0,0]/1e9, cc12:self.C2[0,1]/1e9, cc44:self.C2[3,3]/1e9}
@@ -180,7 +176,7 @@ def computevcrit(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,theta_lis
     
     self.vcrit = computevcrit(self.b,self.n0,C2,Ntheta,Ncores=Ncores)
     return self.vcrit[0]
-metal_props.computevcrit=computevcrit
+metal_props.computevcrit_stroh=computevcrit_stroh
 
 class Dislocation(dlc.StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, plus an additional method: computevcrit.
@@ -195,6 +191,7 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         dlc.StrohGeometry.__init__(self, b, n0, theta, Nphi)
         self.sym = sym
         self.C2_aligned=None
+        self.vcrit_all = None
     
     def alignC2(self):
         '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
@@ -204,13 +201,27 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         for th in range(Ntheta):
             self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
     
+    def findedgescrewindices(self,theta=None):
+        '''Find the indices i where theta[i] is either 0 or +/-pi/2. If theta is omitted, assume theta=self.theta.'''
+        if theta is None: theta=self.theta
+        else: theta = np.asarray(theta)
+        scrind = np.where(np.abs(theta)<1e-12)[0]
+        out = [None,None]
+        if len(scrind) == 1:
+            out[0] = int(scrind)
+        edgind = np.where(np.abs(theta-np.pi/2)<1e-12)[0]
+        if len(edgind) == 1:
+            out[1] = int(edgind)
+        negedgind = np.where(np.abs(theta+np.pi/2)<1e-12)[0]
+        if len(negedgind) == 1:
+            out.append(int(negedgind))
+        return out
+        
     def computevcrit_screw(self):
         '''Compute the limiting velocity of a pure screw dislocation analytically, provided the slip plane is a reflection plane, use computevcrit() otherwise.'''
         if self.C2_aligned is None:
             self.alignC2()
-        scrind = int((len(self.theta)-1)/2)
-        if abs(self.theta[scrind]) > 1e-12:
-            scrind=0
+        scrind = self.findedgescrewindices()[0]
         A = self.C2_aligned[scrind][4,4]
         B = 2*self.C2_aligned[scrind][3,4]
         C = self.C2_aligned[scrind][3,3]
@@ -229,6 +240,28 @@ class Dislocation(dlc.StrohGeometry,metal_props):
             ## TODO; relax latter condition of vanishing 05 and 15 components (just a simplifying assumption of Teutonico)
             self.vcrit_edge = np.sqrt(self.C2_aligned[edgind][5,5]/self.rho)
         return self.vcrit_edge
+
+    def computevcrit(self,theta=None):
+        '''Compute the lowest critial (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
+        The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.'''
+        if theta is None:
+            theta=self.theta
+        indices = self.findedgescrewindices(theta)
+        self.computevcrit_edge()
+        self.vcrit_all = np.empty((2,len(theta)))
+        self.vcrit_all[0] = theta
+        self.vcrit_all[1] = np.min(self.computevcrit_stroh(len(theta),theta_list=theta),axis=1)
+        if indices[0] is not None:
+            self.computevcrit_screw()
+            if self.vcrit_screw is not None:
+                self.vcrit_all[1,indices[0]] = self.vcrit_screw
+        if indices[1] is not None:
+            self.computevcrit_edge()
+            if self.vcrit_edge is not None:
+                self.vcrit_all[1,indices[1]] = self.vcrit_edge
+                if len(indices) == 3:
+                    self.vcrit_all[1,indices[2]] = self.vcrit_edge
+        return self.vcrit_all[1]
         
     def __repr__(self):
         return  metal_props.__repr__(self) + "\n" + dlc.StrohGeometry.__repr__(self)
@@ -260,6 +293,12 @@ def readinputfile(fname,init=True,theta=[0,np.pi/2],Nphi=500):
 
 ### start the calculations
 if __name__ == '__main__':
+    if Ncores > 1 and dlc.ompthreads == 0: # check if subroutines were compiled with OpenMP support
+        print("using joblib parallelization with ",Ncores," cores")
+    elif Ncores > 1:
+        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads")
+    elif dlc.ompthreads > 0:
+        print("using OpenMP parallelization with ",dlc.ompthreads," threads")
     Y={}
     inputdata = {}
     metal_list = []
@@ -567,11 +606,11 @@ if __name__ == '__main__':
                 break
         if Y[X].sym=='iso': print("skipping isotropic {}, vcrit=ct".format(X))
         elif foundcache is False:
-            Y[X].computevcrit(Ntheta2,symmetric=current_symm,cache=True)
+            Y[X].computevcrit_stroh(Ntheta2,symmetric=current_symm,cache=True)
             bt2_cache.append((Y[X].b,Y[X].n0,Y[X].cache_bt2)) ## avoid expensive repeated calculations of the same bt2: store in bt2_cache for reuse
             vcrit[X]=Y[X].vcrit
         else:
-            Y[X].computevcrit(Ntheta2,symmetric=current_symm,cache=bt2_cache[foundcache][2])
+            Y[X].computevcrit_stroh(Ntheta2,symmetric=current_symm,cache=bt2_cache[foundcache][2])
             vcrit[X]=Y[X].vcrit
         
     for X in metal:

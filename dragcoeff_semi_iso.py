@@ -373,7 +373,7 @@ if __name__ == '__main__':
             print("computing missing critical velocity for edge for ",X)
             Y[X].computevcrit_edge() ## only implemented for certain symmetry properties, no result otherwise
         if not use_metaldata and (Y[X].vcrit_screw is None or Y[X].vcrit_edge is None):
-            Y[X].computevcrit(2,symmetric=False) ## only compute vcrit if no values are provided in the input file
+            Y[X].computevcrit_stroh(2,symmetric=False) ## only compute vcrit if no values are provided in the input file
             if Y[X].vcrit_screw is None: Y[X].vcrit_screw = np.min(Y[X].vcrit[0,1])
             if Y[X].vcrit_edge is None: Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
         ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
