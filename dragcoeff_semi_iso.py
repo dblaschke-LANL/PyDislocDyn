@@ -1,12 +1,13 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 7, 2021
+# Date: Nov. 5, 2017 - Apr. 20, 2021
 #################################
 import sys
 import os
 import numpy as np
 from scipy.optimize import curve_fit, fmin, fsolve
+from scipy import ndimage
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -68,6 +69,10 @@ use_iso=False ## set to True to calculate using isotropic elastic constants from
 bccslip = '110' ## allowed values: '110' (default), '112', '123', 'all' (for all three)
 hcpslip = 'basal' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 #####
+computevcrit_for_speed = None ### Optional: Unless None or 0, this integer variable is the number of theta angles (i.e. np.linspace(theta[0],theta[-1],computevcrit_for_speed)) for which we calculate vcrit explicitly, missing values will be interpolated to match len(theta);
+### if provided, drag computations will be skipped for velocities bt>vcrit/ct on a per theta-angle basis
+### Note: this may speed up calculations by avoiding slow converging drag calcs near divergences of the dislocation field, but not necessarily since computevcrit takes time as well
+#####
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
 increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
@@ -94,6 +99,8 @@ theta = np.linspace(0,np.pi/2,Ntheta)  ## note: some slip systems (such as bcc d
 beta = np.linspace(minb,maxb,Nbeta)
 phi = np.linspace(0,2*np.pi,Nphi)
 phiX = np.linspace(0,2*np.pi,NphiX)
+if computevcrit_for_speed is not None:
+    theta_vcrit = np.linspace(theta[0],theta[-1],computevcrit_for_speed)
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.c123.keys())))
@@ -219,7 +226,14 @@ if __name__ == '__main__':
         # q = Y[X].qBZ*np.linspace(0,1,Nq)
         # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
         dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-        Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+        if computevcrit_for_speed is None or computevcrit_for_speed<=0:
+            skip_theta = None
+        else:
+            skip_theta = bt < Y[X].vcrit_inter/Y[X].ct
+        if np.all(skip_theta==False):
+            Bmix[:,0] = np.repeat(np.inf,Ntheta)
+        else:
+            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, skip_theta=skip_theta)
         
         for Ti in range(len(highT[X])-1):
             T = highT[X][Ti+1]
@@ -279,6 +293,13 @@ if __name__ == '__main__':
         return Bmix
 
     for X in metal:
+        if computevcrit_for_speed is not None and computevcrit_for_speed>0:
+            print("Computing vcrit for {} for {} character angles, as requested ...".format(X,computevcrit_for_speed))
+            Y[X].computevcrit(theta_vcrit)
+            if computevcrit_for_speed != Ntheta:
+                Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Ntheta/computevcrit_for_speed)
+            else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
+            print("Done; proceeding with drag calculations ...")
         # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
         if Ncores == 1:
             Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
@@ -385,6 +406,12 @@ if __name__ == '__main__':
         Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
         if not use_metaldata and Y[X].vcrit_smallest is None:
             print("estimating missing smallest critical velocity for {} (this may be inaccurate)".format(X))
+            if computevcrit_for_speed is not None and computevcrit_for_speed>0:
+                smallvcrit = np.min(Y[X].vcrit[0])/Y[X].ct
+                if vcrit_smallest[X] < 0.9*smallvcrit and computevcrit_for_speed>10:
+                    vcrit_smallest[X] = smallvcrit
+                else:
+                    vcrit_smallest[X] = min(vcrit_smallest[X],smallvcrit)
             vcrit_smallest[X] = min(vcrit_smallest[X],np.min(Y[X].sound_screw)/Y[X].ct,np.min(Y[X].sound_edge)/Y[X].ct)
         ## need vcrit in ratio to ct:
         if Y[X].vcrit_smallest != None:

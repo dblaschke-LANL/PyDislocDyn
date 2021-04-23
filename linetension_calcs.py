@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 20, 2021
+# Date: Nov. 3, 2017 - Apr. 22, 2021
 #################################
 import sys
 import os
@@ -41,7 +41,7 @@ try:
     Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
     # Ncores = -2
 except ImportError:
-    if Ncores > 1: print("WARNING: module 'joblib' not found, will run on only one core\n")
+    print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
 
 ## choose which shear modulus to use for rescaling to dimensionless quantities
@@ -250,7 +250,7 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         self.computevcrit_edge()
         self.vcrit_all = np.empty((2,len(theta)))
         self.vcrit_all[0] = theta
-        self.vcrit_all[1] = np.min(self.computevcrit_stroh(len(theta),theta_list=theta),axis=1)
+        self.vcrit_all[1] = np.min(self.computevcrit_stroh(len(theta),theta_list=np.asarray(theta)*2/np.pi),axis=1)
         if indices[0] is not None:
             self.computevcrit_screw()
             if self.vcrit_screw is not None:
