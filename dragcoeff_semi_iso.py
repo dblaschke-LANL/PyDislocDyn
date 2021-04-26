@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 20, 2021
+# Date: Nov. 5, 2017 - Apr. 26, 2021
 #################################
 import sys
 import os
@@ -213,6 +213,15 @@ if __name__ == '__main__':
             rotm = rotmat[X][th]
             A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
+    if computevcrit_for_speed is not None and computevcrit_for_speed>0:
+        print("Computing vcrit for {} character angles, as requested ...".format(computevcrit_for_speed))
+        for X in metal:
+            Y[X].computevcrit(theta_vcrit)
+            if computevcrit_for_speed != Ntheta:
+                Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Ntheta/computevcrit_for_speed)
+            else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
+        print("Done; proceeding with drag calculations ...")
+        
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(bt,X,modes=modes):
         Bmix = np.zeros((len(theta),len(highT[X])))
@@ -293,13 +302,6 @@ if __name__ == '__main__':
         return Bmix
 
     for X in metal:
-        if computevcrit_for_speed is not None and computevcrit_for_speed>0:
-            print("Computing vcrit for {} for {} character angles, as requested ...".format(X,computevcrit_for_speed))
-            Y[X].computevcrit(theta_vcrit)
-            if computevcrit_for_speed != Ntheta:
-                Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Ntheta/computevcrit_for_speed)
-            else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
-            print("Done; proceeding with drag calculations ...")
         # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
         if Ncores == 1:
             Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
@@ -357,7 +359,7 @@ if __name__ == '__main__':
         vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
         # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
         vcrit_screw = {'Fe110': 0.803, 'Fe123': 0.736, 'Mo110': 0.987, 'Mo123': 0.942, 'Nb110': 0.955, 'Nb123': 0.886}
-        vcrit_edge = {'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mo110': 1.033, 'Mo112': 1.026, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb112': 1.005, 'Nb123': 1.008, 'Znpyramidal': 0.945}
+        vcrit_edge = {'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mo110': 1.033, 'Mo112': 1.026, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb112': 1.005, 'Nb123': 1.008}
     if use_metaldata:
         ## use exact analytic results where we have them:
         for X in data.fcc_metals.intersection(metal):
