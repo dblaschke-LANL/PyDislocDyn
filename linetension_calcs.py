@@ -1,14 +1,14 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 22, 2021
+# Date: Nov. 3, 2017 - Apr. 30, 2021
 #################################
 import sys
 import os
 import numpy as np
 import sympy as sp
 import scipy
-from scipy.optimize import fmin
+from scipy.optimize import fmin, fsolve
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -119,12 +119,6 @@ def computevcrit_stroh(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,the
     if theta_list is not None:
         Theta = (sp.pi/2)*np.asarray(theta_list)
         Ntheta = len(Theta)
-    ## workaround for sympy<1.3:
-    if sp.__version__ < "1.3":
-        ldfymod=["math", "mpmath"]
-    else:
-        ldfymod=["scipy"]
-    ###
     def compute_bt2(N,m0,C2,bt2,cc44=cc44):
         NC2N = np.dot(N,np.dot(N,C2))
         thedot = np.dot(N,m0)
@@ -159,7 +153,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Ncores,symmetric=False,cache=False,the
             bt2_res = np.zeros((3,2),dtype=complex)
             for i in range(len(bt2_curr)):
                 bt2_curr[i] = (bt2_curr[i].subs(substitutions))
-                fphi = sp.lambdify((phi),bt2_curr[i],modules=ldfymod)
+                fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy"])
                 def f(x):
                     out = fphi(x)
                     return np.real(out)
@@ -236,9 +230,39 @@ class Dislocation(dlc.StrohGeometry,metal_props):
             self.alignC2()
         edgind = int(np.where(np.abs(self.theta-np.pi/2)<1e-12)[0])
         test = np.abs(self.C2_aligned[edgind]/self.C2[3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12 and test[0,5] + test[1,5] < 1e-12:
-            ## TODO; relax latter condition of vanishing 05 and 15 components (just a simplifying assumption of Teutonico)
-            self.vcrit_edge = np.sqrt(self.C2_aligned[edgind][5,5]/self.rho)
+        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
+            c11=self.C2_aligned[edgind][0,0]
+            c22=self.C2_aligned[edgind][1,1]
+            c66=self.C2_aligned[edgind][5,5]
+            c12=self.C2_aligned[edgind][0,1]
+            if test[0,5] + test[1,5] < 1e-12:
+                self.vcrit_edge = np.sqrt(min(c66,c11)/self.rho)
+                ## cover case of q<0 (cf. Teutonico 1961 paper, eq (39); line above was only for q>0):
+                if ((c11*c22-c12**2-2*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66)<0:
+                    ## analytic solution to Re(lambda=0) in eq. (39) (with sp.solve); sqrt below is real because of if statement above:
+                    minval = (2*np.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)
+                    if minval>0:
+                        # print("q<0:",self.vcrit_edge,np.sqrt(minval/self.rho))
+                        self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
+            else:
+                c16 = self.C2_aligned[edgind][0,5]
+                c26 = self.C2_aligned[edgind][1,5]
+                def theroot(y,rv2):
+                    K4 = c66*c22-c26**2
+                    K3 = 2*(c26*c12-c16*c22)
+                    K2 = (c11*c22-c12**2-2*c12*c66+2*c16*c26) - (c22+c66)*rv2
+                    K1 = 2*(c16*c12-c26*c11) + 2*rv2*(c16+c26)
+                    K0 = (c11-rv2)*(c66-rv2)-c16**2
+                    return K0+K1*y+K2*y**2+K3*y**3+K4*y**4
+                y,rv2 = sp.symbols('y,rv2')
+                ysol = sp.solve(theroot(y,rv2),y) ## 4 complex roots as fcts of rv2=rho*v**2
+                yfct=sp.lambdify(rv2,ysol,modules=["scipy"])
+                def f(x):
+                    return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
+                with np.errstate(invalid='ignore'):
+                    rv2limit = fsolve(f,1e5)
+                    if f(rv2limit) < 1e-12: ## check if fsolve was successful
+                        self.vcrit_edge = np.sqrt(float(rv2limit)/self.rho)
         return self.vcrit_edge
 
     def computevcrit(self,theta=None):

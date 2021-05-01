@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 26, 2021
+# Date: Nov. 5, 2017 - Apr. 30, 2021
 #################################
 import sys
 import os
@@ -357,31 +357,34 @@ if __name__ == '__main__':
         vcrit_smallest['Sn'] = 0.818
         vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
         vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
-        # vcrit for pure screw/edge for default slip systems (incl. basal for hcp), numerically determined values (rounded):
+        # vcrit for pure screw/edge for default slip systems, numerically determined values from .computevcrit() method (rounded):
         vcrit_screw = {'Fe110': 0.803, 'Fe123': 0.736, 'Mo110': 0.987, 'Mo123': 0.942, 'Nb110': 0.955, 'Nb123': 0.886}
-        vcrit_edge = {'Fe110': 0.852, 'Fe112': 0.817, 'Fe123': 0.825, 'Mo110': 1.033, 'Mo112': 1.026, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb112': 1.005, 'Nb123': 1.008}
+        vcrit_edge = {'Fe110': 0.852, 'Fe123': 0.825, 'Mo110': 1.033, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb123': 1.008}
     if use_metaldata:
         ## use exact analytic results where we have them:
         for X in data.fcc_metals.intersection(metal):
             vcrit_screw[X] = np.sqrt(3*Y[X].c44*(Y[X].c11-Y[X].c12)/(2*Y[X].mu*(Y[X].c44+Y[X].c11-Y[X].c12)))
+        for X in bcc_metals:
+            if '112' in X:
+                vcrit_edge[X] = Y[X].computevcrit_edge()
         for X in hcp_metals:
             if 'prismatic' in X:
                 vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
-                vcrit_edge[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
+                vcrit_edge[X] = Y[X].computevcrit_edge() # often equals np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
             elif 'basal' in X:
                 vcrit_screw[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
-                vcrit_edge[X] = np.sqrt(Y[X].c44/Y[X].mu)
+                vcrit_edge[X] = Y[X].computevcrit_edge() # often equals np.sqrt(Y[X].c44/Y[X].mu)
             elif 'pyramidal' in X:
                 vcrit_screw[X] = np.sqrt(Y[X].c44*(Y[X].c11-Y[X].c12)*(3*Y[X].ac**2/4+Y[X].cc**2)/(2*(Y[X].c44*3*Y[X].ac**2/4+Y[X].cc**2*(Y[X].c11-Y[X].c12)/2)*Y[X].mu))
         for X in data.tetr_metals.intersection(metal):
             vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
-            vcrit_edge[X] = vcrit_screw[X]
+            vcrit_edge[X] = Y[X].computevcrit_edge() # for Sn equals vcrit_screw[X]
     if use_metaldata and (use_iso or use_exp_Lame):
         for X in metal:
             if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
-                vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes and for some hcp-prismatic slip systems
+                vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes
             if X not in vcrit_edge.keys():
-                vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above, and for most hcp-basal slip systems
+                vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above
     if use_metaldata and not use_iso and use_exp_Lame:
         if hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all':
             vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.948

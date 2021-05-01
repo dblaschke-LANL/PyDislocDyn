@@ -28,7 +28,7 @@ The LANL development team asks that any forks or derivative works include approp
 Python >=3.5,</br>
 [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
 [scipy](https://docs.scipy.org/doc/scipy/reference/),</br>
-[sympy](https://www.sympy.org) >=1.0,</br>
+[sympy](https://www.sympy.org) >=1.3,</br>
 [matplotlib](https://matplotlib.org/) >=2.0</br>
 
 ### Optional:
