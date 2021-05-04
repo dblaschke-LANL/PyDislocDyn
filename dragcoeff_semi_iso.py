@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 30, 2021
+# Date: Nov. 5, 2017 - May 4, 2021
 #################################
 import sys
 import os
@@ -49,9 +49,12 @@ try:
         print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads, total = ",Ncores*dlc.ompthreads)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
+    Ncpus = 1
     Ncores = 1 ## must be 1 (or 0) without joblib
     if dlc.ompthreads > 0:
         print("using OpenMP parallelization with ",dlc.ompthreads," threads")
+Kcores = max(Ncores,int(min(Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
+if Ncores==0: Kcores=max(1,int(Ncpus/2)) # in case user has set Ncores=0 above to bypass phonon wind calcs
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -191,6 +194,7 @@ if __name__ == '__main__':
     rotmat = {}
     linet = {}
     velm0 = {}
+    cache = [] ## store cached intermediate sympy results of computevcrit_stroh method to speed up subsequent calculations
     for X in metal:
         highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
         if constantrho==True:
@@ -216,11 +220,11 @@ if __name__ == '__main__':
     if computevcrit_for_speed is not None and computevcrit_for_speed>0:
         print("Computing vcrit for {} character angles, as requested ...".format(computevcrit_for_speed))
         for X in metal:
-            Y[X].computevcrit(theta_vcrit)
+            Y[X].computevcrit(theta_vcrit,cache=cache,Ncores=Kcores)
             if computevcrit_for_speed != Ntheta:
                 Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Ntheta/computevcrit_for_speed)
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
-        print("Done; proceeding with drag calculations ...")
+        print("Done; proceeding ...")
         
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(bt,X,modes=modes):
@@ -357,9 +361,6 @@ if __name__ == '__main__':
         vcrit_smallest['Sn'] = 0.818
         vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
         vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
-        # vcrit for pure screw/edge for default slip systems, numerically determined values from .computevcrit() method (rounded):
-        vcrit_screw = {'Fe110': 0.803, 'Fe123': 0.736, 'Mo110': 0.987, 'Mo123': 0.942, 'Nb110': 0.955, 'Nb123': 0.886}
-        vcrit_edge = {'Fe110': 0.852, 'Fe123': 0.825, 'Mo110': 1.033, 'Mo123': 1.027, 'Nb110': 1.026, 'Nb123': 1.008}
     if use_metaldata:
         ## use exact analytic results where we have them:
         for X in data.fcc_metals.intersection(metal):
@@ -367,6 +368,10 @@ if __name__ == '__main__':
         for X in bcc_metals:
             if '112' in X:
                 vcrit_edge[X] = Y[X].computevcrit_edge()
+            elif ('110' in X or '123' in X):
+                Y[X].computevcrit_stroh(2,symmetric=False,cache=cache,Ncores=Kcores)
+                Y[X].vcrit_screw = np.min(Y[X].vcrit[0,1])
+                Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
         for X in hcp_metals:
             if 'prismatic' in X:
                 vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
@@ -399,7 +404,7 @@ if __name__ == '__main__':
             print("computing missing critical velocity for edge for ",X)
             Y[X].computevcrit_edge() ## only implemented for certain symmetry properties, no result otherwise
         if not use_metaldata and (Y[X].vcrit_screw is None or Y[X].vcrit_edge is None):
-            Y[X].computevcrit_stroh(2,symmetric=False) ## only compute vcrit if no values are provided in the input file
+            Y[X].computevcrit_stroh(2,symmetric=False,cache=cache,Ncores=Kcores) ## only compute vcrit if no values are provided in the input file
             if Y[X].vcrit_screw is None: Y[X].vcrit_screw = np.min(Y[X].vcrit[0,1])
             if Y[X].vcrit_edge is None: Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
         ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
@@ -756,14 +761,14 @@ if __name__ == '__main__':
             plt.close()
         return (B0,vcrit,sigma,B_of_sig)
         
-    B_of_sig = {}
-    sigma = {}
-    B0 = {}
-    vc = {}
-    for character in ['aver', 'screw', 'edge']:
+    def plotall_B_of_sigma(character,ploteach=False):
+        B_of_sig = {}
+        sigma = {}
+        B0 = {}
+        vc = {}
         for X in metal:
             Xc = X+character
-            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=True,B0fit='weighted',indirect=False)
+            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=ploteach,B0fit='weighted',indirect=False)
     
         if len(metal)<5:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
@@ -796,4 +801,13 @@ if __name__ == '__main__':
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         plt.savefig(fname,format='pdf',bbox_inches='tight')
         plt.close()
+        return (B_of_sig,sigma,B0,vc)
     
+    if Kcores ==1: B_of_sig_results = [plotall_B_of_sigma(character) for character in ['aver', 'screw', 'edge']]
+    else: B_of_sig_results = Parallel(max_nbytes=None, n_jobs=Kcores)(delayed(plotall_B_of_sigma)(character) for character in ['aver', 'screw', 'edge'])
+    B_of_sig,sigma,B0,vc = B_of_sig_results[0]
+    for i in [1,2]:
+        B_of_sig.update(B_of_sig_results[i][0])
+        sigma.update(B_of_sig_results[i][1])
+        B0.update(B_of_sig_results[i][2])
+        vc.update(B_of_sig_results[i][3])
