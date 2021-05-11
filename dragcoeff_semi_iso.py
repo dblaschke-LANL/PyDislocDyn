@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 4, 2021
+# Date: Nov. 5, 2017 - May 11, 2021
 #################################
 import sys
 import os
@@ -57,7 +57,7 @@ Kcores = max(Ncores,int(min(Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for p
 if Ncores==0: Kcores=max(1,int(Ncpus/2)) # in case user has set Ncores=0 above to bypass phonon wind calcs
 
 ### choose various resolutions and other parameters:
-Ntheta = 21 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
+Ntheta = 21 # number of dislocation character angles between 0 and pi/2 (minimum 2, i.e. pure edge and pure screw), if the range -pi/2--pi/2 is required the number of angles is increased to 2*Ntheta-1
 Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
 maxb = 0.99
@@ -96,14 +96,10 @@ NphiX = 3000
 ### rmin smaller converges nicely, rmax bigger initially converges but if it gets to large (several hundred) we start getting numerical artefacts due to rapid oscillations
 rmin = 0
 rmax = 250
-### and range & step sizes
-theta = np.linspace(0,np.pi/2,Ntheta)  ## note: some slip systems (such as bcc defined below) are asymmetric wrt theta->-theta, in that case uncomment line below:
-# theta = np.linspace(-np.pi/2,np.pi/2,Ntheta)
+### and range & step sizes (array of character angles theta is generated for every material independently below)
 beta = np.linspace(minb,maxb,Nbeta)
 phi = np.linspace(0,2*np.pi,Nphi)
 phiX = np.linspace(0,2*np.pi,NphiX)
-if computevcrit_for_speed is not None:
-    theta_vcrit = np.linspace(theta[0],theta[-1],computevcrit_for_speed)
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.c123.keys())))
@@ -125,7 +121,7 @@ if __name__ == '__main__':
         args = sys.argv[1:]
         try:
             for i in range(len(args)):
-                inputdata[i]=readinputfile(args[i], theta=theta, Nphi=NphiX)
+                inputdata[i]=readinputfile(args[i], Nphi=NphiX, Ntheta=Ntheta)
                 X = inputdata[i].name
                 metal_list.append(X)
                 Y[X] = inputdata[i]
@@ -165,7 +161,10 @@ if __name__ == '__main__':
                 data.writeinputfile(X,X,iso=isokeywd) # write temporary input files for requested X of metal_data
                 metal_list.append(X)
         for X in metal_list:
-            Y[X] = readinputfile(X, theta=theta, Nphi=NphiX)
+            if X in bcc_metals and '112' not in X:
+                Y[X] = readinputfile(X, Nphi=NphiX, Ntheta=Ntheta, symmetric=False)
+            else:
+                Y[X] = readinputfile(X, Nphi=NphiX, Ntheta=Ntheta, symmetric=True)
         os.chdir("..")
         metal = metal_list
     
@@ -174,9 +173,13 @@ if __name__ == '__main__':
     else:
         with open("beta.dat","w") as betafile:
             betafile.write('\n'.join(map("{:.5f}".format,beta)))
-    
-        with open("theta.dat","w") as thetafile:
-            thetafile.write('\n'.join(map("{:.6f}".format,theta)))
+        for X in metal:
+            with open(X+".log", "w") as logfile:
+                logfile.write(Y[X].__repr__())
+                logfile.write("\n\nbeta =v/ct:\n")
+                logfile.write('\n'.join(map("{:.5f}".format,beta)))
+                logfile.write("\n\ntheta:\n")
+                logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
         print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
@@ -212,23 +215,27 @@ if __name__ == '__main__':
         Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
         C3 = UnVoigt(Y[X].C3/Y[X].mu)
         A3 = elasticA3(Y[X].C2norm,C3)
-        A3rotated[X] = np.zeros((len(theta),3,3,3,3,3,3))
-        for th in range(len(theta)):
+        A3rotated[X] = np.zeros((Y[X].Ntheta,3,3,3,3,3,3))
+        for th in range(Y[X].Ntheta):
             rotm = rotmat[X][th]
             A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
     if computevcrit_for_speed is not None and computevcrit_for_speed>0:
         print("Computing vcrit for {} character angles, as requested ...".format(computevcrit_for_speed))
         for X in metal:
-            Y[X].computevcrit(theta_vcrit,cache=cache,Ncores=Kcores)
+            if Y[X].Ntheta==Ntheta:
+                Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],computevcrit_for_speed)
+            else:
+                Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],2*computevcrit_for_speed-1)
+            Y[X].computevcrit(Y[X].theta_vcrit,cache=cache,Ncores=Kcores)
             if computevcrit_for_speed != Ntheta:
-                Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Ntheta/computevcrit_for_speed)
+                Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
         print("Done; proceeding ...")
         
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(bt,X,modes=modes):
-        Bmix = np.zeros((len(theta),len(highT[X])))
+        Bmix = np.zeros((Y[X].Ntheta,len(highT[X])))
         ### compute dislocation displacement gradient uij, then its Fourier transform dij:
         Y[X].computeuij(beta=bt)
         Y[X].alignuij()
@@ -244,7 +251,7 @@ if __name__ == '__main__':
         else:
             skip_theta = bt < Y[X].vcrit_inter/Y[X].ct
         if np.all(skip_theta==False):
-            Bmix[:,0] = np.repeat(np.inf,Ntheta)
+            Bmix[:,0] = np.repeat(np.inf,Y[X].Ntheta)
         else:
             Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, skip_theta=skip_theta)
         
@@ -291,8 +298,8 @@ if __name__ == '__main__':
             C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T, cij=cijT)/muT
             C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T, cijk=cijkT)/muT
             A3T = elasticA3(C2T,C3T)
-            A3Trotated = np.zeros((len(theta),3,3,3,3,3,3))
-            for th in range(len(theta)):
+            A3Trotated = np.zeros((Y[X].Ntheta,3,3,3,3,3,3))
+            for th in range(Y[X].Ntheta):
                 rotm = rotmat[X][th]
                 A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
             ##########################
@@ -318,14 +325,14 @@ if __name__ == '__main__':
         if Ncores != 0:
             with open("drag_anis_{}.dat".format(X),"w") as Bfile:
                 Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
-                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
+                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
                     Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
             with open("drag_anis_T_{}.dat".format(X),"w") as Bfile:
-                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
+                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
                     for Ti in range(len(highT[X])):
                         Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
@@ -338,8 +345,8 @@ if __name__ == '__main__':
                 for bi in range(len(beta)):
                     Bedgefile.write('\t'.join(map("{:.6f}".format,Bmix[bi,-1])) + '\n')
     
-            for th in range(len(theta[1:-1])):
-                with open("drag_anis_T_mix{0:.6f}_{1}.dat".format(theta[th+1],X),"w") as Bmixfile:
+            for th in range(len(Y[X].theta[1:-1])):
+                with open("drag_anis_T_mix{0:.6f}_{1}.dat".format(Y[X].theta[th+1],X),"w") as Bmixfile:
                     for bi in range(len(beta)):
                         Bmixfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,th+1])) + '\n')
 
@@ -384,7 +391,7 @@ if __name__ == '__main__':
         for X in data.tetr_metals.intersection(metal):
             vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
             vcrit_edge[X] = Y[X].computevcrit_edge() # for Sn equals vcrit_screw[X]
-    if use_metaldata and (use_iso or use_exp_Lame):
+    if use_metaldata:
         for X in metal:
             if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
                 vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes
@@ -409,7 +416,7 @@ if __name__ == '__main__':
             if Y[X].vcrit_edge is None: Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
         ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
         scrindm0 = int((len(velm0[X])-1)/2)
-        if abs(theta[scrindm0]) < 1e-12:
+        if abs(Y[X].theta[scrindm0]) < 1e-12:
             Y[X].sound_screw = Y[X].computesound(velm0[X][scrindm0])
         else:
             Y[X].sound_screw = Y[X].computesound(velm0[X][0])
@@ -556,8 +563,6 @@ if __name__ == '__main__':
     for X in metal:
         scale_plot = max(scale_plot,int(Y[X].T/30)/10)
         Bmax_fit = int(20*Y[X].T/300)/100 ## only fit up to Bmax_fit [mPas]
-        if X in bcc_metals and (np.all(theta[X]>=0) or np.all(theta[X]<=0)):
-            print("warning: missing data for a range of dislocation character angles of bcc {}, average will be inaccurate!".format(X))
         if theta[X][0]==0.:
             scrind[X] = 0
         else:
