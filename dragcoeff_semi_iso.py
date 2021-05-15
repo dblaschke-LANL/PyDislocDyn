@@ -542,7 +542,9 @@ if __name__ == '__main__':
         plt.close()
     
     ## define line colors for every metal in the same plot
-    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'darkgreen', 'Nb':'firebrick', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
+    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe110':'darkgreen', 'Nb110':'firebrick', 'Znbasal':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cdbasal':'lightgreen', 'Mgbasal':'lightsalmon', 'Mo110':'magenta', 'Ni':'silver', 'Tibasal':'olive', 'Zrbasal':'cyan'}
+    metalcolors.update({'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred'})
+    metalcolors.update({'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki', 'Mgprismatic':'deepskyblue', 'Mgpyramidal':'royalblue', 'Tiprismatic':'orange', 'Tipyramidal':'yellow', 'Znprismatic':'gray', 'Znpyramidal':'slateblue', 'Zrprismatic':'darkcyan', 'Zrpyramidal':'darkturquoise'})
         
     ## define fitting fct.:
     def fit_mix(x, c0, c1, c2, c4):

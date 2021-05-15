@@ -1,10 +1,13 @@
 # PyDislocDyn
 
-PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with simple crystal symmetries in the continuum limit. In particular, one of its main purposes is to calculate dislocation drag from phonon wind. Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field and the calculation of dislocation self-energy and line tension.
+PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with simple crystal symmetries in the continuum limit.
+In particular, one of its main purposes is to calculate dislocation drag from phonon wind.
+Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field including its limiting velocities, and the calculation of dislocation self-energy and line tension.
+</br>
 This code was first used for the computations leading to [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) and [Materials 12 (2019) 948](https://doi.org/10.3390/ma12060948) ([arxiv.org/abs/1902.02451](https://arxiv.org/abs/1902.02451)),
 as well as Sec. 3 of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j.ijplas.2020.102750) ([arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851)),
 some of the figures in [J. Mech. Phys. Solids 152 (2021) 104448](https://dx.doi.org/10.1016/j.jmps.2021.104448) ([arxiv.org/abs/2009.00167](https://arxiv.org/abs/2009.00167)),
-and Sec. 3 of [arxiv.org/abs/2104.08650](https://arxiv.org/abs/2104.08650).
+and Secs. 3 of both [arxiv.org/abs/2101.10497](https://arxiv.org/abs/2101.10497) and [arxiv.org/abs/2104.08650](https://arxiv.org/abs/2104.08650).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
 ## Author
@@ -29,7 +32,7 @@ Python >=3.5,</br>
 [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
 [scipy](https://docs.scipy.org/doc/scipy/reference/),</br>
 [sympy](https://www.sympy.org) >=1.5,</br>
-[matplotlib](https://matplotlib.org/) >=2.0</br>
+[matplotlib](https://matplotlib.org/) >=3.0</br>
 
 ### Optional:
 
