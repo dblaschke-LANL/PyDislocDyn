@@ -1,14 +1,14 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 10, 2021
+# Date: Nov. 3, 2017 - May 14, 2021
 #################################
 import sys
 import os
 import numpy as np
 import sympy as sp
 import scipy
-from scipy.optimize import fmin, fsolve
+from scipy import optimize
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -165,10 +165,11 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
                 def f(x):
                     out = fphi(x)
                     return np.real(out)
-                bt2_res[i,0] = fmin(f,0.01,disp=False)
+                with np.errstate(invalid='ignore'):
+                    bt2_res[i,0] = optimize.minimize_scalar(f,method='bounded',bounds=(0.0,2*np.pi)).x
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
-            mask = np.round(np.imag(bt2_res[:,1]),12)==0 ## only keep real solutions
-            return np.array([np.sqrt(norm*np.real(bt2_res[:,1][mask])),np.real(bt2_res[:,0][mask])])
+                if abs(np.imag(bt2_res[i,1]))>1e-6: bt2_res[i,:]=bt2_res[i,:]*float('nan') ## only keep real solutions
+            return np.array([np.sqrt(norm*np.real(bt2_res[:,1])),np.real(bt2_res[:,0])])
         if Ncores == 1:
             for thi in range(Ntheta):
                 vcrit[:,thi] = findmin(bt2_curr[thi],substitutions,phi,(self.C2[3,3]/self.rho))
@@ -234,7 +235,7 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         return self.vcrit_screw
     
     def computevcrit_edge(self):
-        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise. (TODO: generalize Teutonico's result)'''
+        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.'''
         if self.C2_aligned is None:
             self.alignC2()
         edgind = int(np.where(np.abs(self.theta-np.pi/2)<1e-12)[0])
@@ -269,7 +270,7 @@ class Dislocation(dlc.StrohGeometry,metal_props):
                 def f(x):
                     return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
                 with np.errstate(invalid='ignore'):
-                    rv2limit = fsolve(f,1e5)
+                    rv2limit = optimize.fsolve(f,1e5)
                     if f(rv2limit) < 1e-12: ## check if fsolve was successful
                         self.vcrit_edge = np.sqrt(float(rv2limit)/self.rho)
         return self.vcrit_edge
@@ -639,7 +640,12 @@ if __name__ == '__main__':
         if Y[X].sym=='iso': print("skipping isotropic {}, vcrit=ct".format(X))
         else:
             Y[X].computevcrit_stroh(Ntheta2,symmetric=current_symm,cache=bt2_cache)
-            vcrit[X]=Y[X].vcrit
+            vcrit[X]=np.empty(Y[X].vcrit.shape)
+            for th in range(vcrit[X].shape[1]):
+                tmplist=[]
+                for i in range(3):
+                    tmplist.append(tuple(Y[X].vcrit[:,th,i]))
+                vcrit[X][:,th,:] = np.array(sorted(tmplist)).T
         
     for X in metal:
         for i in range(len(b_pre)):
@@ -673,24 +679,20 @@ if __name__ == '__main__':
         else:
             plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
             thetapoints = np.linspace(-np.pi/2,np.pi/2,2*Ntheta-1)
-        ax1.axis((min(thetapoints),max(thetapoints),np.min(vcrit0)*0.97,np.max(vcrit0)*1.02)) ## define plot range
+        ax1.axis((min(thetapoints),max(thetapoints),np.nanmin(vcrit0)*0.97,np.nanmax(vcrit0)*1.02)) ## define plot range
         ax1.xaxis.set_minor_locator(AutoMinorLocator())
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
         ax1.set_ylabel(r'$v_\mathrm{c}$[m/s]',fontsize=fntsize)
         ax1.set_title("3 vcrit solutions for {}".format(X),fontsize=fntsize)
         plt.setp(ax1.get_xticklabels(), visible=False)
-        if np.all(np.round(np.max(vcrit0,axis=1),6)==round(np.max(vcrit0,axis=1)[0],6)) and np.all(np.round(np.min(vcrit0,axis=1),6)==round(np.min(vcrit0,axis=1)[0],6)):
-            vcrit0 = np.sort(vcrit0)
         for i in range(3):
             ax1.plot(thetapoints,vcrit0[:,i])
         ##
-        ax2.axis((min(thetapoints),max(thetapoints),np.min(vcrit1)*0.97,np.max(vcrit1)*1.02)) ## define plot range
+        ax2.axis((min(thetapoints),max(thetapoints),np.nanmin(vcrit1)*0.97,np.nanmax(vcrit1)*1.02)) ## define plot range
         ax2.xaxis.set_minor_locator(AutoMinorLocator())
         ax2.yaxis.set_minor_locator(AutoMinorLocator())
         ax2.set_xlabel(r'$\vartheta$',fontsize=fntsize)
         ax2.set_ylabel(r'$\phi(v_\mathrm{c})/\pi$',fontsize=fntsize)
-        if np.all(np.round(np.max(vcrit1,axis=1),6)==round(np.max(vcrit1,axis=1)[0],6)) and np.all(np.round(np.min(vcrit1,axis=1),6)==round(np.min(vcrit1,axis=1)[0],6)):
-            vcrit1 = np.sort(vcrit1)
         for i in range(3):
             ax2.plot(thetapoints,vcrit1[:,i])
         plt.savefig("vcrit_{}.pdf".format(X),format='pdf',bbox_inches='tight')
