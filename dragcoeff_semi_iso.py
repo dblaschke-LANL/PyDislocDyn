@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 11, 2021
+# Date: Nov. 5, 2017 - May 18, 2021
 #################################
 import sys
 import os
@@ -364,10 +364,14 @@ if __name__ == '__main__':
             vcrit_smallest[X] = min(np.sqrt(Y[X].c44/Y[X].mu),np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu)))
     ## above is correct for fcc, bcc (except 123 planes) and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
     ## numerically determined values at T=300K for metals in metal_data.py (rounded):
-    if use_metaldata and not use_iso and use_exp_Lame:
-        vcrit_smallest['Sn'] = 0.818
-        vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
-        vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
+    if use_metaldata and not use_iso:
+        if use_exp_Lame:
+            vcrit_smallest['Sn'] = 0.818
+            vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
+            vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
+        else:
+            for X in set(metal).intersection({'Sn','Znbasal','Fe123'}):
+                Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
     if use_metaldata:
         ## use exact analytic results where we have them:
         for X in data.fcc_metals.intersection(metal):
@@ -397,10 +401,13 @@ if __name__ == '__main__':
                 vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes
             if X not in vcrit_edge.keys():
                 vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above
-    if use_metaldata and not use_iso and use_exp_Lame:
-        if hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all':
+    if use_metaldata and not use_iso:
+        if use_exp_Lame and (hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all'):
             vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.948
             vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.724
+        else:
+            for X in set(metal).intersection({'Cdprismatic','Cdpyramidal','Znprismatic','Znpyramidal'}):
+                Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
     
     ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:
@@ -422,14 +429,9 @@ if __name__ == '__main__':
             Y[X].sound_screw = Y[X].computesound(velm0[X][0])
         Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
         if not use_metaldata and Y[X].vcrit_smallest is None:
-            print("estimating missing smallest critical velocity for {} (this may be inaccurate)".format(X))
-            if computevcrit_for_speed is not None and computevcrit_for_speed>0:
-                smallvcrit = np.min(Y[X].vcrit[0])/Y[X].ct
-                if vcrit_smallest[X] < 0.9*smallvcrit and computevcrit_for_speed>10:
-                    vcrit_smallest[X] = smallvcrit
-                else:
-                    vcrit_smallest[X] = min(vcrit_smallest[X],smallvcrit)
-            vcrit_smallest[X] = min(vcrit_smallest[X],np.min(Y[X].sound_screw)/Y[X].ct,np.min(Y[X].sound_edge)/Y[X].ct)
+            print("computing missing smallest critical velocity for {} ...".format(X))
+            Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
+            vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
         ## need vcrit in ratio to ct:
         if Y[X].vcrit_smallest != None:
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct

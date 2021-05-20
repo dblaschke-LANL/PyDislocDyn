@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 14, 2021
+# Date: Nov. 3, 2017 - May 18, 2021
 #################################
 import sys
 import os
@@ -166,9 +166,11 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
                     out = fphi(x)
                     return np.real(out)
                 with np.errstate(invalid='ignore'):
-                    bt2_res[i,0] = optimize.minimize_scalar(f,method='bounded',bounds=(0.0,2*np.pi)).x
+                    minresult = optimize.minimize_scalar(f,method='bounded',bounds=(0.0,2*np.pi))
+                    if minresult.success is not True: print("Warning:\n",minresult)
+                    bt2_res[i,0] = minresult.x
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
-                if abs(np.imag(bt2_res[i,1]))>1e-6: bt2_res[i,:]=bt2_res[i,:]*float('nan') ## only keep real solutions
+                if abs(np.imag(bt2_res[i,1]))>1e-6 or not minresult.success: bt2_res[i,:]=bt2_res[i,:]*float('nan') ## only keep real solutions from successful minimizations
             return np.array([np.sqrt(norm*np.real(bt2_res[:,1])),np.real(bt2_res[:,0])])
         if Ncores == 1:
             for thi in range(Ntheta):
@@ -281,10 +283,9 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         if theta is None:
             theta=self.theta
         indices = self.findedgescrewindices(theta)
-        self.computevcrit_edge()
         self.vcrit_all = np.empty((2,len(theta)))
         self.vcrit_all[0] = theta
-        self.vcrit_all[1] = np.min(self.computevcrit_stroh(len(theta),cache=cache,theta_list=np.asarray(theta)*2/np.pi,Ncores=Ncores),axis=1)
+        self.vcrit_all[1] = np.nanmin(self.computevcrit_stroh(len(theta),cache=cache,theta_list=np.asarray(theta)*2/np.pi,Ncores=Ncores),axis=1)
         if indices[0] is not None:
             self.computevcrit_screw()
             if self.vcrit_screw is not None:
@@ -296,6 +297,24 @@ class Dislocation(dlc.StrohGeometry,metal_props):
                 if len(indices) == 3:
                     self.vcrit_all[1,indices[2]] = self.vcrit_edge
         return self.vcrit_all[1]
+    
+    def findvcrit_smallest(self,cache=False,Ncores=Kcores,xatol=1e-2):
+        '''Computes the smallest critical velocity, which subsequently is stored as attribute .vcrit_smallest and the full result of scipy.minimize_scalar is returned
+           (as type 'OptimizeResult' with its 'fun' being vcrit_smallest and 'x' the associated character angle theta).
+           The absolute tolerance for theta can be passed via xatol; in order to improve accuracy and speed of this routine, we make use of computevcrit with Ntheta>=11 resolution
+           in order to be able to pass tighter bounds to the subsequent call to minimize_scalar(). If .vcrit_all already exists in sufficient resolution from an earlier call, 
+           this step is skipped and options 'cache' and 'Ncores'' are not needed.'''
+        resolution = max(11,2*int(Ncores/2)-1)
+        if self.vcrit_all is None or self.vcrit_all.shape[1]<11:
+            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],resolution),cache=cache,Ncores=Ncores)
+        vcrit_smallest = np.nanmin(self.vcrit_all[1])
+        thind = np.where(self.vcrit_all[1]==vcrit_smallest)[0][0] ## find index of theta so that we may pass tighter bounds to minimize_scalar below for more accurate (and faster) results
+        bounds=(max(-np.pi/2,self.vcrit_all[0][max(0,thind-1)]),min(np.pi/2,self.vcrit_all[0][min(thind+1,len(self.vcrit_all[0])-1)]))
+        def f(x):
+            return np.min(self.computevcrit_stroh(1,theta_list=[x*2/np.pi])) ## cannot use cache because 1) we keep calculating for different theta values and 2) cache only checks length of theta but not actual values (so not useful for other materials either)
+        result = optimize.minimize_scalar(f,method='bounded',bounds=bounds,options={'xatol':xatol})
+        if result.success: self.vcrit_smallest = result.fun
+        return result
         
     def __repr__(self):
         return  metal_props.__repr__(self) + "\n" + dlc.StrohGeometry.__repr__(self)
@@ -451,7 +470,7 @@ if __name__ == '__main__':
             vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.766
         if bccslip=='123' or bccslip=='all':
             vcrit_smallest['Fe123'] = 0.616
-            vcrit_smallest['K123'] = 0.393
+            vcrit_smallest['K123'] = 0.392
             vcrit_smallest['Ta123'] = 0.807
     for X in metal:
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
@@ -620,6 +639,15 @@ if __name__ == '__main__':
         sys.exit()
     
     print("Computing critical velocities for: ",metal)
+    for X in metal:
+        writeedge=False
+        writescrew=False
+        if Y[X].vcrit_screw is None:
+            writescrew=True ## remember for later
+            Y[X].computevcrit_screw()
+        if Y[X].vcrit_edge is None:
+            writeedge=True
+            Y[X].computevcrit_edge()
     
     ### setup predefined slip-geometries for symbolic calculations:
     b_pre = [np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3)]
@@ -635,11 +663,22 @@ if __name__ == '__main__':
     for X in metal:
         if X in metal_symm:
             current_symm=True
+            Y[X].vcrit_all = np.empty((2,Ntheta2))
+            Y[X].vcrit_all[0] = np.linspace(0,np.pi/2,Ntheta2)
+            scrind=0
         else:
             current_symm=False
+            Y[X].vcrit_all = np.empty((2,2*Ntheta2-1))
+            Y[X].vcrit_all[0] = np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1)
+            scrind = Ntheta2-1
         if Y[X].sym=='iso': print("skipping isotropic {}, vcrit=ct".format(X))
         else:
             Y[X].computevcrit_stroh(Ntheta2,symmetric=current_symm,cache=bt2_cache)
+            Y[X].vcrit_all[1] = np.nanmin(Y[X].vcrit[0],axis=1)
+            if Y[X].vcrit_screw is not None: Y[X].vcrit_all[1][scrind]=Y[X].vcrit_screw
+            if Y[X].vcrit_edge is not None:
+                Y[X].vcrit_all[1][-1]=Y[X].vcrit_edge
+                if scrind != 0: Y[X].vcrit_all[1][0]=Y[X].vcrit_edge
             vcrit[X]=np.empty(Y[X].vcrit.shape)
             for th in range(vcrit[X].shape[1]):
                 tmplist=[]
@@ -698,23 +737,16 @@ if __name__ == '__main__':
         plt.savefig("vcrit_{}.pdf".format(X),format='pdf',bbox_inches='tight')
         plt.close()
     
-    vcrit_smallest_new = {}
     for X in sorted(list(set(metal).intersection(vcrit.keys()))):
         mkvcritplot(X,vcrit[X],Ntheta2)
-        ## (re-)compute smallest critical velocities: needs high resolution in Ntheta2 to be accurate
-        vcrit_smallest_new[X] = np.min(vcrit[X][0]) ## in m/s suitable for input files
         if write_vcrit and not use_metaldata:
             with open(Y[X].filename,"a") as outf:
-                if len(vcrit[X][0])>Ntheta2:
-                    scrind = Ntheta2-1
-                else:
-                    scrind=0
                 if Y[X].vcrit_smallest is None:
-                    print("writing vcrit_smallest to {}; WARNING: will be inaccurate unless Ntheta2 is large enough!".format(X))
-                    outf.write("vcrit_smallest = {:.0f}\n".format(vcrit_smallest_new[X]))
-                if Y[X].vcrit_edge is None:
+                    print("computing and writing vcrit_smallest to {} ...".format(X))
+                    Y[X].findvcrit_smallest()
+                    outf.write("vcrit_smallest = {:.0f}\n".format(Y[X].vcrit_smallest))
+                if writeedge:
                     print("writing vcrit_edge to {}".format(X))
-                    Y[X].computevcrit_edge()
                     if Y[X].vcrit_edge is None: ## the case if the slip plane is not a reflection plane
                         # print("not a reflection plane / not implemented")
                         if scrind>0:
@@ -723,13 +755,11 @@ if __name__ == '__main__':
                             outf.write("vcrit_edge = {:.0f}\n".format(np.min(vcrit[X][0][-1])))
                     else:
                         outf.write("vcrit_edge = {:.0f}\n".format(Y[X].vcrit_edge))
-                if Y[X].vcrit_screw is None:
+                if writescrew:
                     print("writing vcrit_screw to {}".format(X))
-                    Y[X].computevcrit_screw()
                     if Y[X].vcrit_screw is None: ## the case if the slip plane is not a reflection plane
                         # print("not a reflection plane")
                         outf.write("vcrit_screw = {:.0f}\n".format(np.min(vcrit[X][0][scrind])))
                     else:
                         outf.write("vcrit_screw = {:.0f}\n".format(Y[X].vcrit_screw))
-        # vcrit_smallest_new[X] = np.min(vcrit[X][0])*np.sqrt(Y[X].rho/Y[X].c44) ## scaled by c44 (for input from metal_data, this is what was hard coded above for speed)
         
