@@ -1,13 +1,12 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 18, 2021
+# Date: Nov. 3, 2017 - June 15, 2021
 #################################
 import sys
 import os
 import numpy as np
 import sympy as sp
-import scipy
 from scipy import optimize
 ##################
 import matplotlib as mpl
@@ -313,7 +312,7 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         def f(x):
             return np.min(self.computevcrit_stroh(1,theta_list=[x*2/np.pi])) ## cannot use cache because 1) we keep calculating for different theta values and 2) cache only checks length of theta but not actual values (so not useful for other materials either)
         result = optimize.minimize_scalar(f,method='bounded',bounds=bounds,options={'xatol':xatol})
-        if result.success: self.vcrit_smallest = result.fun
+        if result.success: self.vcrit_smallest = min(result.fun,vcrit_smallest)
         return result
         
     def __repr__(self):
@@ -573,7 +572,7 @@ if __name__ == '__main__':
             plt.xlabel(r'$\beta_{\bar\mu}$',fontsize=fntsize)
             plt.title(namestring,fontsize=fntsize)
         plt.ylabel(r'$\vartheta$',rotation=0,fontsize=fntsize)
-        colmsh = plt.pcolormesh(x_msh,y_msh,LT_trunc,vmin=-0.5, vmax=2,cmap = plt.cm.rainbow)
+        colmsh = plt.pcolormesh(x_msh,y_msh, LT_trunc, vmin=-0.5, vmax=2, cmap = plt.cm.rainbow, shading='gouraud')
         plt.colorbar()
         plt.contour(x_msh,y_msh,LT_trunc, colors=('black','red','black','black','black','black'), levels=[-0.5,0,0.5,1,1.5,2], linewidths=[0.7,1.0,0.7,0.7,0.7,0.7], linestyles=['solid','solid','dashed','dashdot','dotted','solid'])
         colmsh.set_rasterized(True)
@@ -585,7 +584,7 @@ if __name__ == '__main__':
         mkLTplots(X)
     
     ### plot dislocation displacement gradient:
-    def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250):
+    def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,cmap = plt.cm.rainbow):
         '''Generates a plot of the requested component of the dislocation displacement gradient.
            Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
            Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is 
@@ -628,7 +627,7 @@ if __name__ == '__main__':
         else:
             raise ValueError("not implemented")
         plt.title(namestring,fontsize=fntsize)
-        colmsh = plt.pcolormesh(disloc.x_msh,disloc.y_msh,uijtoplot,vmin=-1, vmax=1,cmap = plt.cm.rainbow)
+        colmsh = plt.pcolormesh(disloc.x_msh, disloc.y_msh, uijtoplot, vmin=-1, vmax=1, cmap = cmap, shading='gouraud')
         colmsh.set_rasterized(True)
         plt.colorbar()
         plt.savefig(namestring,format='pdf',bbox_inches='tight')

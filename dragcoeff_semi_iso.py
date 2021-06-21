@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 18, 2021
+# Date: Nov. 5, 2017 - June 15, 2021
 #################################
 import sys
 import os
@@ -82,7 +82,7 @@ increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, bu
 beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature
 #####
 # in Fourier space:
-Nphi = 50
+Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
 Nphi1 = 50
 Nq1 = 400
 Nt = 321 # base value, grid is adaptive in Nt
@@ -508,11 +508,12 @@ if __name__ == '__main__':
         plt.yticks(np.arange(10)/10,fontsize=fntsize)
         cbarlevels = list(np.linspace(Bmin,Bmax,9))
         if xlab==True:
+            plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2,5*np.pi/8,3*np.pi/4,7*np.pi/8,np.pi],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$", r"$\frac{5\pi}{8}$", r"$\frac{3\pi}{4}$", r"$\frac{7\pi}{8}$", r"$\pi$"),fontsize=fntsize)
             plt.xlabel(r'$\vartheta$',fontsize=fntsize)
         if ylab==True:
             plt.ylabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
         plt.title(namestring,fontsize=fntsize)
-        colmsh=plt.pcolormesh(x_msh,y_msh,B_trunc,vmin=Bmin, vmax=Bmax,cmap = plt.cm.cubehelix_r)
+        colmsh=plt.pcolormesh(x_msh,y_msh,B_trunc,vmin=Bmin, vmax=Bmax,cmap = plt.cm.cubehelix_r,shading='gouraud')
         colmsh.set_rasterized(True)
         if colbar==True:
             cbar = plt.colorbar(fraction=clbar_frac,pad=clbar_pd, ticks=cbarlevels)
