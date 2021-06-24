@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 3, 2021
+# Date: Nov. 3, 2017 - June 24, 2021
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -121,8 +121,8 @@ class StrohGeometry(object):
             self.uij = self.uij['uij']
         
     def computeuij_acc(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
-        '''EXPERIMENTAL (VERY SLOW) IMPLEMENTATION OF AN ACCELERATING SCREW DISLOCATION (based on arxiv.org/abs/2009.00167).
-           For now, only pure screw is implemented for slip systems with the required symmetry properties, that is the slip plane must be a reflection plane.
+        '''Computes the displacement gradient of an accelerating screw dislocation (based on  J. Mech. Phys. Solids 152 (2021) 104448, resp. arxiv.org/abs/2009.00167).
+           For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
            In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
            Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
            C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
@@ -283,6 +283,46 @@ def heaviside(x):
     '''step function with convention heaviside(0)=1/2'''
     return (np.sign(x)+1)/2
 
+@jit(nopython=True)
+def accscrew_xintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
+    '''subroutine of computeuij_acc'''
+    Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
+    if eta_kw is None:
+        eta = np.sqrt(2*xpr/a)
+        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
+    else:
+        eta = eta_kw(xpr)
+        etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+    tau = t - eta
+    tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
+    
+    tau2 = t - etatilde
+    tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+    xintegrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
+    return xintegrand - stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
+
+@jit(nopython=True)
+def accscrew_yintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
+    '''subroutine of computeuij_acc'''
+    Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
+    if eta_kw is None:
+        eta = np.sqrt(2*xpr/a)
+        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
+    else:
+        eta = eta_kw(xpr)
+        etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+    tau = t - eta
+    tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
+    
+    tau2 = t - etatilde
+    tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+    yintegrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
+    return  yintegrand - stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
+
 # @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
 def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
@@ -317,40 +357,6 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
     quadepsabs=1.49e-04 ## absolute error tolerance; default: 1.49e-08
     quadepsrel=1.49e-04 ## relative error tolerance; default: 1.49e-08
     quadlimit=30 ## max no of subintervals; default: 50
-    def xintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
-        Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-        if eta_kw is None:
-            eta = np.sqrt(2*xpr/a)
-            etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
-        else:
-            eta = eta_kw(xpr)
-            etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
-        tau = t - eta
-        tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-        stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
-        
-        tau2 = t - etatilde
-        tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-        stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
-        xintegrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
-        return xintegrand - stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
-    def yintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
-        Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-        if eta_kw is None:
-            eta = np.sqrt(2*xpr/a)
-            etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
-        else:
-            eta = eta_kw(xpr)
-            etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
-        tau = t - eta
-        tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-        stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
-        
-        tau2 = t - etatilde
-        tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-        stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
-        yintegrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
-        return  yintegrand - stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
     ###
     tv = t*np.array([1-deltat/2,1+deltat/2])
     for ri in range(len(r)):
@@ -364,8 +370,8 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
             Y[ri,ph] = y
             if fastapprox != True: ## allow bypassing
                 for ti in range(2):
-                    uxz[ri,ph,ti] = quad(lambda xpr: xintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
-                    uyz[ri,ph,ti] = quad(lambda xpr: yintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uxz[ri,ph,ti] = quad(lambda xpr: accscrew_xintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = quad(lambda xpr: accscrew_yintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
     ## add static part and include burgers vector:
     if eta_kw is None:
         eta = np.sign(X)*np.sqrt(2*np.abs(X)/a)
