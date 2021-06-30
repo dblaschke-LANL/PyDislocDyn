@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 15, 2021
+# Date: Nov. 3, 2017 - June 30, 2021
 #################################
 import sys
 import os
@@ -112,12 +112,12 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
     else:
         raise ValueError("sym={} not implemented".format(self.sym))
     if symmetric or Ntheta==1:
-        Theta = (sp.pi/2)*np.linspace(0,1,Ntheta)
+        Theta = np.multiply((sp.pi/2),np.linspace(0,1,Ntheta))
     else:
         Theta = (sp.pi/2)*np.linspace(-1,1,2*Ntheta-1)
         Ntheta=len(Theta)
     if theta_list is not None:
-        Theta = (sp.pi/2)*np.asarray(theta_list)
+        Theta = np.multiply((sp.pi/2),np.asarray(theta_list))
         Ntheta = len(Theta)
     def compute_bt2(N,m0,C2,bt2,cc44=cc44):
         NC2N = np.dot(N,np.dot(N,C2))
@@ -284,7 +284,11 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         indices = self.findedgescrewindices(theta)
         self.vcrit_all = np.empty((2,len(theta)))
         self.vcrit_all[0] = theta
-        self.vcrit_all[1] = np.nanmin(self.computevcrit_stroh(len(theta),cache=cache,theta_list=np.asarray(theta)*2/np.pi,Ncores=Ncores),axis=1)
+        if self.sym=='iso':
+            self.computevcrit_screw()
+            self.vcrit_all[1] = self.vcrit_screw
+        else:
+            self.vcrit_all[1] = np.nanmin(self.computevcrit_stroh(len(theta),cache=cache,theta_list=np.asarray(theta)*2/np.pi,Ncores=Ncores),axis=1)
         if indices[0] is not None:
             self.computevcrit_screw()
             if self.vcrit_screw is not None:
@@ -311,8 +315,10 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         bounds=(max(-np.pi/2,self.vcrit_all[0][max(0,thind-1)]),min(np.pi/2,self.vcrit_all[0][min(thind+1,len(self.vcrit_all[0])-1)]))
         def f(x):
             return np.min(self.computevcrit_stroh(1,theta_list=[x*2/np.pi])) ## cannot use cache because 1) we keep calculating for different theta values and 2) cache only checks length of theta but not actual values (so not useful for other materials either)
-        result = optimize.minimize_scalar(f,method='bounded',bounds=bounds,options={'xatol':xatol})
-        if result.success: self.vcrit_smallest = min(result.fun,vcrit_smallest)
+        if self.sym=='iso': result = vcrit_smallest
+        else: result = optimize.minimize_scalar(f,method='bounded',bounds=bounds,options={'xatol':xatol})
+        if self.sym=='iso': self.vcrit_smallest = vcrit_smallest
+        elif result.success: self.vcrit_smallest = min(result.fun,vcrit_smallest)
         return result
         
     def __repr__(self):
