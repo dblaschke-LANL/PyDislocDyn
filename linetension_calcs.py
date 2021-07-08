@@ -1,13 +1,14 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 30, 2021
+# Date: Nov. 3, 2017 - July 2, 2021
 #################################
 import sys
 import os
 import numpy as np
 import sympy as sp
 from scipy import optimize
+from scipy import ndimage
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -31,18 +32,18 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, loadinputfile
-import dislocations as dlc
+from dislocations import StrohGeometry, ompthreads, elbrak1d
 try:
     from joblib import Parallel, delayed, cpu_count
     ## detect number of cpus present:
     Ncpus = cpu_count()
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
+    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
     # Ncores = -2
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
-Kcores = max(Ncores,int(min(Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
+Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
 
 ## choose which shear modulus to use for rescaling to dimensionless quantities
 ## allowed values are: 'crude', 'aver', and 'exp'
@@ -95,7 +96,9 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
     if self.sym=='tric':
         cc16, cc24, cc26, cc34, cc36, cc45, cc56 = sp.symbols('cc16, cc24, cc26, cc34, cc36, cc45, cc56', real=True)
         substitutions.update({cc16:self.C2[0,5]/1e9, cc24:self.C2[1,3]/1e9, cc26:self.C2[1,5]/1e9, cc34:self.C2[2,3]/1e9, cc36:self.C2[2,5]/1e9, cc45:self.C2[3,4]/1e9, cc56:self.C2[4,5]/1e9})
-    if self.sym=='iso' or self.sym=='fcc' or self.sym=='bcc':
+    if self.sym=='iso':
+        C2 = elasticC2(c12=cc12,c44=cc44)
+    elif self.sym=='fcc' or self.sym=='bcc':
         C2 = elasticC2(c11=cc11,c12=cc12,c44=cc44)
     elif self.sym=='hcp':
         C2 = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33)
@@ -127,7 +130,9 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
                 thedot = thedot.subs(a, round(a, 12))
         thematrix = NC2N - bt2*cc44*(thedot**2)*np.diag((1,1,1))
         thedet = sp.det(sp.Matrix(thematrix))
-        return sp.solve(thedet,bt2)
+        out = sp.solve(thedet,bt2)
+        if len(out)==2: out.append(np.nan) ## only happens in the isotropic limit
+        return out
     def computevcrit(b,n0,C2,Ntheta,bt2=bt2,Ncores=Ncores):
         Ncores = min(Ncores,Ncpus) # don't over-commit and don't fail if joblib not loaded
         t = np.zeros((Ntheta,3))
@@ -150,7 +155,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
                 for thi in range(Ntheta):
                     bt2_curr[thi] = compute_bt2(N[thi],m0[thi],C2,bt2)
             else:
-                bt2_curr = np.array(Parallel(n_jobs=Ncores)(delayed(compute_bt2)(N[thi],m0[thi],C2,bt2) for thi in range(Ntheta)))
+                bt2_curr = np.array(Parallel(n_jobs=Ncores)(delayed(compute_bt2)(N[thi],m0[thi],C2,bt2) for thi in range(Ntheta)),dtype=object)
         if foundcache is False and cache is not False and cache is not True:
             cache.append((self.b,self.n0,bt2_curr,self.sym)) ## received a cache, but it didn't contain what we need
         if cache is True:
@@ -159,7 +164,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
         def findmin(bt2_curr,substitutions=substitutions,phi=phi,norm=(self.C2[3,3]/self.rho)):
             bt2_res = np.zeros((3,2),dtype=complex)
             for i in range(len(bt2_curr)):
-                bt2_curr[i] = (bt2_curr[i].subs(substitutions))
+                bt2_curr[i] = (sp.S(bt2_curr[i]).subs(substitutions))
                 fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy"])
                 def f(x):
                     out = fphi(x)
@@ -182,7 +187,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
     return self.vcrit[0]
 metal_props.computevcrit_stroh=computevcrit_stroh
 
-class Dislocation(dlc.StrohGeometry,metal_props):
+class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, plus an additional method: computevcrit.
        If optional keyword Miller is set to True, b and n0 are interpreted as Miller indices (and Cartesian otherwise); note since n0 defines a plane its Miller indices are in reziprocal space.'''
     def __init__(self,b, n0, theta, Nphi,sym='iso', name='some_crystal',Miller=False):  
@@ -192,11 +197,12 @@ class Dislocation(dlc.StrohGeometry,metal_props):
             b = self.Miller_to_Cart(self.Millerb)
             self.Millern0 = n0
             n0 = self.Miller_to_Cart(self.Millern0,reziprocal=True)
-        dlc.StrohGeometry.__init__(self, b, n0, theta, Nphi)
+        StrohGeometry.__init__(self, b, n0, theta, Nphi)
         self.sym = sym
         self.Ntheta = len(theta)
         self.C2_aligned=None
         self.vcrit_all = None
+        self.Rayleigh = None
     
     def alignC2(self):
         '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
@@ -320,9 +326,41 @@ class Dislocation(dlc.StrohGeometry,metal_props):
         if self.sym=='iso': self.vcrit_smallest = vcrit_smallest
         elif result.success: self.vcrit_smallest = min(result.fun,vcrit_smallest)
         return result
+    
+    def findRayleigh(self):
+        '''Computes the Rayleigh wave speed for every dislocation character self.theta.'''
+        Rayleigh=np.zeros((self.Ntheta))
+        norm = self.C2[3,3] # use c44
+        C2norm = UnVoigt(self.C2/norm)
+        if self.vcrit_all is None: self.computevcrit() ## need it as an upper bound on the Rayleigh speed
+        if len(self.vcrit_all[1])==self.Ntheta: vcrit = self.vcrit_all[1]
+        else: vcrit = ndimage.interpolation.zoom(self.vcrit_all[1],self.Ntheta/len(self.vcrit_all[1]))
+        for th in range(self.Ntheta):
+            def Rayleighcond(B):
+                return abs((B[0,0]+B[1,1])/2-np.sqrt((B[0,0]-B[1,1])**2/4 + B[0,1]**2))
+            def findrayleigh(x):
+                tmpC = C2norm - self.Cv[:,:,:,:,th]*x**2
+                M=self.M[:,th].T
+                N=self.N[:,th].T                   
+                MM = elbrak1d(M,M,tmpC)
+                MN = elbrak1d(M,N,tmpC)
+                NM = elbrak1d(N,M,tmpC)
+                NN = elbrak1d(N,N,tmpC)
+                NNinv = np.linalg.inv(NN)
+                S = - NNinv @ NM
+                B = MM + MN @ S
+                return Rayleighcond(np.trapz(B,x=self.phi,axis=0)/(4*np.pi**2))
+            bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
+            result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
+            # if result.fun>=1e-3: print(bounds,"\n",result)  ## if this failed, try enlarging the search interval slightly above vcrit (there was some numerical uncertainty there too):
+            if result.success and result.fun>=1e-3: result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=(0.5*bounds[1],1.25*bounds[1]),options={'xatol':1e-12})
+            if result.fun>=1e-3 or not result.success: print(f"Failed: Rayleigh not found in [{bounds[0]},{1.25*bounds[1]}]\n",result)
+            if result.success and result.fun<1e-3: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
+        self.Rayleigh = Rayleigh
+        return Rayleigh
         
     def __repr__(self):
-        return  metal_props.__repr__(self) + "\n" + dlc.StrohGeometry.__repr__(self)
+        return  metal_props.__repr__(self) + "\n" + StrohGeometry.__repr__(self)
 
 def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True):
     '''Reads an inputfile like the one generated by writeinputfile() defined in metal_data.py (some of these data are only needed by other parts of PyDislocDyn),
@@ -358,12 +396,12 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True):
 
 ### start the calculations
 if __name__ == '__main__':
-    if Ncores > 1 and dlc.ompthreads == 0: # check if subroutines were compiled with OpenMP support
-        print("using joblib parallelization with ",Ncores," cores")
+    if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
+        print(f"using joblib parallelization with {Ncores} cores")
     elif Ncores > 1:
-        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads")
-    elif dlc.ompthreads > 0:
-        print("using OpenMP parallelization with ",dlc.ompthreads," threads")
+        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {ompthreads} threads")
+    elif ompthreads > 0:
+        print(f"using OpenMP parallelization with {ompthreads} threads")
     Y={}
     inputdata = {}
     metal_list = []
@@ -378,7 +416,7 @@ if __name__ == '__main__':
                 Y[X] = inputdata[i]
             use_metaldata=False
             metal = metal_list
-            print("success reading input files ",args)
+            print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to
             metal = sys.argv[1].split()
@@ -445,7 +483,7 @@ if __name__ == '__main__':
         if Y[X].mu==None:
             Y[X].compute_Lame()
 
-    print("Computing the line tension for: ",metal)
+    print(f"Computing the line tension for: {metal}")
 
     if Nbeta > 0:
         with open("theta.dat","w") as thetafile:
@@ -643,7 +681,7 @@ if __name__ == '__main__':
     if Ntheta2==0 or Ntheta2==None:
         sys.exit()
     
-    print("Computing critical velocities for: ",metal)
+    print(f"Computing critical velocities for: {metal}")
     for X in metal:
         writeedge=False
         writescrew=False
@@ -676,7 +714,7 @@ if __name__ == '__main__':
             Y[X].vcrit_all = np.empty((2,2*Ntheta2-1))
             Y[X].vcrit_all[0] = np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1)
             scrind = Ntheta2-1
-        if Y[X].sym=='iso': print("skipping isotropic {}, vcrit=ct".format(X))
+        if Y[X].sym=='iso': print(f"skipping isotropic {X}, vcrit=ct")
         else:
             Y[X].computevcrit_stroh(Ntheta2,symmetric=current_symm,cache=bt2_cache)
             Y[X].vcrit_all[1] = np.nanmin(Y[X].vcrit[0],axis=1)
@@ -747,24 +785,24 @@ if __name__ == '__main__':
         if write_vcrit and not use_metaldata:
             with open(Y[X].filename,"a") as outf:
                 if Y[X].vcrit_smallest is None:
-                    print("computing and writing vcrit_smallest to {} ...".format(X))
+                    print(f"computing and writing vcrit_smallest to {X} ...")
                     Y[X].findvcrit_smallest()
-                    outf.write("vcrit_smallest = {:.0f}\n".format(Y[X].vcrit_smallest))
+                    outf.write(f"vcrit_smallest = {Y[X].vcrit_smallest:.0f}\n")
                 if writeedge:
-                    print("writing vcrit_edge to {}".format(X))
+                    print(f"writing vcrit_edge to {X}")
                     if Y[X].vcrit_edge is None: ## the case if the slip plane is not a reflection plane
                         # print("not a reflection plane / not implemented")
                         if scrind>0:
-                            outf.write("vcrit_edge = {:.0f}\n".format(min(np.min(vcrit[X][0][0]),np.min(vcrit[X][0][-1]))))
+                            outf.write(f"vcrit_edge = {min(np.min(vcrit[X][0][0]),np.min(vcrit[X][0][-1])):.0f}\n")
                         else:
-                            outf.write("vcrit_edge = {:.0f}\n".format(np.min(vcrit[X][0][-1])))
+                            outf.write(f"vcrit_edge = {np.min(vcrit[X][0][-1]):.0f}\n")
                     else:
-                        outf.write("vcrit_edge = {:.0f}\n".format(Y[X].vcrit_edge))
+                        outf.write(f"vcrit_edge = {Y[X].vcrit_edge:.0f}\n")
                 if writescrew:
-                    print("writing vcrit_screw to {}".format(X))
+                    print(f"writing vcrit_screw to {X}")
                     if Y[X].vcrit_screw is None: ## the case if the slip plane is not a reflection plane
                         # print("not a reflection plane")
-                        outf.write("vcrit_screw = {:.0f}\n".format(np.min(vcrit[X][0][scrind])))
+                        outf.write(f"vcrit_screw = {np.min(vcrit[X][0][scrind]):.0f}\n")
                     else:
-                        outf.write("vcrit_screw = {:.0f}\n".format(Y[X].vcrit_screw))
+                        outf.write(f"vcrit_screw = {Y[X].vcrit_screw:.0f}\n")
         

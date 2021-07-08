@@ -5,9 +5,10 @@ In particular, one of its main purposes is to calculate dislocation drag from ph
 Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field including its limiting velocities, and the calculation of dislocation self-energy and line tension.
 </br>
 This code was first used for the computations leading to [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) and [Materials 12 (2019) 948](https://doi.org/10.3390/ma12060948) ([arxiv.org/abs/1902.02451](https://arxiv.org/abs/1902.02451)),
-as well as Sec. 3 of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j.ijplas.2020.102750) ([arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851)),
-some of the figures in [J. Mech. Phys. Solids 152 (2021) 104448](https://dx.doi.org/10.1016/j.jmps.2021.104448) ([arxiv.org/abs/2009.00167](https://arxiv.org/abs/2009.00167)),
-and Secs. 3 of both [Int. J. Plast. 144 (2021) 103030](https://doi.org/10.1016/j.ijplas.2021.103030) ([arxiv.org/abs/2101.10497](https://arxiv.org/abs/2101.10497)) and [J. Appl. Phys. 130 (2021) 015901](https://doi.org/10.1063/5.0054536) ([arxiv.org/abs/2104.08650](https://arxiv.org/abs/2104.08650)).
+as well as parts of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j.ijplas.2020.102750) ([arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851)),
+[J. Mech. Phys. Solids 152 (2021) 104448](https://dx.doi.org/10.1016/j.jmps.2021.104448) ([arxiv.org/abs/2009.00167](https://arxiv.org/abs/2009.00167)),
+[Int. J. Plast. 144 (2021) 103030](https://doi.org/10.1016/j.ijplas.2021.103030) ([arxiv.org/abs/2101.10497](https://arxiv.org/abs/2101.10497)), [J. Appl. Phys. 130 (2021) 015901](https://doi.org/10.1063/5.0054536) ([arxiv.org/abs/2104.08650](https://arxiv.org/abs/2104.08650)),
+and [arxiv.org/abs/2107.01220](https://arxiv.org/abs/2107.01220).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
 ## Author
@@ -27,8 +28,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Prerequisites
 
-<!--Python 3.6 or higher,</br>-->
-Python >=3.5,</br>
+Python >=3.6,</br>
 [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
 [scipy](https://docs.scipy.org/doc/scipy/reference/),</br>
 [sympy](https://www.sympy.org) >=1.5,</br>

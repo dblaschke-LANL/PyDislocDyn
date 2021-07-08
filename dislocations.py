@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 24, 2021
+# Date: Nov. 3, 2017 - June 26, 2021
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -242,6 +242,7 @@ if usefortran:
     def elbrak(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
         return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
+    elbrak1d=fsub.elbrak1d
 else:
     @jit
     def elbrak(A,B,elC):
@@ -259,6 +260,18 @@ else:
                             #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
                             np.add(AB[l,o,th] , np.multiply(np.multiply(A[k,th],elC[k,l,o,p,th],tmp),B[p,th],tmp) , AB[l,o,th])
         
+        return AB
+    @jit
+    def elbrak1d(A,B,elC):
+        '''Compute the bracket (A,B) := A.elC.B, similar to elbrak, but without character dependence'''
+        Nphi = len(A)
+        AB = np.zeros((Nphi,3,3))
+        for ph in range(Nphi):
+            for l in range(3):
+                for o in range(3):
+                    for k in range(3):
+                        for p in range(3):
+                            AB[ph,l,o] += A[ph,k]*elC[k,l,o,p]*B[ph,p]
         return AB
 
 @jit

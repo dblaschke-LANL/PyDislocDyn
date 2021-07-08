@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 7, 2021
+# Date: Nov. 7, 2017 - July 8, 2021
 #################################
 import sys
 from sympy.solvers import solve 
@@ -125,12 +125,7 @@ class IsoAverages(IsoInvariants):
         tmplam = solve(self.invI1-sp.factor(invI1(C2hat)),lam,dict=True)[0][lam]
         tmpeqn = sp.factor(hdenominator*(self.invI2-sp.factor(invI2(C2hat))).subs(lam,tmplam))
         tmpmu = np.array(solve(tmpeqn,mu),dtype=complex)
-        tmpmu = tmpmu[tmpmu>0]
-        if np.imag(tmpmu)/np.real(tmpmu)<1e-15 and len(tmpmu)==1:
-            tmpmu = np.real(tmpmu)[0]
-        else:
-            print("ERROR: found mu={}; unable to determine solution for mu! Setting to 0.".format(tmpmu))
-            tmpmu = 0
+        tmpmu = np.real(tmpmu[tmpmu>0])[0]
         tmplam = tmplam.subs(mu,tmpmu)
         out = {lam:tmplam, mu:tmpmu}
         
@@ -161,7 +156,7 @@ class metal_props:
         self.sym=sym
         self.name = name
         self.T=300
-        self.ac = self.cc = self.bc = 0 ## lattice constants
+        self.ac = self.cc = self.bc = None ## lattice constants
         self.alphac = None ## angle between bc and cc, etc.; only needed for low symmetries like triclinic (None = determined from sym)
         self.betac = None
         self.gammac = None
@@ -194,7 +189,7 @@ class metal_props:
         elif sym=='hcp':
             self.c66=self.c166=self.c366=self.c456=None
         elif sym=='fcc' or sym=='bcc'or sym=='iso':
-            self.cc=self.c13=self.c33=self.c66=None
+            self.c13=self.c33=self.c66=None
             self.c113=self.c133=self.c155=self.c222=self.c333=self.c344=self.c366=None
         if sym=='iso':
             self.c11=self.c111=self.c112=self.c166=None
@@ -266,7 +261,7 @@ class metal_props:
         else:
             self.bulk=self.lam + 2*self.mu/3
         self.init_sound()
-        if self.ac>0: self.init_qBZ()
+        if self.ac is not None and self.ac>0: self.init_qBZ()
         
     def computesound(self,v,Miller=False,reziprocal=False):
         '''Computes the sound speeds of the crystal propagating in the direction of unit vector v.'''
@@ -460,7 +455,7 @@ if __name__ == '__main__':
                 metal_list.append(X)
                 Y[X] = inputdata[i]
             metal_symm = metal = set([])
-            print("success reading input files ",args)
+            print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = sys.argv[1].split()
@@ -517,7 +512,7 @@ if __name__ == '__main__':
             metal_toec.append(X)
             if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
                 metal_toec_cubic.append(X)
-    print("Computing for: {0} (={1} metals)".format(metal,len(metal)))
+    print(f"Computing for: {metal} (={len(metal)} metals)")
 
     # results to be stored in the following dictionaries (for various metals)
     VoigtAverage = {}
@@ -526,7 +521,7 @@ if __name__ == '__main__':
     ImprovedAv = {}
     
     aver = IsoAverages(lam,mu,Murl,Murm,Murn) ### initialize isotropic quantities first
-    print("Computing Voigt and Reuss averages for SOEC of {0} metals and for TOEC of {1} metals ...".format(len(metal),len(metal_toec)))
+    print(f"Computing Voigt and Reuss averages for SOEC of {len(metal)} metals and for TOEC of {len(metal_toec)} metals ...")
     # do the calculations for various metals:
     C2 = {}
     C3 = {}
@@ -548,7 +543,7 @@ if __name__ == '__main__':
         ReussAverage[X] = aver.reuss_average(S2[X],S3[X])
         HillAverage[X] = aver.hill_average()
     
-    print("Computing improved averages for SOEC of {0} cubic metals and for TOEC of {1} cubic metals ...".format(len(metal_cubic),len(metal_toec_cubic)))
+    print(f"Computing improved averages for SOEC of {len(metal_cubic)} cubic metals and for TOEC of {len(metal_toec_cubic)} cubic metals ...")
     
     for X in metal_cubic:
         ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
