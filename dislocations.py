@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 26, 2021
+# Date: Nov. 3, 2017 - July 12, 2021
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -240,9 +240,13 @@ def ArrayDot(A,B):
 if usefortran:
     ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
     def elbrak(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
+        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
+           All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
         return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
-    elbrak1d=fsub.elbrak1d
+    def elbrak1d(A,B,elC):
+        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
+           This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
+        return fsub.elbrak1d(A,B,elC)
 else:
     @jit
     def elbrak(A,B,elC):
