@@ -2,7 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Dec. 5, 2020
+! Date: July 23, 2018 - Mar. 3, 2021
+
+subroutine version(versionnumber)
+  integer, intent(out) :: versionnumber
+  versionnumber=20210303
+end subroutine version
+
 subroutine ompinfo(nthreads)
 !$   Use omp_lib
 integer, intent(out) :: nthreads
@@ -236,6 +242,32 @@ SUBROUTINE trapz(f,x,n,intf)
   
   RETURN
 END SUBROUTINE trapz
+
+!!**********************************************************************
+
+SUBROUTINE dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: lenq1,lent,lenphi
+  REAL(KIND=sel), INTENT(IN) :: T, c1qBZ, c2qBZ
+  REAL(KIND=sel), INTENT(IN) :: q1(lenq1), q1h4(lenq1), prefac(lent,lenphi), OneMinBtqcosph1(lent,lenphi)
+  REAL(KIND=sel), INTENT(OUT), DIMENSION(lent,lenphi,lenq1) :: distri
+  INTEGER :: i
+  REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), hbar=1.0545718d-34, kB=1.38064852d-23, beta
+  
+  beta = hbar/(kB*T)
+  !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,phonon1,phonon2)
+  do i=1,lenq1
+    phonon1 = 1.d0/(exp(beta*c1qBZ*q1(i))-1.d0) 
+    phonon2 = 1.d0/(exp(beta*c2qBZ*q1(i)*OneMinBtqcosph1(:,:))-1.d0) 
+    distri(:,:,i) = prefac(:,:)*(phonon1 - phonon2(:,:))*q1h4(i)
+  end do
+  !$OMP END PARALLEL DO
+  
+  RETURN
+END SUBROUTINE dragcoeff_iso_phonondistri
 
 !!**********************************************************************
 

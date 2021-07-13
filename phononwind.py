@@ -12,6 +12,7 @@ except ImportError:
         return func
 try:
     import subroutines as fsub
+    assert(fsub.version()>=20210303),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
     usefortran = True
     ompthreads = fsub.ompinfo()
 except ImportError:
@@ -195,14 +196,17 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
         out = np.reshape(-result,(3,3,3,3,lent,lenph)) ## for mixed modes we need an additional minus because we write (delta-qq) above and where delta=0 we would actually need +qq
     return out
 
-@jit
-def dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi):
-    '''Subroutine of dragcoeff_iso().'''
-    distri = np.zeros((lenq1,lent,lenphi))
-    for i in range(lenq1):
-    ### we have q1^6 but from d^2 we have 1/q^2, so that is q1^4/qtilde^2, and multiplied by qtildexcosphi
-        distri[i] = prefac*(phonon(T,c1qBZ,q1[i]) - phonon(T,c2qBZ,q1[i]*OneMinBtqcosph1))*q1h4[i]
-    return distri
+if usefortran:
+    dragcoeff_iso_phonondistri = fsub.dragcoeff_iso_phonondistri
+else:
+    @jit
+    def dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi):
+        '''Subroutine of dragcoeff_iso().'''
+        distri = np.zeros((lenq1,lent,lenphi))
+        for i in range(lenq1):
+        ### we have q1^6 but from d^2 we have 1/q^2, so that is q1^4/qtilde^2, and multiplied by qtildexcosphi
+            distri[i] = prefac*(phonon(T,c1qBZ,q1[i]) - phonon(T,c2qBZ,q1[i]*OneMinBtqcosph1))*q1h4[i]
+        return distri
 
 ## r0cut implements a soft core cutoff following Alshits 1979, i.e. multiplying the dislocation field by (1-exp(r/r0)) which leads to 1/sqrt(1-q**2/r0**2) in Fourier space
 ## warning: only correct for an isotropic dislocation field, and note that shape of the cutoff is beta-dependent the way it is introduced (circle only at beta=0)! (TODO: generalize)
@@ -256,7 +260,6 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
         ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
         prefac = (1000*np.pi*hbar*qBZ*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5))*(np.outer(np.ones((lent)),csphi/(np.ones((lenphi))-(beta*csphi)**2))/qtilde)
         OneMinBtqcosph1 = np.outer(np.ones((lent)),np.ones((lenphi)))-beta*qtilde*np.outer(np.ones((lent)),csphi)
-    distri = np.empty((lenq1,lent,lenphi))
     if r0cut==None:
         distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)
     else:
@@ -265,6 +268,8 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
         else:
             cut =np.ones((lenq1,lent,lenphi)) + (qBZ*r0cut)**2*np.reshape(np.outer(q1**2,qtilde**2),(lenq1,lent,lenphi))
         distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)/(cut)
+    if usefortran:
+        distri = np.moveaxis(distri,2,0)
     
     ### if c1>c2, we need to further limit the integration range of q1 <= (c2/c1)/(1-beta1*qtilde*abs(cosphi)) (in addition to q1 <=1);
     ### we do this by applying a mask to set all according array elements to zero in 'distri' before we integrate
