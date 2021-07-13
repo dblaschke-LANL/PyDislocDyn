@@ -250,7 +250,8 @@ if usefortran:
 else:
     @jit
     def elbrak(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors'''
+        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
+           All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
         Ntheta = len(A[0,:,0])
         Nphi = len(A[0,0])
         tmp = np.zeros((Nphi))
@@ -267,7 +268,8 @@ else:
         return AB
     @jit
     def elbrak1d(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, similar to elbrak, but without character dependence'''
+        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
+           This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
         Nphi = len(A)
         AB = np.zeros((Nphi,3,3))
         for ph in range(Nphi):

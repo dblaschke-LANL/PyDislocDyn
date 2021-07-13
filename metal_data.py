@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 30, 2020
+# Date: Nov. 3, 2017 - July 12, 2021
 #################################
 import numpy as np
 
@@ -165,7 +165,7 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
             ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
             ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
-        outf.write("# temperature, latticeconstant(s), density, and thermal expansion coefficient:\nT = 300\na = {}\n".format(CRC_a[X]))
+        outf.write("# temperature, lattice constant(s), density, and thermal expansion coefficient:\nT = 300\na = {}\n".format(CRC_a[X]))
         if X in CRC_c.keys():
             outf.write("c = {}\n".format(CRC_c[X]))
         outf.write("rho = {}\n".format(CRC_rho[X]))
@@ -194,4 +194,4 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             outf.write("\n## optional - if omitted, averages will be used:\n")
             outf.write("lam = {:e}\n".format(ISO_c12[X]))
             outf.write("mu = {:e}\n".format(ISO_c44[X]))
-            
+        outf.write("\n\n")

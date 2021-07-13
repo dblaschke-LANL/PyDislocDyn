@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 2, 2021
+# Date: Nov. 3, 2017 - July 12, 2021
 #################################
 import sys
 import os
@@ -682,14 +682,16 @@ if __name__ == '__main__':
         sys.exit()
     
     print(f"Computing critical velocities for: {metal}")
+    writeedge={}
+    writescrew={}
     for X in metal:
-        writeedge=False
-        writescrew=False
+        writeedge[X]=False
+        writescrew[X]=False
         if Y[X].vcrit_screw is None:
-            writescrew=True ## remember for later
+            writescrew[X]=True ## remember for later
             Y[X].computevcrit_screw()
         if Y[X].vcrit_edge is None:
-            writeedge=True
+            writeedge[X]=True
             Y[X].computevcrit_edge()
     
     ### setup predefined slip-geometries for symbolic calculations:
@@ -784,24 +786,24 @@ if __name__ == '__main__':
         mkvcritplot(X,vcrit[X],Ntheta2)
         if write_vcrit and not use_metaldata:
             with open(Y[X].filename,"a") as outf:
+                if Y[X].vcrit_smallest is None or writeedge[X] or writescrew[X]:
+                    outf.write("## limiting velocities as computed by PyDislocDyn:\n")
                 if Y[X].vcrit_smallest is None:
                     print(f"computing and writing vcrit_smallest to {X} ...")
                     Y[X].findvcrit_smallest()
                     outf.write(f"vcrit_smallest = {Y[X].vcrit_smallest:.0f}\n")
-                if writeedge:
+                if writeedge[X]:
                     print(f"writing vcrit_edge to {X}")
                     if Y[X].vcrit_edge is None: ## the case if the slip plane is not a reflection plane
-                        # print("not a reflection plane / not implemented")
                         if scrind>0:
                             outf.write(f"vcrit_edge = {min(np.min(vcrit[X][0][0]),np.min(vcrit[X][0][-1])):.0f}\n")
                         else:
                             outf.write(f"vcrit_edge = {np.min(vcrit[X][0][-1]):.0f}\n")
                     else:
                         outf.write(f"vcrit_edge = {Y[X].vcrit_edge:.0f}\n")
-                if writescrew:
+                if writescrew[X]:
                     print(f"writing vcrit_screw to {X}")
                     if Y[X].vcrit_screw is None: ## the case if the slip plane is not a reflection plane
-                        # print("not a reflection plane")
                         outf.write(f"vcrit_screw = {np.min(vcrit[X][0][scrind]):.0f}\n")
                     else:
                         outf.write(f"vcrit_screw = {Y[X].vcrit_screw:.0f}\n")
