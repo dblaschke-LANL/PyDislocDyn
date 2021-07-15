@@ -1,7 +1,15 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 12, 2021
+# Date: Nov. 3, 2017 - July 15, 2021
+'''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
+   and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
+   dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
+   additional properties like limiting velocities of dislocations. We also define a function, readinputfile,
+   which reads a PyDislocDyn input file and returns an instance of the Dislocation class.
+   If run as a script, this file will compute the dislocation line tension and generate various plots.
+   The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
+   metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
 #################################
 import sys
 import os
@@ -529,6 +537,7 @@ if __name__ == '__main__':
         
     # wrap all main computations into a single function definition to be run in a parallelized loop below
     def maincomputations(i):
+        '''wrap all main computations into a single function definition to be run in a parallelized loop'''
         X = metal[i]
         with open("beta_{}.dat".format(X),"w") as betafile:
             betafile.write('\n'.join("{:.5f}".format(bti) for bti in beta_scaled[X]))
@@ -593,6 +602,7 @@ if __name__ == '__main__':
             skip_plt.append(X)
             
     def mkLTplots(X):
+        '''generates nice plots showing the dislocation line tension of metal X'''
         namestring = "{}".format(X)
         beta_trunc = [j for j in beta_plt[X] if j <=vcrit_smallest[X]]
         if X in metal_symm:
@@ -751,6 +761,7 @@ if __name__ == '__main__':
                 vcritfile.write("{}\t".format(X) + '\t'.join("{:.4f}".format(thi) for thi in np.flipud(vcrit[X][1,:,i]/np.pi)) + '\n')
                 
     def mkvcritplot(X,vcrit,Ntheta):
+        '''Generates a plot showing the velocities where det(nn)=0, which most of the time leads to divergences in the dislocation field.'''
         fig, (ax1,ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [2, 1]}, figsize=(5.5,6.0))
         plt.tight_layout(h_pad=0.0)
         plt.xticks(fontsize=fntsize)

@@ -1,7 +1,13 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - May 24, 2021
+# Date: Nov. 7, 2017 - July 15, 2021
+'''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
+   In particular, it contains the following functions:
+       elasticC2(), elasticC3(),
+       elasticS2(), elasticS3(),
+       Voigt(), UnVoigt(), CheckVoigt(),
+       and the class strain_poly.'''
 #################################
 import sympy as sp
 import numpy as np

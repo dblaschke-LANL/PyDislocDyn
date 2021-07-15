@@ -1,7 +1,10 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 2, 2021
+# Date: Nov. 5, 2017 - July 15, 2021
+'''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
+   it is not meant to be used as a module.
+   The script takes as (optional) arguments keywords for metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
 #################################
 import sys
 import numpy as np
@@ -182,8 +185,8 @@ if __name__ == '__main__':
     for X in metal:
         A3[X] = elasticA3(elasticC2(c12=c12[X], c44=c44[X]), elasticC3(l=cMl[X], m=cMm[X], n=cMn[X]))/c44[X]
     for X in metal:
-        # wrap all main computations into a single function definition to be run in a parallelized loop below
         def maincomputations(bt,X,modes=modes):
+            '''wrap all main computations into a single function definition to be run in a parallelized loop'''
             Bmix = np.zeros((len(theta),len(highT)))
                                     
             dij = fourieruij_iso(bt, ct_over_cl[X], theta, phi)
@@ -307,15 +310,19 @@ if __name__ == '__main__':
     if modes=='TT': ## degree of divergence is reduced for purely transverse modes
         print("fitting for transverse modes only (assuming reduced degrees of divergence)")
         def fit_edge(x, c0, c1, c2, c3, c4):
+            '''define a fitting function for edge dislocations'''
             return c0 - c1*x + c2*x**2 + c3*np.log(1-x**2) + c4*(1/np.sqrt(1-x**2) - 1)
             
         def fit_screw(x, c0, c1, c2, c3, c4):
+            '''define a fitting function for screw dislocations'''
             return c0 - c1*x + c2*x**2 + c3*x**4 + c4*x**16
     else:
         def fit_edge(x, c0, c1, c2, c3, c4):
+            '''define a fitting function for edge dislocations'''
             return c0 - c1*x + c2*np.log(1-x**2) + c3*(1/(1-x**2)**(1/2) - 1) + c4*(1/(1-x**2)**(3/2) - 1)
             
         def fit_screw(x, c0, c1, c2, c3, c4):
+            '''define a fitting function for screw dislocations'''
             return c0 - c1*x + c2*x**2 + c3*np.log(1-x**2) + c4*(1/np.sqrt(1-x**2) - 1)
     
     popt_edge = {}
@@ -349,6 +356,7 @@ if __name__ == '__main__':
             fitfile.write(" & "+"{:.0f}".format(ct[X]))
 
     def mkfitplot(metal_list,filename):
+        '''Plot the dislocation drag over velocity and show the fitting function.''' 
         fig, ax = plt.subplots(1, 1, figsize=(4.5,4.))
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)

@@ -1,7 +1,10 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 12, 2021
+# Date: Nov. 3, 2017 - July 15, 2021
+'''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
+   as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
+   which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
 #################################
 import numpy as np
 from scipy.integrate import cumtrapz, quad
@@ -13,6 +16,7 @@ except ImportError:
     nonumba=True
     from functools import partial
     def jit(func=None,forceobj=True,nopython=False):
+        '''define a dummy decorator if numba is unavailable at runtime'''
         if func is None:
             return partial(jit, forceobj=forceobj,nopython=nopython)
         return func

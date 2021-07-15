@@ -1,7 +1,11 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 15, 2021
+# Date: Nov. 5, 2017 - July 15, 2021
+'''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
+   it is not meant to be used as a module.
+   The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
+   metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
 #################################
 import sys
 import os
@@ -232,9 +236,9 @@ if __name__ == '__main__':
                 Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
         print("Done; proceeding ...")
-        
-    # wrap all main computations into a single function definition to be run in a parallelized loop below
+    
     def maincomputations(bt,X,modes=modes):
+        '''wrap all main computations into a single function definition to be run in a parallelized loop'''
         Bmix = np.zeros((Y[X].Ntheta,len(highT[X])))
         ### compute dislocation displacement gradient uij, then its Fourier transform dij:
         Y[X].computeuij(beta=bt)
@@ -467,6 +471,7 @@ if __name__ == '__main__':
     
     ## plot B(beta=0.01 ) against theta for every metal:
     def mksmallbetaplot(X,ylab=True,xlab=True,bt=0):
+        '''Plot the drag coefficient at low velocity over the character angle.'''
         beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
         B_trunc = (Broom[X][:len(beta_trunc),1:])
         ymax = max(0.01,(int(100*max(B_trunc[bt]))+1)/100)
@@ -491,6 +496,7 @@ if __name__ == '__main__':
     wrat1=1-clbar_frac-clbar_pd
     wspc=(clbar_frac+clbar_pd)*100/wrat1
     def mkmeshplot(X,ylab=True,xlab=True,colbar=True,Bmin=None,Bmax=None):
+        '''Plot the drag coefficient over the character angle and the dislocation velocity.'''
         beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
         B_trunc = (Broom[X][:len(beta_trunc),1:]).T
         y_msh , x_msh = np.meshgrid(beta_trunc,theta[X]) ## plots against theta and beta
@@ -548,9 +554,9 @@ if __name__ == '__main__':
     metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe110':'darkgreen', 'Nb110':'firebrick', 'Znbasal':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cdbasal':'lightgreen', 'Mgbasal':'lightsalmon', 'Mo110':'magenta', 'Ni':'silver', 'Tibasal':'olive', 'Zrbasal':'cyan'}
     metalcolors.update({'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred'})
     metalcolors.update({'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki', 'Mgprismatic':'deepskyblue', 'Mgpyramidal':'royalblue', 'Tiprismatic':'orange', 'Tipyramidal':'yellow', 'Znprismatic':'gray', 'Znpyramidal':'slateblue', 'Zrprismatic':'darkcyan', 'Zrpyramidal':'darkturquoise'})
-        
-    ## define fitting fct.:
+    
     def fit_mix(x, c0, c1, c2, c4):
+        '''define a fitting fct.'''
         return c0 - c1*x + c2*(1/(1-x**2)**(1/2) - 1) + c4*(1/(1-x**2)**(3/2) - 1)
 
     beta_edgecrit = {}
@@ -612,6 +618,7 @@ if __name__ == '__main__':
             fitfile.write(" & "+"{:.3f}".format(vcrit_smallest[X]))
         
     def mkfitplot(metal_list,filename,figtitle):
+        '''Plot the dislocation drag over velocity and show the fitting function.''' 
         if len(metal_list)<5:
             fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
             ncols=2
@@ -772,6 +779,7 @@ if __name__ == '__main__':
         return (B0,vcrit,sigma,B_of_sig)
         
     def plotall_B_of_sigma(character,ploteach=False):
+        '''plot dislocation drag over stress'''
         B_of_sig = {}
         sigma = {}
         B0 = {}

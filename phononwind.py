@@ -1,7 +1,12 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 24, 2021
+# Date: Nov. 5, 2017 - July 15, 2021
+'''This module implements the calculation of a dislocation drag coefficient from phonon wind.
+   Its only two front-end functions are :
+       elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
+       dragcoeff_iso ....... computes the drag coefficient assuming an isotropic phonon spectrum.
+   All other functions are subroutines of the latter.'''
 #################################
 import numpy as np
 try:
@@ -333,9 +338,6 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         return out
     
     def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=False, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
-        ### TODO: completely skip calculation of say points past the critical velocity for a certain angle (this info could be passed to dragcoeff_iso() by the main program based on result of previous velocity step, if doing a loop over beta) 
-        ### problem: we are parallelizing in beta, so don't necessarily know previous value ...
-        ### solution: prepare a 2-dim array with necessary information using either a low-res initial run, or something like linetension, self-energy (which is faster), (but the latter will miss cancellations changing exact location of divergences in B)
         if np.asarray(skip_theta).any()==None:
             dijtmp = dij
             A3tmp = A3

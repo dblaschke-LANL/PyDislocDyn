@@ -1,7 +1,14 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 8, 2021
+# Date: Nov. 7, 2017 - July 15, 2021
+'''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
+   Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
+   calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
+   returns an instance of the metal_props class.
+   If run as a script, this file will compute polycrystal averages of second and third order elastic constants, either for
+   all metals predefined in metal_data.py, or for those input files passed as arguments to the script; results are written
+   to a text file 'averaged_elastic_constants.txt'.'''
 #################################
 import sys
 from sympy.solvers import solve 
@@ -198,6 +205,7 @@ class metal_props:
         return  "{}".format({'name':self.name, 'sym':self.sym, 'T':self.T, 'ac':self.ac, 'bc':self.bc, 'cc':self.cc, 'Vc':self.Vc, 'rho':self.rho, 'ct':self.ct, 'cl':self.cl})
             
     def init_C2(self):
+        '''initializes the tensor of second order elastic constants'''
         self.C2=elasticC2(c11=self.c11,c12=self.c12,c13=self.c13,c33=self.c33,c44=self.c44,c66=self.c66,cij=self.cij,voigt=True)
         if self.cij is not None:
             self.c44 = self.C2[3,3] ## some legacy code expect these to be set
@@ -205,11 +213,13 @@ class metal_props:
             self.c12 = self.C2[0,1]
     
     def init_C3(self):
+        '''initializes the tensor of third order elastic constants'''
         self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,cijk=self.cijk,voigt=True)
         if self.cijk is not None:
             self.c123 = self.C3[0,1,2] ## some legacy code expect these to be set
     
     def compute_Lame(self, roundto=-8):
+        '''computes the Lame constants by averaging over the second order elastic constants'''
         aver = IsoAverages(lam,mu,0,0,0) # don't need Murnaghan constants
         C2 = UnVoigt(self.C2)
         if self.sym=='iso':
@@ -238,6 +248,8 @@ class metal_props:
         self.ct_over_cl = self.ct/self.cl
         
     def init_qBZ(self):
+        '''computes the radius of the first Brillouin zone for a sphere of equal volume as the unit cell
+           after determining the latter'''
         if self.sym=='iso' or self.sym=='fcc' or self.sym=='bcc':
             self.Vc = self.ac**3
         elif self.sym=='hcp':
@@ -253,6 +265,7 @@ class metal_props:
         self.qBZ = ((6*np.pi**2/self.Vc)**(1/3))
     
     def init_all(self):
+        '''call all other initializing functions for the data currently available'''
         self.init_C2()
         if self.c123!=0 or self.cijk is not None:
             self.init_C3()
