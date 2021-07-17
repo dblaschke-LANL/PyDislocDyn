@@ -1,12 +1,13 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 15, 2021
+# Date: Nov. 5, 2017 - July 16, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments keywords for metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
 #################################
 import sys
+import os
 import numpy as np
 from scipy.optimize import curve_fit, fmin, fsolve
 ##################
@@ -26,7 +27,6 @@ fntsize=11
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 ##################
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
@@ -106,7 +106,7 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 # C2 = {}
 # aver = pca.IsoAverages(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
 # for X in metal:
-#     C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])   
+#     C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])
 #     S2 = pca.elasticS2(C2[X])
 #     C3 = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])
 #     S3 = pca.elasticS3(S2,C3)
@@ -195,7 +195,7 @@ if __name__ == '__main__':
             for Ti in range(len(highT)-1):
                 T = highT[Ti+1]
                 expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
-                if constantrho == True:
+                if constantrho:
                     expansionratio = 1 ## turn off expansion
                 qBZT = qBZ[X]/expansionratio
                 burgersT = burgers[X]*expansionratio
@@ -350,13 +350,13 @@ if __name__ == '__main__':
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_screw[X]))
         fitfile.write("\nwhere $x=v/c_{\mathrm{t}$\n\n")
-        fitfile.write(" & "+" & ".join((metal))+" \\\\\hline\hline")
+        fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(" & "+"{:.0f}".format(ct[X]))
+            fitfile.write(f" & {ct[X]:.0f}")
 
     def mkfitplot(metal_list,filename):
-        '''Plot the dislocation drag over velocity and show the fitting function.''' 
+        '''Plot the dislocation drag over velocity and show the fitting function.'''
         fig, ax = plt.subplots(1, 1, figsize=(4.5,4.))
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
@@ -479,9 +479,9 @@ if __name__ == '__main__':
             ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
             ax.set_title(ftitle,fontsize=fntsize)
             ax.axis((0,sigma[-1]/1e6,0,B_of_sig[-1]*1e3))
-            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label="$\sqrt{B_0^2\!+\!\\left(\\frac{\sigma b}{c_\mathrm{t}}\\right)^2}$, $B_0=$"+"{:.1f}".format(1e6*B0)+"$\mu$Pas")
-            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label="$B_0+\\frac{\sigma b}{c_\mathrm{t}}$, $B_0=$"+"{:.1f}".format(1e6*Boffset)+"$\mu$Pas")
-            ax.plot(sigma/1e6,B_of_sig*1e3,label="$B_\mathrm{fit}(v(\sigma))$")
+            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label=r"$\sqrt{B_0^2\!+\!\left(\frac{\sigma b}{c_\mathrm{t}}\right)^2}$, $B_0=$"+f"{1e6*B0:.1f}"+r"$\mu$Pas")
+            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label=r"$B_0+\frac{\sigma b}{c_\mathrm{t}}$, $B_0=$"+f"{1e6*Boffset:.1f}"+r"$\mu$Pas")
+            ax.plot(sigma/1e6,B_of_sig*1e3,label=r"$B_\mathrm{fit}(v(\sigma))$")
             plt.xticks(fontsize=fntsize)
             plt.yticks(fontsize=fntsize)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
@@ -515,8 +515,8 @@ if __name__ == '__main__':
         for X in metal:
             Xc = X+character
             sig0 = ct[X]*B0[Xc]/burgers[X]
-            ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label="{}, $B_0={:.1f}\mu$Pas".format(X,1e6*B0[Xc]))
-        ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label="$\sqrt{1+\\left(\\frac{\sigma b}{c_\mathrm{t}B_0}\\right)^2}$")
+            ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0={1e6*B0[Xc]:.1f}\mu$Pas")
+        ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{c_\mathrm{t}B_0}\right)^2}$")
         # ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{c_\mathrm{t}B_0}$")
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)

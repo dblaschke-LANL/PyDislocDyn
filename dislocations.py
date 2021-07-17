@@ -35,7 +35,7 @@ delta = np.diag((1,1,1))
 
 def rotaround(v,s,c):
     '''Computes the rotation matrix with unit vector 'v' as the rotation axis and s,c are the sin/cos of the angle.'''
-    if type(v)==np.ndarray and v.dtype == np.dtype('O'):
+    if isinstance(v,np.ndarray) and v.dtype == np.dtype('O'):
         vx = np.zeros((3,3),dtype=object)
     else:
         vx = np.zeros((3,3))
@@ -48,9 +48,9 @@ def rotaround(v,s,c):
     out = delta +s*vx + np.dot(vx,vx)*(1-c)
     return out
 
-class StrohGeometry(object):
+class StrohGeometry:
     '''This class computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
-       Required input parameters are: the unit Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector, 
+       Required input parameters are: the unit Burgers vector b, the slip plane normal n0, an array theta parametrizing the angle between dislocation line and Burgers vector,
        and the resolution Nphi of angles to be integrated over.
        Its initial attributes are: the velocity dependent shift Cv (to be added or subtracted from the tensor of 2nd order elastic constants) and
        the vectors M(theta,phi) and N(theta,phi) parametrizing the plane normal to the dislocation line, as well as the dislocation line direction t and unit vector m0 normal to n0 and t.
@@ -87,6 +87,7 @@ class StrohGeometry(object):
                         self.Cv[i,j,k,l] = self.m0[:,i]*delta[j,k]*self.m0[:,l]
         
         self.beta = 0
+        self.C2_aligned=None
         self.C2norm = np.zeros((3,3,3,3)) # normalized
         self.sym = None ## keyword defining crystal symmetry, unknown until C2norm is set
         self.uij = np.zeros((3,3,Ntheta,Nphi))
@@ -114,7 +115,7 @@ class StrohGeometry(object):
             r = self.r
         else:
             self.r = r
-        if usefortran and (r is None) and nogradient==False and debug==False:
+        if usefortran and (r is None) and not nogradient and not debug:
             self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
         else:
             self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=nogradient, debug=debug)
@@ -319,7 +320,6 @@ def accscrew_xintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
-    
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
@@ -339,7 +339,6 @@ def accscrew_yintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
-    
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
@@ -391,7 +390,7 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
             R[ri,ph] = np.sqrt(x**2 - x*y*B/C + y**2/Ct)
             X[ri,ph] = x
             Y[ri,ph] = y
-            if fastapprox != True: ## allow bypassing
+            if not fastapprox: ## allow bypassing
                 for ti in range(2):
                     uxz[ri,ph,ti] = quad(lambda xpr: accscrew_xintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
                     uyz[ri,ph,ti] = quad(lambda xpr: accscrew_yintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
@@ -485,7 +484,7 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False
     Sb = (1/(4*pi*pi))*np.dot(b,np.trapz(S,x=phi))
     B = (1/(4*pi*pi))*np.dot(b,np.trapz(B,x=phi))
     
-    if nogradient==True:
+    if nogradient:
         if Nr==0:
             raise ValueError("I need an array for r in conjunction with nogradient=True.")
         r0 = r[0] ## cutoff
@@ -543,7 +542,7 @@ def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
     sinph = np.sin(phi)
     cosph = np.cos(phi)
     sinth = np.sin(theta)
-    if nogradient==True:
+    if nogradient:
         if Nr==0:
             raise ValueError("I need an array for r in conjunction with nogradient=True.")
         r0 = r[0] ## cutoff
@@ -590,8 +589,8 @@ def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
         ## screw parametrized by cos(theta)
         uij[2,0] = (-1/(2*pi))*np.outer(np.cos(theta),sinph*gamt/denomT)
         uij[2,1] = (1/(2*pi))*np.outer(np.cos(theta),cosph*gamt/denomT)
-    if Nr != 0 and nogradient!=True:
-            uij = np.moveaxis(np.reshape(np.outer(1/r,uij),(Nr,3,3,Ntheta,Nphi)),0,-2)
+    if Nr != 0 and not nogradient:
+        uij = np.moveaxis(np.reshape(np.outer(1/r,uij),(Nr,3,3,Ntheta,Nphi)),0,-2)
     return uij
 
 #### Fourier transform of uij, isotropic case
@@ -640,7 +639,7 @@ def fourieruij_sincos(r,phiX,q,ph):
         out[iq] = (np.cos(q[iq]*r[0]*cosphimph)-np.cos(q[iq]*r[-1]*cosphimph))/cosphimph
         
     return out
-    
+
 ### compute fourier transform of uij for fixed velocity beta (i.e. uij is an array of shape (3,3,len(theta),len(phi)))
 @jit
 def fourieruij(uij,r,phiX,q,ph,sincos=None):
@@ -669,7 +668,7 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
         result[:,:,th] = np.trapz(np.reshape(integrand,(3,3,qres,phres,phiXres)),x=phiX)
                 
     return result
-    
+
 @jit
 def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
     '''Takes uij multiplied by r over the Burgers vector (which then is only phi dependent), and returns uijs Fourier transform multiplied q which then only depends on q through the cutoffs q*r[0] and q*r[-1].
@@ -732,5 +731,4 @@ def computeLT(Etot, dtheta):
     '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t. the dislocation character theta.
     The latter needs to be discretized, i.e. Etot is an array in theta space. Additionally, the step size dtheta needs to be given as input.'''
     ddE = np.diff(Etot,2)/(dtheta*dtheta)
-    return (ddE + Etot[1:-1])
-
+    return ddE + Etot[1:-1]

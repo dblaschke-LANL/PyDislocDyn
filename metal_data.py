@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 15, 2021
+# Date: Nov. 3, 2017 - July 16, 2021
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
@@ -12,10 +12,10 @@ ISO_nu = {'Ag':0.367, 'Al':0.345, 'Au':0.440, 'Cd':0.300, 'Cr':0.210, 'Cu':0.343
 ISO_bulk = {}
 ISO_c11 = {}
 ISO_c12 = {}
-for X in ISO_nu.keys():
+for X in ISO_nu:
     ISO_c12[X] = round(ISO_c44[X]*2*ISO_nu[X]/(1-2*ISO_nu[X]),-8)  ## round to same precision that we have for c44 above, i.e. 0.1GPa
     ISO_c11[X] = ISO_c12[X]+2*ISO_c44[X]
-for X in ISO_bulk.keys():
+for X in ISO_bulk:
     ISO_c12[X] = round(ISO_bulk[X] - 2*ISO_c44[X]/3,-8)
     ISO_c11[X] = ISO_c12[X]+2*ISO_c44[X]
 for X in set(ISO_c11.keys()).difference(ISO_bulk.keys()):
@@ -23,9 +23,9 @@ for X in set(ISO_c11.keys()).difference(ISO_bulk.keys()):
 for X in set(ISO_c11.keys()).difference(ISO_nu.keys()):
     ISO_nu[X] = round(ISO_c12[X]/(2*(ISO_c12[X]+ISO_c44[X])),3)
 ISO_young = {} ## calculate Young's modulus
-for X in ISO_nu.keys():
+for X in ISO_nu:
     ISO_young[X] = round(2*ISO_c44[X]*(1+ISO_nu[X]),-8)
-    
+
 ## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
 ISO_l = {'Al':-143e9, 'Cu':-160e9,  'Fe':-170e9, 'Nb':-610e9}
 ISO_m = {'Al':-297e9, 'Cu':-620e9,  'Fe':-770e9, 'Nb':-220e9}
@@ -37,7 +37,7 @@ ISO_c456 = {}
 ISO_c111 = {}
 ISO_c112 = {}
 ISO_c166 = {}
-for X in ISO_l.keys():
+for X in ISO_l:
     ISO_c123[X] = 2*ISO_l[X] - 2*ISO_m[X] + ISO_n[X]
     ISO_c144[X] = ISO_m[X] - ISO_n[X]/2
     ISO_c456[X] = ISO_n[X]/4
@@ -61,6 +61,7 @@ CRC_c = {'Be':3.5845e-10, 'Cd':5.6196e-10, 'In':4.9470e-10, 'Mg':5.2107e-10, 'Sn
 CRC_alpha_a = {'Ag':18.9e-6, 'Al':23.1e-6, 'Au':14.2e-6, 'Be':11.3e-6, 'Cd':30.8e-6, 'Cr':4.9e-6, 'Cu':16.5e-6, 'In':32.1e-6, 'Ni':13.4e-6, 'Fe':11.8e-6, 'K':83.3e-6, 'Mg':24.8e-6, 'Mo':4.8e-6, 'Nb':7.3e-6, 'Sn':22.0e-6, 'Ta':6.3e-6, 'Ti':8.6e-6, 'W':4.5e-6, 'Zn':30.2e-6, 'Zr':5.7e-6} # coefficient of linear thermal expansion in [K^-1]
 CRC_rho_sc = {'Ag':10500, 'Al':26970, 'Au':19283, 'Be':1850, 'Cd':8690, 'Cr':7200, 'Cu':8932, 'In':7300, 'Ni':8910, 'Fe':7867.2, 'K':851, 'Mg':1740, 'Mo':10228.4, 'Nb':8578, 'Sn':7290, 'Ta':16626, 'Ti':4506, 'W':19257, 'Zn':7134, 'Zr':6520} # density in kg/m^3
 CRC_rho = {'Ag':10500, 'Al':2700, 'Au':19300, 'Be':1850, 'Cd':8690, 'Cr':7150, 'Cu':8960, 'In':7310, 'Ni':8900, 'Fe':7870, 'K':890, 'Mg':1740, 'Mo':10200, 'Nb':8570, 'Sn':7287, 'Ta':16400, 'Ti':4506, 'W':19300, 'Zn':7134, 'Zr':6520} # density in kg/m^3
+CRC_T_m = {'Ag':1234.93, 'Al':933.47, 'Au':1337.33, 'Be':1560.15, 'Cd':594.22, 'Cr':2180.15, 'Cu':1357.77, 'Fe':1811.15, 'In':429.75, 'K':336.65, 'Mg':923.15, 'Mo':2895.15, 'Nb':2750.15, 'Ni':1728.15, 'Sn':505.08, 'Ta':3290.15, 'Ti':1943.15, 'W':3687.15, 'Zn':692.68, 'Zr':2127.15} ## melting temperature in K at ambient conditions
 
 ## sets containing names of all metals of a certain crystal structure (cubic fcc/bcc, hexagonal close packed, tetragonal) at room temperature
 fcc_metals = {'Ag', 'Al', 'Au', 'Cu', 'Ni'}
@@ -94,7 +95,7 @@ for X in fcc_metals.union(bcc_metals).intersection(CRC_c11.keys()):
     CRC_c33[X] = None
     CRC_c66[X] = None
     CRC_ZenerA[X] = 2*CRC_c44[X]/(CRC_c11[X] - CRC_c12[X])
-    
+
 for X in fcc_metals.union(bcc_metals).intersection(c111.keys()):
     c113[X] = None
     c133[X] = None
@@ -103,15 +104,15 @@ for X in fcc_metals.union(bcc_metals).intersection(c111.keys()):
     c333[X] = None
     c344[X] = None
     c366[X] = None
-    
+
 for X in hcp_metals.intersection(CRC_c11.keys()):
     CRC_c66[X] = None
 
 for X in hcp_metals.intersection(c111.keys()):
     c166[X] = None
     c366[X] = None
-    c456[X] = None    
-    
+    c456[X] = None
+
 for X in tetr_metals.intersection(c111.keys()):
     c222[X] = None
 
@@ -123,8 +124,8 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
        To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
        'prismatic', or 'pyramidal'.'''
     with open(fname,"w") as outf:
-        outf.write("# input parameters for {} at ambient conditions\n\n".format(X))
-        outf.write("name = {}\n".format(fname))
+        outf.write(f"# input parameters for {X} at ambient conditions\n\n")
+        outf.write(f"name = {fname}\n")
         if X in fcc_metals:
             outf.write("sym = fcc\n\n")
             outf.write("# example slip system:\nb = "+", ".join(map("{}".format,(np.array([1,1,0]))))+"\t# normalization 1/sqrt(2) applied automatically upon reading\n")
@@ -166,32 +167,34 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
             ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
             ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
-        outf.write("# temperature, lattice constant(s), density, and thermal expansion coefficient:\nT = 300\na = {}\n".format(CRC_a[X]))
+        outf.write("# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
+        outf.write(f"T = 300\na = {CRC_a[X]}\n")
         if X in CRC_c.keys():
-            outf.write("c = {}\n".format(CRC_c[X]))
-        outf.write("rho = {}\n".format(CRC_rho[X]))
-        outf.write("alpha_a = {}\n".format(CRC_alpha_a[X]))
+            outf.write(f"c = {CRC_c[X]}\n")
+        outf.write(f"rho = {CRC_rho[X]}\n")
+        outf.write(f"alpha_a = {CRC_alpha_a[X]}\n")
+        outf.write(f"Tm = {CRC_T_m[X]}\n")
         outf.write("\n#soec\n")
-        if iso==True:
+        if iso:
             outf.write("\nsym = iso\t# (overwrites previous entry)\n\n")
             soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
         else:
             soec = {"c11":CRC_c11, "c12":CRC_c12, "c44":CRC_c44, "c13":CRC_c13, "c33":CRC_c33, "c66":CRC_c66}
-        for c2 in soec.keys():
+        for c2 in soec:
             val = soec[c2][X]
-            if val != None:
+            if val is not None:
                 outf.write("{} = {:e}\n".format(c2,val))
         outf.write("\n#toec\n")
-        if iso==True:
+        if iso:
             toec = {"c123":ISO_c123, "c144":ISO_c144, "c456":ISO_c456}
         else:
             toec = {"c111":c111, "c112":c112, "c113":c113, "c123":c123, "c133":c133, "c144":c144, "c155":c155, "c166":c166, "c222":c222, "c333":c333, "c344":c344, "c366":c366, "c456":c456}
-        for c3 in toec.keys():
+        for c3 in toec:
             if X in toec[c3].keys():
                 val = toec[c3][X]
-                if val != None:
+                if val is not None:
                     outf.write("{} = {:e}\n".format(c3,val))
-        if X in ISO_c44.keys() and iso==False:
+        if X in ISO_c44.keys() and not iso:
             outf.write("\n## optional - if omitted, averages will be used:\n")
             outf.write("lam = {:e}\n".format(ISO_c12[X]))
             outf.write("mu = {:e}\n".format(ISO_c44[X]))

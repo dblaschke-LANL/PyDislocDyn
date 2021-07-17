@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 15, 2021
+# Date: Nov. 7, 2017 - July 16, 2021
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -11,11 +11,11 @@
    to a text file 'averaged_elastic_constants.txt'.'''
 #################################
 import sys
-from sympy.solvers import solve 
+import os
+from sympy.solvers import solve
 import sympy as sp
 import numpy as np
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
@@ -29,28 +29,28 @@ def invI1(C2):
     '''Computes the trace C_iijj of SOEC.'''
     return np.trace(np.trace(C2))
     ### einsum is slightly faster, but works only with numbers, not symbols
-    
+
 def invI2(C2):
     '''Computes the trace C_ijij of SOEC.'''
     return np.trace(np.trace(C2,axis1=0,axis2=2))
-    
+
 def invI3(C3):
     '''Computes the trace C_iijjkk of TOEC.'''
     return np.trace(np.trace(np.trace(C3)))
-    
+
 def invI4(C3):
     '''Computes the trace C_ijijkk of TOEC.'''
     return np.trace(np.trace(np.trace(C3,axis1=0,axis2=2)))
-    
+
 def invI5(C3):
     '''Computes the trace C_ijkijk of TOEC.'''
     return np.trace(np.trace(np.trace(C3,axis1=0,axis2=3),axis1=0,axis2=2))
-    
+
 ### define some symbols and functions of symbols for the effective isotropic side of our calculations
 lam, mu = sp.symbols('lam mu') ## Symbols for Lame constants
 Murl, Murm, Murn = sp.symbols('Murl Murm Murn') ## Symbols for Murnaghan constants
 
-class IsoInvariants(object):
+class IsoInvariants:
     '''This class initializes isotropic second and third order elastic tensors and their invariants depending on the provided Lame and Murnaghan constants,
     which may be sympy symbols or numbers.'''
     def __init__(self,lam,mu,Murl,Murm,Murn):
@@ -83,7 +83,7 @@ class IsoAverages(IsoInvariants):
         If C3 is omitted (or 'None'), only the average Lame constants are computed.'''
         out = solve([self.invI1-invI1(C2),self.invI2-invI2(C2)],[lam,mu],dict=True)[0]
         ## combine all five Voigt-averaged answers into one dictionary for each metal (i.e. Voigt is a dictionary of dictionaries)
-        if np.asarray(C3).all()!=None:
+        if np.asarray(C3).all() is not None:
             out.update(solve([self.invI3-invI3(C3),self.invI4-invI4(C3),self.invI5-invI5(C3)],[Murl,Murm,Murn],dict=True)[0])
         self.voigt = out
         return out
@@ -93,7 +93,7 @@ class IsoAverages(IsoInvariants):
         If S3 is omitted (or 'None'), only the average Lame constants are computed.'''
         out = solve([self.invI1b-invI1(S2),self.invI2b-invI2(S2)],[lam,mu],dict=True)[0]
         ## plug in results for lam and mu to compute l,m,n, then combine the results into one dictionary:
-        if np.asarray(S3).all()!=None:
+        if np.asarray(S3).all() is not None:
             out.update(solve([self.invI3b.subs(out)-invI3(S3),self.invI4b.subs(out)-invI4(S3),self.invI5b.subs(out)-invI5(S3)],[Murl,Murm,Murn],dict=True)[0])
         self.reuss = out
         return out
@@ -136,7 +136,7 @@ class IsoAverages(IsoInvariants):
         tmplam = tmplam.subs(mu,tmpmu)
         out = {lam:tmplam, mu:tmpmu}
         
-        if np.asarray(C3).all()!=None:
+        if np.asarray(C3).all() is not None:
             C3hat = np.dot(Hm,np.dot(Hm,np.dot(Voigt(C3),Hm.T)))
             for i in range(6):
                 C3hat[i] = np.array(((sp.expand(sp.Matrix(C3hat[i])).subs(Sh**2,0)).subs(Sh**3,0)).subs(Sh,hfactor/2))
@@ -156,13 +156,14 @@ class metal_props:
     Other attributes of this class are: temperature .T, density .rho, thermal expansion coefficient .alpha_a, and lattice constants .ac, .bc, .cc where the latter two are required only if they differ from .ac.
     For monoclinic and triclinic crystals, the unit cell volume .Vc must also be given.
     The slip system to be studied is passed via Burgers vector length .burgers, unit Burgers vector .b, and slip plane normal .n0 in Cartesian coordinates,
-    Additional optional attributes are polycrystal averages for Lame constants .mu and .lam (these are calculated via .init_all(), which calls .compute_Lame(), if not given), 
+    Additional optional attributes are polycrystal averages for Lame constants .mu and .lam (these are calculated via .init_all(), which calls .compute_Lame(), if not given),
     as well as critical velocities .vcrit_smallest, .vcrit_screw, .vcrit_edge. Finally, .init_sound() (called by .init_all()) computes the average transverse/longitudinal sound speeds of the polycrystal, .ct and .cl.
     Method .computesound(v) computes the sound speeds along vector v.'''
     def __init__(self,sym='iso', name='some_crystal'):
         self.sym=sym
         self.name = name
         self.T=300
+        self.Tm = None # melting temperature at low pressure
         self.ac = self.cc = self.bc = None ## lattice constants
         self.alphac = None ## angle between bc and cc, etc.; only needed for low symmetries like triclinic (None = determined from sym)
         self.betac = None
@@ -187,7 +188,7 @@ class metal_props:
         self.Vc=0 ## unit cell volume
         self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
         self.burgers=0 # length of Burgers vector
-        self.b=np.zeros((3)) ## unit Burgers vector 
+        self.b=np.zeros((3)) ## unit Burgers vector
         self.n0=np.zeros((3)) ## slip plane normal
         self.vcrit_smallest=self.vcrit_screw=self.vcrit_edge=None
         self.alpha_a=0 # thermal expansion coefficient at temperature self.T, set to 0 for constant rho calculations
@@ -195,7 +196,7 @@ class metal_props:
             self.c222=None
         elif sym=='hcp':
             self.c66=self.c166=self.c366=self.c456=None
-        elif sym=='fcc' or sym=='bcc'or sym=='iso':
+        elif sym in ('fcc', 'bcc', 'iso'):
             self.c13=self.c33=self.c66=None
             self.c113=self.c133=self.c155=self.c222=self.c333=self.c344=self.c366=None
         if sym=='iso':
@@ -211,6 +212,9 @@ class metal_props:
             self.c44 = self.C2[3,3] ## some legacy code expect these to be set
             self.c11 = self.C2[0,0]
             self.c12 = self.C2[0,1]
+        if self.sym in ('fcc', 'bcc'):
+            self.cp = (self.c11-self.c12)/2
+            self.Zener = self.c44/self.cp
     
     def init_C3(self):
         '''initializes the tensor of third order elastic constants'''
@@ -269,7 +273,7 @@ class metal_props:
         self.init_C2()
         if self.c123!=0 or self.cijk is not None:
             self.init_C3()
-        if self.mu==None:
+        if self.mu is None:
             self.compute_Lame()
         else:
             self.bulk=self.lam + 2*self.mu/3
@@ -300,11 +304,11 @@ class metal_props:
         '''Converts vector v from Miller indices to Cartesian coordinates rounded to 'accuracy' digits (15 by default). If normalize=True, a unit vector is returned.
         See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
         By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.'''
-        if self.ac==None or self.ac==0: a=1
+        if self.ac is None or self.ac==0: a=1
         else: a=self.ac
-        if self.bc==None or self.bc==0: b=a
+        if self.bc is None or self.bc==0: b=a
         else: b=self.bc
-        if self.cc==None or self.cc==0 : c=a
+        if self.cc is None or self.cc==0 : c=a
         else:c=self.cc
         d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)
         T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],\
@@ -334,6 +338,8 @@ class metal_props:
             self.name = inputparams['name']
         if 'T' in keys:
             self.T=float(inputparams['T'])
+        if 'Tm' in keys:
+            self.Tm=float(inputparams['Tm'])
         self.burgers=float(inputparams['burgers'])
         if 'lam' in keys and 'mu' in keys:
             self.lam=float(inputparams['lam'])
@@ -409,14 +415,14 @@ class metal_props:
             self.vcrit_edge = float(inputparams['vcrit_edge'])
         if 'alpha_a' in keys:
             self.alpha_a = float(inputparams['alpha_a'])
-        
+
 def loadinputfile(fname):
     '''Reads an inputfile like the one generated by writeinputfile() defined in metal_data.py and returns its data as a dictionary.'''
     inputparams={}
     with open(fname,"r") as inputfile:
         lines = inputfile.readlines()
         for line in lines:
-            if "#" != line[0]:
+            if line[0] != "#":
                 currentline = line.lstrip().rstrip().split()
                 if len(currentline) > 2:
                     key  = currentline[0]
@@ -562,13 +568,13 @@ if __name__ == '__main__':
         ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
     
     ##### write results to files (as LaTeX tables):
-    stringofnames = " & $\lambda$ & $\mu$ \\\\ \hline"+"\n"
+    stringofnames = r" & $\lambda$ & $\mu$ \\ \hline"+"\n"
     def stringofresults(dictionary,X):
-        return X+" & "+"{:.1f}".format(float(dictionary[X][lam]))+" & "+"{:.1f}".format(float(dictionary[X][mu]))+" \\\\"+"\n"
+        return f"{X} & {float(dictionary[X][lam]):.1f} & {float(dictionary[X][mu]):.1f} \\\\\n"
 
-    stringofnames_toec = " & $\lambda$ & $\mu$ & $l$ & $m$ & $n$ \\\\ \hline"+"\n"
+    stringofnames_toec = r" & $\lambda$ & $\mu$ & $l$ & $m$ & $n$ \\ \hline"+"\n"
     def stringofresults_toec(dictionary,X):
-        return X+" & "+"{:.1f}".format(float(dictionary[X][lam]))+" & "+"{:.1f}".format(float(dictionary[X][mu]))+" & "+"{:.0f}".format(float(dictionary[X][Murl]))+" & "+"{:.0f}".format(float(dictionary[X][Murm]))+" & "+"{:.0f}".format(float(dictionary[X][Murn]))+" \\\\"+"\n"
+        return f"{X} & {float(dictionary[X][lam]):.1f} & {float(dictionary[X][mu]):.1f} & {float(dictionary[X][Murl]):.0f} & {float(dictionary[X][Murm]):.0f} & {float(dictionary[X][Murn]):.0f} \\\\\n"
     
     with open("averaged_elastic_constants.txt","w") as averfile:
         averfile.write("Voigt averages [GPa]:\n"+stringofnames)
@@ -592,8 +598,8 @@ if __name__ == '__main__':
             averfile.write(stringofresults(HillAverage,X))
         if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
         for X in metal_toec:
-            averfile.write(stringofresults_toec(HillAverage,X)) 
-        averfile.write("\n\n") 
+            averfile.write(stringofresults_toec(HillAverage,X))
+        averfile.write("\n\n")
         
         if len(metal_cubic)>0:
             averfile.write("improved averages [GPa]:\n"+stringofnames)

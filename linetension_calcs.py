@@ -1,12 +1,14 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 15, 2021
+# Date: Nov. 3, 2017 - July 16, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
    additional properties like limiting velocities of dislocations. We also define a function, readinputfile,
-   which reads a PyDislocDyn input file and returns an instance of the Dislocation class.
+   which reads a PyDislocDyn input file and returns an instance of the Dislocation class. Function plotdisloc
+   operates on an instance of the Dislocation class to generate a plot of a component of the displacement
+   gradient field.
    If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -198,9 +200,9 @@ metal_props.computevcrit_stroh=computevcrit_stroh
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, plus an additional method: computevcrit.
        If optional keyword Miller is set to True, b and n0 are interpreted as Miller indices (and Cartesian otherwise); note since n0 defines a plane its Miller indices are in reziprocal space.'''
-    def __init__(self,b, n0, theta, Nphi,sym='iso', name='some_crystal',Miller=False):  
+    def __init__(self,b, n0, theta, Nphi,sym='iso', name='some_crystal',Miller=False):
         metal_props.__init__(self, sym, name)
-        if Miller==True:
+        if Miller:
             self.Millerb = b
             b = self.Miller_to_Cart(self.Millerb)
             self.Millern0 = n0
@@ -208,7 +210,6 @@ class Dislocation(StrohGeometry,metal_props):
         StrohGeometry.__init__(self, b, n0, theta, Nphi)
         self.sym = sym
         self.Ntheta = len(theta)
-        self.C2_aligned=None
         self.vcrit_all = None
         self.Rayleigh = None
     
@@ -319,7 +320,7 @@ class Dislocation(StrohGeometry,metal_props):
         '''Computes the smallest critical velocity, which subsequently is stored as attribute .vcrit_smallest and the full result of scipy.minimize_scalar is returned
            (as type 'OptimizeResult' with its 'fun' being vcrit_smallest and 'x' the associated character angle theta).
            The absolute tolerance for theta can be passed via xatol; in order to improve accuracy and speed of this routine, we make use of computevcrit with Ntheta>=11 resolution
-           in order to be able to pass tighter bounds to the subsequent call to minimize_scalar(). If .vcrit_all already exists in sufficient resolution from an earlier call, 
+           in order to be able to pass tighter bounds to the subsequent call to minimize_scalar(). If .vcrit_all already exists in sufficient resolution from an earlier call,
            this step is skipped and options 'cache' and 'Ncores'' are not needed.'''
         resolution = max(11,2*int(Ncores/2)-1)
         if self.vcrit_all is None or self.vcrit_all.shape[1]<11:
@@ -349,7 +350,7 @@ class Dislocation(StrohGeometry,metal_props):
             def findrayleigh(x):
                 tmpC = C2norm - self.Cv[:,:,:,:,th]*x**2
                 M=self.M[:,th].T
-                N=self.N[:,th].T                   
+                N=self.N[:,th].T
                 MM = elbrak1d(M,M,tmpC)
                 MN = elbrak1d(M,N,tmpC)
                 NM = elbrak1d(N,M,tmpC)
@@ -402,6 +403,71 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True):
         out.init_all()
     return out
 
+def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow):
+    '''Generates a plot of the requested component of the dislocation displacement gradient.
+       Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
+       Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
+       a list of two indices indicating which component of displacement gradient u[ij] to plot.
+       The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case,
+       'slipsystem' is required except for those metals where its keyword coincides with disloc.sym (see documentation of disloc.computeuij_acc()
+       for details on capabilities and limitations of the current implementation of the accelerating solution).
+       Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
+       and is currently only implemented for steady-state solutions (a=None).'''
+    ## make sure everything we need has been initialized:
+    if disloc.ct==0:
+        disloc.ct = np.sqrt(disloc.mu/disloc.rho)
+    if np.count_nonzero(disloc.C2norm) == 0:
+        disloc.C2norm = UnVoigt(disloc.C2/disloc.mu)
+    if disloc.C2_aligned is None:
+        disloc.alignC2()
+    ## create mesh grid from phi and r, and convert to Cartesian for later use:
+    r = np.linspace(0.0001,1,Nr)
+    disloc.phi_msh , disloc.r_msh = np.meshgrid(disloc.phi,disloc.burgers*r)
+    disloc.x_msh = disloc.r_msh*np.cos(disloc.phi_msh)/disloc.burgers
+    disloc.y_msh = disloc.r_msh*np.sin(disloc.phi_msh)/disloc.burgers
+    plt.figure(figsize=(3.5,4.0))
+    plt.axis((-0.5,0.5,-0.5,0.5))
+    plt.xticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
+    plt.yticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
+    plt.xlabel(r'$x[b]$',fontsize=fntsize)
+    plt.ylabel(r'$y[b]$',fontsize=fntsize)
+    xylabel = {0:'x',1:'y',2:'z'}
+    if a is None and eta_kw is None:
+        disloc.computeuij(beta=beta, r=r, nogradient=nogradient) ## compute steady state field
+        if not nogradient:
+            disloc.alignuij() ## disloc.rot was computed as a byproduct of .alignC2() above
+        else:
+            disloc.uij_aligned = np.zeros(disloc.uij.shape)
+            for th in range(len(disloc.theta)):
+                for ri in range(Nr):
+                    disloc.uij_aligned[:,th,ri] = np.round(np.dot(disloc.rot[th],disloc.uij[:,th,ri]),15)
+        if character == 'screw':
+            index = int(np.where(abs(disloc.theta)<1e-12)[0])
+        elif character == 'edge':
+            index = int(np.where(abs(disloc.theta-np.pi/2)<1e-12)[0])
+        else:
+            index=character
+        if not nogradient:
+            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}{character}_{disloc.name}_v{beta*disloc.ct:.0f}.pdf"
+            uijtoplot = disloc.uij_aligned[component[0],component[1],index]
+        else:
+            namestring = f"u{xylabel[component]}{character}_{disloc.name}_v{beta*disloc.ct:.0f}.pdf"
+            uijtoplot = disloc.uij_aligned[component,index]
+    elif character=='screw' and not nogradient:
+        disloc.computeuij_acc(a,beta,burgers=disloc.burgers,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+        if a is None: acc = '_of_t'
+        else: acc = f"{a:.0e}"
+        namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{disloc.name}_v{beta*disloc.ct:.0f}_a{acc:}.pdf"
+        uijtoplot = disloc.uij_acc_aligned[component[0],component[1]]
+    else:
+        raise ValueError("not implemented")
+    plt.title(namestring,fontsize=fntsize)
+    colmsh = plt.pcolormesh(disloc.x_msh, disloc.y_msh, uijtoplot, vmin=-1, vmax=1, cmap = cmap, shading='gouraud')
+    colmsh.set_rasterized(True)
+    plt.colorbar()
+    plt.savefig(namestring,format='pdf',bbox_inches='tight')
+    plt.close()
+            
 ### start the calculations
 if __name__ == '__main__':
     if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
@@ -488,7 +554,7 @@ if __name__ == '__main__':
             Y[X].mu = (Y[X].c11-Y[X].c12+2*Y[X].c44)/4
         #### will generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise)
         ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
-        if Y[X].mu==None:
+        if Y[X].mu is None:
             Y[X].compute_Lame()
 
     print(f"Computing the line tension for: {metal}")
@@ -516,7 +582,7 @@ if __name__ == '__main__':
         vcrit_smallest['In'] = 0.549
         vcrit_smallest['Sn'] = 0.749
         vcrit_smallest['Znbasal'] = 0.998 ## for basal slip
-        if hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all':
+        if hcpslip in ('prismatic', 'pyramidal', 'all'):
             vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.932
             vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.766
         if bccslip=='123' or bccslip=='all':
@@ -528,14 +594,13 @@ if __name__ == '__main__':
         Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)
         # we limit calculations to a velocity range close to what we actually need,
         vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(Y[X].c44/Y[X].mu) ## rescale to mu instead of c44
-        if Y[X].vcrit_smallest != None: ## overwrite with data from input file, if available
+        if Y[X].vcrit_smallest is not None: ## overwrite with data from input file, if available
             Y[X].ct = np.sqrt(Y[X].mu/Y[X].rho)
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct ## ct was determined from mu above and thus may not be the actual transverse sound speed (if scale_by_mu='crude')
         scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
         beta_scaled[X] = scaling[X]*beta
 
-        
-    # wrap all main computations into a single function definition to be run in a parallelized loop below
+    
     def maincomputations(i):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
         X = metal[i]
@@ -637,58 +702,8 @@ if __name__ == '__main__':
     for X in set(plt_metal).difference(set(skip_plt)):
         mkLTplots(X)
     
-    ### plot dislocation displacement gradient:
-    def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,cmap = plt.cm.rainbow):
-        '''Generates a plot of the requested component of the dislocation displacement gradient.
-           Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
-           Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is 
-           a list of two indices indicating which component of displacement gradient u[ij] to plot.
-           The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case, 
-           'slipsystem' is required except for those metals where its keyword coincides with disloc.sym (see documentation of disloc.computeuij_acc() 
-           for details on capabilities and limitations of the current implementation of the accelerating solution).'''
-        if disloc.ct==0:
-            disloc.ct = np.sqrt(disloc.mu/disloc.rho)
-        ## create mesh grid from phi and r, and convert to Cartesian for later use:
-        r = np.linspace(0.0,1,Nr)
-        disloc.phi_msh , disloc.r_msh = np.meshgrid(disloc.phi,disloc.burgers*r)
-        disloc.x_msh = disloc.r_msh*np.cos(disloc.phi_msh)/disloc.burgers
-        disloc.y_msh = disloc.r_msh*np.sin(disloc.phi_msh)/disloc.burgers
-        plt.figure(figsize=(3.5,4.0))
-        plt.axis((-0.5,0.5,-0.5,0.5))
-        plt.xticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
-        plt.yticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
-        plt.xlabel(r'$x[b]$',fontsize=fntsize)
-        plt.ylabel(r'$y[b]$',fontsize=fntsize)
-        xylabel = {0:'x',1:'y',2:'z'}
-        if a is None and eta_kw is None:
-            disloc.computeuij(beta=beta, r=r) ## compute steady state field
-            disloc.computerot()
-            disloc.alignuij()
-            if character == 'screw':
-                index = int(np.where(abs(disloc.theta)<1e-12)[0])
-            elif character == 'edge':
-                index = int(np.where(abs(disloc.theta-np.pi/2)<1e-12)[0])
-            else:
-                index=character
-            namestring = "u{2}{3}{4}_{0}_v{1:.0f}.pdf".format(disloc.name,beta*disloc.ct,xylabel[component[0]],xylabel[component[1]],character)
-            uijtoplot = disloc.uij_aligned[component[0],component[1],index]
-        elif character=='screw':
-            disloc.computeuij_acc(a,beta,burgers=disloc.burgers,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
-            if a is None: acc = '_of_t'
-            else: acc = "{:.0e}".format(a)
-            namestring = "u{3}{4}screw_{0}_v{1:.0f}_a{2:}.pdf".format(disloc.name,beta*disloc.ct,acc,xylabel[component[0]],xylabel[component[1]])
-            uijtoplot = disloc.uij_acc_aligned[component[0],component[1]]
-        else:
-            raise ValueError("not implemented")
-        plt.title(namestring,fontsize=fntsize)
-        colmsh = plt.pcolormesh(disloc.x_msh, disloc.y_msh, uijtoplot, vmin=-1, vmax=1, cmap = cmap, shading='gouraud')
-        colmsh.set_rasterized(True)
-        plt.colorbar()
-        plt.savefig(namestring,format='pdf',bbox_inches='tight')
-        plt.close()
-            
-################################################    
-    if Ntheta2==0 or Ntheta2==None:
+################################################
+    if Ntheta2==0 or Ntheta2 is None:
         sys.exit()
     
     print(f"Computing critical velocities for: {metal}")

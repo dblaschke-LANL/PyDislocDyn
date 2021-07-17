@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 15, 2021
+# Date: Nov. 7, 2017 - July 16, 2021
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -35,14 +35,14 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
     i.e. cij=(c11, c12, c13, ...); see D. C. Wallace, Solid State Physics 25 (1970) 301 and K. Brugger, J. Appl. Phys. 36 (1965) 759.
     Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
     if cij is None:
-        if c22==None or c23==None or c55==None:
-            if c13==None or c33==None:
-                if c11==None:
+        if c22 is None or c23 is None or c55 is None:
+            if c13 is None or c33 is None:
+                if c11 is None:
                     c11 = c12+2*c44
                 c13=c12
                 c33=c11
                 c66=c44
-            elif c66==None:
+            elif c66 is None:
                 c66 = (c11-c12)/2
             c22=c11
             c23=c13
@@ -71,7 +71,7 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
         for j in range(6):
             ii,jj = tuple(sorted([i+1,j+1]))
             C2[i,j] = Cdict["C"+str(ii)+str(jj)]
-    if voigt==False:
+    if not voigt:
         C2 = UnVoigt(C2)
     return C2
 
@@ -86,10 +86,10 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
     (56 for triclinic, 32 for monoclinic, 20 for orthorhombic, and 14 for trigonal/rhombohedral I) in ascending order where i<=j<=k in cijk,
     i.e. cij=(c111, c112, ..., c122, ...); K. Brugger, J. Appl. Phys. 36 (1965) 759.
     Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
-    if cijk is None and c333==None: ### assume cubic I or isotropic
-        if c111==None or c112==None or c166==None:
-            if c123==None or c144==None or c456==None:
-                if l==None or m==None or n==None:
+    if cijk is None and c333 is None: ### assume cubic I or isotropic
+        if c111 is None or c112 is None or c166 is None:
+            if c123 is None or c144 is None or c456 is None:
+                if l is None or m is None or n is None:
                     raise ValueError("ERROR: unsupported input.")
                 c123 = 2*l - 2*m + n
                 c144 = m - n/2
@@ -101,7 +101,7 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
         c155=c244=c266=c344=c355=c166
         c222=c333=c111
         c255=c366=c144
-    elif cijk is None and (c456==None or c166==None or c366==None): ### assume hexagonal I
+    elif cijk is None and (c456 is None or c166 is None or c366 is None): ### assume hexagonal I
         c456 = (c155-c144)/2
         c122 = c111+c112-c222
         c166 = (3*c222-c112-2*c111)/4
@@ -112,7 +112,7 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
         c244 = c155
         c255 = c144
         c355 = c344
-    elif cijk is None and c222==None: ### assume tetragonal I
+    elif cijk is None and c222 is None: ### assume tetragonal I
         c222=c111
         c122=c112
         c223=c113
@@ -158,7 +158,7 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
             for k in range(6):
                 ii,jj,kk = tuple(sorted([i+1,j+1,k+1]))
                 C3[i,j,k] = Cdict["C"+str(ii)+str(jj)+str(kk)]
-    if voigt==False:
+    if not voigt:
         C3 = UnVoigt(C3)
     return C3
         
@@ -219,7 +219,7 @@ def elasticS2(elasticC2,voigt=False):
     else:
         result = np.linalg.inv(np.asarray(C2, dtype=float))
     S2 = np.dot(sprimetos,np.dot(result,sprimetos))
-    if voigt==False:
+    if not voigt:
         S2 = UnVoigt(S2)
     return S2
         
@@ -241,11 +241,11 @@ def elasticS3(elasticS2,elasticC3,voigt=False):
     # need to sum indices 3,4,5 twice below, therefore:
     S2P = np.dot(S2,np.diag([1,1,1,2,2,2]))
     S3 = -np.dot(S2P,np.dot(S2P,np.dot(C3,S2P.T)))
-    if voigt==False:
+    if not voigt:
         S3 = UnVoigt(S3)
     return S3
     
-class strain_poly(object):
+class strain_poly:
     '''This class computes polynomials in y which depend on elastic constants and where y parametrizes infinitesimal deformations/strains.
     These can subsequently be used to compute elastic constants by fitting these polynomials to results from DFT calculations done in some third party software package.
     To initialize the class, a sympy symbol y (=sp.symbols('y') by default) as well as a keyword specifying the crystal symmetry must be provided, i.e. one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'orth', 'mono', or 'tric';
@@ -260,7 +260,7 @@ class strain_poly(object):
         if sym=='iso':
             self.C2 = elasticC2(c12=C12,c44=C44,voigt=True)
             self.C3 = elasticC3(c123=C123,c144=C144,c456=C456,voigt=True)
-        elif sym == 'cubic' or sym == 'fcc' or sym == 'bcc':
+        elif sym in ('cubic', 'fcc', 'bcc'):
             self.C2 = elasticC2(c11=C11,c12=C12,c44=C44,voigt=True)
             self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c166=C166,c456=C456,voigt=True)
         elif sym == 'hcp':
@@ -294,7 +294,7 @@ class strain_poly(object):
         '''Computes the (symmetric) deformation matrix in Cartesian coordinates that would lead to infinitesimal strain epsilon,i.e.
         alpha=1+epsilon, where epsilon is first converted to Cartesian notation. If preserve_volume is set to True, alpha will subsequently be rescaled by its determinant.'''
         alpha = UnVoigt(np.asarray(epsilon)+np.array([1,1,1,0,0,0]))
-        if preserve_volume==True:
+        if preserve_volume:
             determinant=sp.det(sp.Matrix(alpha))
             if isinstance(determinant,sp.Float):
                 alpha=alpha/(float(determinant)**(1/3))
@@ -315,14 +315,14 @@ class strain_poly(object):
         '''Computes the polynomial in y whose coefficients are the elastic constants, where epsilon must depend on y parametrizing infinitesimal deformations/strains.
         If option preserve_volume is set to True, the provided strain will be changed to preserve volume like so:
             epsilon_new=((1+epsilon)/(det(1+epsilon))**(1/3) -1), where epsilon is first converted to Cartesian notation and epsilon_new is converted back to Voigt notation.
-        If option make_eta is set to False, no alpha is computed and we assume the users input epsilon is alreay the finite strain.
+        If option make_eta is set to False, no alpha is computed and we assume the users input epsilon is already the finite strain (thereby ignoring the preserve_volume option).
         By default, the polynomial is computed for the Gibbs free energy (option P=0); set pressure P to compute for the Helmholtz free energy.'''
-        if make_eta==False:
-            etac = np.asarray(epsilon)*np.array([1,1,1,2,2,2])
-            alpha = np.zeros((3,3))
-        else:
+        if make_eta:
             alpha = self.generate_alpha(epsilon,preserve_volume)
             etac = Voigt(self.generate_strain(alpha))*np.array([1,1,1,2,2,2])
+        else:
+            etac = np.asarray(epsilon)*np.array([1,1,1,2,2,2])
+            alpha = np.zeros((3,3))
         phi1 = -P*sum(etac[:3])
         phi2 = np.dot(np.dot(self.C2,etac),etac)/2 + phi1
         phi2 = sp.simplify(sp.series(phi2,self.y,n=order+1))

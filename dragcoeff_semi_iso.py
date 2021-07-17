@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 15, 2021
+# Date: Nov. 5, 2017 - July 16, 2021
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     cache = [] ## store cached intermediate sympy results of computevcrit_stroh method to speed up subsequent calculations
     for X in metal:
         highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
-        if constantrho==True:
+        if constantrho:
             Y[X].alpha_a = 0
         ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
         if len(highT[X])>1 and Ncores !=0:
@@ -406,7 +406,7 @@ if __name__ == '__main__':
             if X not in vcrit_edge.keys():
                 vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above
     if use_metaldata and not use_iso:
-        if use_exp_Lame and (hcpslip=='prismatic' or hcpslip=='pyramidal' or hcpslip=='all'):
+        if use_exp_Lame and hcpslip in ('prismatic', 'pyramidal', 'all'):
             vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.948
             vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.724
         else:
@@ -437,11 +437,11 @@ if __name__ == '__main__':
             Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
         ## need vcrit in ratio to ct:
-        if Y[X].vcrit_smallest != None:
+        if Y[X].vcrit_smallest is not None:
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
-        if Y[X].vcrit_screw != None:
+        if Y[X].vcrit_screw is not None:
             vcrit_screw[X] = Y[X].vcrit_screw/Y[X].ct
-        if Y[X].vcrit_edge != None:
+        if Y[X].vcrit_edge is not None:
             vcrit_edge[X] = Y[X].vcrit_edge/Y[X].ct
         
     if skip_plots:
@@ -483,9 +483,9 @@ if __name__ == '__main__':
         plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2,5*np.pi/8,3*np.pi/4,7*np.pi/8,np.pi],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$", r"$\frac{5\pi}{8}$", r"$\frac{3\pi}{4}$", r"$\frac{7\pi}{8}$", r"$\pi$"),fontsize=fntsize)
         plt.axis((theta[X][0],theta[X][-1],ymin,ymax))
         plt.yticks(fontsize=fntsize)
-        if xlab==True:
+        if xlab:
             plt.xlabel(r'$\vartheta$',fontsize=fntsize)
-        if ylab==True:
+        if ylab:
             plt.ylabel(r'$B(\beta_\mathrm{t}=0.01)$',fontsize=fntsize)
             plt.ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
         plt.plot(theta[X],B_trunc[bt])
@@ -500,9 +500,9 @@ if __name__ == '__main__':
         beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
         B_trunc = (Broom[X][:len(beta_trunc),1:]).T
         y_msh , x_msh = np.meshgrid(beta_trunc,theta[X]) ## plots against theta and beta
-        if Bmin==None:
+        if Bmin is None:
             Bmin = (int(1000*np.min(B_trunc)))/1000
-        if Bmax==None:
+        if Bmax is None:
             Bmax = Bmin+0.016
             ## tweak colorbar range defined above:
             if np.sum(B_trunc<=Bmax)/(Ntheta[X]*len(beta_trunc))<0.65:
@@ -513,15 +513,15 @@ if __name__ == '__main__':
         plt.xticks(fontsize=fntsize)
         plt.yticks(np.arange(10)/10,fontsize=fntsize)
         cbarlevels = list(np.linspace(Bmin,Bmax,9))
-        if xlab==True:
+        if xlab:
             plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2,5*np.pi/8,3*np.pi/4,7*np.pi/8,np.pi],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$", r"$\frac{5\pi}{8}$", r"$\frac{3\pi}{4}$", r"$\frac{7\pi}{8}$", r"$\pi$"),fontsize=fntsize)
             plt.xlabel(r'$\vartheta$',fontsize=fntsize)
-        if ylab==True:
+        if ylab:
             plt.ylabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
         plt.title(namestring,fontsize=fntsize)
         colmsh=plt.pcolormesh(x_msh,y_msh,B_trunc,vmin=Bmin, vmax=Bmax,cmap = plt.cm.cubehelix_r,shading='gouraud')
         colmsh.set_rasterized(True)
-        if colbar==True:
+        if colbar:
             cbar = plt.colorbar(fraction=clbar_frac,pad=clbar_pd, ticks=cbarlevels)
             cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, fontsize = fntsize)
             cbar.ax.tick_params(labelsize = fntsize)
@@ -529,7 +529,7 @@ if __name__ == '__main__':
         
     for X in metal:
         fig = plt.figure(figsize=(4.5,3.6))
-        gs = gridspec.GridSpec(2, 1, height_ratios=[1,0.25]) 
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1,0.25])
         ax0 = fig.add_subplot(gs[0])
         ax0.xaxis.set_minor_locator(AutoMinorLocator())
         ax0.yaxis.set_minor_locator(AutoMinorLocator())
@@ -578,7 +578,7 @@ if __name__ == '__main__':
             scrind[X] = 0
         else:
             scrind[X] = int(Ntheta[X]/2)
-        Baver[X] = np.average(Broom[X][:,1:],axis=-1)        
+        Baver[X] = np.average(Broom[X][:,1:],axis=-1)
         beta_edgecrit[X] = (beta/vcrit_edge[X])[beta<vcrit_edge[X]]
         beta_screwcrit[X] = (beta/vcrit_screw[X])[beta<vcrit_screw[X]]
         beta_avercrit[X] =  (beta/vcrit_smallest[X])[beta<vcrit_smallest[X]]
@@ -601,7 +601,7 @@ if __name__ == '__main__':
         for X in metal:
             fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
         fitfile.write("\n\nwhere $x=v/v_c$ with:\n\n")
-        fitfile.write(" & "+" & ".join((metal))+" \\\\\hline\hline")
+        fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
         for X in metal:
             fitfile.write(" & "+"{:.0f}".format(Y[X].ct))
@@ -618,7 +618,7 @@ if __name__ == '__main__':
             fitfile.write(" & "+"{:.3f}".format(vcrit_smallest[X]))
         
     def mkfitplot(metal_list,filename,figtitle):
-        '''Plot the dislocation drag over velocity and show the fitting function.''' 
+        '''Plot the dislocation drag over velocity and show the fitting function.'''
         if len(metal_list)<5:
             fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
             ncols=2
@@ -749,7 +749,7 @@ if __name__ == '__main__':
         # print("{}: Boffset={:.4f}mPas, B0={:.4f}mPas".format(X,1e3*Boffset,1e3*B0))
         
         sigma = np.linspace(0,sigma_max,resolution)
-        if indirect==False:
+        if not indirect:
             B_of_sig = B(vr(sigma))
             Bmax = B_of_sig[-1]
         if indirect or (np.max(B_of_sig) < 1.01*B(0)):
@@ -766,9 +766,9 @@ if __name__ == '__main__':
             ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
             ax.set_title(ftitle,fontsize=fntsize)
             ax.axis((0,sigma_max/1e6,0,Bmax*1e3))
-            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label="$\sqrt{B_0^2\!+\!\\left(\\frac{\sigma b}{v_\mathrm{c}}\\right)^2}$, $B_0=$"+"{:.1f}".format(1e6*B0)+"$\mu$Pas")
-            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label="$B_0+\\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+"{:.1f}".format(1e6*Boffset)+"$\mu$Pas")
-            ax.plot(sigma/1e6,B_of_sig*1e3,label="$B_\mathrm{fit}(v(\sigma))$")
+            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label=r"$\sqrt{B_0^2\!+\!\left(\frac{\sigma b}{v_\mathrm{c}}\right)^2}$, $B_0=$"+f"{1e6*B0:.1f}"+r"$\mu$Pas")
+            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label=r"$B_0+\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+f"{1e6*Boffset:.1f}"+r"$\mu$Pas")
+            ax.plot(sigma/1e6,B_of_sig*1e3,label=r"$B_\mathrm{fit}(v(\sigma))$")
             plt.xticks(fontsize=fntsize)
             plt.yticks(fontsize=fntsize)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
@@ -810,8 +810,8 @@ if __name__ == '__main__':
         for X in metal:
             Xc = X+character
             sig0 = vc[Xc]*B0[Xc]/Y[X].burgers
-            ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label="{}, $B_0\!=\!{:.1f}\mu$Pas, ".format(X,1e6*B0[Xc])+"$v_\mathrm{c}\!=\!"+"{:.2f}$km/s".format(vc[Xc]/1e3))
-        ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label="$\sqrt{1+\\left(\\frac{\sigma b}{v_\mathrm{c}B_0}\\right)^2}$")
+            ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0\!=\!{1e6*B0[Xc]:.1f}\mu$Pas, "+r"$v_\mathrm{c}\!=\!"+f"{vc[Xc]/1e3:.2f}$km/s")
+        ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{v_\mathrm{c}B_0}\right)^2}$")
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
         ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
