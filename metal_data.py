@@ -115,7 +115,15 @@ for X in hcp_metals.intersection(c111.keys()):
 
 for X in tetr_metals.intersection(c111.keys()):
     c222[X] = None
-
+    
+### compute the unit cell volumes:
+CRC_Vc = {}
+for X in fcc_metals.union(bcc_metals):
+    CRC_Vc[X] = CRC_a[X]**3
+for X in hcp_metals:
+    CRC_Vc[X] = CRC_a[X]*CRC_a[X]*CRC_c[X]*3*np.sin(np.pi/3)
+for X in tetr_metals:
+    CRC_Vc[X] = CRC_a[X]*CRC_a[X]*CRC_c[X]
 
 #####################################################################################
 def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
@@ -176,7 +184,8 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
         outf.write(f"Tm = {CRC_T_m[X]}\n")
         outf.write("\n#soec\n")
         if iso:
-            outf.write("\nsym = iso\t# (overwrites previous entry)\n\n")
+            outf.write("\nsym = iso\t# (overwrites previous entry)")
+            outf.write(f"\na = {np.cbrt(CRC_Vc[X])}\t# replace by average lattice constants such that a^3 is the true unit cell volume\n\n")
             soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
         else:
             soec = {"c11":CRC_c11, "c12":CRC_c12, "c44":CRC_c44, "c13":CRC_c13, "c33":CRC_c33, "c66":CRC_c66}

@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 16, 2021
+# Date: Nov. 5, 2017 - July 19, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments keywords for metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -77,9 +77,6 @@ beta = np.linspace(minb,maxb,Nbeta)
 highT = np.linspace(roomT,maxT,NT)
 phi = np.linspace(0,2*np.pi,Nphi)
 
-#### load input data:
-ac = data.CRC_a
-cc = data.CRC_c
 rho = data.CRC_rho
 # rho = data.CRC_rho_sc
 #### EITHER LOAD ISOTROPIC DATA FROM EXTERNAL SOURCE
@@ -106,9 +103,9 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys
 # C2 = {}
 # aver = pca.IsoAverages(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
 # for X in metal:
-#     C2[X] = elasticC2(c11=pca.c11[X], c12=pca.c12[X], c44=pca.c44[X], c13=pca.c13[X], c33=pca.c33[X], c66=pca.c66[X])
+#     C2[X] = elasticC2(c11=data.CRC_c11[X], c12=data.CRC_c12[X], c44=data.CRC_c44[X], c13=data.CRC_c13[X], c33=data.CRC_c33[X], c66=data.CRC_c66[X])
 #     S2 = pca.elasticS2(C2[X])
-#     C3 = elasticC3(c111=pca.c111[X], c112=pca.c112[X], c113=pca.c113[X], c123=pca.c123[X], c133=pca.c133[X], c144=pca.c144[X], c155=pca.c155[X], c166=pca.c166[X], c222=pca.c222[X], c333=pca.c333[X], c344=pca.c344[X], c366=pca.c366[X], c456=pca.c456[X])
+#     C3 = elasticC3(c111=data.c111[X], c112=data.c112[X], c113=data.c113[X], c123=data.c123[X], c133=data.c133[X], c144=data.c144[X], c155=data.c155[X], c166=data.c166[X], c222=data.c222[X], c333=data.c333[X], c344=data.c344[X], c366=data.c366[X], c456=data.c456[X])
 #     S3 = pca.elasticS3(S2,C3)
 #     aver.voigt_average(C2[X],C3)
 #     aver.reuss_average(S2,S3)
@@ -138,24 +135,22 @@ bulk = {}
 ### compute various numbers for these metals
 for X in metal:
     ct_over_cl[X] = np.sqrt(c44[X]/(c12[X]+2*c44[X]))
-    qBZ[X] = ((6*np.pi**2)**(1/3))/ac[X]
+    qBZ[X] = ((6*np.pi**2/data.CRC_Vc[X])**(1/3))
     ct[X] = np.sqrt(c44[X]/rho[X])
     cl[X] =  ct[X]/ct_over_cl[X]
     bulk[X] = c12[X] + 2*c44[X]/3
 
 for X in data.fcc_metals.intersection(metal):
-    burgers[X] = ac[X]/np.sqrt(2)
+    burgers[X] = data.CRC_a[X]/np.sqrt(2)
 
 for X in data.bcc_metals.intersection(metal):
-    burgers[X] = ac[X]*np.sqrt(3)/2
+    burgers[X] = data.CRC_a[X]*np.sqrt(3)/2
     
 for X in data.hcp_metals.intersection(metal):
-    burgers[X] = ac[X]
-    qBZ[X] = ((4*np.pi**2/(ac[X]*ac[X]*cc[X]*np.sqrt(3)))**(1/3))
+    burgers[X] = data.CRC_a[X]
     
 for X in data.tetr_metals.intersection(metal):
-    burgers[X] = cc[X]  # for one possible slip system
-    qBZ[X] = ((6*np.pi**2/(ac[X]*ac[X]*cc[X]))**(1/3))
+    burgers[X] = data.CRC_c[X]  # for one possible slip system
     
 ### thermal coefficients:
 alpha_a = data.CRC_alpha_a  ## coefficient of linear thermal expansion at room temperature
@@ -241,9 +236,9 @@ if __name__ == '__main__':
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT)>1 and Ncores !=0:
             with open("drag_T_{}.dat".format(X),"w") as Bfile:
-                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n') 
+                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
-                    for Ti in range(len(highT)):               
+                    for Ti in range(len(highT)):
                         Bfile.write("{:.1f}".format(highT[Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
                         
             with open("drag_T_screw_{}.dat".format(X),"w") as Bscrewfile:
