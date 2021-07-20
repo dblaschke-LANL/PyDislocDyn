@@ -4,7 +4,8 @@
 # Date: Nov. 5, 2017 - July 19, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
-   The script takes as (optional) arguments keywords for metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
+   The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
+   metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
 #################################
 import sys
 import os
@@ -31,8 +32,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
 import metal_data as data
-from elasticconstants import elasticC2, elasticC3
+from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 from dislocations import fourieruij_iso, ompthreads
+from linetension_calcs import readinputfile, Dislocation
 from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed, cpu_count
@@ -57,146 +59,108 @@ Ntheta = 2 # number of angles between burgers vector and dislocation line (minim
 Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
 minb = 0.01
 maxb = 0.99
-NT = 1 # number of temperatures between roomT and maxT (WARNING: implementation of temperature dependence is incomplete!)
-constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > roomT
-beta_reference = 'base'  ## define beta=v/ct, choosing ct at roomT ('base') or current T ('current') as we increase temperature
-roomT = 300 # in Kelvin
-maxT = 600
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
 modes = 'all'
 # modes = 'TT'
 skip_plots=False ## set to True to skip generating plots from the results
+use_exp = True # if using data from metal_data, choose beteen experimentally determined Lame and Murnaghan constants (defaul) or analytical averages of SOEC and TOEC (use_exp = False)
+NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
+constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
+increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
+beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature
+#####
 # in Fourier space:
-Nphi = 50
+Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
 Nphi1 = 50
 Nq1 = 400
 Nt = 321 # base value, grid is adaptive in Nt
 ### and range & step sizes
-theta = np.linspace(0,np.pi/2,Ntheta)
 beta = np.linspace(minb,maxb,Nbeta)
-highT = np.linspace(roomT,maxT,NT)
 phi = np.linspace(0,2*np.pi,Nphi)
 
-rho = data.CRC_rho
-# rho = data.CRC_rho_sc
-#### EITHER LOAD ISOTROPIC DATA FROM EXTERNAL SOURCE
-c12 = data.ISO_c12
-c44 = data.ISO_c44
-cMl = data.ISO_l
-cMm = data.ISO_m
-cMn = data.ISO_n
-### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC for polycrystals)
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(cMl.keys())))
-
-#### OR GENERATE IT BY AVERAGING OVER SINGLE CRYSTAL CONSTANTS:
-# import polycrystal_averaging as pca
-# c12 = {}
-# c44 = {}
-# cMl = {}
-# cMm = {}
-# cMn = {}
-# ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. TOEC)
-# metal = sorted(list(data.c111.keys()))
-# metal_cubic = data.fcc_metals.union(data.bcc_metals).intersection(metal)
-# ### compute average elastic constants for these metals:
-# print("computing averaged elastic constants ...")
-# C2 = {}
-# aver = pca.IsoAverages(pca.lam,pca.mu,pca.Murl,pca.Murm,pca.Murn)
-# for X in metal:
-#     C2[X] = elasticC2(c11=data.CRC_c11[X], c12=data.CRC_c12[X], c44=data.CRC_c44[X], c13=data.CRC_c13[X], c33=data.CRC_c33[X], c66=data.CRC_c66[X])
-#     S2 = pca.elasticS2(C2[X])
-#     C3 = elasticC3(c111=data.c111[X], c112=data.c112[X], c113=data.c113[X], c123=data.c123[X], c133=data.c133[X], c144=data.c144[X], c155=data.c155[X], c166=data.c166[X], c222=data.c222[X], c333=data.c333[X], c344=data.c344[X], c366=data.c366[X], c456=data.c456[X])
-#     S3 = pca.elasticS3(S2,C3)
-#     aver.voigt_average(C2[X],C3)
-#     aver.reuss_average(S2,S3)
-#     HillAverage = aver.hill_average()
-#     ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
-#     c12[X] = float(HillAverage[pca.lam])
-#     c44[X] = float(HillAverage[pca.mu])
-#     ### use Hill average for Murnaghan constants, as we do not have a better scheme at the moment
-#     cMl[X] = float(HillAverage[pca.Murl])
-#     cMm[X] = float(HillAverage[pca.Murm])
-#     cMn[X] = float(HillAverage[pca.Murn])
-#     
-# # replace Hill with improved averages for effective Lame constants of cubic metals:
-# for X in metal_cubic:
-#     ### don't waste time computing the "improved average" for the Murnaghan constants when we are going to use the Hill average
-#     ImprovedAv = aver.improved_average(C2[X],None)
-#     c12[X] = float(ImprovedAv[pca.lam])
-#     c44[X] = float(ImprovedAv[pca.mu])
-##################################################
-ct_over_cl = {}
-qBZ = {}
-ct = {}
-cl = {}
-burgers = {}
-bulk = {}
-
-### compute various numbers for these metals
-for X in metal:
-    ct_over_cl[X] = np.sqrt(c44[X]/(c12[X]+2*c44[X]))
-    qBZ[X] = ((6*np.pi**2/data.CRC_Vc[X])**(1/3))
-    ct[X] = np.sqrt(c44[X]/rho[X])
-    cl[X] =  ct[X]/ct_over_cl[X]
-    bulk[X] = c12[X] + 2*c44[X]/3
-
-for X in data.fcc_metals.intersection(metal):
-    burgers[X] = data.CRC_a[X]/np.sqrt(2)
-
-for X in data.bcc_metals.intersection(metal):
-    burgers[X] = data.CRC_a[X]*np.sqrt(3)/2
-    
-for X in data.hcp_metals.intersection(metal):
-    burgers[X] = data.CRC_a[X]
-    
-for X in data.tetr_metals.intersection(metal):
-    burgers[X] = data.CRC_c[X]  # for one possible slip system
-    
-### thermal coefficients:
-alpha_a = data.CRC_alpha_a  ## coefficient of linear thermal expansion at room temperature
-## TODO: need to implement T dependence of alpha_a!
+if use_exp:
+    metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(data.ISO_l.keys())))
+else:
+    metal = sorted(list(data.c111.keys()))
 
 #########
 if __name__ == '__main__':
+    Y={}
+    inputdata = {}
+    metal_list = []
+    use_metaldata=True
     if len(sys.argv) > 1:
-        ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
-        metal = sys.argv[1].split()
+        args = sys.argv[1:]
+        try:
+            for i in range(len(args)):
+                inputdata[i]=readinputfile(args[i],Ntheta=Ntheta,isotropify=True)
+                X = inputdata[i].name
+                metal_list.append(X)
+                Y[X] = inputdata[i]
+            use_metaldata=False
+            metal = metal_list
+            print("success reading input files ",args)
+        except FileNotFoundError:
+            ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
+            metal = sys.argv[1].split()
+    
+    if use_metaldata:
+        if not os.path.exists("temp_pydislocdyn"):
+            os.mkdir("temp_pydislocdyn")
+        os.chdir("temp_pydislocdyn")
+        for X in metal:
+            data.writeinputfile(X,X,iso=use_exp) # write temporary input files for requested X of metal_data
+            metal_list.append(X)
+        for X in metal_list:
+            if use_exp:
+                Y[X] = readinputfile(X,Ntheta=Ntheta)
+            else:
+                Y[X] = readinputfile(X,Ntheta=Ntheta,isotropify=True)
+        os.chdir("..")
+        metal = metal_list
     
     if Ncores == 0:
         print("skipping phonon wind calculations as requested")
     else:
         with open("beta.dat","w") as betafile:
             betafile.write('\n'.join(map("{:.5f}".format,beta)))
-    
-        with open("theta.dat","w") as thetafile:
-            thetafile.write('\n'.join(map("{:.6f}".format,theta)))
-    
-        with open("temperatures.dat","w") as Tfile:
-            Tfile.write('\n'.join(map("{:.2f}".format,highT)))
-            
+        for X in metal:
+            with open(X+"_iso.log", "w") as logfile:
+                logfile.write(Y[X].__repr__())
+                logfile.write("\n\nbeta =v/ct:\n")
+                logfile.write('\n'.join(map("{:.5f}".format,beta)))
+                logfile.write("\n\ntheta:\n")
+                logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
+        
         print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
     
     A3 = {}
+    highT = {}
     for X in metal:
-        A3[X] = elasticA3(elasticC2(c12=c12[X], c44=c44[X]), elasticC3(l=cMl[X], m=cMm[X], n=cMn[X]))/c44[X]
+        highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
+        if constantrho:
+            Y[X].alpha_a = 0
+        ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
+        if len(highT[X])>1 and Ncores !=0:
+            with open("temperatures_{}.dat".format(X),"w") as Tfile:
+                Tfile.write('\n'.join(map("{:.2f}".format,highT[X])))
+        A3[X] = elasticA3(UnVoigt(Y[X].C2/Y[X].mu), UnVoigt(Y[X].C3/Y[X].mu))
     for X in metal:
         def maincomputations(bt,X,modes=modes):
             '''wrap all main computations into a single function definition to be run in a parallelized loop'''
-            Bmix = np.zeros((len(theta),len(highT)))
+            Bmix = np.zeros((len(Y[X].theta),len(highT[X])))
                                     
-            dij = fourieruij_iso(bt, ct_over_cl[X], theta, phi)
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3[X], qBZ=qBZ[X], ct=ct[X], cl=cl[X], beta=bt, burgers=burgers[X], T=roomT, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+            dij = fourieruij_iso(bt, Y[X].ct_over_cl, Y[X].theta, phi)
+            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
             
-            for Ti in range(len(highT)-1):
-                T = highT[Ti+1]
-                expansionratio = (1 + alpha_a[X]*(T - roomT)) ## TODO: replace with values from eos!
-                if constantrho:
-                    expansionratio = 1 ## turn off expansion
-                qBZT = qBZ[X]/expansionratio
-                burgersT = burgers[X]*expansionratio
-                rhoT = rho[X]/expansionratio**3
-                c44T = c44[X] ## TODO: need to implement T dependence of shear modulus!
-                c12T = bulk[X] - 2*c44T/3 ## TODO: need to implement T dependence of bulk modulus!
+            for Ti in range(len(highT[X])-1):
+                T = highT[X][Ti+1]
+                expansionratio = (1 + Y[X].alpha_a*(T - Y[X].T)) ## TODO: replace with values from eos!
+                qBZT = Y[X].qBZ/expansionratio
+                burgersT = Y[X].burgers*expansionratio
+                rhoT = Y[X].rho/expansionratio**3
+                c44T = Y[X].mu ## TODO: need to implement T dependence of shear modulus!
+                c12T = Y[X].bulk - 2*c44T/3 ## TODO: need to implement T dependence of bulk modulus!
                 ctT = np.sqrt(c44T/rhoT)
                 ct_over_cl_T = np.sqrt(c44T/(c12T+2*c44T))
                 clT = ctT/ct_over_cl_T
@@ -204,15 +168,15 @@ if __name__ == '__main__':
                 if beta_reference == 'current':
                     betaT = bt
                 else:
-                    betaT = bt*ct[X]/ctT
+                    betaT = bt*Y[X].ct/ctT
                 
-                dij = fourieruij_iso(betaT, ct_over_cl_T, theta, phi)
-                ### TODO: need models for T dependence of Murnaghan constants!
-                cMlT = cMl[X]
-                cMmT = cMm[X]
-                cMnT = cMn[X]
+                dij = fourieruij_iso(betaT, ct_over_cl_T, Y[X].theta, phi)
+                ### TODO: need models for T dependence of TOECs!
+                c123T = Y[X].C3[0,1,2]
+                c144T = Y[X].C3[0,3,3]
+                c456T = Y[X].C3[3,4,5]
                 ##
-                A3T = elasticA3(elasticC2(c12=c12T, c44=c44T), elasticC3(l=cMlT, m=cMmT, n=cMnT))/c44T
+                A3T = elasticA3(elasticC2(c12=c12T, c44=c44T), elasticC3(c123=c123T,c144=c144T,c456=c456T))/c44T
                 Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3T, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
                 
             return Bmix
@@ -229,18 +193,18 @@ if __name__ == '__main__':
         if Ncores != 0:
             with open("drag_{}.dat".format(X),"w") as Bfile:
                 Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
-                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,theta/np.pi)) + '\n')
+                Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
                     Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
-        if len(highT)>1 and Ncores !=0:
+        if len(highT[X])>1 and Ncores !=0:
             with open("drag_T_{}.dat".format(X),"w") as Bfile:
-                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,theta[1:-1])) + '\tBedge[mPas]' + '\n')
+                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
-                    for Ti in range(len(highT)):
-                        Bfile.write("{:.1f}".format(highT[Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
-                        
+                    for Ti in range(len(highT[X])):
+                        Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
+            
             with open("drag_T_screw_{}.dat".format(X),"w") as Bscrewfile:
                 for bi in range(len(beta)):
                     Bscrewfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,0])) + '\n')
@@ -249,8 +213,8 @@ if __name__ == '__main__':
                 for bi in range(len(beta)):
                     Bedgefile.write('\t'.join(map("{:.6f}".format,Bmix[bi,-1])) + '\n')
     
-            for th in range(len(theta[1:-1])):
-                with open("drag_T_mix{0:.6f}_{1}.dat".format(theta[th+1],X),"w") as Bmixfile:
+            for th in range(len(Y[X].theta[1:-1])):
+                with open("drag_T_mix{0:.6f}_{1}.dat".format(Y[X].theta[th+1],X),"w") as Bmixfile:
                     for bi in range(len(beta)):
                         Bmixfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,th+1])) + '\n')
 
@@ -296,7 +260,10 @@ if __name__ == '__main__':
         ax.set_ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
         ax.set_title(titlestring,fontsize=fntsize)
         for X in metal:
-            ax.plot(Broom[X][:,0],Broom[X][:,th+1],lnstyles[X], color=metalcolors[X], label=X)
+            if X in metalcolors.keys():
+                ax.plot(Broom[X][:,0],Broom[X][:,th+1],lnstyles[X], color=metalcolors[X], label=X)
+            else:
+                ax.plot(Broom[X][:,0],Broom[X][:,th+1],label=X) # fall back to automatic colors / line styles
         legend = ax.legend(loc='upper center', ncol=2, columnspacing=0.8, handlelength=1.2, shadow=True)
         plt.savefig("B_iso_{:.4f}.pdf".format(theta[th]),format='pdf',bbox_inches='tight')
         plt.close()
@@ -348,7 +315,7 @@ if __name__ == '__main__':
         fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(f" & {ct[X]:.0f}")
+            fitfile.write(f" & {Y[X].ct:.0f}")
 
     def mkfitplot(metal_list,filename):
         '''Plot the dislocation drag over velocity and show the fitting function.'''
@@ -366,17 +333,23 @@ if __name__ == '__main__':
         for X in metal_list:
             beta_highres = np.linspace(0,1,1000)
             if filename=="edge":
-                ax.plot(beta,Broom[X][:,Ntheta],color=metalcolors[X],label=X)
+                if X in metalcolors.keys():
+                    ax.plot(beta,Broom[X][:,Ntheta],color=metalcolors[X],label=X)
+                else:
+                    ax.plot(beta,Broom[X][:,Ntheta],label=X) # fall back to automatic colors
                 with np.errstate(all='ignore'):
                     ax.plot(beta_highres,fit_edge(beta_highres,*popt_edge[X]),':',color='gray')
             elif filename=="screw":
-                ax.plot(beta,Broom[X][:,1],color=metalcolors[X],label=X)
+                if X in metalcolors.keys():
+                    ax.plot(beta,Broom[X][:,1],color=metalcolors[X],label=X)
+                else:
+                    ax.plot(beta,Broom[X][:,1],label=X) # fall back to automatic colors
                 with np.errstate(all='ignore'):
                     ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
             else:
                 raise ValueError("keyword 'filename'={} undefined.".format(filename))
         ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
-        plt.savefig("B_iso_{0}K_{1}+fits.pdf".format(roomT,filename),format='pdf',bbox_inches='tight')
+        plt.savefig(f"B_iso_{filename}+fits.pdf",format='pdf',bbox_inches='tight')
         plt.close()
         
     mkfitplot(metal,"edge")
@@ -389,7 +362,7 @@ if __name__ == '__main__':
            A plot of the results is saved to disk if mkplot=True (default).'''
         popt_e = popt_edge[X]
         popt_s = popt_screw[X]
-        vcrit = ct[X]
+        vcrit = Y[X].ct
         if character=='screw':
             if modes == 'TT':
                 print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
@@ -401,7 +374,7 @@ if __name__ == '__main__':
         else: ## 'aver' = default
             fname = "Biso_of_sigma_{}.pdf".format(X)
             ftitle = "{}, ".format(X) + "averaged over $\\vartheta$"
-        burg = burgers[X]
+        burg = Y[X].burgers
         
         @np.vectorize
         def B(v):
@@ -509,7 +482,7 @@ if __name__ == '__main__':
         ax.axis((0,sig_norm[-1],0.5,4))
         for X in metal:
             Xc = X+character
-            sig0 = ct[X]*B0[Xc]/burgers[X]
+            sig0 = Y[X].ct*B0[Xc]/Y[X].burgers
             ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0={1e6*B0[Xc]:.1f}\mu$Pas")
         ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{c_\mathrm{t}B_0}\right)^2}$")
         # ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{c_\mathrm{t}B_0}$")

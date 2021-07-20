@@ -222,25 +222,42 @@ class metal_props:
         if self.cijk is not None:
             self.c123 = self.C3[0,1,2] ## some legacy code expect these to be set
     
-    def compute_Lame(self, roundto=-8):
-        '''computes the Lame constants by averaging over the second order elastic constants'''
-        aver = IsoAverages(lam,mu,0,0,0) # don't need Murnaghan constants
+    def compute_Lame(self, roundto=-8, include_TOEC=False):
+        '''Computes the Lame constants by averaging over the second order elastic constants.
+           If option include_TOEC=True, Hill averages for the Murnaghan constants are calculated as well, 
+           but the user should be aware that the latter are not reliable as there is no good averaging scheme for TOECs.'''
         C2 = UnVoigt(self.C2)
+        if include_TOEC:
+            C3 = UnVoigt(self.C3)
+            aver = IsoAverages(lam,mu,Murl,Murm,Murn)
+        else:
+            C3 = None
+            aver = IsoAverages(lam,mu,0,0,0)
+        if include_TOEC or self.sym not in ['iso','fcc','bc']:
+            S2 = elasticS2(C2)
+            if include_TOEC: S3 = elasticS3(S2,C3)
+            else: S3 = None
+            aver.voigt_average(C2,C3)
+            aver.reuss_average(S2,S3)
+            HillAverage = aver.hill_average()
         if self.sym=='iso':
             self.lam=self.c12
             self.mu=self.c44
+            self.Murl = self.C3[0,3,3] + self.C3[0,1,2]/2 # c144+c123/2
+            self.Murm = self.C3[0,3,3] + 2*self.C3[3,4,5] # c144+2*c456
+            self.Murn = 4*self.C3[3,4,5] # 4*c456
         elif self.sym=='fcc' or self.sym=='bcc':
-            ImprovedAv = aver.improved_average(C2)
+            ImprovedAv = aver.improved_average(C2,C3)
             self.lam = round(float(ImprovedAv[lam]),roundto)
             self.mu = round(float(ImprovedAv[mu]),roundto)
         else:
-            S2 = elasticS2(C2)
-            aver.voigt_average(C2)
-            aver.reuss_average(S2)
-            HillAverage = aver.hill_average()
             ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
             self.lam = round(float(HillAverage[lam]),roundto)
             self.mu = round(float(HillAverage[mu]),roundto)
+        if include_TOEC and self.sym != 'iso':
+            self.Murl = round(float(HillAverage[Murl]),roundto)
+            self.Murm = round(float(HillAverage[Murm]),roundto)
+            self.Murn = round(float(HillAverage[Murn]),roundto)
         self.bulk = self.lam + 2*self.mu/3
         self.poisson = self.lam/(2*(self.lam+self.mu)) ## average Poisson ratio nu
         self.young = 2*self.mu*(1+self.poisson)
