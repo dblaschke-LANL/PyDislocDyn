@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 19, 2021
+# Date: Nov. 7, 2017 - July 20, 2021
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -480,16 +480,13 @@ def readinputfile(fname,init=True):
 
 if __name__ == '__main__':
     Y={}
-    inputdata = {}
     metal_list = []
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
-            for i in range(len(args)):
-                inputdata[i]=readinputfile(args[i])
-                X = inputdata[i].name
-                metal_list.append(X)
-                Y[X] = inputdata[i]
+            inputdata = [readinputfile(i) for i in args]
+            Y = dict([(inputdata[i].name,inputdata[i]) for i in range(len(inputdata))])
+            metal_list = list(Y.keys())
             metal_symm = metal = set([])
             print(f"success reading input files {args}")
         except FileNotFoundError:

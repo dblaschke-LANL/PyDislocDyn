@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 15, 2021
+# Date: Nov. 3, 2017 - July 20, 2021
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -12,7 +12,6 @@ nonumba=False
 try:
     from numba import jit
 except ImportError:
-    print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     nonumba=True
     from functools import partial
     def jit(func=None,forceobj=True,nopython=False):
@@ -25,10 +24,24 @@ try:
     usefortran = True
     ompthreads = fsub.ompinfo()
 except ImportError:
-    print("WARNING: module 'subroutines' not found, execution will be slower")
-    print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
     ompthreads = 0
+    
+def printthreadinfo(Ncores,ompthreads=ompthreads):
+    '''print a message to screen informing whether joblib paralellization (Ncores) or OpenMP paralellization (ompthreads)
+       or both are currently employed; also warn if imports of numba and/or subroutines failed.'''
+    if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
+        print(f"using joblib parallelization with {Ncores} cores")
+    elif Ncores > 1:
+        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {ompthreads} threads")
+    elif ompthreads > 0:
+        print(f"using OpenMP parallelization with {ompthreads} threads")
+    if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
+    if not usefortran:
+        print("\nWARNING: module 'subroutines' not found, execution will be slower")
+        print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module")
+        print("OpenMP is also supported, e.g. with with gfortran: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'\n")
+    return None
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))

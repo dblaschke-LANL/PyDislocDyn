@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 19, 2021
+# Date: Nov. 5, 2017 - July 20, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -33,7 +33,7 @@ sys.path.append(dir_path)
 ##
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
-from dislocations import fourieruij_iso, ompthreads
+from dislocations import fourieruij_iso, ompthreads, printthreadinfo
 from linetension_calcs import readinputfile, Dislocation
 from phononwind import elasticA3, dragcoeff_iso
 try:
@@ -44,15 +44,8 @@ try:
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
     Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     # Ncores = -2
-    if ompthreads == 0 and Ncores != 0: # check if subroutines were compiled with OpenMP support
-        print("using joblib parallelization with ",Ncores," cores")
-    elif Ncores != 0:
-        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",ompthreads," threads, total = ",Ncores*ompthreads)
 except ImportError:
-    print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = 1 ## must be 1 (or 0) without joblib
-    if ompthreads > 0:
-        print("using OpenMP parallelization with ",ompthreads," threads")
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -85,20 +78,17 @@ else:
 
 #########
 if __name__ == '__main__':
+    printthreadinfo(Ncores,ompthreads)
     Y={}
-    inputdata = {}
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
-            for i in range(len(args)):
-                inputdata[i]=readinputfile(args[i],Ntheta=Ntheta,isotropify=True)
-                X = inputdata[i].name
-                metal_list.append(X)
-                Y[X] = inputdata[i]
+            inputdata = [readinputfile(i, Ntheta=Ntheta, isotropify=True) for i in args]
+            Y = dict([(inputdata[i].name,inputdata[i]) for i in range(len(inputdata))])
+            metal = metal_list = list(Y.keys())
             use_metaldata=False
-            metal = metal_list
             print("success reading input files ",args)
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)

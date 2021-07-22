@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 19, 2021
+# Date: Nov. 3, 2017 - July 20, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -17,8 +17,7 @@ import sys
 import os
 import numpy as np
 import sympy as sp
-from scipy import optimize
-from scipy import ndimage
+from scipy import optimize, ndimage
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -42,7 +41,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, loadinputfile
-from dislocations import StrohGeometry, ompthreads, elbrak1d
+from dislocations import StrohGeometry, ompthreads, printthreadinfo, elbrak1d
 try:
     from joblib import Parallel, delayed, cpu_count
     ## detect number of cpus present:
@@ -490,26 +489,17 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
             
 ### start the calculations
 if __name__ == '__main__':
-    if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
-        print(f"using joblib parallelization with {Ncores} cores")
-    elif Ncores > 1:
-        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {ompthreads} threads")
-    elif ompthreads > 0:
-        print(f"using OpenMP parallelization with {ompthreads} threads")
+    printthreadinfo(Ncores,ompthreads)
     Y={}
-    inputdata = {}
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
-            for i in range(len(args)):
-                inputdata[i]=readinputfile(args[i],init=False,theta=theta,Nphi=Nphi)
-                X = inputdata[i].name
-                metal_list.append(X)
-                Y[X] = inputdata[i]
+            inputdata = [readinputfile(i,init=False,theta=theta,Nphi=Nphi) for i in args]
+            Y = dict([(inputdata[i].name,inputdata[i]) for i in range(len(inputdata))])
+            metal = metal_list = list(Y.keys())
             use_metaldata=False
-            metal = metal_list
             print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to
@@ -577,8 +567,6 @@ if __name__ == '__main__':
         if Y[X].mu is None:
             Y[X].compute_Lame()
 
-    print(f"Computing the line tension for: {metal}")
-
     if Nbeta > 0:
         with open("theta.dat","w") as thetafile:
             thetafile.write('\n'.join("{:.6f}".format(thi) for thi in theta[1:-1]))
@@ -589,7 +577,18 @@ if __name__ == '__main__':
     ## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
     ## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
     vcrit_smallest = {}
+    writesmallest = {}
+    writeedge={}
+    writescrew={}
     for X in metal:
+        writeedge[X]=False
+        writescrew[X]=False
+        if Y[X].vcrit_screw is None:
+            writescrew[X]=True ## remember for later
+            Y[X].computevcrit_screw()
+        if Y[X].vcrit_edge is None:
+            writeedge[X]=True
+            Y[X].computevcrit_edge()
         if Y[X].sym=='iso':
             vcrit_smallest[X] = 1
         else:
@@ -609,6 +608,14 @@ if __name__ == '__main__':
             vcrit_smallest['Fe123'] = 0.616
             vcrit_smallest['K123'] = 0.392
             vcrit_smallest['Ta123'] = 0.807
+    else:
+        cache = []
+        for X in metal:
+            writesmallest[X] = False
+            if Y[X].vcrit_smallest is None:
+                print(f"Computing missing smallest critical velocity for {X} ...")
+                Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
+                writesmallest[X] = True
     for X in metal:
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
         Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)
@@ -648,6 +655,7 @@ if __name__ == '__main__':
         return 0
         
     # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
+    print(f"Computing the line tension for: {metal}")
     if Ncores == 1 and Nbeta >=1:
         [maincomputations(i) for i in range(len(metal))]
     elif Nbeta<1:
@@ -727,61 +735,28 @@ if __name__ == '__main__':
         sys.exit()
     
     print(f"Computing critical velocities for: {metal}")
-    writeedge={}
-    writescrew={}
-    for X in metal:
-        writeedge[X]=False
-        writescrew[X]=False
-        if Y[X].vcrit_screw is None:
-            writescrew[X]=True ## remember for later
-            Y[X].computevcrit_screw()
-        if Y[X].vcrit_edge is None:
-            writeedge[X]=True
-            Y[X].computevcrit_edge()
+    if Kcores > 1: print(f"(using joblib parallelization with {Kcores} cores)")
     
-    ### setup predefined slip-geometries for symbolic calculations:
-    b_pre = [np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3), np.array([1,-1,1])/sp.sqrt(3)]
-    n0_pre = [-np.array([1,-1,1])/sp.sqrt(3), np.array([1,1,0])/sp.sqrt(2), np.array([1,-1,-2])/sp.sqrt(6), np.array([1,-2,-3])/sp.sqrt(14)]
-    for X in metal:
-        for i in range(len(b_pre)):
-            if abs(np.dot(b_pre[i],Y[X].b)-1)<1e-15 and abs(np.dot(n0_pre[i],Y[X].n0)-1)<1e-15:
-                Y[X].b=b_pre[i]
-                Y[X].n0=n0_pre[i] ## improve speed and accuracy below by using sympy sqrt for the normalization of these vectors
-        
     vcrit = {} # values contain critical velocities and associated polar angles
     bt2_cache = []
     for X in metal:
         if X in metal_symm:
             current_symm=True
-            Y[X].vcrit_all = np.empty((2,Ntheta2))
-            Y[X].vcrit_all[0] = np.linspace(0,np.pi/2,Ntheta2)
+            Y[X].computevcrit(theta=np.linspace(0,np.pi/2,Ntheta2),cache=bt2_cache,Ncores=Kcores)
             scrind=0
         else:
             current_symm=False
-            Y[X].vcrit_all = np.empty((2,2*Ntheta2-1))
-            Y[X].vcrit_all[0] = np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1)
+            Y[X].computevcrit(theta=np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1),cache=bt2_cache,Ncores=Kcores)
             scrind = Ntheta2-1
         if Y[X].sym=='iso': print(f"skipping isotropic {X}, vcrit=ct")
         else:
-            Y[X].computevcrit_stroh(Ntheta2,symmetric=current_symm,cache=bt2_cache)
-            Y[X].vcrit_all[1] = np.nanmin(Y[X].vcrit[0],axis=1)
-            if Y[X].vcrit_screw is not None: Y[X].vcrit_all[1][scrind]=Y[X].vcrit_screw
-            if Y[X].vcrit_edge is not None:
-                Y[X].vcrit_all[1][-1]=Y[X].vcrit_edge
-                if scrind != 0: Y[X].vcrit_all[1][0]=Y[X].vcrit_edge
             vcrit[X]=np.empty(Y[X].vcrit.shape)
             for th in range(vcrit[X].shape[1]):
                 tmplist=[]
                 for i in range(3):
                     tmplist.append(tuple(Y[X].vcrit[:,th,i]))
                 vcrit[X][:,th,:] = np.array(sorted(tmplist)).T
-        
-    for X in metal:
-        for i in range(len(b_pre)):
-            if abs(np.dot(b_pre[i],Y[X].b)-1)<1e-15 and abs(np.dot(n0_pre[i],Y[X].n0)-1)<1e-15:
-                Y[X].b=np.asarray(Y[X].b,dtype=float)
-                Y[X].n0=np.asarray(Y[X].n0,dtype=float) ## convert back to arrays of floats
-
+    
     ## write vcrit results to disk, then plot
     with open("vcrit.dat","w") as vcritfile:
         vcritfile.write("theta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*Ntheta2-1)) + '\n')
@@ -832,11 +807,10 @@ if __name__ == '__main__':
         mkvcritplot(X,vcrit[X],Ntheta2)
         if write_vcrit and not use_metaldata:
             with open(Y[X].filename,"a") as outf:
-                if Y[X].vcrit_smallest is None or writeedge[X] or writescrew[X]:
+                if writesmallest[X] or writeedge[X] or writescrew[X]:
                     outf.write("## limiting velocities as computed by PyDislocDyn:\n")
-                if Y[X].vcrit_smallest is None:
-                    print(f"computing and writing vcrit_smallest to {X} ...")
-                    Y[X].findvcrit_smallest()
+                if writesmallest[X]:
+                    print(f"writing vcrit_smallest to {X} ...")
                     outf.write(f"vcrit_smallest = {Y[X].vcrit_smallest:.0f}\n")
                 if writeedge[X]:
                     print(f"writing vcrit_edge to {X}")

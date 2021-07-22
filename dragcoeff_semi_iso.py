@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 16, 2021
+# Date: Nov. 5, 2017 - July 20, 2021
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -47,16 +47,9 @@ try:
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
     Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     # Ncores = -2
-    if dlc.ompthreads == 0 and Ncores != 0: # check if subroutines were compiled with OpenMP support
-        print("using joblib parallelization with ",Ncores," cores")
-    elif Ncores != 0:
-        print("Parallelization: joblib with ",Ncores," cores and OpenMP with ",dlc.ompthreads," threads, total = ",Ncores*dlc.ompthreads)
 except ImportError:
-    print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncpus = 1
     Ncores = 1 ## must be 1 (or 0) without joblib
-    if dlc.ompthreads > 0:
-        print("using OpenMP parallelization with ",dlc.ompthreads," threads")
 Kcores = max(Ncores,int(min(Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
 if Ncores==0: Kcores=max(1,int(Ncpus/2)) # in case user has set Ncores=0 above to bypass phonon wind calcs
 
@@ -117,20 +110,17 @@ if use_iso:
 
 #########
 if __name__ == '__main__':
+    dlc.printthreadinfo(Ncores,dlc.ompthreads)
     Y={}
-    inputdata = {}
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
-            for i in range(len(args)):
-                inputdata[i]=readinputfile(args[i], Nphi=NphiX, Ntheta=Ntheta)
-                X = inputdata[i].name
-                metal_list.append(X)
-                Y[X] = inputdata[i]
+            inputdata = [readinputfile(i, Nphi=NphiX, Ntheta=Ntheta) for i in args]
+            Y = dict([(inputdata[i].name,inputdata[i]) for i in range(len(inputdata))])
+            metal = metal_list = list(Y.keys())
             use_metaldata=False
-            metal = metal_list
             print("success reading input files ",args)
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)

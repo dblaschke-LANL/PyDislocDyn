@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 15, 2021
+# Date: Nov. 5, 2017 - July 20, 2021
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -12,7 +12,6 @@ import numpy as np
 try:
     from numba import jit
 except ImportError:
-    print("WARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     def jit(func):
         '''define a dummy decorator if numba is unavailable at runtime'''
         return func
@@ -22,8 +21,6 @@ try:
     usefortran = True
     ompthreads = fsub.ompinfo()
 except ImportError:
-    print("WARNING: module 'subroutines' not found, execution will be slower")
-    print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module\n")
     usefortran = False
     ompthreads = 0
 
