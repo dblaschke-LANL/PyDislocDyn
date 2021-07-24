@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 16, 2021
+# Date: Nov. 3, 2017 - July 23, 2021
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
@@ -183,7 +183,7 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
         outf.write(f"alpha_a = {CRC_alpha_a[X]}\n")
         outf.write(f"Tm = {CRC_T_m[X]}\n")
         outf.write("\n#soec\n")
-        if iso:
+        if iso is True:
             outf.write("\nsym = iso\t# (overwrites previous entry)")
             outf.write(f"\na = {np.cbrt(CRC_Vc[X])}\t# replace by average lattice constants such that a^3 is the true unit cell volume\n\n")
             soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
@@ -194,7 +194,7 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             if val is not None:
                 outf.write("{} = {:e}\n".format(c2,val))
         outf.write("\n#toec\n")
-        if iso:
+        if iso is True:
             toec = {"c123":ISO_c123, "c144":ISO_c144, "c456":ISO_c456}
         else:
             toec = {"c111":c111, "c112":c112, "c113":c113, "c123":c123, "c133":c133, "c144":c144, "c155":c155, "c166":c166, "c222":c222, "c333":c333, "c344":c344, "c366":c366, "c456":c456}
