@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 20, 2021
+# Date: Nov. 5, 2017 - July 28, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -80,14 +80,13 @@ else:
 if __name__ == '__main__':
     printthreadinfo(Ncores,ompthreads)
     Y={}
-    metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
             inputdata = [readinputfile(i, Ntheta=Ntheta, isotropify=True) for i in args]
-            Y = dict([(inputdata[i].name,inputdata[i]) for i in range(len(inputdata))])
-            metal = metal_list = list(Y.keys())
+            Y = {i.name:i for i in inputdata}
+            metal = list(Y.keys())
             use_metaldata=False
             print("success reading input files ",args)
         except FileNotFoundError:
@@ -100,14 +99,8 @@ if __name__ == '__main__':
         os.chdir("temp_pydislocdyn")
         for X in metal:
             data.writeinputfile(X,X,iso=use_exp) # write temporary input files for requested X of metal_data
-            metal_list.append(X)
-        for X in metal_list:
-            if use_exp:
-                Y[X] = readinputfile(X,Ntheta=Ntheta)
-            else:
-                Y[X] = readinputfile(X,Ntheta=Ntheta,isotropify=True)
+            Y[X] = readinputfile(X,Ntheta=Ntheta,isotropify=True)
         os.chdir("..")
-        metal = metal_list
     
     if Ncores == 0:
         print("skipping phonon wind calculations as requested")

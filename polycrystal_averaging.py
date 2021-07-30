@@ -1,7 +1,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 20, 2021
+# Date: Nov. 7, 2017 - July 28, 2021
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -203,7 +203,7 @@ class metal_props:
             self.c11=self.c111=self.c112=self.c166=None
             
     def __repr__(self):
-        return  "{}".format({'name':self.name, 'sym':self.sym, 'T':self.T, 'ac':self.ac, 'bc':self.bc, 'cc':self.cc, 'Vc':self.Vc, 'rho':self.rho, 'ct':self.ct, 'cl':self.cl})
+        return f" name:\t {self.name}\n sym:\t {self.sym}\n T:\t {self.T}\n ac:\t {self.ac}\n bc:\t {self.bc}\n cc:\t {self.cc}\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
             
     def init_C2(self):
         '''initializes the tensor of second order elastic constants'''
@@ -485,7 +485,7 @@ if __name__ == '__main__':
         args = sys.argv[1:]
         try:
             inputdata = [readinputfile(i) for i in args]
-            Y = dict([(inputdata[i].name,inputdata[i]) for i in range(len(inputdata))])
+            Y = {i.name:i for i in inputdata}
             metal_list = list(Y.keys())
             metal_symm = metal = set([])
             print(f"success reading input files {args}")

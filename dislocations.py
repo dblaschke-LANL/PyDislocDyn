@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 20, 2021
+# Date: Nov. 3, 2017 - July 28, 2021
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -70,7 +70,7 @@ class StrohGeometry:
        Methods computeuij(), computeEtot(), and computeLT() call functions of the same name, storing results in attributes uij, Etot, and LT.
        Method computerot finally computes a rotation matrix that will align n0,t with Cartesian y,z directions.'''
     def __init__(self,b, n0, theta, Nphi):
-        Ntheta = len(theta)
+        self.Ntheta = Ntheta = len(theta)
         self.theta = np.asarray(theta)
         self.phi = np.linspace(0,2*np.pi,Nphi)
         self.r = None
@@ -110,7 +110,7 @@ class StrohGeometry:
         self.LT = 0
         
     def __repr__(self):
-        return "{}".format({'b':self.b, 'n0':self.n0, 'beta':self.beta})
+        return f" b:\t {self.b}\n n0:\t {self.n0}\n beta:\t {self.beta}\n Ntheta:\t {self.Ntheta}"
         
     def computeuij(self, beta, C2=None, r=None, nogradient=False, debug=False):
         '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
