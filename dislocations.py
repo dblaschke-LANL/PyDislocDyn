@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 28, 2021
+# Date: Nov. 3, 2017 - Aug. 5, 2021
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -171,7 +171,7 @@ class StrohGeometry:
         else:
             self.rho = rho
         if phi is None: phi=self.phi
-        if r is None: r=np.linspace(0,1,250)
+        if r is None: r=burgers*np.linspace(0,1,250)
         test = np.abs(self.C2_aligned[scrind]/self.C2[3,3]) ## check for symmetry requirements
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
             raise ValueError("not implemented - slip plane is not a reflection plane")

@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 28, 2021
+# Date: Nov. 3, 2017 - Aug. 17, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -197,7 +197,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
 metal_props.computevcrit_stroh=computevcrit_stroh
 
 class Dislocation(StrohGeometry,metal_props):
-    '''This class has all properties and methods of classes StrohGeometry and metal_props, plus an additional method: computevcrit.
+    '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
        If optional keyword Miller is set to True, b and n0 are interpreted as Miller indices (and Cartesian otherwise); note since n0 defines a plane its Miller indices are in reziprocal space.'''
     def __init__(self,b, n0, theta, Nphi,sym='iso', name='some_crystal',Miller=False):
         metal_props.__init__(self, sym, name)
@@ -214,9 +214,8 @@ class Dislocation(StrohGeometry,metal_props):
     def alignC2(self):
         '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
         self.computerot()
-        Ntheta=len(self.theta)
-        self.C2_aligned = np.zeros((Ntheta,6,6)) ## compute C2 rotated into dislocation coordinates
-        for th in range(Ntheta):
+        self.C2_aligned = np.zeros((self.Ntheta,6,6)) ## compute C2 rotated into dislocation coordinates
+        for th in range(self.Ntheta):
             self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
     
     def findedgescrewindices(self,theta=None):
