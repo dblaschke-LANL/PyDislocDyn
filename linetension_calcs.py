@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 17, 2021
+# Date: Nov. 3, 2017 - Sept. 9, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -420,7 +420,7 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.init_all()
     return out
 
-def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow):
+def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False):
     '''Generates a plot of the requested component of the dislocation displacement gradient.
        Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
        Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
@@ -429,7 +429,9 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
        'slipsystem' is required except for those metals where its keyword coincides with disloc.sym (see documentation of disloc.computeuij_acc()
        for details on capabilities and limitations of the current implementation of the accelerating solution).
        Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
-       and is currently only implemented for steady-state solutions (a=None).'''
+       and is currently only implemented for steady-state solutions (a=None).
+       Option skipcalc=True may be passed to plot results of an earlier calculation with the same input parameters (useful for plotting multiple components
+       of the dislocation field).'''
     ## make sure everything we need has been initialized:
     if disloc.ct==0:
         disloc.ct = np.sqrt(disloc.mu/disloc.rho)
@@ -450,14 +452,15 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
     plt.ylabel(r'$y[b]$',fontsize=fntsize)
     xylabel = {0:'x',1:'y',2:'z'}
     if a is None and eta_kw is None:
-        disloc.computeuij(beta=beta, r=r, nogradient=nogradient) ## compute steady state field
-        if not nogradient:
-            disloc.alignuij() ## disloc.rot was computed as a byproduct of .alignC2() above
-        else:
-            disloc.uij_aligned = np.zeros(disloc.uij.shape)
-            for th in range(len(disloc.theta)):
-                for ri in range(Nr):
-                    disloc.uij_aligned[:,th,ri] = np.round(np.dot(disloc.rot[th],disloc.uij[:,th,ri]),15)
+        if not skipcalc:
+            disloc.computeuij(beta=beta, r=r, nogradient=nogradient) ## compute steady state field
+            if not nogradient:
+                disloc.alignuij() ## disloc.rot was computed as a byproduct of .alignC2() above
+            else:
+                disloc.uij_aligned = np.zeros(disloc.uij.shape)
+                for th in range(len(disloc.theta)):
+                    for ri in range(Nr):
+                        disloc.uij_aligned[:,th,ri] = np.round(np.dot(disloc.rot[th],disloc.uij[:,th,ri]),15)
         if character == 'screw':
             index = int(np.where(abs(disloc.theta)<1e-12)[0])
         elif character == 'edge':
@@ -471,7 +474,8 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
             namestring = f"u{xylabel[component]}{character}_{disloc.name}_v{beta*disloc.ct:.0f}.pdf"
             uijtoplot = disloc.uij_aligned[component,index]
     elif character=='screw' and not nogradient:
-        disloc.computeuij_acc(a,beta,burgers=disloc.burgers,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+        if not skipcalc:
+            disloc.computeuij_acc(a,beta,burgers=disloc.burgers,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
         if a is None: acc = '_of_t'
         else: acc = f"{a:.0e}"
         namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{disloc.name}_v{beta*disloc.ct:.0f}_a{acc:}.pdf"

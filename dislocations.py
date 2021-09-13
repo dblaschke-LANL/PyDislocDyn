@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 5, 2021
+# Date: Nov. 3, 2017 - Sept. 13, 2021
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -41,7 +41,6 @@ def printthreadinfo(Ncores,ompthreads=ompthreads):
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
         print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module")
         print("OpenMP is also supported, e.g. with with gfortran: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'\n")
-    return None
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
@@ -172,10 +171,11 @@ class StrohGeometry:
             self.rho = rho
         if phi is None: phi=self.phi
         if r is None: r=burgers*np.linspace(0,1,250)
-        test = np.abs(self.C2_aligned[scrind]/self.C2[3,3]) ## check for symmetry requirements
+        test = np.abs(self.C2_aligned[scrind]/self.C2_aligned[scrind,3,3]) ## check for symmetry requirements
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
             raise ValueError("not implemented - slip plane is not a reflection plane")
-        self.uij_acc_aligned = computeuij_acc(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
+        ## change sign to match Stroh convention of steady state counter part:
+        self.uij_acc_aligned = -computeuij_acc(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
@@ -321,7 +321,7 @@ def heaviside(x):
     return (np.sign(x)+1)/2
 
 @jit(nopython=True)
-def accscrew_xintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
+def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     '''subroutine of computeuij_acc'''
     Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
     if eta_kw is None:
@@ -336,27 +336,13 @@ def accscrew_xintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
-    xintegrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
-    return xintegrand - stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
-
-@jit(nopython=True)
-def accscrew_yintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw):
-    '''subroutine of computeuij_acc'''
-    Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-    if eta_kw is None:
-        eta = np.sqrt(2*xpr/a)
-        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
+    if xcomp:
+        integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
+        integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
     else:
-        eta = eta_kw(xpr)
-        etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
-    tau = t - eta
-    tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
-    tau2 = t - etatilde
-    tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
-    yintegrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
-    return  yintegrand - stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
+        integrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
+        integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
+    return integrand
 
 # @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
 def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
@@ -394,19 +380,19 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
     quadlimit=30 ## max no of subintervals; default: 50
     ###
     tv = t*np.array([1-deltat/2,1+deltat/2])
-    for ri in range(len(r)):
-        if abs(r[ri]) < 1e-25:
-            r[ri]=1e-25
+    for ri, rx in enumerate(r):
+        if abs(rx) < 1e-25:
+            rx=1e-25
         for ph in range(len(phi)):
-            x = r[ri]*np.cos(phi[ph]) + shift ### shift x to move with the dislocations
-            y = r[ri]*np.sin(phi[ph])
+            x = rx*np.cos(phi[ph]) + shift ### shift x to move with the dislocations
+            y = rx*np.sin(phi[ph])
             R[ri,ph] = np.sqrt(x**2 - x*y*B/C + y**2/Ct)
             X[ri,ph] = x
             Y[ri,ph] = y
             if not fastapprox: ## allow bypassing
                 for ti in range(2):
-                    uxz[ri,ph,ti] = quad(lambda xpr: accscrew_xintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
-                    uyz[ri,ph,ti] = quad(lambda xpr: accscrew_yintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uxz[ri,ph,ti] = quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
     ## add static part and include burgers vector:
     if eta_kw is None:
         eta = np.sign(X)*np.sqrt(2*np.abs(X)/a)
