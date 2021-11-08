@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 9, 2021
+# Date: Nov. 3, 2017 - Oct. 30, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -15,6 +16,7 @@
 #################################
 import sys
 import os
+import shutil, lzma
 import numpy as np
 import sympy as sp
 from scipy import optimize, ndimage
@@ -34,6 +36,7 @@ plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
+import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
@@ -180,7 +183,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
                     return np.real(out)
                 with np.errstate(invalid='ignore'):
                     minresult = optimize.minimize_scalar(f,method='bounded',bounds=(0.0,2*np.pi))
-                    if minresult.success is not True: print("Warning:\n",minresult)
+                    if minresult.success is not True: print(f"Warning:\n{minresult}")
                     bt2_res[i,0] = minresult.x
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
                 if abs(np.imag(bt2_res[i,1]))>1e-6 or not minresult.success: bt2_res[i,:]=bt2_res[i,:]*float('nan') ## only keep real solutions from successful minimizations
@@ -265,7 +268,7 @@ class Dislocation(StrohGeometry,metal_props):
                     ## analytic solution to Re(lambda=0) in eq. (39) (with sp.solve); sqrt below is real because of if statement above:
                     minval = (2*np.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)
                     if minval>0:
-                        # print("q<0:",self.vcrit_edge,np.sqrt(minval/self.rho))
+                        # print(f"q<0: {self.vcrit_edge}, {np.sqrt(minval/self.rho)}")
                         self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
             else:
                 c16 = self.C2_aligned[edgind][0,5]
@@ -358,7 +361,7 @@ class Dislocation(StrohGeometry,metal_props):
                 return Rayleighcond(np.trapz(B,x=self.phi,axis=0)/(4*np.pi**2))
             bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
             result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
-            # if result.fun>=1e-3: print(bounds,"\n",result)  ## if this failed, try enlarging the search interval slightly above vcrit (there was some numerical uncertainty there too):
+            # if result.fun>=1e-3: print(f"{bounds}\n{result}")  ## if this failed, try enlarging the search interval slightly above vcrit (there was some numerical uncertainty there too):
             if result.success and result.fun>=1e-3: result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=(0.5*bounds[1],1.25*bounds[1]),options={'xatol':1e-12})
             if result.fun>=1e-3 or not result.success: print(f"Failed: Rayleigh not found in [{bounds[0]},{1.25*bounds[1]}]\n",result)
             if result.success and result.fun<1e-3: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
@@ -488,7 +491,19 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
     plt.colorbar()
     plt.savefig(namestring,format='pdf',bbox_inches='tight')
     plt.close()
-            
+
+def read_2dresults(fname):
+    '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta and columns=theta.'''
+    if os.access((newfn:=fname+'.xz'), os.R_OK): fname = newfn # new default
+    elif os.access((newfn:=fname), os.R_OK): pass # old default
+    elif os.access((newfn:=fname+'.gz'), os.R_OK): fname = newfn
+    else: raise FileNotFoundError(f'tried {fname}.xz, {fname}, and {fname}.gz')
+    out = pd.read_csv(fname,skiprows=1,index_col=0,sep='\t')
+    out.columns = pd.to_numeric(out.columns)*np.pi
+    out.index.name='beta'
+    out.columns.name='theta'
+    return out
+        
 ### start the calculations
 if __name__ == '__main__':
     printthreadinfo(Ncores,ompthreads)
@@ -647,8 +662,10 @@ if __name__ == '__main__':
             
         LT = np.array([compute_lt(j) for j in range(len(beta))])
         
-        # write the results to disk:
-        with open("LT_{}.dat".format(X),"w") as LTfile:
+        # write the results to disk (and backup previous results if they exist):
+        if os.access(fname:=f"LT_{X}.dat.xz", os.R_OK):
+            shutil.move(fname,fname[:-3]+".bak.xz")
+        with lzma.open(f"LT_{X}.dat.xz","wt") as LTfile:
             LTfile.write("### dimensionless line tension prefactor LT(beta,theta) for {}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
             LTfile.write('beta/theta[pi]\t' + '\t'.join("{:.4f}".format(thi) for thi in theta[1:-1]/np.pi) + '\n')
             for j in range(len(beta)):
@@ -675,40 +692,25 @@ if __name__ == '__main__':
 
 ## load data from LT calculation
     LT = {}
-    theta_plt = {}
-    Ntheta_plt = {}
-    beta_plt = {}
     for X in plt_metal:
-        ## for every X, LT has shape (len(theta+1),Nbeta), first column is beta all others are LT for various dislocation types theta in the range -pi/2 to  pi/2
         try:
-            with open("LT_{}.dat".format(X),"r") as LTfile:
-                lines = list(line.rstrip() for line in LTfile)
-                ### first read theta from file (already known, but make this code independent from above)
-                theta_plt[X] = np.pi*np.asarray(lines[1].split()[1:],dtype='float')
-                Ntheta_plt[X] = len(theta_plt[X])
-                ### determine length of beta from file
-                Nbeta_plt = len(lines)-2
-                ### read beta vs drag coeff from file:
-                LT[X] = np.zeros((Nbeta_plt,Ntheta_plt[X]+1))
-                for j in range(Nbeta_plt):
-                    LT[X][j] = np.asarray(lines[j+2].split(),dtype='float')
-                beta_plt[X] = LT[X][:,0]
+            LT[X] = read_2dresults(f"LT_{X}.dat") ## for every X, LT has Nbeta rows and Ntheta columns
         except FileNotFoundError:
             skip_plt.append(X)
             
     def mkLTplots(X):
         '''generates nice plots showing the dislocation line tension of metal X'''
         namestring = "{}".format(X)
-        beta_trunc = [j for j in beta_plt[X] if j <=vcrit_smallest[X]]
+        beta_trunc = [j for j in LT[X].index if j <=vcrit_smallest[X]]
         if X in metal_symm:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
-            LT_trunc = LT[X][:len(beta_trunc),int((Ntheta_plt[X]+1)/2):]
-            y_msh , x_msh = np.meshgrid(theta_plt[X][int((Ntheta_plt[X]-1)/2):],beta_trunc)
+            LT_trunc = LT[X].iloc[:len(beta_trunc),int((LT[X].shape[1]-1)/2):].to_numpy()
+            y_msh , x_msh = np.meshgrid(LT[X].columns[int((LT[X].shape[1]-1)/2):],beta_trunc)
             plt.yticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
         else:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,4.5))
-            LT_trunc = LT[X][:len(beta_trunc),1:]
-            y_msh , x_msh = np.meshgrid(theta_plt[X],beta_trunc)
+            LT_trunc = LT[X].iloc[:len(beta_trunc)].to_numpy()
+            y_msh , x_msh = np.meshgrid(LT[X].columns,beta_trunc)
             plt.yticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$-\pi/2$", r"$-3\pi/8$", r"$-\pi/4$", r"$-\pi/8$", r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)

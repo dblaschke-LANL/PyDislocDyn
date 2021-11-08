@@ -8,7 +8,7 @@ This code was first used for the computations leading to [J. Phys. Chem. Solids 
 as well as parts of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j.ijplas.2020.102750) ([arxiv.org/abs/1912.08851](https://arxiv.org/abs/1912.08851)),
 [J. Mech. Phys. Solids 152 (2021) 104448](https://dx.doi.org/10.1016/j.jmps.2021.104448) ([arxiv.org/abs/2009.00167](https://arxiv.org/abs/2009.00167)),
 [Int. J. Plast. 144 (2021) 103030](https://doi.org/10.1016/j.ijplas.2021.103030) ([arxiv.org/abs/2101.10497](https://arxiv.org/abs/2101.10497)), [J. Appl. Phys. 130 (2021) 015901](https://doi.org/10.1063/5.0054536) ([arxiv.org/abs/2104.08650](https://arxiv.org/abs/2104.08650)),
-and [arxiv.org/abs/2107.01220](https://arxiv.org/abs/2107.01220).
+and [J. Phys.: Cond. Mat. 33 (2021) 503005](https://doi.org/10.1088/1361-648X/ac2970) ([arxiv.org/abs/2107.01220](https://arxiv.org/abs/2107.01220)).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
 ## Author
@@ -28,16 +28,17 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Prerequisites
 
-Python >=3.6,</br>
+Python >=3.8,</br>
 [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
-[scipy](https://docs.scipy.org/doc/scipy/reference/),</br>
+[scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.3,</br>
 [sympy](https://www.sympy.org) >=1.5,</br>
-[matplotlib](https://matplotlib.org/) >=3.0</br>
+[matplotlib](https://matplotlib.org/) >=3.1</br>
+[pandas](https://pandas.pydata.org/) >=0.25</br>
 
 ### Optional:
 
-[numba](https://numba.pydata.org/) >=0.36 (for speedup via just-in-time compilation of some subroutines),</br>
-[joblib](https://joblib.readthedocs.io) (for parallelization),</br>
+[numba](https://numba.pydata.org/) >=0.47 (for speedup via just-in-time compilation of some subroutines),</br>
+[joblib](https://joblib.readthedocs.io) >=0.14 (for parallelization),</br>
 a Fortran 90 compiler
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use

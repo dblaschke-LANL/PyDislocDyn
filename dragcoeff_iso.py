@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 28, 2021
+# Date: Nov. 5, 2017 - Nov. 8, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -34,7 +35,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 from dislocations import fourieruij_iso, ompthreads, printthreadinfo
-from linetension_calcs import readinputfile, Dislocation
+from linetension_calcs import readinputfile, Dislocation, read_2dresults
 from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed, cpu_count
@@ -88,7 +89,7 @@ if __name__ == '__main__':
             Y = {i.name:i for i in inputdata}
             metal = list(Y.keys())
             use_metaldata=False
-            print("success reading input files ",args)
+            print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = sys.argv[1].split()
@@ -115,7 +116,7 @@ if __name__ == '__main__':
                 logfile.write("\n\ntheta:\n")
                 logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
-        print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
+        print(f"Computing the drag coefficient from phonon wind ({modes} modes) for: {metal}")
     
     A3 = {}
     highT = {}
@@ -183,23 +184,13 @@ if __name__ == '__main__':
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
             with open("drag_T_{}.dat".format(X),"w") as Bfile:
-                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
+                if len(Y[X].theta)>2:
+                    Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
+                else:
+                    Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
                     for Ti in range(len(highT[X])):
                         Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
-            
-            with open("drag_T_screw_{}.dat".format(X),"w") as Bscrewfile:
-                for bi in range(len(beta)):
-                    Bscrewfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,0])) + '\n')
-            
-            with open("drag_T_edge_{}.dat".format(X),"w") as Bedgefile:
-                for bi in range(len(beta)):
-                    Bedgefile.write('\t'.join(map("{:.6f}".format,Bmix[bi,-1])) + '\n')
-    
-            for th in range(len(Y[X].theta[1:-1])):
-                with open("drag_T_mix{0:.6f}_{1}.dat".format(Y[X].theta[th+1],X),"w") as Bmixfile:
-                    for bi in range(len(beta)):
-                        Bmixfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,th+1])) + '\n')
 
     #############################################################################################################################
 
@@ -212,25 +203,15 @@ if __name__ == '__main__':
     Broom = {}
     for X in metal:
         ## for every X, Broom has shape (len(theta+1),Nbeta), first column is beta all others all B for various dislocation types theta in the range 0 to  pi/2
-        Broom[X] = np.zeros((Nbeta,Ntheta+1))
-        with open("drag_{}.dat".format(X),"r") as Bfile:
-            lines = list(line.rstrip() for line in Bfile)
-            ### first read theta from file (already known, but make this code independent from above)
-            theta = np.pi*np.asarray(lines[1].split()[1:],dtype='float')
-            Ntheta = len(theta)
-            ### determine length of beta from file
-            Nbeta = len(lines)-2
-            ### read beta vs drag coeff from file:
-            Broom[X] = np.zeros((Nbeta,Ntheta+1))
-            for j in range(Nbeta):
-                Broom[X][j] = np.asarray(lines[j+2].split(),dtype='float')
-            beta = Broom[X][:,0]
+        Broom[X] = read_2dresults(f"drag_{X}.dat")
+        beta = Broom[X].index.to_numpy()
+        theta = Broom[X].columns.to_numpy()
             
     ## define line styles for every metal in the same plot
     lnstyles = {'Al':'-', 'Cu':'--', 'Fe':':', 'Nb':'-.', 'Cd':'-', 'Mg':'--', 'Zn':':', 'Sn':'-.', 'Ni':'-.', 'Mo':'--', 'Ag':':', 'Au':'-.', 'Ti':'-', 'Zr':'-.'}
     metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'green', 'Nb':'red', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
     ## plot only pure screw and pure edge by default
-    theta_indices = [0,Ntheta-1]
+    theta_indices = [0,len(theta)-1]
     for th in theta_indices:
         fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
         titlestring = "$\\vartheta=$"+"{0:.4f}".format(theta[th])
@@ -244,9 +225,9 @@ if __name__ == '__main__':
         ax.set_title(titlestring,fontsize=fntsize)
         for X in metal:
             if X in metalcolors.keys():
-                ax.plot(Broom[X][:,0],Broom[X][:,th+1],lnstyles[X], color=metalcolors[X], label=X)
+                ax.plot(Broom[X].index,Broom[X].iloc[:,th],lnstyles[X], color=metalcolors[X], label=X)
             else:
-                ax.plot(Broom[X][:,0],Broom[X][:,th+1],label=X) # fall back to automatic colors / line styles
+                ax.plot(Broom[X].index,Broom[X].iloc[:,th],label=X) # fall back to automatic colors / line styles
         legend = ax.legend(loc='upper center', ncol=2, columnspacing=0.8, handlelength=1.2, shadow=True)
         plt.savefig("B_iso_{:.4f}.pdf".format(theta[th]),format='pdf',bbox_inches='tight')
         plt.close()
@@ -276,8 +257,8 @@ if __name__ == '__main__':
     pcov_screw = {}
     Bmax_fit = 0.20 ## only fit up to Bmax_fit [mPas]
     for X in metal:
-        popt_edge[X], pcov_edge[X] = curve_fit(fit_edge, beta, Broom[X][:,Ntheta], bounds=([0.9*Broom[X][0,Ntheta],0.,-0.,-0., -0.], [1.1*Broom[X][0,Ntheta], 2*Broom[X][0,Ntheta], 1., 1.,1.]))
-        popt_screw[X], pcov_screw[X] = curve_fit(fit_screw, beta, Broom[X][:,1], bounds=([0.9*Broom[X][0,1],0.,-0.,-0.,-0.], [1.1*Broom[X][0,1], 2*Broom[X][0,1], 1., 1., 1.]))
+        popt_edge[X], pcov_edge[X] = curve_fit(fit_edge, beta, Broom[X].iloc[:,-1], bounds=([0.9*Broom[X].iloc[0,-1],0.,-0.,-0., -0.], [1.1*Broom[X].iloc[0,-1], 2*Broom[X].iloc[0,-1], 1., 1.,1.]))
+        popt_screw[X], pcov_screw[X] = curve_fit(fit_screw, beta, Broom[X].iloc[:,0], bounds=([0.9*Broom[X].iloc[0,0],0.,-0.,-0.,-0.], [1.1*Broom[X].iloc[0,0], 2*Broom[X].iloc[0,0], 1., 1., 1.]))
     
     with open("drag_iso_fit.txt","w") as fitfile:
         if modes=='TT': ## degree of divergence is reduced for purely transverse modes
@@ -317,16 +298,16 @@ if __name__ == '__main__':
             beta_highres = np.linspace(0,1,1000)
             if filename=="edge":
                 if X in metalcolors.keys():
-                    ax.plot(beta,Broom[X][:,Ntheta],color=metalcolors[X],label=X)
+                    ax.plot(beta,Broom[X].iloc[:,-1],color=metalcolors[X],label=X)
                 else:
-                    ax.plot(beta,Broom[X][:,Ntheta],label=X) # fall back to automatic colors
+                    ax.plot(beta,Broom[X].iloc[:,-1],label=X) # fall back to automatic colors
                 with np.errstate(all='ignore'):
                     ax.plot(beta_highres,fit_edge(beta_highres,*popt_edge[X]),':',color='gray')
             elif filename=="screw":
                 if X in metalcolors.keys():
-                    ax.plot(beta,Broom[X][:,1],color=metalcolors[X],label=X)
+                    ax.plot(beta,Broom[X].iloc[:,0],color=metalcolors[X],label=X)
                 else:
-                    ax.plot(beta,Broom[X][:,1],label=X) # fall back to automatic colors
+                    ax.plot(beta,Broom[X].iloc[:,0],label=X) # fall back to automatic colors
                 with np.errstate(all='ignore'):
                     ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
             else:
@@ -382,7 +363,7 @@ if __name__ == '__main__':
             out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
             zero = abs(nonlinear_equation(out))
             if zero>1e-5 and zero/bsig>1e-2:
-                # print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
+                # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
                 # fall back to (slower) fsolve:
                 out = float(fsolve(nonlinear_equation,0.01*vcrit))
             return out
@@ -404,13 +385,13 @@ if __name__ == '__main__':
             
         ## determine stress that will lead to velocity of 95% transverse sound speed and stop plotting there, or at 1.5GPa (whichever is smaller)
         sigma_max = sigma_eff(0.95*vcrit)
-        # print("{}, {}: sigma(0.95ct) = {:.1f} MPa".format(X,character,sigma_max/1e6))
+        # print(f"{X}, {character}: sigma(0.95ct) = {sigma_max/1e6:.1f} MPa")
         if sigma_max<6e8 and B(0.95*vcrit)<1e-4: ## if B, sigma still small, increase to 99% vcrit
             sigma_max = sigma_eff(0.99*vcrit)
-            # print("{}, {}: sigma(0.99ct) = {:.1f} MPa".format(X,character,sigma_max/1e6))
+            # print(f"{X}, {character}: sigma(0.99ct) = {sigma_max/1e6:.1f} MPa")
         if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
             sigma_max = sigma_eff(0.999*vcrit)
-            # print("{}, {}: sigma(0.999ct) = {:.1f} MPa".format(X,character,sigma_max/1e6))
+            # print(f"{X}, {character}: sigma(0.999ct) = {sigma_max/1e6:.1f} MPa")
         sigma_max = min(1.5e9,sigma_max)
         Boffset = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
         if Boffset < 0: Boffset=0 ## don't allow negative values
@@ -420,7 +401,7 @@ if __name__ == '__main__':
             B0 = (B(0)+3*B0)/4 ## or use some weighted average between Bmin and B(0)
         elif B0fit == 'zero':
             B0 = B(0)
-        # print("{}: Boffset={:.4f}mPas, B0={:.4f}mPas".format(X,1e3*Boffset,1e3*B0))
+        # print(f"{X}: Boffset={1e3*Boffset:.4f}mPas, B0={1e3*B0:.4f}mPas")
         
         sigma = np.linspace(0,sigma_max,resolution)
         B_of_sig = B(vr(sigma))

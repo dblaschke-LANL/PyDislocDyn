@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 27, 2021
+# Date: Nov. 5, 2017 - Oct. 30, 2021
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -9,6 +10,7 @@
 #################################
 import sys
 import os
+import shutil, lzma
 import numpy as np
 from scipy.optimize import curve_fit, fmin, fsolve
 from scipy import ndimage
@@ -30,6 +32,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
+import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
@@ -37,7 +40,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 import dislocations as dlc
-from linetension_calcs import readinputfile, Dislocation
+from linetension_calcs import readinputfile, Dislocation, read_2dresults, plotdisloc
 from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed, cpu_count
@@ -108,6 +111,149 @@ if use_iso:
     metal = sorted(list(set(metal).intersection(data.ISO_c44.keys()).intersection(data.ISO_l.keys())))
     isokeywd=True
 
+
+### define various functions for fitting drag results and for computing B(sigma) from (fitted) B(v)
+def fit_mix(x, c0, c1, c2, c4):
+    '''Defines a fitting function appropriate for drag coefficient B(v).'''
+    return c0 - c1*x + c2*(1/(1-x**2)**(1/2) - 1) + c4*(1/(1-x**2)**(3/2) - 1)
+
+def mkfit_Bv(Y,Bdrag,scale_plot=1):
+    '''Calculates fitting functions for B(v) for pure screw, pure edge, and an average over all dislocation characters.
+       Required inputs are an instance of the Dislocation class Y, and the the drag coefficient Bdrag formatted as a Pandas DataFrame where index
+       contains the normalized velocities beta= v/Y.ct and columns contains the character angles thetaat velocity v for all character angles theta.'''
+    if not isinstance(Y,Dislocation):
+        raise ValueError("'Y' must be an instance of the Dislocation class")
+    if not isinstance(Bdrag,pd.DataFrame):
+        raise ValueError("'Bdrag' must be a Pandas DataFrame.")
+    Broom = Bdrag.to_numpy()
+    vel = Bdrag.index.to_numpy()*Y.ct
+    theta = Bdrag.columns
+    Y.scale_plot = max(scale_plot,int(Y.T/30)/10)
+    Bmax_fit = int(20*Y.T/300)/100 ## only fit up to Bmax_fit [mPas]
+    if theta[0]==0.:
+        Y.scrind = 0
+    else:
+        Y.scrind = int(len(theta)/2)
+    Y.Baver = np.average(Broom,axis=-1)
+    beta_edgecrit = (vel/Y.vcrit_edge)[vel<Y.vcrit_edge]
+    beta_screwcrit = (vel/Y.vcrit_screw)[vel<Y.vcrit_screw]
+    beta_avercrit =  (vel/Y.vcrit_smallest)[vel<Y.vcrit_smallest]
+    ### having cut everything beyond the critical velocities (where B diverges), we additionally remove very high values (which are likely inaccurate close to vcrit) to improve the fits everywhere else; adjust Bmax_fit to your needs!
+    beta_edgecrit = beta_edgecrit[[j for j in range(len(beta_edgecrit)) if Broom[j,-1] <Bmax_fit + np.min(Broom[:,-1])]]
+    beta_screwcrit = beta_screwcrit[[j for j in range(len(beta_screwcrit)) if Broom[j,Y.scrind]<Bmax_fit + np.min(Broom[:,Y.scrind])]]
+    beta_avercrit =  beta_avercrit[[j for j in range(len(beta_avercrit)) if Y.Baver[j]<Bmax_fit + np.min(Y.Baver)]]
+    popt_edge, pcov_edge = curve_fit(fit_mix, beta_edgecrit[beta_edgecrit<0.995], (Broom[:len(beta_edgecrit)])[beta_edgecrit<0.995,-1], bounds=([0.9*Broom[0,-1],0.,-0.,-0.], [1.1*Broom[0,-1], 2*Broom[0,-1], 1., 1.]))
+    popt_screw, pcov_screw = curve_fit(fit_mix, beta_screwcrit[beta_screwcrit<0.995], (Broom[:len(beta_screwcrit)])[beta_screwcrit<0.995,Y.scrind], bounds=([0.9*Broom[0,Y.scrind],0.,-0.,-0.], [1.1*Broom[0,Y.scrind], 2*Broom[0,Y.scrind], 1., 1.]))
+    popt_aver, pcov_aver = curve_fit(fit_mix, beta_avercrit[beta_avercrit<0.995], (Y.Baver[:len(beta_avercrit)])[beta_avercrit<0.995], bounds=([0.9*Y.Baver[0],0.,-0.,-0.], [1.1*Y.Baver[0], 2*Y.Baver[0], 1., 1.]))
+    return popt_edge, pcov_edge, popt_screw, pcov_screw, popt_aver, pcov_aver 
+
+def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False):
+    '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
+       or a weighted average of the two (B0fit='weighted',default) and vcrit is the critical velocity for character (='screw', 'edge', or else an average is computed).
+       Required inputs are an instance of the Dislocation class Y, fitting parameters popt previously calculated with function mkfit_Bv(Y,beta,Broom), and a keyword
+       'character = 'screw'|'edge'|'aver'.
+       A plot of the results is saved to disk if mkplot=True (default).
+       If option indirect=False sigma will be evenly spaced (default), whereas if indirect=True sigma will be calculated from an evenly spaced velocity array.
+       The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.'''
+    if not isinstance(Y,Dislocation):
+        raise ValueError("'Y' must be an instance of the Dislocation class")
+    ftitle = f"{Y.name}, {character}"
+    fname = f"B_of_sigma_{character}_{Y.name}.pdf"
+    if character=='screw':
+        vcrit = Y.vcrit_screw
+    elif character=='edge':
+        vcrit = Y.vcrit_edge
+    else: ## 'aver' = default
+        vcrit = Y.vcrit_smallest
+        fname = f"B_of_sigma_{Y.name}.pdf"
+        ftitle = fr"{Y.name}, averaged over $\vartheta$"
+    burg = Y.burgers
+    
+    @np.vectorize
+    def B(v):
+        bt = abs(v/vcrit)
+        if bt<1:
+            out = 1e-3*fit_mix(bt, *popt)
+        else:
+            out = np.inf
+        return out
+        
+    @np.vectorize
+    def vr(stress):
+        '''Returns the velocity of a dislocation in the drag dominated regime as a function of stress.'''
+        bsig = abs(burg*stress)
+        def nonlinear_equation(v):
+            return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
+        out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
+        zero = abs(nonlinear_equation(out))
+        if zero>1e-5 and zero/bsig>1e-2:
+            # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
+            # fall back to (slower) fsolve:
+            out = float(fsolve(nonlinear_equation,0.01*vcrit))
+        return out
+        
+    @np.vectorize
+    def sigma_eff(v):
+        '''Compute what stress is needed to move dislocations at velocity v.'''
+        return v*B(v)/burg
+        
+    @np.vectorize
+    def Bstraight(sigma,Boffset=0):
+        '''Returns the slope of B in the asymptotic regime.'''
+        return Boffset+sigma*burg/vcrit
+        
+    @np.vectorize
+    def Bsimple(sigma,B0):
+        '''Simple functional approximation to B(sigma), follows from B(v)=B0/sqrt(1-(v/vcrit)**2).'''
+        return B0*np.sqrt(1+(sigma*burg/(vcrit*B0))**2)
+        
+    ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1.5GPa (whichever is smaller)
+    sigma_max = sigma_eff(0.99*vcrit)
+    # print(f"{Y.name}, {character}: sigma(99%vcrit) = {sigma_max/1e6:.1f} MPa")
+    if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
+        sigma_max = sigma_eff(0.999*vcrit)
+        # print(f"{Y.name}, {character}: sigma(99.9%vcrit) = {sigma_max/1e6:.1f} MPa")
+    sigma_max = min(1.5e9,sigma_max)
+    Boffset = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
+    if Boffset < 0: Boffset=0 ## don't allow negative values
+    ## find min(B(v)) to use for B0 in Bsimple():
+    B0 = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
+    if B0fit == 'weighted':
+        B0 = (B(0)+3*B0)/4 ## or use some weighted average between Bmin and B(0)
+    elif B0fit == 'zero':
+        B0 = B(0)
+    # print(f"{Y.name}: Boffset={1e3*Boffset:.4f}mPas, B0={1e3*B0:.4f}mPas")
+    
+    sigma = np.linspace(0,sigma_max,resolution)
+    if not indirect:
+        B_of_sig = B(vr(sigma))
+        Bmax = B_of_sig[-1]
+    if indirect or (np.max(B_of_sig) < 1.01*B(0)):
+        # print(f"\nWARNING: using fall back for v(sigma) for {Y.name}, {character}\n")
+        v = vcrit*np.linspace(0,0.999,resolution)
+        sigma = sigma_eff(v)
+        B_of_sig = B(v)
+        Bmax = B_of_sig[-1]
+        if sigma[-1]>1.1*sigma_max:
+            Bmax = 1.15*B_of_sig[sigma<sigma_max][-1]
+    if mkplot:
+        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
+        ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
+        ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
+        ax.set_title(ftitle,fontsize=fntsize)
+        ax.axis((0,sigma_max/1e6,0,Bmax*1e3))
+        ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label=r"$\sqrt{B_0^2\!+\!\left(\frac{\sigma b}{v_\mathrm{c}}\right)^2}$, $B_0=$"+f"{1e6*B0:.1f}"+r"$\mu$Pas")
+        ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label=r"$B_0+\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+f"{1e6*Boffset:.1f}"+r"$\mu$Pas")
+        ax.plot(sigma/1e6,B_of_sig*1e3,label=r"$B_\mathrm{fit}(v(\sigma))$")
+        plt.xticks(fontsize=fntsize)
+        plt.yticks(fontsize=fntsize)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.legend(loc='upper left',handlelength=1.1, frameon=False, shadow=False,fontsize=8)
+        plt.savefig(fname,format='pdf',bbox_inches='tight')
+        plt.close()
+    return (B0,vcrit,sigma,B_of_sig)
+
 #########
 if __name__ == '__main__':
     dlc.printthreadinfo(Ncores,dlc.ompthreads)
@@ -121,7 +267,7 @@ if __name__ == '__main__':
             Y = {i.name:i for i in inputdata}
             metal = metal_list = list(Y.keys())
             use_metaldata=False
-            print("success reading input files ",args)
+            print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = sys.argv[1].split()
@@ -175,7 +321,7 @@ if __name__ == '__main__':
                 logfile.write("\n\ntheta:\n")
                 logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
-        print("Computing the drag coefficient from phonon wind ({} modes) for: ".format(modes),metal)
+        print(f"Computing the drag coefficient from phonon wind ({modes} modes) for: {metal}")
     
     ###
     r = np.array([rmin*np.pi,rmax*np.pi]) ## qBZ drops out of product q*r, so can rescale both vectors making them dimensionless and independent of the metal
@@ -198,7 +344,7 @@ if __name__ == '__main__':
             Y[X].alpha_a = 0
         ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
         if len(highT[X])>1 and Ncores !=0:
-            with open("temperatures_{}.dat".format(X),"w") as Tfile:
+            with open(f"temperatures_{X}.dat","w") as Tfile:
                 Tfile.write('\n'.join(map("{:.2f}".format,highT[X])))
         
         linet[X] = np.round(Y[X].t,15)
@@ -215,7 +361,7 @@ if __name__ == '__main__':
             A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
     if computevcrit_for_speed is not None and computevcrit_for_speed>0:
-        print("Computing vcrit for {} character angles, as requested ...".format(computevcrit_for_speed))
+        print(f"Computing vcrit for {computevcrit_for_speed} character angles, as requested ...")
         for X in metal:
             if Y[X].Ntheta==Ntheta:
                 Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],computevcrit_for_speed)
@@ -315,9 +461,11 @@ if __name__ == '__main__':
         else:
             Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,X,modes) for bt in beta))
 
-        # and write the results to disk (in various formats)
+        # and write the results to disk
         if Ncores != 0:
-            with open("drag_anis_{}.dat".format(X),"w") as Bfile:
+            if os.access(fname:=f"drag_anis_{X}.dat.xz", os.R_OK):
+                shutil.move(fname,fname[:-3]+".bak.xz")
+            with lzma.open(f"drag_anis_{X}.dat.xz","wt") as Bfile:
                 Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
@@ -325,24 +473,14 @@ if __name__ == '__main__':
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
-            with open("drag_anis_T_{}.dat".format(X),"w") as Bfile:
-                Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
+            if os.access(fname:=f"drag_anis_T_{X}.dat.xz", os.R_OK):
+                shutil.move(fname,fname[:-3]+".bak.xz")
+            with lzma.open(fname:=f"drag_anis_T_{X}.dat.xz","wt") as Bfile:
+                Bfile.write(fr"### B(T,beta,theta[pi]) for {X} in units of mPas. Read this as pandas multiindex dataframe using .read_csv({fname},skiprows=1,index_col=[0,1],sep='\t')."+"\n")
+                Bfile.write('temperature[K]\tbeta\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
                     for Ti in range(len(highT[X])):
                         Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
-                
-            with open("drag_anis_T_screw_{}.dat".format(X),"w") as Bscrewfile:
-                for bi in range(len(beta)):
-                    Bscrewfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,0])) + '\n')
-            
-            with open("drag_anis_T_edge_{}.dat".format(X),"w") as Bedgefile:
-                for bi in range(len(beta)):
-                    Bedgefile.write('\t'.join(map("{:.6f}".format,Bmix[bi,-1])) + '\n')
-    
-            for th in range(len(Y[X].theta[1:-1])):
-                with open("drag_anis_T_mix{0:.6f}_{1}.dat".format(Y[X].theta[th+1],X),"w") as Bmixfile:
-                    for bi in range(len(beta)):
-                        Bmixfile.write('\t'.join(map("{:.6f}".format,Bmix[bi,th+1])) + '\n')
 
     #############################################################################################################################
 
@@ -406,10 +544,10 @@ if __name__ == '__main__':
     ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
     for X in metal:
         if not use_metaldata and Y[X].vcrit_screw is None:
-            print("computing missing critical velocity for screw for ",X)
+            print(f"computing missing critical velocity for screw for {X}")
             Y[X].computevcrit_screw() ## only implemented for certain symmetry properties, no result otherwise
         if not use_metaldata and Y[X].vcrit_edge is None:
-            print("computing missing critical velocity for edge for ",X)
+            print(f"computing missing critical velocity for edge for {X}")
             Y[X].computevcrit_edge() ## only implemented for certain symmetry properties, no result otherwise
         if not use_metaldata and (Y[X].vcrit_screw is None or Y[X].vcrit_edge is None):
             Y[X].computevcrit_stroh(2,symmetric=False,cache=cache,Ncores=Kcores) ## only compute vcrit if no values are provided in the input file
@@ -423,16 +561,22 @@ if __name__ == '__main__':
             Y[X].sound_screw = Y[X].computesound(velm0[X][0])
         Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
         if not use_metaldata and Y[X].vcrit_smallest is None:
-            print("computing missing smallest critical velocity for {} ...".format(X))
+            print(f"computing missing smallest critical velocity for {X} ...")
             Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
         ## need vcrit in ratio to ct:
         if Y[X].vcrit_smallest is not None:
             vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
+        else:
+            Y[X].vcrit_smallest = Y[X].ct*vcrit_smallest[X]
         if Y[X].vcrit_screw is not None:
             vcrit_screw[X] = Y[X].vcrit_screw/Y[X].ct
+        else:
+            Y[X].vcrit_screw = Y[X].ct*vcrit_screw[X]
         if Y[X].vcrit_edge is not None:
             vcrit_edge[X] = Y[X].vcrit_edge/Y[X].ct
+        else:
+            Y[X].vcrit_edge = Y[X].ct*vcrit_edge[X]
         
     if skip_plots:
         print("skipping plots as requested")
@@ -441,29 +585,15 @@ if __name__ == '__main__':
     ###### plot room temperature results:
     print("Creating plots")
     ## load data from semi-isotropic calculation
-    Broom = {}
-    theta = {}
-    Ntheta = {}
     for X in metal:
-        ## for every X, Broom has shape (len(theta+1),Nbeta), first column is beta all others all B for various dislocation types theta in the range 0 to  pi/2
-        with open("drag_anis_{}.dat".format(X),"r") as Bfile:
-            lines = list(line.rstrip() for line in Bfile)
-            ### first read theta from file (already known, but make this code independent from above)
-            theta[X] = np.pi*np.asarray(lines[1].split()[1:],dtype='float')
-            Ntheta[X] = len(theta[X])
-            ### determine length of beta from file
-            Nbeta = len(lines)-2
-            ### read beta vs drag coeff from file:
-            Broom[X] = np.zeros((Nbeta,Ntheta[X]+1))
-            for j in range(Nbeta):
-                Broom[X][j] = np.asarray(lines[j+2].split(),dtype='float')
-            beta = Broom[X][:,0]
+        Y[X].Broom = read_2dresults(f"drag_anis_{X}.dat")
+        beta = Y[X].Broom.index.to_numpy()
+        Y[X].beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
     
     ## plot B(beta=0.01 ) against theta for every metal:
     def mksmallbetaplot(X,ylab=True,xlab=True,bt=0):
         '''Plot the drag coefficient at low velocity over the character angle.'''
-        beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
-        B_trunc = (Broom[X][:len(beta_trunc),1:])
+        B_trunc = (Y[X].Broom.iloc[:len(Y[X].beta_trunc)]).to_numpy()
         ymax = max(0.01,(int(100*max(B_trunc[bt]))+1)/100)
         ymin = (int(100*min(B_trunc[bt])))/100
         ## if range is too large, cut off top/bottom:
@@ -471,14 +601,14 @@ if __name__ == '__main__':
             ymax = ymax-0.006
             ymin = ymin+0.006
         plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2,5*np.pi/8,3*np.pi/4,7*np.pi/8,np.pi],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$", r"$\frac{5\pi}{8}$", r"$\frac{3\pi}{4}$", r"$\frac{7\pi}{8}$", r"$\pi$"),fontsize=fntsize)
-        plt.axis((theta[X][0],theta[X][-1],ymin,ymax))
+        plt.axis((Y[X].Broom.columns[0],Y[X].Broom.columns[-1],ymin,ymax))
         plt.yticks(fontsize=fntsize)
         if xlab:
             plt.xlabel(r'$\vartheta$',fontsize=fntsize)
         if ylab:
             plt.ylabel(r'$B(\beta_\mathrm{t}=0.01)$',fontsize=fntsize)
             plt.ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
-        plt.plot(theta[X],B_trunc[bt])
+        plt.plot(Y[X].Broom.columns,B_trunc[bt])
     
     ### create colormesh-plots for every metal:
     clbar_frac=0.12
@@ -487,17 +617,16 @@ if __name__ == '__main__':
     wspc=(clbar_frac+clbar_pd)*100/wrat1
     def mkmeshplot(X,ylab=True,xlab=True,colbar=True,Bmin=None,Bmax=None):
         '''Plot the drag coefficient over the character angle and the dislocation velocity.'''
-        beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
-        B_trunc = (Broom[X][:len(beta_trunc),1:]).T
-        y_msh , x_msh = np.meshgrid(beta_trunc,theta[X]) ## plots against theta and beta
+        B_trunc = (Y[X].Broom.iloc[:len(Y[X].beta_trunc)].to_numpy()).T
+        y_msh , x_msh = np.meshgrid(Y[X].beta_trunc,Y[X].Broom.columns) ## plots against theta and beta
         if Bmin is None:
             Bmin = (int(1000*np.min(B_trunc)))/1000
         if Bmax is None:
             Bmax = Bmin+0.016
             ## tweak colorbar range defined above:
-            if np.sum(B_trunc<=Bmax)/(Ntheta[X]*len(beta_trunc))<0.65:
+            if np.sum(B_trunc<=Bmax)/(len(Y[X].Broom.columns)*len(Y[X].beta_trunc))<0.65:
                 Bmax = Bmin+0.032 ## if more than 35% of the area is >Bmax, double the range
-            elif np.sum(B_trunc>Bmax)/(Ntheta[X]*len(beta_trunc))<0.02:
+            elif np.sum(B_trunc>Bmax)/(len(Y[X].Broom.columns)*len(Y[X].beta_trunc))<0.02:
                 Bmax = Bmin+0.008 ## if less than 2% of the area is >Bmax, cut the range in half
         namestring = "{}".format(X)
         plt.xticks(fontsize=fntsize)
@@ -545,40 +674,16 @@ if __name__ == '__main__':
     metalcolors.update({'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred'})
     metalcolors.update({'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki', 'Mgprismatic':'deepskyblue', 'Mgpyramidal':'royalblue', 'Tiprismatic':'orange', 'Tipyramidal':'yellow', 'Znprismatic':'gray', 'Znpyramidal':'slateblue', 'Zrprismatic':'darkcyan', 'Zrpyramidal':'darkturquoise'})
     
-    def fit_mix(x, c0, c1, c2, c4):
-        '''define a fitting fct.'''
-        return c0 - c1*x + c2*(1/(1-x**2)**(1/2) - 1) + c4*(1/(1-x**2)**(3/2) - 1)
-
-    beta_edgecrit = {}
-    beta_screwcrit = {}
-    beta_avercrit = {}
-    Baver = {}
     popt_edge = {}
     pcov_edge = {}
     popt_screw = {}
     pcov_screw = {}
     popt_aver = {}
     pcov_aver = {}
-    scrind = {}
     scale_plot = 1 ## need to increase plot and fitting range for higher temperatures
     for X in metal:
-        scale_plot = max(scale_plot,int(Y[X].T/30)/10)
-        Bmax_fit = int(20*Y[X].T/300)/100 ## only fit up to Bmax_fit [mPas]
-        if theta[X][0]==0.:
-            scrind[X] = 0
-        else:
-            scrind[X] = int(Ntheta[X]/2)
-        Baver[X] = np.average(Broom[X][:,1:],axis=-1)
-        beta_edgecrit[X] = (beta/vcrit_edge[X])[beta<vcrit_edge[X]]
-        beta_screwcrit[X] = (beta/vcrit_screw[X])[beta<vcrit_screw[X]]
-        beta_avercrit[X] =  (beta/vcrit_smallest[X])[beta<vcrit_smallest[X]]
-        ### having cut everything beyond the critical velocities (where B diverges), we additionally remove very high values (which are likely inaccurate close to vcrit) to improve the fits everywhere else; adjust Bmax_fit to your needs!
-        beta_edgecrit[X] = beta_edgecrit[X][[j for j in range(len(beta_edgecrit[X])) if Broom[X][j,Ntheta[X]] <Bmax_fit + np.min(Broom[X][:,Ntheta[X]])]]
-        beta_screwcrit[X] = beta_screwcrit[X][[j for j in range(len(beta_screwcrit[X])) if Broom[X][j,scrind[X]+1]<Bmax_fit + np.min(Broom[X][:,scrind[X]+1])]]
-        beta_avercrit[X] =  beta_avercrit[X][[j for j in range(len(beta_avercrit[X])) if Baver[X][j]<Bmax_fit + np.min(Baver[X])]]
-        popt_edge[X], pcov_edge[X] = curve_fit(fit_mix, beta_edgecrit[X][beta_edgecrit[X]<0.995], (Broom[X][:len(beta_edgecrit[X])])[beta_edgecrit[X]<0.995,Ntheta[X]], bounds=([0.9*Broom[X][0,Ntheta[X]],0.,-0.,-0.], [1.1*Broom[X][0,Ntheta[X]], 2*Broom[X][0,Ntheta[X]], 1., 1.]))
-        popt_screw[X], pcov_screw[X] = curve_fit(fit_mix, beta_screwcrit[X][beta_screwcrit[X]<0.995], (Broom[X][:len(beta_screwcrit[X])])[beta_screwcrit[X]<0.995,scrind[X]+1], bounds=([0.9*Broom[X][0,scrind[X]+1],0.,-0.,-0.], [1.1*Broom[X][0,scrind[X]+1], 2*Broom[X][0,scrind[X]+1], 1., 1.]))
-        popt_aver[X], pcov_aver[X] = curve_fit(fit_mix, beta_avercrit[X][beta_avercrit[X]<0.995], (Baver[X][:len(beta_avercrit[X])])[beta_avercrit[X]<0.995], bounds=([0.9*Baver[X][0],0.,-0.,-0.], [1.1*Baver[X][0], 2*Baver[X][0], 1., 1.]))
+        popt_edge[X], pcov_edge[X], popt_screw[X], pcov_screw[X], popt_aver[X], pcov_aver[X] = mkfit_Bv(Y[X],Y[X].Broom,scale_plot=scale_plot)
+        scale_plot=max(scale_plot,Y[X].scale_plot)
     
     with open("drag_semi_iso_fit.txt","w") as fitfile:
         fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature:\nEdge dislocations:\n")
@@ -607,7 +712,7 @@ if __name__ == '__main__':
         for X in metal:
             fitfile.write(" & "+"{:.3f}".format(vcrit_smallest[X]))
         
-    def mkfitplot(metal_list,filename,figtitle):
+    def mkfitplot(metal_list,filename,figtitle,scale_plot=1):
         '''Plot the dislocation drag over velocity and show the fitting function.'''
         if len(metal_list)<5:
             fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
@@ -630,17 +735,17 @@ if __name__ == '__main__':
                 vcrit = vcrit_edge[X]
                 popt = popt_edge[X]
                 cutat = 1.001*vcrit ## vcrit is often rounded, so may want to plot one more point in some cases
-                B = Broom[X][beta<cutat,Ntheta[X]]
+                B = Y[X].Broom.iloc[beta<cutat,-1].to_numpy()
             elif filename=="screw":
                 vcrit = vcrit_screw[X]
                 popt = popt_screw[X]
                 cutat = 1.0*vcrit
-                B = Broom[X][beta<cutat,scrind[X]+1]
+                B = Y[X].Broom.iloc[beta<cutat,Y[X].scrind].to_numpy()
             elif filename=="aver":
                 vcrit = vcrit_smallest[X]
                 popt = popt_aver[X]
                 cutat = 1.007*vcrit
-                B = Baver[X][beta<cutat]
+                B = Y[X].Baver[beta<cutat]
             else:
                 raise ValueError("keyword 'filename'={} undefined.".format(filename))
             if X in metalcolors.keys():
@@ -651,133 +756,20 @@ if __name__ == '__main__':
             with np.errstate(divide='ignore'):
                 ax.plot(beta_highres,fit_mix(beta_highres/vcrit,*popt),':',color='gray')
         ax.legend(loc='upper left', ncol=ncols, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
-        plt.savefig("B_{}+fits.pdf".format(filename),format='pdf',bbox_inches='tight')
+        plt.savefig(f"B_{filename}+fits.pdf",format='pdf',bbox_inches='tight')
         plt.close()
         
-    mkfitplot(metal,"edge","pure edge")
-    mkfitplot(metal,"screw","pure screw")
-    mkfitplot(metal,"aver","averaged over $\\vartheta$")
-    
+    mkfitplot(metal,"edge","pure edge",scale_plot)
+    mkfitplot(metal,"screw","pure screw",scale_plot)
+    mkfitplot(metal,"aver","averaged over $\\vartheta$",scale_plot)
     
     ### finally, also plot B as a function of stress using the fits computed above
-    def B_of_sigma(X,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False):
-        '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
-           or a weighted average of the two (B0fit='weighted',default) and vcrit is the critical velocity for character (='screw', 'edge', or else an average is computed).
-           A plot of the results is saved to disk if mkplot=True (default).
-           If option indirect=False sigma will be evenly spaced (default), whereas if indirect=True sigma will be calculated from an evenly spaced velocity array.
-           The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.'''
-        if character=='screw':
-            vcrit = Y[X].ct*vcrit_screw[X]
-            popt = popt_screw[X]
-            fname = "B_of_sigma_screw_{}.pdf".format(X)
-            ftitle = "{}, ".format(X) + "screw"
-        elif character=='edge':
-            vcrit = Y[X].ct*vcrit_edge[X]
-            popt = popt_edge[X]
-            fname = "B_of_sigma_edge_{}.pdf".format(X)
-            ftitle = "{}, ".format(X) + "edge"
-        else: ## 'aver' = default
-            vcrit = Y[X].ct*vcrit_smallest[X]
-            popt = popt_aver[X]
-            fname = "B_of_sigma_{}.pdf".format(X)
-            ftitle = "{}, ".format(X) + "averaged over $\\vartheta$"
-        burg = Y[X].burgers
-        
-        @np.vectorize
-        def B(v):
-            bt = abs(v/vcrit)
-            if bt<1:
-                out = 1e-3*fit_mix(bt, *popt)
-            else:
-                out = np.inf
-            return out
-            
-        @np.vectorize
-        def vr(stress):
-            '''returns the velocity of a dislocation in the drag dominated regime as a function of stress.'''
-            bsig = abs(burg*stress)
-            def nonlinear_equation(v):
-                return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
-            out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
-            zero = abs(nonlinear_equation(out))
-            if zero>1e-5 and zero/bsig>1e-2:
-                # print("Warning: bad convergence for vr(stress={}): eq={:.6f}, eq/(burg*sig)={:.6f}".format(stress,zero,zero/bsig))
-                # fall back to (slower) fsolve:
-                out = float(fsolve(nonlinear_equation,0.01*vcrit))
-            return out
-            
-        ### compute what stress is needed to move dislocations at velocity v:
-        @np.vectorize
-        def sigma_eff(v):
-            return v*B(v)/burg
-            
-        ## slope of B in the asymptotic regime:
-        @np.vectorize
-        def Bstraight(sigma,Boffset=0):
-            return Boffset+sigma*burg/vcrit
-            
-        ## simple functional approximation to B(sigma), follows from B(v)=B0/sqrt(1-(v/vcrit)**2):
-        @np.vectorize
-        def Bsimple(sigma,B0):
-            return B0*np.sqrt(1+(sigma*burg/(vcrit*B0))**2)
-            
-        ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1.5GPa (whichever is smaller)
-        sigma_max = sigma_eff(0.99*vcrit)
-        # print("{}, {}: sigma(99%vcrit) = {:.1f} MPa".format(X,character,sigma_max/1e6))
-        if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
-            sigma_max = sigma_eff(0.999*vcrit)
-            # print("{}, {}: sigma(99.9%vcrit) = {:.1f} MPa".format(X,character,sigma_max/1e6))
-        sigma_max = min(1.5e9,sigma_max)
-        Boffset = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
-        if Boffset < 0: Boffset=0 ## don't allow negative values
-        ## find min(B(v)) to use for B0 in Bsimple():
-        B0 = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
-        if B0fit == 'weighted':
-            B0 = (B(0)+3*B0)/4 ## or use some weighted average between Bmin and B(0)
-        elif B0fit == 'zero':
-            B0 = B(0)
-        # print("{}: Boffset={:.4f}mPas, B0={:.4f}mPas".format(X,1e3*Boffset,1e3*B0))
-        
-        sigma = np.linspace(0,sigma_max,resolution)
-        if not indirect:
-            B_of_sig = B(vr(sigma))
-            Bmax = B_of_sig[-1]
-        if indirect or (np.max(B_of_sig) < 1.01*B(0)):
-            # print("\nWARNING: using fall back for v(sigma) for {}, {}\n".format(X,character))
-            v = vcrit*np.linspace(0,0.999,resolution)
-            sigma = sigma_eff(v)
-            B_of_sig = B(v)
-            Bmax = B_of_sig[-1]
-            if sigma[-1]>1.1*sigma_max:
-                Bmax = 1.15*B_of_sig[sigma<sigma_max][-1]
-        if mkplot:
-            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
-            ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
-            ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
-            ax.set_title(ftitle,fontsize=fntsize)
-            ax.axis((0,sigma_max/1e6,0,Bmax*1e3))
-            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label=r"$\sqrt{B_0^2\!+\!\left(\frac{\sigma b}{v_\mathrm{c}}\right)^2}$, $B_0=$"+f"{1e6*B0:.1f}"+r"$\mu$Pas")
-            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label=r"$B_0+\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+f"{1e6*Boffset:.1f}"+r"$\mu$Pas")
-            ax.plot(sigma/1e6,B_of_sig*1e3,label=r"$B_\mathrm{fit}(v(\sigma))$")
-            plt.xticks(fontsize=fntsize)
-            plt.yticks(fontsize=fntsize)
-            ax.xaxis.set_minor_locator(AutoMinorLocator())
-            ax.yaxis.set_minor_locator(AutoMinorLocator())
-            ax.legend(loc='upper left',handlelength=1.1, frameon=False, shadow=False,fontsize=8)
-            plt.savefig(fname,format='pdf',bbox_inches='tight')
-            plt.close()
-        return (B0,vcrit,sigma,B_of_sig)
-        
     def plotall_B_of_sigma(character,ploteach=False):
         '''plot dislocation drag over stress'''
         B_of_sig = {}
         sigma = {}
         B0 = {}
         vc = {}
-        for X in metal:
-            Xc = X+character
-            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=ploteach,B0fit='weighted',indirect=False)
-    
         if len(metal)<5:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
             legendops={'loc':'best','ncol':1}
@@ -789,12 +781,18 @@ if __name__ == '__main__':
         if character=='screw':
             ax.set_title("screw",fontsize=fntsize)
             fname = "B_of_sigma_all_screw.pdf"
+            popt = popt_screw
         elif character=='edge':
             ax.set_title("edge",fontsize=fntsize)
             fname = "B_of_sigma_all_edge.pdf"
+            popt = popt_edge
         else:
             ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
             fname = "B_of_sigma_all.pdf"
+            popt = popt_aver
+        for X in metal:
+            Xc = X+character
+            B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt[X],character,mkplot=ploteach,B0fit='weighted',indirect=False)
         sig_norm = np.linspace(0,3.5,500)
         ax.axis((0,sig_norm[-1],0.5,4.5))
         for X in metal:
