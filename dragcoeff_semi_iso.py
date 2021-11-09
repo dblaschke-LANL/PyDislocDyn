@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 30, 2021
+# Date: Nov. 5, 2017 - Nov. 8, 2021
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -147,7 +147,7 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1):
     popt_aver, pcov_aver = curve_fit(fit_mix, beta_avercrit[beta_avercrit<0.995], (Y.Baver[:len(beta_avercrit)])[beta_avercrit<0.995], bounds=([0.9*Y.Baver[0],0.,-0.,-0.], [1.1*Y.Baver[0], 2*Y.Baver[0], 1., 1.]))
     return popt_edge, pcov_edge, popt_screw, pcov_screw, popt_aver, pcov_aver 
 
-def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False):
+def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False,fit=fit_mix):
     '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
        or a weighted average of the two (B0fit='weighted',default) and vcrit is the critical velocity for character (='screw', 'edge', or else an average is computed).
        Required inputs are an instance of the Dislocation class Y, fitting parameters popt previously calculated with function mkfit_Bv(Y,beta,Broom), and a keyword
@@ -173,7 +173,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
     def B(v):
         bt = abs(v/vcrit)
         if bt<1:
-            out = 1e-3*fit_mix(bt, *popt)
+            out = 1e-3*fit(bt, *popt)
         else:
             out = np.inf
         return out

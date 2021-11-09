@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 13, 2021
+# Date: Nov. 3, 2017 - Oct. 30, 2021
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -228,32 +228,8 @@ class StrohGeometry:
         the dislocation character theta. (Requirements: run methods computeuij(beta,C2) and computeEtot() first.)'''
         dtheta = abs(self.theta[1]-self.theta[0])
         self.LT = computeLT(self.Etot, dtheta)
-        
-        
-#############################################################################
 
-@jit
-def ArrayDot(A,B):
-    '''Dot product of matrices, except that each matrix entry is itself an array.'''
-    Ashape = A.shape
-    Bshape = B.shape
-    nk = Ashape[0]
-    nl = Bshape[1]
-    no = max(Ashape[1],Bshape[0])
-    # if numbers don't match, python loop will trigger an error, but jit-compiled will silently produce junk (tradeoff for speed)
-    if len(Ashape)==2:
-        N=1
-    else:
-        N=Ashape[-1]
-    if len(Bshape)>2:
-        N=max(N,Bshape[-1])
-    AB = np.zeros((nk,nl,N))
-    tmp = np.zeros((N))
-    for k in range(nk):
-        for l in range(nl):
-            for o in range(no):
-                np.add(np.multiply(A[k,o] , B[o,l] , tmp), AB[k,l], AB[k,l])
-    return AB
+#############################################################################
     
 if usefortran:
     ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
@@ -367,7 +343,7 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
     if eta_kw is None:
         t = v/a
         shift = a*t**2/2  ## = v**2/(2*a) # distance covered by the disloc. when achieving target velocity
-        # print("time we reach beta={}: t={}".format(beta,t))
+        # print(f"time we reach {beta=}: {t=}")
     uxz = np.zeros((len(r),len(phi),2))
     uyz = np.zeros((len(r),len(phi),2))
     R = np.zeros((len(r),len(phi)))
@@ -383,9 +359,9 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
     for ri, rx in enumerate(r):
         if abs(rx) < 1e-25:
             rx=1e-25
-        for ph in range(len(phi)):
-            x = rx*np.cos(phi[ph]) + shift ### shift x to move with the dislocations
-            y = rx*np.sin(phi[ph])
+        for ph, phx in enumerate(phi):
+            x = rx*np.cos(phx) + shift ### shift x to move with the dislocations
+            y = rx*np.sin(phx)
             R[ri,ph] = np.sqrt(x**2 - x*y*B/C + y**2/Ct)
             X[ri,ph] = x
             Y[ri,ph] = y

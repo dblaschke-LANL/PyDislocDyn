@@ -37,6 +37,7 @@ from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 from dislocations import fourieruij_iso, ompthreads, printthreadinfo
 from linetension_calcs import readinputfile, Dislocation, read_2dresults
 from phononwind import elasticA3, dragcoeff_iso
+from dragcoeff_semi_iso import B_of_sigma
 try:
     from joblib import Parallel, delayed, cpu_count
     ## detect number of cpus present:
@@ -250,6 +251,9 @@ if __name__ == '__main__':
         def fit_screw(x, c0, c1, c2, c3, c4):
             '''define a fitting function for screw dislocations'''
             return c0 - c1*x + c2*x**2 + c3*np.log(1-x**2) + c4*(1/np.sqrt(1-x**2) - 1)
+    def fit_aver(x,cs0,cs1,cs2,cs3,cs4,ce0,ce1,ce2,ce3,ce4):
+        '''returns the average of fit_screw and fit_edge'''
+        return (fit_screw(x,cs0,cs1,cs2,cs3,cs4) + fit_edge(x,ce0,ce1,ce2,ce3,ce4))/2
     
     popt_edge = {}
     pcov_edge = {}
@@ -318,118 +322,32 @@ if __name__ == '__main__':
         
     mkfitplot(metal,"edge")
     mkfitplot(metal,"screw")
-
-    ### finally, also plot B as a function of stress using the fits computed above
-    def B_of_sigma(X,character,mkplot=True,B0fit='weighted',resolution=500):
-        '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
-           or a weighted average of the two (B0fit='weighted',default).
-           A plot of the results is saved to disk if mkplot=True (default).'''
-        popt_e = popt_edge[X]
-        popt_s = popt_screw[X]
-        vcrit = Y[X].ct
-        if character=='screw':
-            if modes == 'TT':
-                print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
-            fname = "Biso_of_sigma_screw_{}.pdf".format(X)
-            ftitle = "{}, ".format(X) + "screw"
-        elif character=='edge':
-            fname = "Biso_of_sigma_edge_{}.pdf".format(X)
-            ftitle = "{}, ".format(X) + "edge"
-        else: ## 'aver' = default
-            fname = "Biso_of_sigma_{}.pdf".format(X)
-            ftitle = "{}, ".format(X) + "averaged over $\\vartheta$"
-        burg = Y[X].burgers
-        
-        @np.vectorize
-        def B(v):
-            bt = abs(v/vcrit)
-            if bt<1:
-                if character == 'edge':
-                    out = 1e-3*fit_edge(bt, *popt_e)
-                elif character == 'screw':
-                    out = 1e-3*fit_screw(bt, *popt_s)
-                else:
-                    out = 1e-3*(fit_edge(bt, *popt_e)+fit_screw(bt, *popt_s))/2
-            else:
-                out = np.inf
-            return out
-            
-        @np.vectorize
-        def vr(stress):
-            '''returns the velocity of a dislocation in the drag dominated regime as a function of stress.'''
-            bsig = abs(burg*stress)
-            def nonlinear_equation(v):
-                return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
-            out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
-            zero = abs(nonlinear_equation(out))
-            if zero>1e-5 and zero/bsig>1e-2:
-                # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
-                # fall back to (slower) fsolve:
-                out = float(fsolve(nonlinear_equation,0.01*vcrit))
-            return out
-            
-        ### compute what stress is needed to move dislocations at velocity v:
-        @np.vectorize
-        def sigma_eff(v):
-            return v*B(v)/burg
-            
-        ## slope of B in the asymptotic regime:
-        @np.vectorize
-        def Bstraight(sigma,Boffset=0):
-            return Boffset+sigma*burg/vcrit
-            
-        ## simple functional approximation to B(sigma), follows from B(v)=B0/sqrt(1-(v/vcrit)**2):
-        @np.vectorize
-        def Bsimple(sigma,B0):
-            return B0*np.sqrt(1+(sigma*burg/(vcrit*B0))**2)
-            
-        ## determine stress that will lead to velocity of 95% transverse sound speed and stop plotting there, or at 1.5GPa (whichever is smaller)
-        sigma_max = sigma_eff(0.95*vcrit)
-        # print(f"{X}, {character}: sigma(0.95ct) = {sigma_max/1e6:.1f} MPa")
-        if sigma_max<6e8 and B(0.95*vcrit)<1e-4: ## if B, sigma still small, increase to 99% vcrit
-            sigma_max = sigma_eff(0.99*vcrit)
-            # print(f"{X}, {character}: sigma(0.99ct) = {sigma_max/1e6:.1f} MPa")
-        if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
-            sigma_max = sigma_eff(0.999*vcrit)
-            # print(f"{X}, {character}: sigma(0.999ct) = {sigma_max/1e6:.1f} MPa")
-        sigma_max = min(1.5e9,sigma_max)
-        Boffset = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
-        if Boffset < 0: Boffset=0 ## don't allow negative values
-        ## find min(B(v)) to use for B0 in Bsimple():
-        B0 = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
-        if B0fit == 'weighted':
-            B0 = (B(0)+3*B0)/4 ## or use some weighted average between Bmin and B(0)
-        elif B0fit == 'zero':
-            B0 = B(0)
-        # print(f"{X}: Boffset={1e3*Boffset:.4f}mPas, B0={1e3*B0:.4f}mPas")
-        
-        sigma = np.linspace(0,sigma_max,resolution)
-        B_of_sig = B(vr(sigma))
-        if mkplot:
-            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
-            ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
-            ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
-            ax.set_title(ftitle,fontsize=fntsize)
-            ax.axis((0,sigma[-1]/1e6,0,B_of_sig[-1]*1e3))
-            ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label=r"$\sqrt{B_0^2\!+\!\left(\frac{\sigma b}{c_\mathrm{t}}\right)^2}$, $B_0=$"+f"{1e6*B0:.1f}"+r"$\mu$Pas")
-            ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label=r"$B_0+\frac{\sigma b}{c_\mathrm{t}}$, $B_0=$"+f"{1e6*Boffset:.1f}"+r"$\mu$Pas")
-            ax.plot(sigma/1e6,B_of_sig*1e3,label=r"$B_\mathrm{fit}(v(\sigma))$")
-            plt.xticks(fontsize=fntsize)
-            plt.yticks(fontsize=fntsize)
-            ax.xaxis.set_minor_locator(AutoMinorLocator())
-            ax.yaxis.set_minor_locator(AutoMinorLocator())
-            ax.legend(loc='upper left',handlelength=1.1, frameon=False, shadow=False,fontsize=8)
-            plt.savefig(fname,format='pdf',bbox_inches='tight')
-            plt.close()
-        return (B0,sigma,B_of_sig)
+    
+    maxerror = {}
+    for X in metal:
+        maxerror[X] = {'edge':max(abs(1-fit_edge(beta,*popt_edge[X])/Broom[X].iloc[:,-1])), 'screw':max(abs(1-fit_screw(beta,*popt_screw[X])/Broom[X].iloc[:,0]))}
+        Y[X].vcrit_smallest=Y[X].vcrit_screw=Y[X].vcrit_edge=Y[X].ct
+        Y[X].name += f"_{Y[X].sym}"
         
     B_of_sig = {}
     sigma = {}
     B0 = {}
+    vcrit = {} ## dummy variable, always ct
     for character in ['aver', 'screw', 'edge']:
         for X in metal:
+            if character=='screw':
+                popt = popt_screw[X]
+                fit=fit_screw
+            elif character=='edge':
+                popt = popt_edge[X]
+                fit=fit_edge
+            elif character=='aver':
+                popt = tuple(popt_screw[X])+tuple(popt_edge[X])
+                fit=fit_aver
             Xc = X+character
-            B0[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(X,character,mkplot=True,B0fit='weighted')
+            if character=='screw' and modes == 'TT':
+                print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
+            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=True,B0fit='weighted',fit=fit)
         fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.5,3.5))
         ax.set_xlabel(r'$\sigma b/(c_\mathrm{t}B_0)$',fontsize=fntsize)
         ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
