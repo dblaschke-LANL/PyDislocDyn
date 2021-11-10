@@ -291,7 +291,7 @@ class Dislocation(StrohGeometry,metal_props):
                         self.vcrit_edge = np.sqrt(float(rv2limit)/self.rho)
         return self.vcrit_edge
 
-    def computevcrit(self,theta=None,cache=False,Ncores=Kcores,set_screwedge=False):
+    def computevcrit(self,theta=None,cache=False,Ncores=Kcores,set_screwedge=True):
         '''Compute the lowest critial (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
         The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.
         Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set.'''

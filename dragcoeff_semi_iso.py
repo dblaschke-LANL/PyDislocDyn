@@ -72,7 +72,7 @@ use_iso=False ## set to True to calculate using isotropic elastic constants from
 bccslip = '110' ## allowed values: '110' (default), '112', '123', 'all' (for all three)
 hcpslip = 'basal' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 #####
-computevcrit_for_speed = None ### Optional: Unless None or 0, this integer variable is the number of theta angles (i.e. np.linspace(theta[0],theta[-1],computevcrit_for_speed)) for which we calculate vcrit explicitly, missing values will be interpolated to match len(theta);
+computevcrit_for_speed = Ntheta ### Optional: Unless None or 0, this integer variable is the number of theta angles (i.e. np.linspace(theta[0],theta[-1],computevcrit_for_speed)) for which we calculate vcrit explicitly, missing values will be interpolated to match len(theta);
 ### if provided, drag computations will be skipped for velocities bt>vcrit/ct on a per theta-angle basis
 ### Note: this may speed up calculations by avoiding slow converging drag calcs near divergences of the dislocation field, but not necessarily since computevcrit takes time as well
 #####
