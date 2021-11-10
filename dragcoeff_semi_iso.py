@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 8, 2021
+# Date: Nov. 5, 2017 - Nov. 10, 2021
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -117,7 +117,7 @@ def fit_mix(x, c0, c1, c2, c4):
     '''Defines a fitting function appropriate for drag coefficient B(v).'''
     return c0 - c1*x + c2*(1/(1-x**2)**(1/2) - 1) + c4*(1/(1-x**2)**(3/2) - 1)
 
-def mkfit_Bv(Y,Bdrag,scale_plot=1):
+def mkfit_Bv(Y,Bdrag,scale_plot=1,Bmax_fit='auto'):
     '''Calculates fitting functions for B(v) for pure screw, pure edge, and an average over all dislocation characters.
        Required inputs are an instance of the Dislocation class Y, and the the drag coefficient Bdrag formatted as a Pandas DataFrame where index
        contains the normalized velocities beta= v/Y.ct and columns contains the character angles thetaat velocity v for all character angles theta.'''
@@ -129,7 +129,8 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1):
     vel = Bdrag.index.to_numpy()*Y.ct
     theta = Bdrag.columns
     Y.scale_plot = max(scale_plot,int(Y.T/30)/10)
-    Bmax_fit = int(20*Y.T/300)/100 ## only fit up to Bmax_fit [mPas]
+    if Bmax_fit=='auto':
+        Bmax_fit = int(20*Y.T/300)/100 ## only fit up to Bmax_fit [mPas]
     if theta[0]==0.:
         Y.scrind = 0
     else:
@@ -147,14 +148,15 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1):
     popt_aver, pcov_aver = curve_fit(fit_mix, beta_avercrit[beta_avercrit<0.995], (Y.Baver[:len(beta_avercrit)])[beta_avercrit<0.995], bounds=([0.9*Y.Baver[0],0.,-0.,-0.], [1.1*Y.Baver[0], 2*Y.Baver[0], 1., 1.]))
     return popt_edge, pcov_edge, popt_screw, pcov_screw, popt_aver, pcov_aver 
 
-def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False,fit=fit_mix):
+def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False,fit=fit_mix,sigma_max='auto'):
     '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
        or a weighted average of the two (B0fit='weighted',default) and vcrit is the critical velocity for character (='screw', 'edge', or else an average is computed).
-       Required inputs are an instance of the Dislocation class Y, fitting parameters popt previously calculated with function mkfit_Bv(Y,beta,Broom), and a keyword
-       'character = 'screw'|'edge'|'aver'.
+       Required inputs are an instance of the Dislocation class Y, fitting parameters popt previously calculated using fitting function fit_mix() (use option 'fit' to change),
+       and a keyword 'character = 'screw'|'edge'|'aver'.
        A plot of the results is saved to disk if mkplot=True (default).
        If option indirect=False sigma will be evenly spaced (default), whereas if indirect=True sigma will be calculated from an evenly spaced velocity array.
-       The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.'''
+       The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.
+       Option 'sigma_max'' is the highest stress to be considered in the present calculation. '''
     if not isinstance(Y,Dislocation):
         raise ValueError("'Y' must be an instance of the Dislocation class")
     ftitle = f"{Y.name}, {character}"
@@ -206,16 +208,16 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
     def Bsimple(sigma,B0):
         '''Simple functional approximation to B(sigma), follows from B(v)=B0/sqrt(1-(v/vcrit)**2).'''
         return B0*np.sqrt(1+(sigma*burg/(vcrit*B0))**2)
-        
-    ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1.5GPa (whichever is smaller)
-    sigma_max = sigma_eff(0.99*vcrit)
-    # print(f"{Y.name}, {character}: sigma(99%vcrit) = {sigma_max/1e6:.1f} MPa")
-    if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
-        sigma_max = sigma_eff(0.999*vcrit)
-        # print(f"{Y.name}, {character}: sigma(99.9%vcrit) = {sigma_max/1e6:.1f} MPa")
-    sigma_max = min(1.5e9,sigma_max)
-    Boffset = float(B(vr(sigma_max))-Bstraight(sigma_max,0))
-    if Boffset < 0: Boffset=0 ## don't allow negative values
+    
+    if sigma_max=='auto':    
+        ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1.5GPa (whichever is smaller)
+        sigma_max = sigma_eff(0.99*vcrit)
+        # print(f"{Y.name}, {character}: sigma(99%vcrit) = {sigma_max/1e6:.1f} MPa")
+        if sigma_max<6e8 and B(0.99*vcrit)<1e-4: ## if B, sigma still small, increase to 99.9% vcrit
+            sigma_max = sigma_eff(0.999*vcrit)
+            # print(f"{Y.name}, {character}: sigma(99.9%vcrit) = {sigma_max/1e6:.1f} MPa")
+        sigma_max = min(1.5e9,sigma_max)
+    Boffset = max( float(B(vr(sigma_max))-Bstraight(sigma_max,0)) , 0) ## don't allow negative values
     ## find min(B(v)) to use for B0 in Bsimple():
     B0 = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
     if B0fit == 'weighted':
@@ -360,14 +362,14 @@ if __name__ == '__main__':
             rotm = rotmat[X][th]
             A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
-    if computevcrit_for_speed is not None and computevcrit_for_speed>0:
+    if computevcrit_for_speed is not None and computevcrit_for_speed>0 and Ncores != 0:
         print(f"Computing vcrit for {computevcrit_for_speed} character angles, as requested ...")
         for X in metal:
             if Y[X].Ntheta==Ntheta:
                 Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],computevcrit_for_speed)
             else:
                 Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],2*computevcrit_for_speed-1)
-            Y[X].computevcrit(Y[X].theta_vcrit,cache=cache,Ncores=Kcores)
+            Y[X].computevcrit(Y[X].theta_vcrit,cache=cache,Ncores=Kcores,set_screwedge=False)
             if computevcrit_for_speed != Ntheta:
                 Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]

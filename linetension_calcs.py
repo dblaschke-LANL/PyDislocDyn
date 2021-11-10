@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 30, 2021
+# Date: Nov. 3, 2017 - Nov. 10, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -291,9 +291,10 @@ class Dislocation(StrohGeometry,metal_props):
                         self.vcrit_edge = np.sqrt(float(rv2limit)/self.rho)
         return self.vcrit_edge
 
-    def computevcrit(self,theta=None,cache=False,Ncores=Kcores):
+    def computevcrit(self,theta=None,cache=False,Ncores=Kcores,set_screwedge=False):
         '''Compute the lowest critial (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
-        The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.'''
+        The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.
+        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set.'''
         if theta is None:
             theta=self.theta
         indices = self.findedgescrewindices(theta)
@@ -308,12 +309,18 @@ class Dislocation(StrohGeometry,metal_props):
             self.computevcrit_screw()
             if self.vcrit_screw is not None:
                 self.vcrit_all[1,indices[0]] = self.vcrit_screw
+            elif set_screwedge:
+                self.vcrit_screw = self.vcrit_all[1,indices[0]]
         if indices[1] is not None:
             self.computevcrit_edge()
             if self.vcrit_edge is not None:
                 self.vcrit_all[1,indices[1]] = self.vcrit_edge
                 if len(indices) == 3:
                     self.vcrit_all[1,indices[2]] = self.vcrit_edge
+            elif set_screwedge:
+                self.vcrit_edge = self.vcrit_all[1,indices[1]]
+                if len(indices) == 3:
+                    self.vcrit_edge = min(self.vcrit_edge,self.vcrit_all[1,indices[2]])
         return self.vcrit_all[1]
     
     def findvcrit_smallest(self,cache=False,Ncores=Kcores,xatol=1e-2):
@@ -324,7 +331,7 @@ class Dislocation(StrohGeometry,metal_props):
            this step is skipped and options 'cache' and 'Ncores'' are not needed.'''
         resolution = max(11,2*int(Ncores/2)-1)
         if self.vcrit_all is None or self.vcrit_all.shape[1]<11:
-            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],resolution),cache=cache,Ncores=Ncores)
+            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],resolution),cache=cache,Ncores=Ncores,set_screwedge=False)
         vcrit_smallest = np.nanmin(self.vcrit_all[1])
         thind = np.where(self.vcrit_all[1]==vcrit_smallest)[0][0] ## find index of theta so that we may pass tighter bounds to minimize_scalar below for more accurate (and faster) results
         bounds=(max(-np.pi/2,self.vcrit_all[0][max(0,thind-1)]),min(np.pi/2,self.vcrit_all[0][min(thind+1,len(self.vcrit_all[0])-1)]))
@@ -341,7 +348,7 @@ class Dislocation(StrohGeometry,metal_props):
         Rayleigh=np.zeros((self.Ntheta))
         norm = self.C2[3,3] # use c44
         C2norm = UnVoigt(self.C2/norm)
-        if self.vcrit_all is None: self.computevcrit() ## need it as an upper bound on the Rayleigh speed
+        if self.vcrit_all is None: self.computevcrit(set_screwedge=False) ## need it as an upper bound on the Rayleigh speed
         if len(self.vcrit_all[1])==self.Ntheta: vcrit = self.vcrit_all[1]
         else: vcrit = ndimage.interpolation.zoom(self.vcrit_all[1],self.Ntheta/len(self.vcrit_all[1]))
         for th in range(self.Ntheta):
