@@ -28,18 +28,18 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Prerequisites
 
-Python >=3.8,</br>
-[numpy](https://docs.scipy.org/doc/numpy/user/) >=1.13,</br>
-[scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.3,</br>
-[sympy](https://www.sympy.org) >=1.5,</br>
-[matplotlib](https://matplotlib.org/) >=3.1</br>
-[pandas](https://pandas.pydata.org/) >=0.25</br>
+* Python >=3.8,</br>
+* [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.16,</br>
+* [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.3,</br>
+* [sympy](https://www.sympy.org) >=1.5,</br>
+* [matplotlib](https://matplotlib.org/) >=3.1</br>
+* [pandas](https://pandas.pydata.org/) >=0.25</br>
 
 ### Optional:
 
-[numba](https://numba.pydata.org/) >=0.47 (for speedup via just-in-time compilation of some subroutines),</br>
-[joblib](https://joblib.readthedocs.io) >=0.14 (for parallelization),</br>
-a Fortran 90 compiler
+* [numba](https://numba.pydata.org/) >=0.47 (for speedup via just-in-time compilation of some subroutines),</br>
+* [joblib](https://joblib.readthedocs.io) >=0.14 (for parallelization),</br>
+* a Fortran 90 compiler
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 (or add appropriate options to build with OpenMP support, e.g. with gfortran: 'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines')
@@ -48,33 +48,33 @@ run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 
 ### Python programs / examples
 
-* linetension_calcs.py</br>
+* *linetension_calcs.py*</br>
 Computes the line tension of a moving dislocation for various metals.
 See [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)) for details on the method.
 
-* polycrystal_averaging.py</br>
+* *polycrystal_averaging.py*</br>
 Computes averages of elastic constants for polycrystals.
 See [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443)  ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)) for details on the method.
 
-* dragcoeff_iso.py</br>
+* *dragcoeff_iso.py*</br>
 Computes the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal.
 See LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [Phil. Mag. 100 (2020) 571&ndash;600](https://doi.org/10.1080/14786435.2019.1696484) ([arxiv.org/abs/1907.00101](https://arxiv.org/abs/1907.00101)), and [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.
 
-* dragcoeff_semi_iso.py</br>
+* *dragcoeff_semi_iso.py*</br>
 Computes the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation, where only the phonon spectrum is isotropic and everything else (i.e. the dislocation field and the elastic constants) respect the crystal symmetry. See [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.
 
 ### Python modules (used by the programs listed above):
 
-* elasticconstants.py</br>
+* *elasticconstants.py*</br>
 Defines functions to generate tensors of elastic constants and compliances.
 
-* dislocations.py</br>
+* *dislocations.py*</br>
 Defines functions and classes to compute dislocation displacement gradient fields, self energy, and line tension.
 
-* phononwind.py</br>
+* *phononwind.py*</br>
 Defines functions to compute the drag coefficient from phonon wind.
 
-* metal_data.py</br>
+* *metal_data.py*</br>
 Defines dictionaries storing input data taken from the references listed in that file, the most important ones being the ['CRC Handbook of Chemistry and Physics'](http://hbcponline.com); as well as ['Kaye and Laby Online'](https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/).
 In particular, this module contains elastic constants, densities, lattice constants, and thermal expansion coefficients at room temperature for various metals necessary to run the programs listed above.
 
