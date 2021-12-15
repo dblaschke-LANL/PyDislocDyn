@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Nov. 10, 2021
+# Date: Nov. 3, 2017 - Dec. 8, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -430,7 +430,7 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.init_all()
     return out
 
-def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False):
+def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False):
     '''Generates a plot of the requested component of the dislocation displacement gradient.
        Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
        Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
@@ -441,7 +441,9 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
        Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
        and is currently only implemented for steady-state solutions (a=None).
        Option skipcalc=True may be passed to plot results of an earlier calculation with the same input parameters (useful for plotting multiple components
-       of the dislocation field).'''
+       of the dislocation field).
+       If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
+       if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
     ## make sure everything we need has been initialized:
     if disloc.ct==0:
         disloc.ct = np.sqrt(disloc.mu/disloc.rho)
@@ -496,6 +498,7 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
     colmsh = plt.pcolormesh(disloc.x_msh, disloc.y_msh, uijtoplot, vmin=-1, vmax=1, cmap = cmap, shading='gouraud')
     colmsh.set_rasterized(True)
     plt.colorbar()
+    if showplt: plt.show()
     plt.savefig(namestring,format='pdf',bbox_inches='tight')
     plt.close()
 
