@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 8, 2021
+# Date: Nov. 5, 2017 - Dec. 21, 2021
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -35,7 +35,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 from dislocations import fourieruij_iso, ompthreads, printthreadinfo
-from linetension_calcs import readinputfile, Dislocation, read_2dresults
+from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options
 from phononwind import elasticA3, dragcoeff_iso
 from dragcoeff_semi_iso import B_of_sigma
 try:
@@ -69,14 +69,9 @@ Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy 
 Nphi1 = 50
 Nq1 = 400
 Nt = 321 # base value, grid is adaptive in Nt
-### and range & step sizes
-beta = np.linspace(minb,maxb,Nbeta)
-phi = np.linspace(0,2*np.pi,Nphi)
-
-if use_exp:
-    metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(data.ISO_l.keys())))
-else:
-    metal = sorted(list(data.c111.keys()))
+## the following options can be set on the commandline with syntax --keyword=value:
+OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":bool, "use_exp":bool,\
+           "NT":int, "constantrho":bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int}
 
 #########
 if __name__ == '__main__':
@@ -84,7 +79,15 @@ if __name__ == '__main__':
     Y={}
     use_metaldata=True
     if len(sys.argv) > 1:
-        args = sys.argv[1:]
+        args = parse_options(sys.argv[1:],OPTIONS,globals())
+    ### set range & step sizes after parsing the command line for options
+    beta = np.linspace(minb,maxb,Nbeta)
+    phi = np.linspace(0,2*np.pi,Nphi)
+    if use_exp:
+        metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(data.ISO_l.keys())))
+    else:
+        metal = sorted(list(data.c111.keys()))
+    if len(sys.argv) > 1 and len(args)>0:
         try:
             inputdata = [readinputfile(i, Ntheta=Ntheta, isotropify=True) for i in args]
             Y = {i.name:i for i in inputdata}
@@ -93,7 +96,7 @@ if __name__ == '__main__':
             print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
-            metal = sys.argv[1].split()
+            metal = args[0].split()
     
     if use_metaldata:
         if not os.path.exists("temp_pydislocdyn"):

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 8, 2021
+# Date: Nov. 3, 2017 - Dec. 21, 2021
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -16,6 +16,7 @@
 #################################
 import sys
 import os
+import time
 import shutil, lzma
 import numpy as np
 import sympy as sp
@@ -73,11 +74,8 @@ Nphi = 1000
 ## choose among predefined slip systems when using metal_data.py (see that file for details)
 bccslip = '110' ## allowed values: '110' (default), '112', '123', 'all' (for all three)
 hcpslip = 'basal' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
-### and range & step sizes
-dtheta = np.pi/(Ntheta-2)
-theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
-beta = np.linspace(0,1,Nbeta)
-#####
+##### the following options can be set on the commandline with syntax --keyword=value:
+OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":bool, "write_vcrit":bool, "bccslip":str, "hcpslip":str, "Ncores":int}
 
 #### input data:
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
@@ -513,7 +511,22 @@ def read_2dresults(fname):
     out.index.name='beta'
     out.columns.name='theta'
     return out
-        
+
+def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
+    '''Search commandline arguments passed to this script for known options to set by comaring to a list of keyword strings "optionlist".
+    These will then override default varibles set above in this script. This function also returns a copy of 'arglist' stripped of all 
+    option calls for further processing (e.g. opening input files that were passed etc.).'''
+    out = arglist
+    setoptions = [i for i in out if "--" in i and "=" in i and i[:2]=="--"]
+    for i in setoptions:
+        out.remove(i)
+        key,val = i[2:].split("=")
+        if key in optionlist:
+            globaldict[key] = optionlist[key](val)
+            print(f"setting {key}={globaldict[key]}")
+    time.sleep(1) ## avoid race conditions after changing global variables
+    return out
+    
 ### start the calculations
 if __name__ == '__main__':
     printthreadinfo(Ncores,ompthreads)
@@ -521,7 +534,12 @@ if __name__ == '__main__':
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
-        args = sys.argv[1:]
+        args = parse_options(sys.argv[1:])
+    ### set range & step sizes after parsing the commandline for options
+    dtheta = np.pi/(Ntheta-2)
+    theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
+    beta = np.linspace(0,1,Nbeta)
+    if len(sys.argv) > 1 and len(args)>0:
         try:
             inputdata = [readinputfile(i,init=False,theta=theta,Nphi=Nphi) for i in args]
             Y = {i.name:i for i in inputdata}
@@ -530,7 +548,7 @@ if __name__ == '__main__':
             print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to
-            metal = sys.argv[1].split()
+            metal = args[0].split()
     bcc_metals = data.bcc_metals.copy()
     hcp_metals = data.hcp_metals.copy()
     if use_metaldata:
