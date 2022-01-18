@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 22, 2021
+# Date: Nov. 5, 2017 - Jan. 14, 2022
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -15,15 +15,22 @@ from scipy.optimize import curve_fit, fmin, fsolve
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
+import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
-# pgf_with_pdflatex = {
+# plt.rcParams.update({
+#     "text.usetex": True, 
+#     "text.latex.preamble": r"\usepackage{fouriernc}",
 #     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": r"\usepackage[utf8x]{inputenc} \usepackage[T1]{fontenc} \usepackage{fouriernc} \usepackage{amsmath}"
-# }
-# mpl.rcParams.update(pgf_with_pdflatex)
+#     "pgf.rcfonts": False,
+#     "pgf.preamble": "\n".join([
+#           r"\usepackage[utf8x]{inputenc}",
+#           r"\usepackage[T1]{fontenc}",
+#           r"\usepackage{fouriernc}",
+#           r"\usepackage{amsmath}",
+#     ]),
+# })
 ##################
-import matplotlib.pyplot as plt
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 21, 2021
+# Date: Nov. 3, 2017 - Jan. 17, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -24,15 +24,22 @@ from scipy import optimize, ndimage
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
+import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
-# pgf_with_pdflatex = {
+# plt.rcParams.update({
+#     "text.usetex": True, 
+#     "text.latex.preamble": r"\usepackage{fouriernc}",
 #     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": r"\usepackage[utf8x]{inputenc} \usepackage[T1]{fontenc} \usepackage{fouriernc} \usepackage{amsmath}"
-# }
-# mpl.rcParams.update(pgf_with_pdflatex)
+#     "pgf.rcfonts": False,
+#     "pgf.preamble": "\n".join([
+#           r"\usepackage[utf8x]{inputenc}",
+#           r"\usepackage[T1]{fontenc}",
+#           r"\usepackage{fouriernc}",
+#           r"\usepackage{amsmath}",
+#     ]),
+# })
 ##################
-import matplotlib.pyplot as plt
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
@@ -181,7 +188,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
                     return np.real(out)
                 with np.errstate(invalid='ignore'):
                     minresult = optimize.minimize_scalar(f,method='bounded',bounds=(0.0,2*np.pi))
-                    if minresult.success is not True: print(f"Warning:\n{minresult}")
+                    if minresult.success is not True: print(f"Warning ({self.name}):\n{minresult}")
                     bt2_res[i,0] = minresult.x
                 bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
                 if abs(np.imag(bt2_res[i,1]))>1e-6 or not minresult.success: bt2_res[i,:]=bt2_res[i,:]*float('nan') ## only keep real solutions from successful minimizations

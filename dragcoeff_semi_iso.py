@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 22, 2021
+# Date: Nov. 5, 2017 - Jan. 17, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -17,15 +17,22 @@ from scipy import ndimage
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
+import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
-# pgf_with_pdflatex = {
+# plt.rcParams.update({
+#     "text.usetex": True, 
+#     "text.latex.preamble": r"\usepackage{fouriernc}",
 #     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": r"\usepackage[utf8x]{inputenc} \usepackage[T1]{fontenc} \usepackage{fouriernc} \usepackage{amsmath}"
-# }
-# mpl.rcParams.update(pgf_with_pdflatex)
+#     "pgf.rcfonts": False,
+#     "pgf.preamble": "\n".join([
+#           r"\usepackage[utf8x]{inputenc}",
+#           r"\usepackage[T1]{fontenc}",
+#           r"\usepackage{fouriernc}",
+#           r"\usepackage{amsmath}",
+#     ]),
+# })
 ##################
-import matplotlib.pyplot as plt
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 from matplotlib import gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -374,6 +381,10 @@ if __name__ == '__main__':
             else:
                 Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],2*computevcrit_for_speed-1)
             Y[X].computevcrit(Y[X].theta_vcrit,cache=cache,Ncores=Kcores,set_screwedge=False)
+            if np.isnan(Y[X].vcrit_all[1]).any():
+                print(f"Warning: found NaN in vcrit for {X}, replacing with interpolated values.")
+                fixnan = pd.Series(Y[X].vcrit_all[1])
+                Y[X].vcrit_all[1] = fixnan.where(fixnan.notnull(),other=(fixnan.fillna(method='ffill')+fixnan.fillna(method='bfill'))/2).to_numpy()
             if computevcrit_for_speed != Ntheta:
                 Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
