@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 17, 2022
+# Date: Nov. 5, 2017 - Jan. 20, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -10,6 +10,7 @@
 #################################
 import sys
 import os
+import ast
 import shutil, lzma
 import numpy as np
 from scipy.optimize import curve_fit, fmin, fsolve
@@ -104,9 +105,10 @@ NphiX = 3000
 rmin = 0
 rmax = 250
 ## the following options can be set on the commandline with syntax --keyword=value:
+phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":bool, "use_exp_Lame":bool, "use_iso":bool,\
-           "bccslip":str, "hcpslip":str, "computevcrit_for_speed":int, "NT":int, "constantrho":bool, "increaseTby":float,\
-           "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
+           "bccslip":str, "hcpslip":str, "computevcrit_for_speed":int, "NT":int, "constantrho":bool, "increaseTby":float, "beta_reference":str,\
+           "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float, "phononwind_opts":ast.literal_eval}
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.c123.keys())))
@@ -410,7 +412,7 @@ if __name__ == '__main__':
         if np.all(skip_theta==False):
             Bmix[:,0] = np.repeat(np.inf,Y[X].Ntheta)
         else:
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, skip_theta=skip_theta)
+            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, skip_theta=skip_theta, **phononwind_opts)
         
         for Ti in range(len(highT[X])-1):
             T = highT[X][Ti+1]
@@ -465,7 +467,7 @@ if __name__ == '__main__':
             ## rT*qT = r*q, so does not change anything
             # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
             dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-            Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+            Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, **phononwind_opts)
         
         return Bmix
 

@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 14, 2021
+# Date: Nov. 5, 2017 - Jan. 20, 2022
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -270,6 +270,8 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
             cut =np.ones((lenq1,lent,lenphi)) + (qBZ*r0cut)**2*np.reshape(np.outer(np.outer(q1**2,qtilde**2),np.ones((lenphi))),(lenq1,lent,lenphi))
         else:
             cut =np.ones((lenq1,lent,lenphi)) + (qBZ*r0cut)**2*np.reshape(np.outer(q1**2,qtilde**2),(lenq1,lent,lenphi))
+        if usefortran:
+            cut = np.moveaxis(cut,0,2)
         distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)/(cut)
     if usefortran:
         distri = np.moveaxis(distri,2,0)

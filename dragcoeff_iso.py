@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 14, 2022
+# Date: Nov. 5, 2017 - Jan. 20, 2022
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -10,6 +10,7 @@
 #################################
 import sys
 import os
+import ast
 import numpy as np
 from scipy.optimize import curve_fit, fmin, fsolve
 ##################
@@ -77,8 +78,9 @@ Nphi1 = 50
 Nq1 = 400
 Nt = 321 # base value, grid is adaptive in Nt
 ## the following options can be set on the commandline with syntax --keyword=value:
+phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":bool, "use_exp":bool,\
-           "NT":int, "constantrho":bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int}
+           "NT":int, "constantrho":bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "phononwind_opts":ast.literal_eval}
 
 #########
 if __name__ == '__main__':
@@ -147,7 +149,7 @@ if __name__ == '__main__':
             Bmix = np.zeros((len(Y[X].theta),len(highT[X])))
                                     
             dij = fourieruij_iso(bt, Y[X].ct_over_cl, Y[X].theta, phi)
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, **phononwind_opts)
             
             for Ti in range(len(highT[X])-1):
                 T = highT[X][Ti+1]
@@ -173,7 +175,7 @@ if __name__ == '__main__':
                 c456T = Y[X].C3[3,4,5]
                 ##
                 A3T = elasticA3(elasticC2(c12=c12T, c44=c44T), elasticC3(c123=c123T,c144=c144T,c456=c456T))/c44T
-                Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3T, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1)
+                Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3T, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, **phononwind_opts)
                 
             return Bmix
 
