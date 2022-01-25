@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 20, 2022
+# Date: Nov. 5, 2017 - Jan. 25, 2022
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -38,7 +38,7 @@ def phonon(T,omega,q):
 @jit
 def elasticA3(C2, C3):
     '''Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons. Required inputs are the tensors of SOEC and TOEC.'''
-    A3 = C3
+    A3 = C3.copy()
     for i in range(3):
         for ii in range(3):
             for j in range(3):
