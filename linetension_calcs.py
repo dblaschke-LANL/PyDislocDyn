@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 17, 2022
+# Date: Nov. 3, 2017 - Mar. 10, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -224,7 +224,10 @@ class Dislocation(StrohGeometry,metal_props):
         self.computerot()
         self.C2_aligned = np.zeros((self.Ntheta,6,6)) ## compute C2 rotated into dislocation coordinates
         for th in range(self.Ntheta):
-            self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
+            if self.sym=='iso':
+                self.C2_aligned[th] = self.C2 ## avoids rounding errors in the isotropic case where C2 shouldn't change
+            else:
+                self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
     
     def findedgescrewindices(self,theta=None):
         '''Find the indices i where theta[i] is either 0 or +/-pi/2. If theta is omitted, assume theta=self.theta.'''
@@ -435,7 +438,32 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.init_all()
     return out
 
-def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False):
+def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0)):
+    '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
+    the color-encoded values are dimensionless displacement gradients.
+    Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for 
+    radius (in units of Burgers vector) and polar angle; note that the pot will be converted to Cartesian coordinates.
+    Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
+    which filename (if any) to save it as, the fontsize to be used, and the plot range to be passed to plt.axis().'''
+    phi_msh , r_msh = np.meshgrid(phi,r)
+    x_msh = r_msh*np.cos(phi_msh)
+    y_msh = r_msh*np.sin(phi_msh)
+    plt.figure(figsize=figsize)
+    plt.axis(axis)
+    plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize)
+    plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize)
+    plt.xlabel(r'$x[b]$',fontsize=fntsize)
+    plt.ylabel(r'$y[b]$',fontsize=fntsize)
+    if title is not None: plt.title(title,fontsize=fntsize)
+    colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap = plt.cm.rainbow, shading='gouraud')
+    colmsh.set_rasterized(True)
+    cbar = plt.colorbar()
+    cbar.ax.tick_params(labelsize = fntsize)
+    if showplt: plt.show()
+    if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight')
+    plt.close()
+    
+def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
     '''Generates a plot of the requested component of the dislocation displacement gradient.
        Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
        Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
@@ -456,17 +484,7 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
         disloc.C2norm = UnVoigt(disloc.C2/disloc.mu)
     if disloc.C2_aligned is None:
         disloc.alignC2()
-    ## create mesh grid from phi and r, and convert to Cartesian for later use:
     r = np.linspace(0.0001,1,Nr)
-    disloc.phi_msh , disloc.r_msh = np.meshgrid(disloc.phi,disloc.burgers*r)
-    disloc.x_msh = disloc.r_msh*np.cos(disloc.phi_msh)/disloc.burgers
-    disloc.y_msh = disloc.r_msh*np.sin(disloc.phi_msh)/disloc.burgers
-    plt.figure(figsize=(3.5,4.0))
-    plt.axis((-0.5,0.5,-0.5,0.5))
-    plt.xticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
-    plt.yticks(np.array([-0.5,-0.25,0,0.25,0.5]),fontsize=fntsize)
-    plt.xlabel(r'$x[b]$',fontsize=fntsize)
-    plt.ylabel(r'$y[b]$',fontsize=fntsize)
     xylabel = {0:'x',1:'y',2:'z'}
     if a is None and eta_kw is None:
         if not skipcalc:
@@ -499,13 +517,7 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
         uijtoplot = disloc.uij_acc_aligned[component[0],component[1]]
     else:
         raise ValueError("not implemented")
-    plt.title(namestring,fontsize=fntsize)
-    colmsh = plt.pcolormesh(disloc.x_msh, disloc.y_msh, uijtoplot, vmin=-1, vmax=1, cmap = cmap, shading='gouraud')
-    colmsh.set_rasterized(True)
-    plt.colorbar()
-    if showplt: plt.show()
-    plt.savefig(namestring,format='pdf',bbox_inches='tight')
-    plt.close()
+    plotuij(uijtoplot,r,disloc.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0))
 
 def read_2dresults(fname):
     '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta and columns=theta.'''
