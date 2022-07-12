@@ -1,7 +1,7 @@
 # Compute the line tension of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 30, 2021
+# Date: Nov. 3, 2017 - July 12, 2022
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -28,7 +28,7 @@ except ImportError:
     ompthreads = 0
     
 def printthreadinfo(Ncores,ompthreads=ompthreads):
-    '''print a message to screen informing whether joblib paralellization (Ncores) or OpenMP paralellization (ompthreads)
+    '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
        or both are currently employed; also warn if imports of numba and/or subroutines failed.'''
     if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
         print(f"using joblib parallelization with {Ncores} cores")
@@ -145,7 +145,7 @@ class StrohGeometry:
            C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
            r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
            x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi).
-           Finally, more general dislocation motion can be defined via funcion eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
+           Finally, more general dislocation motion can be defined via function eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
            likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
            Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
         self.beta = beta
@@ -327,7 +327,7 @@ def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None
        C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
        Furthermore, x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi),
        i.e. r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core.
-       Finally, more general dislocation motion can be defined via funcions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
+       Finally, more general dislocation motion can be defined via functions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
        likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
        Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
     A = C2_aligned[4,4]
