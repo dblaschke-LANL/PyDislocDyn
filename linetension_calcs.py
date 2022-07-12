@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 10, 2022
+# Date: Nov. 3, 2017 - July 11, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -207,8 +207,14 @@ metal_props.computevcrit_stroh=computevcrit_stroh
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
        If optional keyword Miller is set to True, b and n0 are interpreted as Miller indices (and Cartesian otherwise); note since n0 defines a plane its Miller indices are in reziprocal space.'''
-    def __init__(self,b, n0, theta, Nphi,sym='iso', name='some_crystal',Miller=False):
+    def __init__(self,b, n0, theta=[0,np.pi/2], Nphi=500,sym='iso', name='some_crystal',Miller=False,lat_a=None,lat_b=None,lat_c=None,lat_alpha=None,lat_beta=None,lat_gamma=None):
         metal_props.__init__(self, sym, name)
+        if lat_a is not None: self.ac=lat_a
+        if lat_b is not None: self.bc=lat_b
+        if lat_c is not None: self.cc=lat_c
+        if lat_alpha is not None: self.alphac=lat_alpha
+        if lat_beta is not None: self.betac=lat_beta
+        if lat_gamma is not None: self.gammac=lat_gamma
         if Miller:
             self.Millerb = b
             b = self.Miller_to_Cart(self.Millerb)
@@ -222,7 +228,10 @@ class Dislocation(StrohGeometry,metal_props):
     def alignC2(self):
         '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
         self.computerot()
-        self.C2_aligned = np.zeros((self.Ntheta,6,6)) ## compute C2 rotated into dislocation coordinates
+        if self.C2.dtype == np.dtype('O'):
+            self.C2_aligned = np.zeros((self.Ntheta,6,6),dtype=object)
+        else:
+            self.C2_aligned = np.zeros((self.Ntheta,6,6)) ## compute C2 rotated into dislocation coordinates
         for th in range(self.Ntheta):
             if self.sym=='iso':
                 self.C2_aligned[th] = self.C2 ## avoids rounding errors in the isotropic case where C2 shouldn't change
