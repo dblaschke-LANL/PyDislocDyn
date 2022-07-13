@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 12, 2022
+# Date: Nov. 3, 2017 - July 13, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -79,8 +79,8 @@ Ntheta2 = 21 ## number of character angles for which to calculate critical veloc
 Nbeta = 500 ## set to 0 to bypass line tension calculations
 Nphi = 1000
 ## choose among predefined slip systems when using metal_data.py (see that file for details)
-bccslip = '110' ## allowed values: '110' (default), '112', '123', 'all' (for all three)
-hcpslip = 'basal' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
+bccslip = 'all' ## allowed values: '110', '112', '123', 'all' (for all three)
+hcpslip = 'all' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 ##### the following options can be set on the commandline with syntax --keyword=value:
 OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":bool, "write_vcrit":bool, "bccslip":str, "hcpslip":str, "Ncores":int}
 
@@ -95,7 +95,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
        Optionally, an explicit list of angles in units of pi/2 may be passed via theta_list (Ntheta is a required argument, but is ignored in this case).
        Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric'.
        Note that this function does not check for subtle cancellations that may occur in the dislocation displacement gradient at those velocities;
-       use the Dislocation class and its .computevcrit(theta) method for fully automated determination of the lowest critical velcity at each character angle.'''
+       use the Dislocation class and its .computevcrit(theta) method for fully automated determination of the lowest critical velocity at each character angle.'''
     cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66 = sp.symbols('cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66', real=True)
     bt2, phi = sp.symbols('bt2, phi', real=True)
     substitutions = {cc11:self.C2[0,0]/1e9, cc12:self.C2[0,1]/1e9, cc44:self.C2[3,3]/1e9}
@@ -257,12 +257,11 @@ class Dislocation(StrohGeometry,metal_props):
         
     def computevcrit_barnett(self, theta_list=None, setvcrit=True, verbose=False):
         '''Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
-           Returns three values of rho*vlim**2 per character angle.
            All parameters are optional: unless a list of character angles is passed explicitly via theta_list,
            we calculate limiting velocities for all character angles in self.theta.
            Option setvcrit determines whether or not to overwrite attribute self.vcrit.
            Note that this method does not check for subtle cancellations that may occur in the dislocation displacement gradient at those velocities;
-           use the frontend method .computevcrit(theta) for fully automated determination of the lowest critical velcity at each character angle.'''
+           use the frontend method .computevcrit(theta) for fully automated determination of the lowest critical velocity at each character angle.'''
         norm=(self.C2[3,3]/self.rho)
         C2 = UnVoigt(self.C2/self.C2[3,3])
         if theta_list is None:
@@ -290,8 +289,15 @@ class Dislocation(StrohGeometry,metal_props):
                 tmpout = (-P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3))
                 return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
             for i in range(3):
-                minresult = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0.0,2*np.pi),args=(i))
-                if verbose and minresult.success is not True: print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult}")
+                ## default minimizer sometimes yields nan, but bounded method doesn't always find the smallest value, so run both:
+                minresult1 = optimize.minimize_scalar(findvlim,bounds=(0.0,2*np.pi),args=(i))
+                minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0.0,2*np.pi),args=(i))
+                if verbose and minresult1.success and minresult2.success is not True:
+                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult1}\n{minresult2}\n\n")
+                ## always take the smaller result, ignore nan:
+                choose = np.nanargmin(np.array([minresult1.fun,minresult2.fun]))
+                if choose == 0: minresult = minresult1
+                else: minresult = minresult2
                 out[0,th,i] = minresult.fun
                 out[1,th,i] = minresult.x
         if setvcrit: self.vcrit = out
@@ -352,9 +358,10 @@ class Dislocation(StrohGeometry,metal_props):
         return self.vcrit_edge
 
     def computevcrit(self,theta=None,cache=False,Ncores=Kcores,set_screwedge=True,setvcrit=True,use_bruteforce=False):
-        '''Compute the lowest critial (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
+        '''Compute the lowest critical (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
         The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.
-        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set.'''
+        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit.
+        Options 'cache' and 'Ncores' are only used if 'use_bruteforce=True' and will speed up the (much slower) calculation in that case.'''
         if theta is None:
             theta=self.theta
         indices = self.findedgescrewindices(theta)
@@ -390,10 +397,9 @@ class Dislocation(StrohGeometry,metal_props):
            (as type 'OptimizeResult' with its 'fun' being vcrit_smallest and 'x' the associated character angle theta).
            The absolute tolerance for theta can be passed via xatol; in order to improve accuracy and speed of this routine, we make use of computevcrit with Ntheta>=11 resolution
            in order to be able to pass tighter bounds to the subsequent call to minimize_scalar(). If .vcrit_all already exists in sufficient resolution from an earlier call,
-           this step is skipped and options 'cache' and 'Ncores'' are not needed.'''
-        resolution = max(11,2*int(Ncores/2)-1)
+           this step is skipped.'''
         if self.vcrit_all is None or self.vcrit_all.shape[1]<11:
-            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],resolution),cache=cache,Ncores=Ncores,set_screwedge=False,setvcrit=False,use_bruteforce=use_bruteforce)
+            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],11),cache=cache,Ncores=Ncores,set_screwedge=False,setvcrit=False,use_bruteforce=use_bruteforce)
         vcrit_smallest = np.nanmin(self.vcrit_all[1])
         thind = np.where(self.vcrit_all[1]==vcrit_smallest)[0][0] ## find index of theta so that we may pass tighter bounds to minimize_scalar below for more accurate (and faster) results
         bounds=(max(-np.pi/2,self.vcrit_all[0][max(0,thind-1)]),min(np.pi/2,self.vcrit_all[0][min(thind+1,len(self.vcrit_all[0])-1)]))
@@ -590,8 +596,8 @@ def read_2dresults(fname):
     return out
 
 def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
-    '''Search commandline arguments passed to this script for known options to set by comaring to a list of keyword strings "optionlist".
-    These will then override default varibles set above in this script. This function also returns a copy of 'arglist' stripped of all 
+    '''Search commandline arguments passed to this script for known options to set by comparing to a list of keyword strings "optionlist".
+    These will then override default variables set above in this script. This function also returns a copy of 'arglist' stripped of all 
     option calls for further processing (e.g. opening input files that were passed etc.).'''
     out = arglist
     setoptions = [i for i in out if "--" in i and "=" in i and i[:2]=="--"]
@@ -698,7 +704,6 @@ if __name__ == '__main__':
     beta_scaled = {}
     ## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
     ## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
-    vcrit_smallest = {}
     writesmallest = {}
     writeedge={}
     writescrew={}
@@ -711,42 +716,16 @@ if __name__ == '__main__':
         if Y[X].vcrit_edge is None:
             writeedge[X]=True
             Y[X].computevcrit_edge()
-        if Y[X].sym=='iso':
-            vcrit_smallest[X] = 1
-        else:
-            ## happens to be the same formula for both fcc and some bcc (but corresponding to pure edge for fcc and mixed with theta=arctan(sqrt(2)) for bccslip='110', pure screw for bccslip='112')
-            vcrit_smallest[X] = min(1,np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].c44))) ## scaled by c44, will rescale to user's choice below
-            ### also the correct value for some (but not all) hexagonal metals, i.e. depends on values of SOEC and which slip plane is considered
-            ### ... but not for tetragonal and bccslip='123', where vcrit needs to be determined numerically:
-    ## numerically determined values at T=300K for metals in metal_data.py:
-    if use_metaldata:
-        vcrit_smallest['In'] = 0.549
-        vcrit_smallest['Sn'] = 0.749
-        vcrit_smallest['Znbasal'] = 0.998 ## for basal slip
-        if hcpslip in ('prismatic', 'pyramidal', 'all'):
-            vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.932
-            vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.766
-        if bccslip=='123' or bccslip=='all':
-            vcrit_smallest['Fe123'] = 0.616
-            vcrit_smallest['K123'] = 0.392
-            vcrit_smallest['Ta123'] = 0.807
-    else:
-        cache = []
-        for X in metal:
-            writesmallest[X] = False
-            if Y[X].vcrit_smallest is None:
-                print(f"Computing missing smallest critical velocity for {X} ...")
-                Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
-                writesmallest[X] = True
-    for X in metal:
+        writesmallest[X] = False
+        if Y[X].vcrit_smallest is None:
+            Y[X].findvcrit_smallest()
+            writesmallest[X] = True
+        if Y[X].ct==0:
+            Y[X].ct = np.sqrt(Y[X].mu/Y[X].rho)
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
         Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)
-        # we limit calculations to a velocity range close to what we actually need,
-        vcrit_smallest[X] = vcrit_smallest[X]*np.sqrt(Y[X].c44/Y[X].mu) ## rescale to mu instead of c44
-        if Y[X].vcrit_smallest is not None: ## overwrite with data from input file, if available
-            Y[X].ct = np.sqrt(Y[X].mu/Y[X].rho)
-            vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct ## ct was determined from mu above and thus may not be the actual transverse sound speed (if scale_by_mu='crude')
-        scaling[X] = min(1,round(vcrit_smallest[X]+5e-3,2))
+        ## ct was determined from mu above and thus may not be the actual transverse sound speed (if scale_by_mu='crude')
+        scaling[X] = min(1,round(Y[X].vcrit_smallest/Y[X].ct+5e-3,2))
         beta_scaled[X] = scaling[X]*beta
 
     
@@ -806,7 +785,7 @@ if __name__ == '__main__':
     def mkLTplots(X):
         '''generates nice plots showing the dislocation line tension of metal X'''
         namestring = "{}".format(X)
-        beta_trunc = [j for j in LT[X].index if j <=vcrit_smallest[X]]
+        beta_trunc = [j for j in LT[X].index if j <=Y[X].vcrit_smallest/Y[X].ct]
         if X in metal_symm:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
             LT_trunc = LT[X].iloc[:len(beta_trunc),int((LT[X].shape[1]-1)/2):].to_numpy()
@@ -844,18 +823,16 @@ if __name__ == '__main__':
         sys.exit()
     
     print(f"Computing critical velocities for: {metal}")
-    if Kcores > 1: print(f"(using joblib parallelization with {Kcores} cores)")
-    
+    # if Kcores > 1: print(f"(using joblib parallelization with {Kcores} cores)")
     vcrit = {} # values contain critical velocities and associated polar angles
-    bt2_cache = []
     for X in metal:
         if X in metal_symm:
             current_symm=True
-            Y[X].computevcrit(theta=np.linspace(0,np.pi/2,Ntheta2),cache=bt2_cache,Ncores=Kcores)
+            Y[X].computevcrit(theta=np.linspace(0,np.pi/2,Ntheta2))
             scrind=0
         else:
             current_symm=False
-            Y[X].computevcrit(theta=np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1),cache=bt2_cache,Ncores=Kcores)
+            Y[X].computevcrit(theta=np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1))
             scrind = Ntheta2-1
         if Y[X].sym=='iso': print(f"skipping isotropic {X}, vcrit=ct")
         else:

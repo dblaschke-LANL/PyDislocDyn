@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 20, 2022
+# Date: Nov. 5, 2017 - July 12, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -82,7 +82,7 @@ hcpslip = 'basal' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (f
 #####
 computevcrit_for_speed = Ntheta ### Optional: Unless None or 0, this integer variable is the number of theta angles (i.e. np.linspace(theta[0],theta[-1],computevcrit_for_speed)) for which we calculate vcrit explicitly, missing values will be interpolated to match len(theta);
 ### if provided, drag computations will be skipped for velocities bt>vcrit/ct on a per theta-angle basis
-### Note: this may speed up calculations by avoiding slow converging drag calcs near divergences of the dislocation field, but not necessarily since computevcrit takes time as well
+### Note: this will speed up calculations by avoiding slow converging drag calcs near divergences of the dislocation field
 #####
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
@@ -121,7 +121,7 @@ def fit_mix(x, c0, c1, c2, c4):
 def mkfit_Bv(Y,Bdrag,scale_plot=1,Bmax_fit='auto'):
     '''Calculates fitting functions for B(v) for pure screw, pure edge, and an average over all dislocation characters.
        Required inputs are an instance of the Dislocation class Y, and the the drag coefficient Bdrag formatted as a Pandas DataFrame where index
-       contains the normalized velocities beta= v/Y.ct and columns contains the character angles thetaat velocity v for all character angles theta.'''
+       contains the normalized velocities beta= v/Y.ct and columns contains the character angles theta at velocity v for all character angles theta.'''
     if not isinstance(Y,Dislocation):
         raise ValueError("'Y' must be an instance of the Dislocation class")
     if not isinstance(Bdrag,pd.DataFrame):
@@ -351,7 +351,6 @@ if __name__ == '__main__':
     rotmat = {}
     linet = {}
     velm0 = {}
-    cache = [] ## store cached intermediate sympy results of computevcrit_stroh method to speed up subsequent calculations
     for X in metal:
         highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
         if constantrho:
@@ -376,13 +375,13 @@ if __name__ == '__main__':
             A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
         
     if computevcrit_for_speed is not None and computevcrit_for_speed>0 and Ncores != 0:
-        print(f"Computing vcrit for {computevcrit_for_speed} character angles, as requested ...")
+        # print(f"Computing vcrit for {computevcrit_for_speed} character angles, as requested ...")
         for X in metal:
             if Y[X].Ntheta==Ntheta:
                 Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],computevcrit_for_speed)
             else:
                 Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],2*computevcrit_for_speed-1)
-            Y[X].computevcrit(Y[X].theta_vcrit,cache=cache,Ncores=Kcores,set_screwedge=False)
+            Y[X].computevcrit(Y[X].theta_vcrit,set_screwedge=False)
             if np.isnan(Y[X].vcrit_all[1]).any():
                 print(f"Warning: found NaN in vcrit for {X}, replacing with interpolated values.")
                 fixnan = pd.Series(Y[X].vcrit_all[1])
@@ -390,7 +389,7 @@ if __name__ == '__main__':
             if computevcrit_for_speed != Ntheta:
                 Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
-        print("Done; proceeding ...")
+        # print("Done; proceeding ...")
     
     def maincomputations(bt,X,modes=modes):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
@@ -504,74 +503,11 @@ if __name__ == '__main__':
     #############################################################################################################################
 
     ## compute smallest critical velocity in ratio (for those data provided in metal_data) to the scaling velocity and plot only up to this velocity
-    vcrit_screw = {}
-    vcrit_edge = {}
-    vcrit_smallest = {}
     for X in metal:
+        Y[X].computevcrit()
+        Y[X].findvcrit_smallest()
         if Y[X].sym=='iso':
-            vcrit_smallest[X] = 1
             Y[X].c11 = Y[X].C2[0,0] # not previously set, but needed below
-        else:
-            vcrit_smallest[X] = min(np.sqrt(Y[X].c44/Y[X].mu),np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu)))
-    ## above is correct for fcc, bcc (except 123 planes) and some (but not all) hcp, i.e. depends on values of SOEC and which slip plane is considered;
-    ## numerically determined values at T=300K for metals in metal_data.py (rounded):
-    if use_metaldata and not use_iso:
-        if use_exp_Lame:
-            vcrit_smallest['Sn'] = 0.818
-            vcrit_smallest['Znbasal'] = 0.943 ## for basal slip
-            vcrit_smallest['Fe123'] = 0.735 ## for 123 slip plane
-        else:
-            for X in set(metal).intersection({'Sn','Znbasal','Fe123'}):
-                Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
-    if use_metaldata:
-        ## use exact analytic results where we have them:
-        for X in data.fcc_metals.intersection(metal):
-            vcrit_screw[X] = np.sqrt(3*Y[X].c44*(Y[X].c11-Y[X].c12)/(2*Y[X].mu*(Y[X].c44+Y[X].c11-Y[X].c12)))
-        for X in bcc_metals:
-            if '112' in X:
-                vcrit_edge[X] = Y[X].computevcrit_edge()
-            elif ('110' in X or '123' in X):
-                Y[X].computevcrit_stroh(2,symmetric=False,cache=cache,Ncores=Kcores)
-                Y[X].vcrit_screw = np.min(Y[X].vcrit[0,1])
-                Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
-        for X in hcp_metals:
-            if 'prismatic' in X:
-                vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
-                vcrit_edge[X] = Y[X].computevcrit_edge() # often equals np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
-            elif 'basal' in X:
-                vcrit_screw[X] = np.sqrt((Y[X].c11-Y[X].c12)/(2*Y[X].mu))
-                vcrit_edge[X] = Y[X].computevcrit_edge() # often equals np.sqrt(Y[X].c44/Y[X].mu)
-            elif 'pyramidal' in X:
-                vcrit_screw[X] = np.sqrt(Y[X].c44*(Y[X].c11-Y[X].c12)*(3*Y[X].ac**2/4+Y[X].cc**2)/(2*(Y[X].c44*3*Y[X].ac**2/4+Y[X].cc**2*(Y[X].c11-Y[X].c12)/2)*Y[X].mu))
-        for X in data.tetr_metals.intersection(metal):
-            vcrit_screw[X] = np.sqrt(Y[X].c44/Y[X].mu)
-            vcrit_edge[X] = Y[X].computevcrit_edge() # for Sn equals vcrit_screw[X]
-    if use_metaldata:
-        for X in metal:
-            if X not in vcrit_screw.keys(): ## fall back to this (if use_metaldata, the values that have not been set yet will be used by this code)
-                vcrit_screw[X] = vcrit_smallest[X] ## coincide for the bcc slip system with 112 planes
-            if X not in vcrit_edge.keys():
-                vcrit_edge[X] = vcrit_smallest[X] ## coincide for the fcc slip system considered above
-    if use_metaldata and not use_iso:
-        if use_exp_Lame and hcpslip in ('prismatic', 'pyramidal', 'all'):
-            vcrit_smallest['Cdprismatic'] = vcrit_smallest['Cdpyramidal'] = 0.948
-            vcrit_smallest['Znprismatic'] = vcrit_smallest['Znpyramidal'] = 0.724
-        else:
-            for X in set(metal).intersection({'Cdprismatic','Cdpyramidal','Znprismatic','Znpyramidal'}):
-                Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
-    
-    ## overwrite any of these values with data from input file, if available, or compute estimates on the fly:
-    for X in metal:
-        if not use_metaldata and Y[X].vcrit_screw is None:
-            print(f"computing missing critical velocity for screw for {X}")
-            Y[X].computevcrit_screw() ## only implemented for certain symmetry properties, no result otherwise
-        if not use_metaldata and Y[X].vcrit_edge is None:
-            print(f"computing missing critical velocity for edge for {X}")
-            Y[X].computevcrit_edge() ## only implemented for certain symmetry properties, no result otherwise
-        if not use_metaldata and (Y[X].vcrit_screw is None or Y[X].vcrit_edge is None):
-            Y[X].computevcrit_stroh(2,symmetric=False,cache=cache,Ncores=Kcores) ## only compute vcrit if no values are provided in the input file
-            if Y[X].vcrit_screw is None: Y[X].vcrit_screw = np.min(Y[X].vcrit[0,1])
-            if Y[X].vcrit_edge is None: Y[X].vcrit_edge = min(np.min(Y[X].vcrit[0,0]),np.min(Y[X].vcrit[0,2]))
         ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
         scrindm0 = int((len(velm0[X])-1)/2)
         if abs(Y[X].theta[scrindm0]) < 1e-12:
@@ -579,23 +515,6 @@ if __name__ == '__main__':
         else:
             Y[X].sound_screw = Y[X].computesound(velm0[X][0])
         Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
-        if not use_metaldata and Y[X].vcrit_smallest is None:
-            print(f"computing missing smallest critical velocity for {X} ...")
-            Y[X].findvcrit_smallest(cache=cache,Ncores=Kcores)
-            vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
-        ## need vcrit in ratio to ct:
-        if Y[X].vcrit_smallest is not None:
-            vcrit_smallest[X] = Y[X].vcrit_smallest/Y[X].ct
-        else:
-            Y[X].vcrit_smallest = Y[X].ct*vcrit_smallest[X]
-        if Y[X].vcrit_screw is not None:
-            vcrit_screw[X] = Y[X].vcrit_screw/Y[X].ct
-        else:
-            Y[X].vcrit_screw = Y[X].ct*vcrit_screw[X]
-        if Y[X].vcrit_edge is not None:
-            vcrit_edge[X] = Y[X].vcrit_edge/Y[X].ct
-        else:
-            Y[X].vcrit_edge = Y[X].ct*vcrit_edge[X]
         
     if skip_plots:
         print("skipping plots as requested")
@@ -607,7 +526,7 @@ if __name__ == '__main__':
     for X in metal:
         Y[X].Broom = read_2dresults(f"drag_anis_{X}.dat")
         beta = Y[X].Broom.index.to_numpy()
-        Y[X].beta_trunc = [j for j in beta if j <=vcrit_smallest[X]]
+        Y[X].beta_trunc = [j for j in beta if j <=Y[X].vcrit_smallest/Y[X].ct]
     
     ## plot B(beta=0.01 ) against theta for every metal:
     def mksmallbetaplot(X,ylab=True,xlab=True,bt=0):
@@ -718,18 +637,18 @@ if __name__ == '__main__':
         fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
         fitfile.write("\n $c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(" & "+"{:.0f}".format(Y[X].ct))
+            fitfile.write(f" & {Y[X].ct:.0f}")
         fitfile.write(" \\\\\n $v_c^{\mathrm{e}}/c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(" & "+"{:.3f}".format(vcrit_edge[X]))
+            fitfile.write(f" & {Y[X].vcrit_edge/Y[X].ct:.3f}")
         fitfile.write("\n\\\\\hline\hline")
         fitfile.write("\n $v_c^{\mathrm{s}}/c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(" & "+"{:.3f}".format(vcrit_screw[X]))
+            fitfile.write(f" & {Y[X].vcrit_screw/Y[X].ct:.3f}")
         fitfile.write("\n\\\\\hline\hline")
         fitfile.write("\n $v_c^{\mathrm{av}}/c_{\mathrm{t}}$")
         for X in metal:
-            fitfile.write(" & "+"{:.3f}".format(vcrit_smallest[X]))
+            fitfile.write(f" & {Y[X].vcrit_smallest/Y[X].ct:.3f}")
         
     def mkfitplot(metal_list,filename,figtitle,scale_plot=1):
         '''Plot the dislocation drag over velocity and show the fitting function.'''
@@ -751,17 +670,17 @@ if __name__ == '__main__':
         ax.set_title(figtitle,fontsize=fntsize)
         for X in metal_list:
             if filename=="edge":
-                vcrit = vcrit_edge[X]
+                vcrit = Y[X].vcrit_edge/Y[X].ct
                 popt = popt_edge[X]
                 cutat = 1.001*vcrit ## vcrit is often rounded, so may want to plot one more point in some cases
                 B = Y[X].Broom.iloc[beta<cutat,-1].to_numpy()
             elif filename=="screw":
-                vcrit = vcrit_screw[X]
+                vcrit = Y[X].vcrit_screw/Y[X].ct
                 popt = popt_screw[X]
                 cutat = 1.0*vcrit
                 B = Y[X].Broom.iloc[beta<cutat,Y[X].scrind].to_numpy()
             elif filename=="aver":
-                vcrit = vcrit_smallest[X]
+                vcrit = Y[X].vcrit_smallest/Y[X].ct
                 popt = popt_aver[X]
                 cutat = 1.007*vcrit
                 B = Y[X].Baver[beta<cutat]
