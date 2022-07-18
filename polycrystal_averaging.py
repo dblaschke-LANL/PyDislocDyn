@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Oct. 18, 2021
+# Date: Nov. 7, 2017 - July 18, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -208,11 +208,9 @@ class metal_props:
             
     def init_C2(self):
         '''initializes the tensor of second order elastic constants'''
+        if self.sym=='iso' and self.c12==0 and self.poisson is not None:
+            self.c12 = self.c44*2/(1/self.poisson-2)
         self.C2=elasticC2(c11=self.c11,c12=self.c12,c13=self.c13,c33=self.c33,c44=self.c44,c66=self.c66,cij=self.cij,voigt=True)
-        if self.cij is not None:
-            self.c44 = self.C2[3,3] ## some legacy code expect these to be set
-            self.c11 = self.C2[0,0]
-            self.c12 = self.C2[0,1]
         if self.sym in ('fcc', 'bcc'):
             self.cp = (self.c11-self.c12)/2
             self.Zener = self.c44/self.cp
@@ -220,8 +218,6 @@ class metal_props:
     def init_C3(self):
         '''initializes the tensor of third order elastic constants'''
         self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,cijk=self.cijk,voigt=True)
-        if self.cijk is not None:
-            self.c123 = self.C3[0,1,2] ## some legacy code expect these to be set
     
     def compute_Lame(self, roundto=-8, include_TOEC=False):
         '''Computes the Lame constants by averaging over the second order elastic constants.
@@ -242,8 +238,8 @@ class metal_props:
             aver.reuss_average(S2,S3)
             HillAverage = aver.hill_average()
         if self.sym=='iso':
-            self.lam=self.c12
-            self.mu=self.c44
+            self.lam=self.C2[0,1]
+            self.mu=self.C2[3,3]
             self.Murl = self.C3[0,3,3] + self.C3[0,1,2]/2 # c144+c123/2
             self.Murm = self.C3[0,3,3] + 2*self.C3[3,4,5] # c144+2*c456
             self.Murn = 4*self.C3[3,4,5] # 4*c456
@@ -542,7 +538,7 @@ if __name__ == '__main__':
         ### will compute improved averages for cubic metals only:
         if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
             metal_cubic.append(X)
-        if abs(Y[X].c123)>0: ### subset for which we have TOEC
+        if abs(Y[X].c123)>0 or Y[X].cijk is not None: ### subset for which we have TOEC
             metal_toec.append(X)
             if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
                 metal_toec_cubic.append(X)

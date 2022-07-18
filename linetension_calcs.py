@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 13, 2022
+# Date: Nov. 3, 2017 - July 18, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -292,7 +292,7 @@ class Dislocation(StrohGeometry,metal_props):
                 ## default minimizer sometimes yields nan, but bounded method doesn't always find the smallest value, so run both:
                 minresult1 = optimize.minimize_scalar(findvlim,bounds=(0.0,2*np.pi),args=(i))
                 minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0.0,2*np.pi),args=(i))
-                if verbose and minresult1.success and minresult2.success is not True:
+                if verbose and not (minresult1.success and minresult2.success):
                     print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult1}\n{minresult2}\n\n")
                 ## always take the smaller result, ignore nan:
                 choose = np.nanargmin(np.array([minresult1.fun,minresult2.fun]))
@@ -667,15 +667,12 @@ if __name__ == '__main__':
                 data.writeinputfile(X,X,iso=isokw) # write temporary input files for requested X of metal_data
                 metal_list.append(X)
         for X in metal_list:
-            if X=='ISO':
-                Y[X] = Dislocation(sym='iso', name='ISO', b=[1,0,0], n0=[0,1,0], theta=theta, Nphi=Nphi)
-                ### define some isotropic constants to check isotropic limit:
-                Y[X].a = Y[X].burgers = 1e-10
+            if X=='ISO': ## define some isotropic elastic constants to check isotropic limit:
+                Y[X] = Dislocation(sym='iso', name='ISO', b=[1,0,0], n0=[0,1,0], theta=theta, Nphi=Nphi, lat_a=1e-10)
+                Y[X].burgers = 1e-10
                 Y[X].c44 = 1e9
+                Y[X].poisson = 1/3
                 Y[X].rho = 1e3
-                nu = 1/3 ## define Poisson's ratio
-                Y[X].c12 = round(Y[X].c44*2*nu/(1-2*nu),2)
-                Y[X].c11 = Y[X].c12+2*Y[X].c44
             else:
                 Y[X] = readinputfile(X,init=False,theta=theta,Nphi=Nphi)
         os.chdir("..")
@@ -689,7 +686,7 @@ if __name__ == '__main__':
         Y[X].init_C2()
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
         if scale_by_mu == 'crude':
-            Y[X].mu = (Y[X].c11-Y[X].c12+2*Y[X].c44)/4
+            Y[X].mu = (Y[X].C2[0,0]-Y[X].C2[0,1]+2*Y[X].C2[3,3])/4
         #### will generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise)
         ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
         if Y[X].mu is None:

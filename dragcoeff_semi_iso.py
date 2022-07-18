@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 12, 2022
+# Date: Nov. 5, 2017 - July 18, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -506,8 +506,6 @@ if __name__ == '__main__':
     for X in metal:
         Y[X].computevcrit()
         Y[X].findvcrit_smallest()
-        if Y[X].sym=='iso':
-            Y[X].c11 = Y[X].C2[0,0] # not previously set, but needed below
         ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
         scrindm0 = int((len(velm0[X])-1)/2)
         if abs(Y[X].theta[scrindm0]) < 1e-12:
