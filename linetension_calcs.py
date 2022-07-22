@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 18, 2022
+# Date: Nov. 3, 2017 - July 22, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -446,6 +446,22 @@ class Dislocation(StrohGeometry,metal_props):
             if result.success and result.fun<1e-3: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
         self.Rayleigh = Rayleigh
         return Rayleigh
+    
+    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
+        '''Generates a plot of the requested component of the dislocation displacement gradient.
+           Optional arguments are: the normalized velocity 'beta'=v/disloc.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
+           'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
+           a list of two indices indicating which component of displacement gradient u[ij] to plot.
+           The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed; see documentation of the plotdisloc function
+           for more information.
+           Option skipcalc=True (implied when beta is not set) may be passed to plot results of an earlier calculation with the same input parameters (useful
+           for plotting multiple components of the dislocation field).
+           If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
+           if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
+        if beta==None:
+            beta = self.beta
+            skipcalc = True
+        plotdisloc(self,beta,character=character,component=component,a=a,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,fastapprox=fastapprox,Nr=Nr,nogradient=nogradient,cmap = cmap,skipcalc=skipcalc,showplt=showplt,lim=lim)
         
     def __repr__(self):
         return  "DISLOCATION\n" + metal_props.__repr__(self) + "\n" + StrohGeometry.__repr__(self)
@@ -519,6 +535,7 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     plt.xlabel(r'$x[b]$',fontsize=fntsize)
     plt.ylabel(r'$y[b]$',fontsize=fntsize)
     if title is not None: plt.title(title,fontsize=fntsize)
+    if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
     colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap = plt.cm.rainbow, shading='gouraud')
     colmsh.set_rasterized(True)
     cbar = plt.colorbar()
@@ -539,6 +556,7 @@ def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,
        and is currently only implemented for steady-state solutions (a=None).
        Option skipcalc=True may be passed to plot results of an earlier calculation with the same input parameters (useful for plotting multiple components
        of the dislocation field).
+       Colormap and its limits are set with options 'cmap' and 'lim', respectively.` 
        If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
        if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
     ## make sure everything we need has been initialized:
