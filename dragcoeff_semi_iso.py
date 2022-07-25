@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 18, 2022
+# Date: Nov. 5, 2017 - July 22, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -48,7 +48,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 import dislocations as dlc
-from linetension_calcs import readinputfile, Dislocation, read_2dresults, plotdisloc, parse_options
+from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options
 from phononwind import elasticA3, dragcoeff_iso
 try:
     from joblib import Parallel, delayed, cpu_count

@@ -7,9 +7,7 @@
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
    additional properties like limiting velocities of dislocations. We also define a function, readinputfile,
-   which reads a PyDislocDyn input file and returns an instance of the Dislocation class. Function plotdisloc
-   operates on an instance of the Dislocation class to generate a plot of a component of the displacement
-   gradient field.
+   which reads a PyDislocDyn input file and returns an instance of the Dislocation class.
    If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -449,19 +447,74 @@ class Dislocation(StrohGeometry,metal_props):
     
     def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
         '''Generates a plot of the requested component of the dislocation displacement gradient.
-           Optional arguments are: the normalized velocity 'beta'=v/disloc.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
-           'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
+           Optional arguments are: the normalized velocity 'beta'=v/self.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
+           'character' is either 'edge', 'screw' (default), or an index of self.theta, and 'component' is
            a list of two indices indicating which component of displacement gradient u[ij] to plot.
-           The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed; see documentation of the plotdisloc function
-           for more information.
+           The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case,
+           'slipsystem' is required except for those metals where its keyword coincides with self.sym (see documentation of self.computeuij_acc()
+           for details on capabilities and limitations of the current implementation of the accelerating solution).
+           Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
+           and is currently only implemented for steady-state solutions (a=None).
            Option skipcalc=True (implied when beta is not set) may be passed to plot results of an earlier calculation with the same input parameters (useful
            for plotting multiple components of the dislocation field).
+           Colormap and its limits are set with options 'cmap' and 'lim', respectively.` 
            If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
            if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
         if beta==None:
             beta = self.beta
             skipcalc = True
-        plotdisloc(self,beta,character=character,component=component,a=a,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,fastapprox=fastapprox,Nr=Nr,nogradient=nogradient,cmap = cmap,skipcalc=skipcalc,showplt=showplt,lim=lim)
+        ## make sure everything we need has been initialized:
+        if self.ct==0:
+            self.ct = np.sqrt(self.mu/self.rho)
+        if np.count_nonzero(self.C2norm) == 0:
+            self.C2norm = UnVoigt(self.C2/self.mu)
+        if self.C2_aligned is None:
+            self.alignC2()
+        if skipcalc and self.r is not None:
+            r = self.r
+            Nr = len(r)
+        else:
+            r = np.linspace(0.0001,1,Nr)
+        xylabel = {0:'x',1:'y',2:'z'}
+        if a is None and eta_kw is None:
+            if not skipcalc:
+                self.computeuij(beta=beta, r=r, nogradient=nogradient) ## compute steady state field
+                if not nogradient:
+                    self.alignuij() ## self.rot was computed as a byproduct of .alignC2() above
+                else:
+                    self.uij_aligned = np.zeros(self.uij.shape)
+                    for th in range(len(self.theta)):
+                        for ri in range(Nr):
+                            self.uij_aligned[:,th,ri] = np.round(np.dot(self.rot[th],self.uij[:,th,ri]),15)
+            if character == 'screw':
+                index = int(np.where(abs(self.theta)<1e-12)[0])
+            elif character == 'edge':
+                index = int(np.where(abs(self.theta-np.pi/2)<1e-12)[0])
+            else:
+                index=character
+            if not nogradient:
+                namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}{character}_{self.name}_v{beta*self.ct:.0f}.pdf"
+                uijtoplot = self.uij_aligned[component[0],component[1],index]
+            else:
+                namestring = f"u{xylabel[component]}{character}_{self.name}_v{beta*self.ct:.0f}.pdf"
+                uijtoplot = self.uij_aligned[component,index]
+        elif character=='screw' and not nogradient:
+            if not skipcalc:
+                self.computeuij_acc_screw(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+            if a is None: acc = '_of_t'
+            else: acc = f"{a:.0e}"
+            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{self.name}_v{beta*self.ct:.0f}_a{acc:}.pdf"
+            uijtoplot = self.uij_acc_screw_aligned[component[0],component[1]]
+        elif character=='edge' and not nogradient:
+            if not skipcalc:
+                self.computeuij_acc_edge(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+            if a is None: acc = '_of_t'
+            else: acc = f"{a:.0e}"
+            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}edge{self.name}_v{beta*self.ct:.0f}_a{acc:}.pdf"
+            uijtoplot = self.uij_acc_edge_aligned[component[0],component[1]]
+        else:
+            raise ValueError("not implemented")
+        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0))
         
     def __repr__(self):
         return  "DISLOCATION\n" + metal_props.__repr__(self) + "\n" + StrohGeometry.__repr__(self)
@@ -516,6 +569,7 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.populate_from_dict(inputparams)
     if init:
         out.init_all()
+        out.C2norm = UnVoigt(out.C2/out.mu)
     return out
 
 def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0)):
@@ -536,6 +590,8 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     plt.ylabel(r'$y[b]$',fontsize=fntsize)
     if title is not None: plt.title(title,fontsize=fntsize)
     if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
+    if uij.shape != (len(r),len(phi)):
+        uij = np.outer(1/r,uij)
     colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap = plt.cm.rainbow, shading='gouraud')
     colmsh.set_rasterized(True)
     cbar = plt.colorbar()
@@ -543,63 +599,6 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     if showplt: plt.show()
     if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight')
     plt.close()
-    
-def plotdisloc(disloc,beta,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
-    '''Generates a plot of the requested component of the dislocation displacement gradient.
-       Required inputs are: an instance of the Dislocation class 'disloc' and normalized velocity 'beta'=v/disloc.ct.
-       Optional arguments: 'character' is either 'edge', 'screw' (default), or an index of disloc.theta, and 'component' is
-       a list of two indices indicating which component of displacement gradient u[ij] to plot.
-       The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case,
-       'slipsystem' is required except for those metals where its keyword coincides with disloc.sym (see documentation of disloc.computeuij_acc()
-       for details on capabilities and limitations of the current implementation of the accelerating solution).
-       Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
-       and is currently only implemented for steady-state solutions (a=None).
-       Option skipcalc=True may be passed to plot results of an earlier calculation with the same input parameters (useful for plotting multiple components
-       of the dislocation field).
-       Colormap and its limits are set with options 'cmap' and 'lim', respectively.` 
-       If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
-       if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
-    ## make sure everything we need has been initialized:
-    if disloc.ct==0:
-        disloc.ct = np.sqrt(disloc.mu/disloc.rho)
-    if np.count_nonzero(disloc.C2norm) == 0:
-        disloc.C2norm = UnVoigt(disloc.C2/disloc.mu)
-    if disloc.C2_aligned is None:
-        disloc.alignC2()
-    r = np.linspace(0.0001,1,Nr)
-    xylabel = {0:'x',1:'y',2:'z'}
-    if a is None and eta_kw is None:
-        if not skipcalc:
-            disloc.computeuij(beta=beta, r=r, nogradient=nogradient) ## compute steady state field
-            if not nogradient:
-                disloc.alignuij() ## disloc.rot was computed as a byproduct of .alignC2() above
-            else:
-                disloc.uij_aligned = np.zeros(disloc.uij.shape)
-                for th in range(len(disloc.theta)):
-                    for ri in range(Nr):
-                        disloc.uij_aligned[:,th,ri] = np.round(np.dot(disloc.rot[th],disloc.uij[:,th,ri]),15)
-        if character == 'screw':
-            index = int(np.where(abs(disloc.theta)<1e-12)[0])
-        elif character == 'edge':
-            index = int(np.where(abs(disloc.theta-np.pi/2)<1e-12)[0])
-        else:
-            index=character
-        if not nogradient:
-            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}{character}_{disloc.name}_v{beta*disloc.ct:.0f}.pdf"
-            uijtoplot = disloc.uij_aligned[component[0],component[1],index]
-        else:
-            namestring = f"u{xylabel[component]}{character}_{disloc.name}_v{beta*disloc.ct:.0f}.pdf"
-            uijtoplot = disloc.uij_aligned[component,index]
-    elif character=='screw' and not nogradient:
-        if not skipcalc:
-            disloc.computeuij_acc(a,beta,burgers=disloc.burgers,fastapprox=fastapprox,r=r*disloc.burgers,beta_normalization=disloc.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
-        if a is None: acc = '_of_t'
-        else: acc = f"{a:.0e}"
-        namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{disloc.name}_v{beta*disloc.ct:.0f}_a{acc:}.pdf"
-        uijtoplot = disloc.uij_acc_aligned[component[0],component[1]]
-    else:
-        raise ValueError("not implemented")
-    plotuij(uijtoplot,r,disloc.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0))
 
 def read_2dresults(fname):
     '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta and columns=theta.'''
