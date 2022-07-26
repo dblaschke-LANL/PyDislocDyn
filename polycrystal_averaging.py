@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 25, 2022
+# Date: Nov. 7, 2017 - July 26, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -149,7 +149,7 @@ class IsoAverages(IsoInvariants):
 
 ########### re-organize metal data within a class (so that we can perform calculations also on data read from input files, not just from metal_data dicts):
 class metal_props:
-    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric',
+    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric',
     and this will define which input parameters (such as elastic constants) are set/expected by the various initializing functions.
     In particular, symmetries 'iso'--'tetr' require individual elastic constants, such as .c44 and .c123, to be set, whereas lower symmetries require a
     list of all independent elastic constants to be stored in attribute .cij.
@@ -197,7 +197,7 @@ class metal_props:
             self.c222=None
         elif sym=='hcp':
             self.c66=self.c166=self.c366=self.c456=None
-        elif sym in ('fcc', 'bcc', 'iso'):
+        elif sym in ('fcc', 'bcc', 'cubic', 'iso'):
             self.c13=self.c33=self.c66=None
             self.c113=self.c133=self.c155=self.c222=self.c333=self.c344=self.c366=None
         if sym=='iso':
@@ -211,7 +211,7 @@ class metal_props:
         if self.sym=='iso' and self.c12==0 and self.poisson is not None:
             self.c12 = self.c44*2/(1/self.poisson-2)
         self.C2=elasticC2(c11=self.c11,c12=self.c12,c13=self.c13,c33=self.c33,c44=self.c44,c66=self.c66,cij=self.cij,voigt=True)
-        if self.sym in ('fcc', 'bcc'):
+        if self.sym in ('fcc', 'bcc', 'cubic'):
             self.cp = (self.c11-self.c12)/2
             self.Zener = self.c44/self.cp
     
@@ -230,7 +230,7 @@ class metal_props:
         else:
             C3 = None
             aver = IsoAverages(lam,mu,0,0,0)
-        if include_TOEC or self.sym not in ['iso','fcc','bc']:
+        if include_TOEC or self.sym not in ['iso','fcc','bcc', 'cubic']:
             S2 = elasticS2(C2)
             if include_TOEC: S3 = elasticS3(S2,C3)
             else: S3 = None
@@ -243,7 +243,7 @@ class metal_props:
             self.Murl = self.C3[0,3,3] + self.C3[0,1,2]/2 # c144+c123/2
             self.Murm = self.C3[0,3,3] + 2*self.C3[3,4,5] # c144+2*c456
             self.Murn = 4*self.C3[3,4,5] # 4*c456
-        elif self.sym=='fcc' or self.sym=='bcc':
+        elif self.sym in ('fcc', 'bcc', 'cubic'):
             ImprovedAv = aver.improved_average(C2,C3)
             self.lam = round(float(ImprovedAv[lam]),roundto)
             self.mu = round(float(ImprovedAv[mu]),roundto)
@@ -268,7 +268,7 @@ class metal_props:
     def init_qBZ(self):
         '''computes the radius of the first Brillouin zone for a sphere of equal volume as the unit cell
            after determining the latter'''
-        if self.sym=='iso' or self.sym=='fcc' or self.sym=='bcc':
+        if self.sym in ('iso', 'fcc', 'bcc', 'cubic'):
             self.Vc = self.ac**3
         elif self.sym=='hcp':
             self.Vc = self.ac*self.ac*self.cc*(3/2)*np.sqrt(3) ## 3*sin(pi/3)
@@ -382,7 +382,7 @@ class metal_props:
             self.c66 = float(inputparams['c66'])
             if 'c366' in inputparams.keys():
                 self.c366 = float(inputparams['c366'])
-        if sym not in ['iso', 'fcc', 'bcc', 'hcp', 'tetr']: ## support for other/lower crystal symmetries
+        if sym not in ['iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr']: ## support for other/lower crystal symmetries
             self.cc = float(inputparams['c'])
             if 'lcb' in inputparams.keys():
                 self.bc = float(inputparams['lcb'])
@@ -546,11 +546,11 @@ if __name__ == '__main__':
     metal_toec_cubic = []
     for X in metal:
         ### will compute improved averages for cubic metals only:
-        if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
+        if Y[X].sym in ('fcc', 'bcc', 'cubic'):
             metal_cubic.append(X)
         if abs(Y[X].c123)>0 or Y[X].cijk is not None: ### subset for which we have TOEC
             metal_toec.append(X)
-            if Y[X].sym == 'fcc' or Y[X].sym == 'bcc':
+            if Y[X].sym in ('fcc', 'bcc', 'cubic'):
                 metal_toec_cubic.append(X)
     print(f"Computing for: {metal} (={len(metal)} metals)")
 
