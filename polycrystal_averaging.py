@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 18, 2022
+# Date: Nov. 7, 2017 - July 25, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -354,7 +354,6 @@ class metal_props:
             self.T=float(inputparams['T'])
         if 'Tm' in keys:
             self.Tm=float(inputparams['Tm'])
-        self.burgers=float(inputparams['burgers'])
         if 'lam' in keys and 'mu' in keys:
             self.lam=float(inputparams['lam'])
             self.mu=float(inputparams['mu'])
@@ -409,18 +408,29 @@ class metal_props:
         if 'gamma' in keys: self.gammac=inputparams['gamma']
         if 'Millerb' in keys:
             self.Millerb = np.asarray(inputparams['Millerb'].split(','),dtype=float)
+            if 'burgers' in keys:
+                self.burgers=float(inputparams['burgers'])
+            else:
+                burg = self.Miller_to_Cart(self.Millerb,normalize=False)
+                self.burgers=np.sqrt(burg @ burg)
             self.b = self.Miller_to_Cart(self.Millerb)
-        else:
+        elif 'b' in keys:
             self.b=np.asarray(inputparams['b'].split(','),dtype=float)
+            if 'burgers' in keys:
+                self.burgers=float(inputparams['burgers'])
+            else:
+                self.burgers=np.sqrt(self.b @ self.b)
             self.b = self.b/np.sqrt(np.dot(self.b,self.b))
         if 'Millern0' in keys:
             self.Millern0 = np.asarray(inputparams['Millern0'].split(','),dtype=float)
             self.n0 = self.Miller_to_Cart(self.Millern0,reziprocal=True)
-        else:
+        elif 'n0' in keys:
             self.n0=np.asarray(inputparams['n0'].split(','),dtype=float)
             self.n0 = self.n0/np.sqrt(np.dot(self.n0,self.n0))
         if abs(np.dot(self.b,self.n0))>1e-15:
             print("ERROR: Burgers vector does not lie in the slip plane; .b and .n0 must be normal to each other!")
+        if self.burgers<0 or self.burgers > 100*self.ac:
+            print("ERROR: Burgers vector length is much larger than lattice constant a, check units!")
         if 'vcrit_smallest' in keys:
             self.vcrit_smallest = float(inputparams['vcrit_smallest'])
         if 'vcrit_screw' in keys:
