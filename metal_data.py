@@ -1,12 +1,12 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 23, 2021
+# Date: Nov. 3, 2017 - July 26, 2022
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
 
-## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012 and from Kaye & Laby online (kayelaby.npl.co.uk)
+## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012 and from Kaye & Laby online (https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/)
 ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Cd':19.2e9, 'Cr':115.4e9, 'Cu':48.3e9,  'Fe':81.6e9, 'Mg':17.3e9, 'Nb':37.5e9, 'Ni':76.0e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'W':160.6e9, 'Zn':43.4e9}
 ISO_nu = {'Ag':0.367, 'Al':0.345, 'Au':0.440, 'Cd':0.300, 'Cr':0.210, 'Cu':0.343, 'Fe':0.293, 'Mg':0.291, 'Nb':0.397, 'Ni':0.312, 'Sn':0.357, 'Ta':0.342, 'Ti':0.321, 'W':0.280, 'Zn':0.249}
 ISO_bulk = {}
@@ -29,8 +29,8 @@ for X in ISO_nu:
 ## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
 ISO_l = {'Al':-143e9, 'Cu':-160e9,  'Fe':-170e9, 'Nb':-610e9}
 ISO_m = {'Al':-297e9, 'Cu':-620e9,  'Fe':-770e9, 'Nb':-220e9}
-ISO_n = {'Al':-345e9, 'Cu':-1590e9,  'Fe':-1520e9, 'Nb':-300e9}
-# derive cijk from these Murnaghan constants
+ISO_n = {'Al':-345e9, 'Cu':-1590e9,  'Fe':-1520e9, 'Nb':300e9}
+# derive cijk (resp. Toupin & Bernstein constants) from these Murnaghan constants
 ISO_c123 = {}
 ISO_c144 = {}
 ISO_c456 = {}
@@ -38,9 +38,9 @@ ISO_c111 = {}
 ISO_c112 = {}
 ISO_c166 = {}
 for X in ISO_l:
-    ISO_c123[X] = 2*ISO_l[X] - 2*ISO_m[X] + ISO_n[X]
-    ISO_c144[X] = ISO_m[X] - ISO_n[X]/2
-    ISO_c456[X] = ISO_n[X]/4
+    ISO_c123[X] = 2*ISO_l[X] - 2*ISO_m[X] + ISO_n[X] ## =nu1
+    ISO_c144[X] = ISO_m[X] - ISO_n[X]/2              ## =nu2
+    ISO_c456[X] = ISO_n[X]/4                         ## =nu3
     ISO_c112[X] = ISO_c123[X] + 2*ISO_c144[X]
     ISO_c166[X] = ISO_c144[X] + 2*ISO_c456[X]
     ISO_c111[X] = ISO_c112[X] + 4*ISO_c166[X]
@@ -74,7 +74,7 @@ THLPG_c11 = {'Ag':122.2e9, 'Al':106.75e9, 'Au':192.9e9, 'Cu':166.1e9, 'Fe':226e9
 THLPG_c12 = {'Ag':90.7e9, 'Al':60.41e9, 'Au':163.8e9, 'Cu':119.9e9, 'Fe':140e9, 'Mo':164.7e9, 'Nb':133.3e9, 'Ni':150e9}
 THLPG_c44 = {'Ag':45.4e9, 'Al':28.34e9, 'Au':41.5e9, 'Cu':75.6e9,  'Fe':116e9, 'Mo':108.7e9, 'Nb':28.4e9, 'Ni':123.5e9}
 ## TOEC (in Pa) at room temperature from Thomas 1968 (Al), Saunders & Yogurtcu 1986 (Cd), Hiki & Granato 1966 (Ag, Au, Cu), Powell & Skove 1984 (Fe), Naimon 1971 (Mg), Voronov et al. 1978 (Mo), Graham, Nadler, & Chang 1968 (Nb), Riley & Skove 1973 (Ni),
-## Swartz, Chua, & Elbaum 1972 (Sn),  Ramji Rao & Menon 1972 (Ti), Swartz & Elbaum 1970 (Zn), and Singh, Rathore & Agrawal 1992 (Zr)
+## Swartz, Chua, & Elbaum 1972 (Sn),  Ramji Rao & Menon 1973 (Ti), Swartz & Elbaum 1970 (Zn), and Singh, Rathore & Agrawal 1992 (Zr)
 c111 = {'Ag':-843e9, 'Al':-1076e9, 'Au':-1729e9, 'Cd':-2060e9, 'Cu':-1271e9, 'Fe':-2720e9, 'Mg':-663e9, 'Mo':-3557e9, 'Nb':-2564e9, 'Ni':-2040e9, 'Sn':-410e9, 'Ti':-1358e9, 'Zn':-1760e9, 'Zr':-767.4e9}
 c112 = {'Ag':-529e9, 'Al':-315e9, 'Au':-922e9, 'Cd':-114e9, 'Cu':-814e9, 'Fe':-608e9, 'Mg':-178e9, 'Mo':-1333e9, 'Nb':-1140e9, 'Ni':-1030e9, 'Sn':-583e9, 'Ti':-1105e9, 'Zn':-440e9, 'Zr':-697e9}
 c113 = {'Cd':-197e9, 'Mg':30e9, 'Sn':-467e9, 'Ti':17e9, 'Zn':-270e9, 'Zr':-95.9e9}
