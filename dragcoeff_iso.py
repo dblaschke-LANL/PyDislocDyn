@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 20, 2022
+# Date: Nov. 5, 2017 - July 27, 2022
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)
     if use_exp:
-        metal = sorted(list(data.fcc_metals.union(data.bcc_metals).intersection(data.ISO_l.keys())))
+        metal = sorted(list(data.ISO_l.keys()))
     else:
         metal = sorted(list(data.c111.keys()))
     if len(sys.argv) > 1 and len(args)>0:
@@ -224,27 +224,6 @@ if __name__ == '__main__':
     ## define line styles for every metal in the same plot
     lnstyles = {'Al':'-', 'Cu':'--', 'Fe':':', 'Nb':'-.', 'Cd':'-', 'Mg':'--', 'Zn':':', 'Sn':'-.', 'Ni':'-.', 'Mo':'--', 'Ag':':', 'Au':'-.', 'Ti':'-', 'Zr':'-.'}
     metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'green', 'Nb':'red', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
-    ## plot only pure screw and pure edge by default
-    theta_indices = [0,len(theta)-1]
-    for th in theta_indices:
-        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
-        titlestring = "$\\vartheta=$"+"{0:.4f}".format(theta[th])
-        ax.axis((0,beta[-1],0,0.06))
-        ax.set_xticks(np.arange(10)/10)
-        ax.set_yticks(np.arange(7)/100)
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(MultipleLocator(0.005))
-        ax.set_xlabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
-        ax.set_ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
-        ax.set_title(titlestring,fontsize=fntsize)
-        for X in metal:
-            if X in metalcolors.keys():
-                ax.plot(Broom[X].index,Broom[X].iloc[:,th],lnstyles[X], color=metalcolors[X], label=X)
-            else:
-                ax.plot(Broom[X].index,Broom[X].iloc[:,th],label=X) # fall back to automatic colors / line styles
-        legend = ax.legend(loc='upper center', ncol=2, columnspacing=0.8, handlelength=1.2, shadow=True)
-        plt.savefig("B_iso_{:.4f}.pdf".format(theta[th]),format='pdf',bbox_inches='tight')
-        plt.close()
         
     ## define fitting fcts.:
     if modes=='TT': ## degree of divergence is reduced for purely transverse modes
@@ -360,8 +339,13 @@ if __name__ == '__main__':
             Xc = X+character
             if character=='screw' and modes == 'TT':
                 print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
-            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=True,B0fit='weighted',fit=fit)
-        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.5,3.5))
+            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=False,B0fit='weighted',fit=fit)
+        if len(metal)<5:
+            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
+            legendops={'loc':'best','ncol':1}
+        else:
+            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.,5.))
+            legendops={'loc':'upper left','bbox_to_anchor':(1.01,1),'ncol':1}
         ax.set_xlabel(r'$\sigma b/(c_\mathrm{t}B_0)$',fontsize=fntsize)
         ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
         if character=='screw':
@@ -383,7 +367,7 @@ if __name__ == '__main__':
         # ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{c_\mathrm{t}B_0}$")
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
-        ax.legend(loc='best',handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
+        ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         plt.savefig(fname,format='pdf',bbox_inches='tight')

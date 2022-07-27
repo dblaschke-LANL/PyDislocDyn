@@ -1,15 +1,16 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 26, 2022
+# Date: Nov. 3, 2017 - July 27, 2022
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
 
 ## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012 and from Kaye & Laby online (https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/)
-ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Cd':19.2e9, 'Cr':115.4e9, 'Cu':48.3e9,  'Fe':81.6e9, 'Mg':17.3e9, 'Nb':37.5e9, 'Ni':76.0e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'W':160.6e9, 'Zn':43.4e9}
+## and from Smith, Stern, Stephens 1966 (Mo)
+ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Cd':19.2e9, 'Cr':115.4e9, 'Cu':48.3e9,  'Fe':81.6e9, 'Mg':17.3e9, 'Mo':124e9, 'Nb':37.5e9, 'Ni':76.0e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'W':160.6e9, 'Zn':43.4e9}
 ISO_nu = {'Ag':0.367, 'Al':0.345, 'Au':0.440, 'Cd':0.300, 'Cr':0.210, 'Cu':0.343, 'Fe':0.293, 'Mg':0.291, 'Nb':0.397, 'Ni':0.312, 'Sn':0.357, 'Ta':0.342, 'Ti':0.321, 'W':0.280, 'Zn':0.249}
-ISO_bulk = {}
+ISO_bulk = {'Mo':178e9+(2/3)*124e9}
 ISO_c11 = {}
 ISO_c12 = {}
 for X in ISO_nu:
@@ -30,13 +31,18 @@ for X in ISO_nu:
 ISO_l = {'Al':-143e9, 'Cu':-160e9,  'Fe':-170e9, 'Nb':-610e9}
 ISO_m = {'Al':-297e9, 'Cu':-620e9,  'Fe':-770e9, 'Nb':-220e9}
 ISO_n = {'Al':-345e9, 'Cu':-1590e9,  'Fe':-1520e9, 'Nb':300e9}
-# derive cijk (resp. Toupin & Bernstein constants) from these Murnaghan constants
-ISO_c123 = {}
-ISO_c144 = {}
-ISO_c456 = {}
+## taken from Smith, Stern, Stephens 1966 (Mg, Mo, W)
+ISO_c123 = {'Mg':-65.4e9, 'Mo':194e9, 'W':-429e9}
+ISO_c144 = {'Mg':-57.4e9, 'Mo':-398e9, 'W':-258e9}
+ISO_c456 = {'Mg':-42.1e9, 'Mo':-227e9, 'W':-267e9}
 ISO_c111 = {}
 ISO_c112 = {}
 ISO_c166 = {}
+for X in ISO_c123: ## convert to Murnaghan constants
+    ISO_l[X] = ISO_c123[X]/2 + ISO_c144[X]
+    ISO_m[X] = ISO_c144[X] + 2*ISO_c456[X]
+    ISO_n[X] = 4*ISO_c456[X]
+# derive cijk (resp. Toupin & Bernstein constants) from Murnaghan constants
 for X in ISO_l:
     ISO_c123[X] = 2*ISO_l[X] - 2*ISO_m[X] + ISO_n[X] ## =nu1
     ISO_c144[X] = ISO_m[X] - ISO_n[X]/2              ## =nu2
