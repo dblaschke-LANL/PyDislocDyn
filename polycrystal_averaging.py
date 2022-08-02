@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug 1, 2022
+# Date: Nov. 7, 2017 - Aug 2, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -172,7 +172,7 @@ class metal_props:
         if self.sym not in ['tric']: self.alphac=np.pi/2
         if self.sym not in ['tric','mono']: self.betac=np.pi/2
         if self.sym not in ['tric','trig','hcp']: self.gammac=np.pi/2
-        elif self.sym in ['trig','hcp']: self.gammac=2*np.pi/3
+        elif self.sym in ['trig','hcp']: self.gammac=2*np.pi/3 ## assume hexagonal lattice
         self.rho = 0
         self.c11=self.c12=self.c44=0
         self.c13=self.c33=self.c66=0
@@ -276,7 +276,7 @@ class metal_props:
             self.Vc = self.ac*self.ac*self.cc
         elif self.sym=='orth': ## orthorhombic
             self.Vc = self.ac*self.bc*self.cc
-        elif self.sym=='trig': ## trigonal/rhombohedral I
+        elif self.sym=='trig' and self.Vc<=0: ## trigonal I
             self.Vc = self.ac*self.ac*self.cc*np.sqrt(3)/2
         elif self.Vc<=0 and self.sym=='mono':
             self.Vc = self.ac*self.bc*self.cc*np.sin(self.betac)

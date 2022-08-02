@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 16, 2021
+# Date: Nov. 7, 2017 - Aug. 2, 2022
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -24,15 +24,15 @@ Delta = sp.KroneckerDelta
 
 ### generate tensors of elastic constants
 def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=False):
-    '''Generates the tensor of second order elastic constants for orthorhombic, tetragonal I, hexagonal, cubic and isotropic symmetries using
-    c11, c12, c44, c13, c33, c66, c22, c23, and c55 as input data (assuming the third axis is perpendicular to the basal plane).
+    '''Generates the tensor of second order elastic constants using c11, c12, c13, c22, c23, c33, c44, c55, and c66 as input data
+    (assuming the third axis is perpendicular to the basal plane).
     If only c22, c23, and c55 are omitted (or 'None'), tetragonal I symmetry is assumed and this function will set c22=c11, c23=c12, and c55=c44.
-    If additionally c66 is omitted (or 'None'), hexagonal I symmetry is assumed and this function will set c66=(c11-c12)/2.
+    If additionally c66 is omitted (or 'None'), hexagonal symmetry is assumed and this function will set c66=(c11-c12)/2.
     If c13 or c33 are omitted (or 'None'), cubic symmetry is assumed and the according tensor is generated with c13=c12, c33=c11, and c66=c44.
     If in addition c11 is omitted (or 'None'), an isotropic tensor is generated with c11 = c12+2*c44.
     For lower/other symmetries, input must be given via keyword cij as a tuple or list containing all required elastic constants
-    (21 for triclinic, 13 for monoclinic, 9 for orthorhombic, and 6 for trigonal/rhombohedral I) in ascending order where i<=j in cij,
-    i.e. cij=(c11, c12, c13, ...); see D. C. Wallace, Solid State Physics 25 (1970) 301 and K. Brugger, J. Appl. Phys. 36 (1965) 759.
+    (21 for triclinic, 13 for monoclinic, 9 for orthorhombic, 7 for tetragonal II, and 6 for trigonal/rhombohedral I) in ascending order where i<=j
+    in cij, i.e. cij=(c11, c12, c13, ...); see D. C. Wallace, Solid State Physics 25 (1970) 301 and K. Brugger, J. Appl. Phys. 36 (1965) 759.
     Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
     if cij is None:
         if c22 is None or c23 is None or c55 is None:
@@ -58,11 +58,14 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
     elif len(cij)==9:
         Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':0, 'C22':cij[3], 'C23':cij[4], 'C24':0, 'C25':0, 'C26':0, \
                 'C33':cij[5], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[6], 'C45':0, 'C46':0, 'C55':cij[7], 'C56':0, 'C66':cij[8]}
-    elif len(cij)==6:
+    elif len(cij)==7: ## tetragonal II
+        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':cij[3], 'C22':cij[0], 'C23':cij[2], 'C24':0, 'C25':0, 'C26':-cij[3], \
+                'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':0, 'C66':cij[6]}
+    elif len(cij)==6: ## trigonal (rhombohedral) I
         Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':0, 'C16':0, 'C22':cij[0], 'C23':cij[2], 'C24':-cij[3], 'C25':0, 'C26':0, \
                 'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':cij[3], 'C66':(cij[0]-cij[1])/2}
     else:
-        raise ValueError("len(cij)={}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), or 6 (trigonal/rhombohedral I) values".format(len(cij)))
+        raise ValueError("len(cij)={}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), 7 (tetragonal II), or 6 (trigonal/rhombohedral I) values".format(len(cij)))
     if isinstance(sum(Cdict.values()),sp.Expr):
         C2 = np.empty((6,6), dtype=object)
     else:
@@ -83,7 +86,7 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
     If c333 is given, but either c456, c166, or c366 are omitted (or 'None'), hexagonal I symmetry is assumed (with the 3rd axis perpendicular to the basal plane).
     If c333 is given, but c222 is omitted (or 'None'), tetragonal I symmetry is assumed.
     For lower/other symmetries, input must be given via keyword cijk as a tuple or list containing all required elastic constants
-    (56 for triclinic, 32 for monoclinic, 20 for orthorhombic, and 14 for trigonal/rhombohedral I) in ascending order where i<=j<=k in cijk,
+    (56 for triclinic, 32 for monoclinic, 20 for orthorhombic, 16 for tetragonal II, and 14 for trigonal/rhombohedral I) in ascending order where i<=j<=k in cijk,
     i.e. cij=(c111, c112, ..., c122, ...); K. Brugger, J. Appl. Phys. 36 (1965) 759.
     Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
     if cijk is None and c333 is None: ### assume cubic I or isotropic
@@ -142,13 +145,18 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
             'C136':0, 'C144':cijk[6], 'C145':0, 'C146':0, 'C155':cijk[7], 'C156':0, 'C166':cijk[8], 'C222':cijk[9], 'C223':cijk[10], 'C224':0, 'C225':0, 'C226':0, 'C233':cijk[11], 'C234':0, \
             'C235':0, 'C236':0, 'C244':cijk[12], 'C245':0, 'C246':0, 'C255':cijk[13], 'C256':0, 'C266':cijk[14], 'C333':cijk[15], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[16], 'C345':0, \
             'C346':0, 'C355':cijk[17], 'C356':0, 'C366':cijk[18], 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':cijk[19], 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0 }
-    elif len(cijk)==14:
+    elif len(cijk)==16: ## tetragonal II
+        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':cijk[3], 'C122':cijk[1], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0, \
+            'C136':cijk[6], 'C144':cijk[7], 'C145':cijk[8], 'C146':0, 'C155':cijk[9], 'C156':0, 'C166':cijk[10], 'C222':cijk[0], 'C223':cijk[2], 'C224':0, 'C225':0, 'C226':-cijk[3], 'C233':cijk[5], 'C234':0, \
+            'C235':0, 'C236':-cijk[6], 'C244':cijk[9], 'C245':-cijk[8], 'C246':0, 'C255':cijk[7], 'C256':0, 'C266':cijk[10], 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0, \
+            'C346':0, 'C355':cijk[12], 'C356':0, 'C366':cijk[13], 'C444':0, 'C445':0, 'C446':cijk[14], 'C455':0, 'C456':cijk[15], 'C466':0, 'C555':0, 'C556':-cijk[14], 'C566':0, 'C666':0 }
+    elif len(cijk)==14: ## trigonal (rhombohedral) I
         Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':0, 'C116':0, 'C122':(cijk[0]+cijk[1]-cijk[10]), 'C123':cijk[4], 'C124':cijk[5], 'C125':0, 'C126':0, 'C133':cijk[6], 'C134':cijk[7], 'C135':0, \
             'C136':0, 'C144':cijk[8], 'C145':0, 'C146':0, 'C155':cijk[9], 'C156':(cijk[3]+3*cijk[5])/2, 'C166':(3*cijk[10]-2*cijk[0]-cijk[1])/4, 'C222':cijk[10], 'C223':cijk[2], 'C224':(-cijk[3]-2*cijk[5]), 'C225':0, 'C226':0, 'C233':cijk[6], 'C234':(-cijk[7]), \
             'C235':0, 'C236':0, 'C244':cijk[9], 'C245':0, 'C246':0, 'C255':cijk[8], 'C256':(cijk[3]-cijk[5])/2, 'C266':(2*cijk[0]-cijk[1]-cijk[10])/4, 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0, \
             'C346':0, 'C355':cijk[12], 'C356':cijk[7], 'C366':(cijk[2]-cijk[4])/2, 'C444':cijk[13], 'C445':0, 'C446':0, 'C455':(-cijk[13]), 'C456':(cijk[9]-cijk[8])/2, 'C466':cijk[5], 'C555':0, 'C556':0, 'C566':0, 'C666':0 }
     else:
-        raise ValueError("len(cijk)={}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), or 14 (trigonal/rhombohedral I) values".format(len(cijk)))
+        raise ValueError("len(cijk)={}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), 16 (tetragonal II), or 14 (trigonal/rhombohedral I) values".format(len(cijk)))
     if isinstance(sum(Cdict.values()),sp.Expr):
         C3 = np.empty((6,6,6), dtype=object)
     else:
@@ -248,7 +256,7 @@ def elasticS3(elasticS2,elasticC3,voigt=False):
 class strain_poly:
     '''This class computes polynomials in y which depend on elastic constants and where y parametrizes infinitesimal deformations/strains.
     These can subsequently be used to compute elastic constants by fitting these polynomials to results from DFT calculations done in some third party software package.
-    To initialize the class, a sympy symbol y (=sp.symbols('y') by default) as well as a keyword specifying the crystal symmetry must be provided, i.e. one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'orth', 'mono', or 'tric';
+    To initialize the class, a sympy symbol y (=sp.symbols('y') by default) as well as a keyword specifying the crystal symmetry must be provided, i.e. one of 'iso', 'cubic', 'hcp', 'tetr', 'tetr2', 'trig', 'orth', 'mono', or 'tric';
     'fcc' and 'bcc' are synonymous with 'cubic' (default). Tensors of 2nd and 3rd order elastic constants in symbolic Voigt notation are subsequently generated as attributes C2, C3.
     Method generate_poly([a1,a2,a3,a4,a5,a6],order=3) then computes the polynomial to the specified order, where a1-a6 represent infinitesimal strain in Voigt notation
     and they must be expressions in symbol y.'''
@@ -272,6 +280,9 @@ class strain_poly:
         elif sym=='trig':
             self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C14,C33,C44'),voigt=True)
             self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C114,C123,C124,C133,C134,C144,C155,C222,C333,C344,C444'),voigt=True)
+        elif sym=='tetr2':
+            self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C16,C33,C44,C66'),voigt=True)
+            self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C116,C123,C133,C136,C144,C145,C155,C166,C333,C344,C366,C446,C456'),voigt=True)
         elif sym=='orth':
             self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C22,C23,C33,C44,C55,C66'),voigt=True)
             self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C122,C123,C133,C144,C155,C166,C222,C223,C233,C244,C255,C266,C333,C344,C355,C366,C456'),voigt=True)
