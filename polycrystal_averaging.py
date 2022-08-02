@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 26, 2022
+# Date: Nov. 7, 2017 - Aug 1, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -278,8 +278,11 @@ class metal_props:
             self.Vc = self.ac*self.bc*self.cc
         elif self.sym=='trig': ## trigonal/rhombohedral I
             self.Vc = self.ac*self.ac*self.cc*np.sqrt(3)/2
-        elif self.Vc<=0 and self.sym in ['mono', 'tric']:
-            raise ValueError("need unit cell volume Vc")
+        elif self.Vc<=0 and self.sym=='mono':
+            self.Vc = self.ac*self.bc*self.cc*np.sin(self.betac)
+        elif self.Vc<=0 and self.sym=='tric':
+            self.Vc = self.ac*self.bc*self.cc*np.sqrt(1 - np.cos(self.alphac)**2 - np.cos(self.betac)**2\
+                 - np.cos(self.gammac)**2 + 2*np.cos(self.alphac)*np.cos(self.betac)*np.cos(self.gammac))
         self.qBZ = ((6*np.pi**2/self.Vc)**(1/3))
     
     def init_all(self):
@@ -403,9 +406,12 @@ class metal_props:
                 self.c456 = float(inputparams['c456'])
             if sym =='hcp':
                 self.c222 = float(inputparams['c222'])
-        if 'alpha' in keys: self.alphac=inputparams['alpha']
-        if 'beta' in keys: self.betac=inputparams['beta']
-        if 'gamma' in keys: self.gammac=inputparams['gamma']
+        if 'alpha' in keys:
+            self.alphac=float(inputparams['alpha'])*np.pi/180 ## convert degrees to radians
+        if 'beta' in keys:
+            self.betac=float(inputparams['beta'])*np.pi/180 
+        if 'gamma' in keys:
+            self.gammac=float(inputparams['gamma'])*np.pi/180 
         if 'Millerb' in keys:
             self.Millerb = np.asarray(inputparams['Millerb'].split(','),dtype=float)
             if 'burgers' in keys:
