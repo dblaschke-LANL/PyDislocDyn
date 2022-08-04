@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug 2, 2022
+# Date: Nov. 7, 2017 - Aug 4, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -149,13 +149,12 @@ class IsoAverages(IsoInvariants):
 
 ########### re-organize metal data within a class (so that we can perform calculations also on data read from input files, not just from metal_data dicts):
 class metal_props:
-    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric',
+    '''This class stores various metal properties; needed input sym must be one of 'iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr', 'tetr2', 'trig', 'orth', 'mono', 'tric',
     and this will define which input parameters (such as elastic constants) are set/expected by the various initializing functions.
-    In particular, symmetries 'iso'--'tetr' require individual elastic constants, such as .c44 and .c123, to be set, whereas lower symmetries require a
+    In particular, symmetries 'iso'--'tetr' require individual elastic constants, such as .c44 and .c123, to be set, whereas lower symmetries ('tetr2'--'tric') require a
     list of all independent elastic constants to be stored in attribute .cij.
     Methods .init_C2() and .init_C3() (which are called by .init_all()) will compute the tensors of elastic constants and store them in Voigt notation as .C2 and .C3.
     Other attributes of this class are: temperature .T, density .rho, thermal expansion coefficient .alpha_a, and lattice constants .ac, .bc, .cc where the latter two are required only if they differ from .ac.
-    For monoclinic and triclinic crystals, the unit cell volume .Vc must also be given.
     The slip system to be studied is passed via Burgers vector length .burgers, unit Burgers vector .b, and slip plane normal .n0 in Cartesian coordinates,
     Additional optional attributes are polycrystal averages for Lame constants .mu and .lam (these are calculated via .init_all(), which calls .compute_Lame(), if not given),
     as well as critical velocities .vcrit_smallest, .vcrit_screw, .vcrit_edge. Finally, .init_sound() (called by .init_all()) computes the average transverse/longitudinal sound speeds of the polycrystal, .ct and .cl.
@@ -272,12 +271,14 @@ class metal_props:
             self.Vc = self.ac**3
         elif self.sym=='hcp':
             self.Vc = self.ac*self.ac*self.cc*(3/2)*np.sqrt(3) ## 3*sin(pi/3)
-        elif self.sym=='tetr':
+        elif self.sym in ('tetr','tetr2'):
             self.Vc = self.ac*self.ac*self.cc
         elif self.sym=='orth': ## orthorhombic
             self.Vc = self.ac*self.bc*self.cc
         elif self.sym=='trig' and self.Vc<=0: ## trigonal I
             self.Vc = self.ac*self.ac*self.cc*np.sqrt(3)/2
+            if abs(self.alphac-self.betac)<1e-15 and abs(self.alphac-self.gammac)<1e-15:
+                self.Vc = self.ac*self.ac*self.cc*np.sqrt(1-3*np.cos(self.alphac)**2+2*np.cos(self.alphac)**3)
         elif self.Vc<=0 and self.sym=='mono':
             self.Vc = self.ac*self.bc*self.cc*np.sin(self.betac)
         elif self.Vc<=0 and self.sym=='tric':
