@@ -1,0 +1,362 @@
+\documentclass[11pt,letterpaper,oneside,pdftex]{article}
+\pdfoutput=1
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fouriernc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[bindingoffset=0.0cm,width=16.20cm, height=22.0cm]{geometry}
+
+\newcommand{\id}{\mathbb{1}}
+\usepackage[margin=1cm,font=small]{caption}
+
+\usepackage[pdftex,hyperref,svgnames]{xcolor}
+\usepackage[pdftex,bookmarksnumbered=true,breaklinks=true]{hyperref}
+%%%
+\makeatletter
+\AtBeginDocument{
+	\hypersetup{
+		%		pdfkeywords = {\keywords},
+		pdftitle = {\@title},
+		pdfauthor = {\@author}
+	}
+}
+\makeatother
+%%%
+\frenchspacing
+%%% Section equation numbering
+\makeatletter
+\renewcommand\theequation{\thesection.\arabic{equation}}
+\@addtoreset{equation}{section}
+\makeatother
+
+\usepackage[backend=biber,sorting=none,sortcites=true,citestyle=numeric-comp,bibstyle=custom,maxnames=8,minnames=3,giveninits=true]{biblatex}
+\addbibresource{manual.bib}
+
+\title{\texorpdfstring{\begin{flushright}
+			{\small LA-UR-22-28074}
+		\end{flushright}\vspace{2em}}{}%
+	PyDislocDyn --- Code Manual}
+\author{Daniel N. Blaschke}
+\date{Aug 1, 2022}
+
+\begin{document}
+\maketitle
+
+\thispagestyle{empty}
+\begin{center}
+	\vspace{-0.3cm}
+	Los Alamos National Laboratory, Los Alamos, NM, 87545, USA
+	\\[0.5cm]
+	{\ttfamily{E-mail: dblaschke@lanl.gov}}
+\end{center}
+
+\tableofcontents
+\pagebreak
+
+\section{Introduction}
+
+PyDislocDyn \cite{pydislocdyn} is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with various crystal symmetries in the continuum limit.
+%In particular, one of its main purposes is to calculate dislocation drag from phonon wind.
+%Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field including its limiting velocities, and the calculation of dislocation self-energy and line tension. 
+
+Its main features summarize as:
+\begin{itemize}
+\item compute averages of elastic constants (various methods, see \cite{Blaschke:2017Poly})
+\item compute the steady-state displacement(gradient) field of a dislocation for arbitrary character angle in an arbitrary crystal geometry \cite{Bacon:1980,Hirth:1982}; a generalization to accelerating dislocations is in progress and so far has been implemented for pure screw dislocations \cite{Blaschke:2020acc}
+\item compute theoretical limiting velocities of dislocations in arbitrary slip system and with arbitrary character angle \cite{Blaschke:2021vcrit,Blaschke:2020MD,Teutonico:1961,Barnett:1973b}
+\item compute the elastic strain energy and line tension for any dislocation \cite{Blaschke:2017lten}
+\item compute the dislocation drag coefficient $B$ from phonon wind for any dislocation at any velocity \cite{Blaschke:BpaperRpt,Blaschke:2018anis,Blaschke:2019fits,Blaschke:2019Bpap} or stress \cite{Blaschke:2019a,Blaschke:2021impact,Blaschke:2021temperature}.
+\end{itemize}
+
+\noindent
+This manual is intended as a brief introduction on how to use the most common features of PyDislocDyn 1.2.6 \cite{pydislocdyn}.
+It does not describe every option of every function or method, and we refer to the doc-string of those functions, classes and methods for further details.
+\\
+PyDislocDyn is developed by the present author and can be downloaded from
+\\\href{https://github.com/dblaschke-LANL/PyDislocDyn}{github.com/dblaschke-LANL/PyDislocDyn}\\
+where it is distributed under the BSD-3 license, (Copyright, Triad National Security, LLC; C Number: \href{https://doi.org/10.11578/dc.20180619.15}{C18073}), see the included \verb|license.txt| for details.
+
+
+\section{Requirements}
+\begin{itemize}
+\item PyDislocDyn 1.2.5 and higher requires Python 3.8 or higher (the last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, and Python 3.6 up to version 1.2.4) and it is recommended to use the latest version.
+Required modules include Numpy, Scipy, Sympy, Matplotlib, and Pandas with their minimum Python 3.8-compatible versions, except for Sympy where we require 1.5 or higher.
+\item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
+Numba (a just-in-time compiler for python), Joblib (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
+Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS compile with:
+\\\verb|`python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines'|.\\
+The number of threads used by the subroutines is then controlled by environment variable \verb|OMP_NUM_THREADS| which defaults to all available cpu cores visible to the OS (twice the number of physical cores for systems with hyperthreading). PyDislocDyn’s joblib parallelization will automatically adjust its ‘Ncores’ variable to avoid over-committing, i.e. if openmp uses all cores in the subroutines, joblib will spawn only one (higher level) python thread. Best results are achieved when \verb|OMP_NUM_THREADS<=Ncores| while \verb|OMP_NUM_THREADS*Ncores|=the number of all available (virtual) cpu cores; the value for Ncores is set automatically by the python code, so the user just needs to set \verb|OMP_NUM_THREADS| prior to running python in the terminal.
+\end{itemize}
+
+
+\section{Running the code}
+
+PyDislocDyn 1.2.x reads its material data from input files, though PyDislocDyn also includes a selection of predefined material data to run simulations immediately.
+The latter are assembled in dictionaries within \verb|`metal_data.py'|, see Refs. \cite{Hertzberg:2012,Kaye:2004,CRCHandbook,Wasserbaech:1990,Seeger:1960,Graham:1968,Smith:1966,Epstein:1965,Lowrie:1967,Thomas:1968,Hiki:1966,Leese:1968,Voronov:1978,Alers:1960,Saunders:1986,Powell:1984,Naimon:1971,Riley:1973,Swartz:1972,Rao:1973,Swartz:1970,Singh:1992}.
+
+\subsection{Using the front-end scripts}
+\label{sec:frontends}
+
+There are four front-end scripts included in PyDislocDyn which all can process one or multiple input files.
+All four front-end scripts can optionally be run without input files in which case data from \verb|`metal_data.py’| will be used.
+By passing keyword arguments, an according subset of shipped metals are considered for the calculations.
+(See the dictionary keys within \verb|`metal_data.py’| for valid keywords.)
+
+As a byproduct, sample input files are generated and saved to subfolder \verb|`temp_pydislocdyn’|.
+These can also be generated by the user directly via the \verb|`writeinputfile()’| function defined in \verb|`metal_data.py’|.
+
+
+\subsubsection{polycrystal\_averaging.py}
+
+Calling \verb|`python polycrystal_averaging.py inputfile1 inputfile2 ...’| will compute average elastic constants (second and if applicable third order) using Voigt, Reuss, Hill, and (for cubic only) the Kr{\"o}ner method, see \cite{Blaschke:2017Poly} and references therein for details.
+Results are written to a text file,
+\\\verb|`averaged_elastic_constants.txt’|.
+
+
+
+\subsubsection{linetension\_calcs.py}
+
+\verb|`python linetension_calcs.py inputfile1 inputfile2 ...’| will compute the line tension of the dislocations / slip systems defined in the input files as a function of velocity ‘beta’ (normalized by the average transverse sound speed or by one derived from Lam\'e constant \verb|mu| read from the input file if present) and dislocation character angle ‘theta’, see \cite{Blaschke:2017lten} for details on the method.
+The default resolution of \verb|Nbeta=500| and \verb|Ntheta=600| can be changed by passing options on the command line, e.g.:
+\\\verb|`--Nbeta=100 --Ntheta=100’|.\\
+Option \verb|--Nbeta=0| can be abused to skip line tension calculations and to just generate the plots using results from a previous run. 
+Additional command line options include:
+the resolution of the discretized polar angle \verb|--Nphi|,
+an option to skip generating the plots via \verb|--skip_plots|,
+an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
+and more; see the \verb|OPTIONS| dictionary within \verb|linetension_calcs| for a list of all supported command line options and their expected data types.
+\\
+Results are saved as compressed text files with naming scheme \verb|`LT_metalname.dat.xz’| and results from a previous run will first be moved to \verb|`LT_metalname.dat.bak.xz’|.
+These result files can be conveniently read into a pandas.DataFrame by importing function \verb|`read_2dresults’| from \verb|`linetension_calcs.py’|.
+Additionally, a number of plots are generated and saved as pdf files.
+
+
+
+\subsubsection{dragcoeff\_iso.py}
+
+\verb|`python dragcoeff_iso.py inputfile1 inputfile2 ...’| will compute the drag coefficient of the dislocations defined in the input files in the isotropic limit as a function of (normalized) velocity \verb|`beta’| and as a function of resolved shear stress, see \cite{Blaschke:BpaperRpt,Blaschke:2019Bpap,Blaschke:2019a} for details on the method.
+If the input file defines an anisotropic crystal, the code will first compute the averaged isotropic elastic constants to be used in the calculation.
+Note that there exists no accurate averaging scheme for third order elastic constants, so measured isotropic values should always be preferred, or better yet: compute the drag coefficient in the semi-isotropic approach using  \verb|`dragcoeff_semi_iso.py’|.
+Results are written to text files \verb|`drag_metalname.dat’|, and additionally a number of plots are generated and saved as pdf files.
+
+Supported command line options (to change defaults, all optional) include:
+the resolution of the normalized velocities \verb|--Nbeta|,
+the resolution of various discretized variables, \verb|--Nphi|, \verb|--Nphi1|, \verb|--Nq1|, \verb|--Nt| (just the base value as variable t is adaptively refined),
+an option to skip generating the plots via keyword \verb|--skip_plots|,
+an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
+additional options to be passed on to subroutine \verb|dragcoeff_iso| (defined in the \verb|phononwind.py| module) via \verb|--phononwind_opts|,
+and more; see the \verb|OPTIONS| dictionary within \verb|dragcoeff_iso| for a list of all supported command line options and their expected data types.
+Option \verb|--Ncores=0| can be abused to skip drag coefficient calculations and to just generate the plots using results from a previous run.
+
+
+
+\subsubsection{dragcoeff\_semi\_iso.py}
+
+\verb|`python dragcoeff_semi_iso.py inputfile1 inputfile2 ...’| will compute the drag coefficient of the dislocations defined in the input files as a function of (normalized) velocity \verb|`beta’| and dislocation character angle \verb|`theta’| as well as resolved shear stress, see \cite{Blaschke:2018anis,Blaschke:2019fits,Blaschke:2021impact} for details on the semi-isotropic approximation to dislocation drag.
+The default resolution of \verb|Nbeta=99| and \verb|Ntheta=21| can be changed by passing options on the command line, e.g.:
+\\\verb|`--Nbeta=50 --Ntheta=11’|.\\
+Additional command line options include:
+the resolution of various discretized variables, \verb|--Nphi|, \verb|--Nphi1|, \verb|--Nq|, \verb|--Nq1|, \verb|--NphiX|, \verb|--Nt| (just the base value as variable t is adaptively refined),
+an option to skip generating the plots via \verb|--skip_plots|,
+an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
+additional options to be passed on to subroutine \verb|dragcoeff_iso| via \verb|--phononwind_opts|,
+and more; see the \verb|OPTIONS| dictionary within \verb|dragcoeff_semi_iso| for a list of all supported command line options and their expected data types.
+Option \verb|--Ncores=0| can be abused to skip drag coefficient calculations and to just generate the plots using results from a previous run.
+
+By default, the lowest dislocation limiting velocity is computed on the fly for every character angle and drag coefficient calculations will be skipped beyond these velocities (on a per character angle basis, see \verb|`inf’| entries in the resulting \verb|`drag_anis_metalname.dat.xz’| files).
+This behavior is controlled by option \verb|`--computevcrit_for_speed’|.
+Additionally, a number of plots are generated and saved as pdf files.
+Drag coefficient results (as functions of velocity) are written to files with naming scheme \verb|`drag_anis_metalname.dat.xz’|;
+these can be conveniently read into a pandas dataframe by importing function \verb|`read_2dresults’| from \verb|`linetension_calcs.py’|.
+
+
+
+
+\subsection{Anatomy of an input file}
+\label{sec:inputfiles}
+
+Input files are text files assigning values to keywords known to PyDislocDyn.
+All entries adhere to the format
+\\\verb|keyword = value|\\
+where all numerical values must be set in SI units.
+Comments are allowed and start with \verb|`#'|.
+Required keywords include:
+\begin{itemize}
+\item \verb|sym|: defines the crystal symmetry, recognized values are \verb|iso|, \verb|fcc|, \verb|bcc|, \verb|cubic| (for cubic I), \verb|hcp|, \verb|tetr| (for tetragonal I), \verb|trig| (for trigonal I), \verb|orth| (for orthorhombic), \verb|mono| (for monoclinic), and \verb|tric| (for triclinic), see \cite{Brugger:1965} for an overview over these crystal systems.
+
+\item \verb|rho|: the material density
+
+\item lattice constant(s) and angles: lattice constant \verb|a| is always required, \verb|lcb| and \verb|c| may be required depending on \verb|sym| (keyword \verb|b| is reserved for the Burgers vector direction, see below); angles between lattice basis vectors (only required by lower symmetries where they cannot be inferred from keyword \verb|sym|) are denoted by \verb|alpha|, \verb|beta|, \verb|gamma| and are provided in degrees (not radians).
+The unit cell volume is then automatically computed.
+
+\item Second order elastic constant (SOEC): for \verb|sym| in one of \verb|iso|--\verb|tetr|, every required elastic constant is set with its own keyword (e.g. \verb|c44| etc.);
+for lower symmetries, all values are assigned to one keyword, \verb|cij|, and must be a assembled in one line separated by commas.
+The order is ascending, i.e. c11 comes before c12 etc.; see \cite{Brugger:1965} for further details on which elastic constants need to be provided for each crystal system.
+
+\item \verb|n0| or \verb|Millern0|: requires comma separated values and denotes the slip plane normal in Cartesian coordinates or Miller indices for planes (i.e. in reciprocal space); its length is ignored, Miller indices \verb|Millern0| (if provided) are automatically converted to Cartesian coordinates \verb|n0|, and \verb|n0| is automatically normalized.
+
+\item \verb|b| or \verb|Millerb|: requires comma separated values and denotes the Burgers vector direction in Cartesian coordinates or Miller indices; its length is only used to infer the Burgers vector length \verb|burgers| (unless the latter is provided explicitly in the input file, see optional keywords below).
+If provided, Miller indices \verb|Millerb| are automatically converted to Cartesian coordinates \verb|b|, and \verb|b| is automatically normalized.
+\end{itemize}
+\noindent
+The following keywords are optional (depending on the intended use case):
+\begin{itemize}
+\item \verb|burgers| defines the Burgers vector length; if omitted it is inferred from \verb|Millerb| or \verb|b| (in which case their length matters).
+
+\item \verb|name|: a name for your instance of the \verb|Dislocation| class; defaults to the file name of the input file.
+Though not strictly necessary it is recommended to set a name.
+
+\item \verb|T|: the material temperature where density and elastic constants were measured (or calculated); defaults to 300K if omitted.
+
+\item \verb|lam| and \verb|mu|: polycrystal averages for the Lam\'e constants; if omitted, they are calculated by averaging over the (anisotropic) SOECs.
+
+\item Third order elastic constant (TOEC), these are required for phonon wind (dislocation drag) calculations:
+for \verb|sym| in one of \verb|iso|--\verb|tetr|, every required elastic constant is set with its own keyword (e.g. \verb|c123| etc.);
+for lower symmetries, all values are assigned to one keyword, \verb|cijk|, and must be a assembled in one line separated by commas.
+The order is ascending, i.e. c111 comes before c112 etc.; see \cite{Brugger:1965} for further details on which elastic constants need to be provided for each crystal system.
+
+\item \verb|alpha_a|: denotes the thermal expansion coefficient; only used if dislocation drag is computed for multiple temperatures >=T.
+\end{itemize}
+
+
+
+\subsection{Working with the classes}
+\label{sec:classes}
+\subsubsection{The `Dislocation' class}
+\label{sec:Dislocation}
+
+To work with an instance of PyDislocDyn's main class, the \verb|Dislocation| class, it is recommended to import the following:
+\\\verb|`from linetension_calcs import readinputfile’|\\
+and then to use that function to initialize an instance of the Dislocation class using an input file.
+By default, only pure screw and pure edge dislocations are initialized; to initialize more than 2 character angles, set option \verb|Ntheta| accordingly when calling \verb|readinputfile(...)|.
+
+Upon initialization, several quantities are automatically calculated and stored as attributes, in particular:
+the tensors of elastic constants in Voigt notation are saved as attributes \verb|.C2| (SOEC) and (if applicable) \verb|.C3| (TOEC),
+the (polycrystalline averages of) longitudinal and transverse sound speeds \verb|.cl| and \verb|.ct|, as well as the average Bulk modulus \verb|.bulk|, Young's modulus \verb|.young|, Poisson's ratio \verb|.poisson|,
+and the edge of the first Brillouin zone in the Debye approximation \verb|.qBZ|.
+If \verb|sym| is \verb|fcc| or \verb|bcc|, also the Zener anisotropy ratio \verb|.Zener| and elastic constant \verb|.cp|=$(c_{11}-c_{12})/2$ are additionally calculated.
+Furthermore, the dislocation line and slip directions are determined for all requested dislocation character angles \verb|theta|.
+
+Function \verb|readinputfile()| defines some additional defaults and options making the initialization of the Dislocation class easier:
+Instead of passing an array \verb|theta| (default: \verb|None|), one may pass an integer \verb|Ntheta| (default: 2) and a boolean keyword \verb|symmetric| (default: \verb|True|), and array \verb|theta| is subsequently generated with \verb|Ntheta| entries between 0 and $\pi/2$ (or in the interval [$-\pi/2,\pi/2$] if \verb|symmetric=False| and the latter keyword may also be included in the input file as it depends on the slip plane geometry whether the full range needs to be considered).
+Boolean keyword \verb|isotropify| finally allows to initialize an isotropic instance of the Dislocation class from an input file for an anisotropic crystal by automatically averaging the elastic constants.
+
+Once initialized, many calculations are available via the classes methods such as:
+\begin{itemize}
+\item \verb|.compute_Lame()| to calculate the isotropic averages of the SOECs
+
+\item \verb|.computesound(v)| to calculate the sound speed for a wave propagating in direction v
+
+\item \verb|.computevcrit()| to calculate limiting velocities for all character angles initialized in the class
+
+\item \verb|.findvcrit_smallest()| returns the lowest limiting velocity for all character angles (independent of \verb|Ntheta|)
+
+\item \verb|.findRayleigh()| calculates the Rayleigh wave speed for every initialized character angle, i.e. for the slip directions of dislocations of every character angle.
+
+\item \verb|.computeuij(beta)| calculates the steady-state dislocation displacement gradient field in Cartesian coordinates aligned with the crystal as a function of polar angle phi in the plane perpendicular to the dislocation line using the Stroh / integral method \cite{Bacon:1980} for all initialized character angles.
+Argument beta is the normalized velocity (e.g. \verb|v/ct| by default, where ct is the averaged transverse sound speed).
+The result is stored in attribute \verb|.uij|.
+\item \verb|.alignC2()| computes the tensor of SOEC in coordinates aligned with the dislocation line and slip plane normal; it’s result, ‘.C2aligned’, contains an array of SOEC tensors whose entries correspond to the character angles.
+
+\item \verb|.computerot()| is automatically called by \verb|.alignC2()| and calculates the rotation matrices for all character angles necessary to align coordinates with the dislocation line and slip plane normal
+
+\item \verb|.alignuij()| rotates .uij (the result of \verb|.computeuij()|) into coordinates aligned with the dislocation line and slip plane normal and stores the result in \verb|.uij_aligned|; \verb|.computerot()| (or \verb|alignC2()|) must be called first.
+
+\item \verb|.computeuij_acc(a,beta)| calculates the dislocation displacement gradient field of a screw dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane;
+other accelerating cases (including edge and mixed dislocations) are not implemented yet.
+The result is stored in \verb|.uij_acc_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal.
+
+\item Method \verb|.plotdisloc()| generates a color-mesh plot of one component (choose with keyword \verb|`component’|) of the dislocation displacement gradient field of one character angle (choose with keyword \verb|`character’|) and saves it as a pdf file.
+If velocity beta is set, the dislocation field is computed on the fly (and other arguments of this function are passed along to the \verb|.computeuij()| method).
+Setting \verb|showplt=True| will display the plot inline in addition to saving a pdf;
+this option requires that the user first set \verb|`%matplotlib inline’|, as the default matplotlib back-end set by PyDislocDyn is \verb|`Agg'| (in order to facilitate running in a remote terminal session).
+
+\item \verb|.computeEtot()| will calculate the elastic strain self energy of the dislocation from the previously calculated displacement gradient field for all character angles and stores the result in attribute \verb|.Etot|
+
+\item \verb|.computeLT()| will calculate the line tension from \verb|.Etot| for all character angles and stores its result in \verb|.LT|.
+Warning: this calculation requires a high resolution in character angle, \verb|Ntheta>=100| is recommended.
+Furthermore, since numerical differentiation is involved, the array \verb|.LT| will be shorter than the array \verb|.Etot| by two entries, i.e. in order to get results for pure screw and edge, \verb|theta| must contain one additional angle past each end of the interval.
+\end{itemize}
+
+
+\subsubsection{The `metal\_props' class}
+\label{sec:metal_props}
+
+The \verb|metal_props| class is one of the parents of the \verb|Dislocation| class.
+It lets the user who is not interested in dislocations work with elastic constants (including polycrystal averages), compute sound speeds, convert Miller indices to Cartesian indices and more.
+Instances of this class can be populated using the same input file format discussed above in section \ref{sec:inputfiles}, though keywords relating to dislocations (i.e. \verb|b|, \verb|n0|, \verb|Millerb|, \verb|Millern0|, \verb|burgers|) can be omitted.
+In order to read an input file to initialize an instance of the \verb|metal_props| class, import the following:
+\\\verb|`from polycrystal_averaging import readinputfile'|
+
+
+\subsubsection{The `strain\_poly' class}
+\label{sec:strain_poly}
+
+The \verb|strain_poly| class can be used to determine which type of infinitesimal strain deformation is sensitive to which elastic constants and is thus helpful in preparing simulations using third party software to calculate elastic constants.
+In particular, it can calculate the polynomial following from a Taylor expansion in $y$ as a function of (symbolic) elastic constants, where $y$ parameterizes the deformation, see e.g. \cite{Gu:2019,Blaschke:2021temperature} and references therein for details.
+To use this class, run
+\\\verb|`from elasticconstants import strain_poly'|\\
+Two arguments are required to initialize an instance:
+The sympy symbol parametrizing the deformation, \verb|y| (defaults to \verb|sympy.symbols('y')|), and a keyword selecting the crystal system, \verb|sym| (defaults to \verb|cubic|, all values known to the \verb|Dislocation| class are allowed also here).
+Method \verb|.generate_poly(epsilon,order=3)| calculates a Taylor expansion to the requested order in \verb|y| whose coefficients are (sympy symbols of) the elastic constants; \verb|epsilon| is the infinitesimal strain in Voigt notation (i.e. a list with 6 entries) which must depend on symbol \verb|y|.
+An additional helper method, \verb|.generate_alpha(epsilon)|, can be used to calculate the symmetric deformation matrix in Cartesian coordinates that would lead to infinitesimal strain \verb|epsilon|;
+the latter need not necessarily depend on symbol y, but may be purely numeric.
+Both methods support the optional boolean keyword \verb|preserve_volume| (defaults to \verb|False|), which may be set to force the deformation to preserve the unit cell volume by ensuring that the deformation matrix has determinant 1.
+
+
+
+\subsection{Using the modules}
+
+\subsubsection{elasticconstants.py}
+
+Importing \verb|elasticconstants| gives access to the following functions:
+\begin{itemize}
+\item \verb|Voigt| and \verb|UnVoigt| to convert tensors between Voigt notation and Cartesian coordinates.
+\item \verb|elasticC2| and \verb|elasticC3| to generate the tensors (i.e. the multidimensional numpy arrays) of second and third order elastic constants in Cartesian coordinates (default) or in Voigt notation (set \verb|voigt=True|).
+\item \verb|elasticS2| and \verb|elasticS3| to calculate the second and third order compliance tensors from the elastic (or stiffness) tensors.
+\item the \verb|strain_poly| class as described above in Section \ref{sec:strain_poly}.
+\end{itemize}
+
+
+\subsubsection{metaldata.py}
+
+Importing \verb|metaldata| gives access to a number of python dictionaries of material data included in PyDislocDyn as well as a helper function, \verb|writeinputfile|, to write selected data to a PyDislocDyn input file.
+
+
+\subsubsection{linetension\_calcs.py}
+
+Importing \verb|linetension_calcs| gives access to the \verb|Dislocation| class as well as to a function, \verb|readinputfile|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
+Furthermore, it allows access to a function, \verb|read_2dresults|, to read files containing results from line tension or drag coefficient calculations into a \verb|pandas.DataFrame| as described in Section \ref{sec:frontends}.
+
+
+\subsubsection{polycrystal\_averaging.py}
+
+Importing \verb|polycrystal_averaging| gives access to the \verb|metal_props| class as well as to a function, \verb|readinputfile|, to populate an instance from an input file, see Section \ref{sec:metal_props}.
+
+
+\subsubsection{dragcoeff\_semi\_iso.py}
+
+The only function users may want to import from this file is
+\\\verb|from dragcoeff_semi_iso import B_of_sigma|\\
+to calculate the drag coefficient $B$ as a function of stress $\sigma$ from a previously determined fitting function for $B(v)$ as a function of dislocation velocity $v$.
+
+
+\subsubsection{Other modules}
+
+All other files, such as \verb|dislocations|, \verb|phononwind|, and (if compiled) \verb|subroutines|, can also be imported, though their capabilities are most conveniently used by using the classes described above in Section \ref{sec:classes} or the front-end scripts described in Section \ref{sec:frontends}.
+
+
+
+\subsection*{Acknowledgments}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+This work was performed under the auspices of the U.S. Department of Energy under contract 89233218CNA000001.
+In particular, the author is grateful for the support of the Physics and Engineering Models sub-program element of the Advanced Simulation and Computing program.
+
+
+\printbibliography
+
+\end{document}

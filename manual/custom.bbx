@@ -1,0 +1,308 @@
+% $Id: custom.bbx, based on numeric.bbx, unstable $
+
+\ProvidesFile{custom.bbx}
+[\abx@bbxid $Id: custom.bbx,v 1 2018/03/23 unstable $]
+
+\RequireBibliographyStyle{standard}
+\ExecuteBibliographyOptions{labelnumber,doi=false,url=false,isbn=false}
+
+\providebool{bbx:subentry}
+
+\DeclareBiblatexOption{global,type,entry}[boolean]{subentry}[true]{%
+  \setbool{bbx:subentry}{#1}}
+
+\DeclareNameAlias{author}{default}
+\DeclareNameAlias{editor}{default}
+\DeclareNameAlias{translator}{default}
+
+\DeclareNameWrapperAlias{author}{default}
+\DeclareNameWrapperAlias{editor}{default}
+\DeclareNameWrapperAlias{translator}{default}
+
+\DeclareFieldFormat{bibentrysetcount}{\mkbibparens{\mknumalph{#1}}}
+\DeclareFieldFormat{labelnumberwidth}{\mkbibbrackets{#1}}
+\DeclareFieldFormat{shorthandwidth}{\mkbibbrackets{#1}}
+
+\setlength{\bibitemsep}{3pt}
+
+\defbibenvironment{bibliography}
+  {\list
+     {\printtext[labelnumberwidth]{%
+        \printfield{labelprefix}%
+        \printfield{labelnumber}}}
+     {\setlength{\labelwidth}{\labelnumberwidth}%
+      \setlength{\leftmargin}{\labelwidth}%
+      \setlength{\labelsep}{\biblabelsep}%
+      \addtolength{\leftmargin}{\labelsep}%
+      \setlength{\itemsep}{\bibitemsep}%
+      \setlength{\parsep}{\bibparsep}}%
+      \renewcommand*{\makelabel}[1]{\hss##1}}
+  {\endlist}
+  {\item}
+
+\defbibenvironment{shorthand}
+  {\list
+     {\printfield[shorthandwidth]{shorthand}}
+     {\setlength{\labelwidth}{\shorthandwidth}%
+      \setlength{\leftmargin}{\labelwidth}%
+      \setlength{\labelsep}{\biblabelsep}%
+      \addtolength{\leftmargin}{\labelsep}%
+      \setlength{\itemsep}{\bibitemsep}%
+      \setlength{\parsep}{\bibparsep}%
+      \renewcommand*{\makelabel}[1]{\hss##1}}}
+  {\endlist}
+  {\item}
+
+\renewcommand{\entrysetpunct}{\addsemicolon\newline}
+\renewcommand{\subtitlepunct}{\addspace---\addspace}
+
+\DeclareBibliographyDriver{set}{%
+  \entryset
+    {\ifbool{bbx:subentry}
+       {\printfield[bibentrysetcount]{entrysetcount}%
+        \printunit*{\addnbspace}}
+       {}}
+    {}%
+  \newunit\newblock
+  \usebibmacro{setpageref}%
+  \finentry}
+
+\renewcommand*{\bibsetup}{%
+  \interlinepenalty=5000\relax
+  \widowpenalty=10000\relax
+  \clubpenalty=10000\relax
+  \tolerance 1414
+  \hbadness 1414
+  \emergencystretch 1.5em
+  \vfuzz \hfuzz
+  \raggedbottom
+  \frenchspacing
+  \biburlsetup}
+
+\DeclareFieldFormat{eprint:arxiv}{%
+  \texttt{arXiv\addcolon
+  \ifhyperref
+    {\href{https://arxiv.org/\abx@arxivpath/#1}{%
+       \nolinkurl{#1}%
+       \iffieldundef{eprintclass}
+	 {}
+	 {\addspace\mkbibbrackets{\thefield{eprintclass}}}}}
+    {\nolinkurl{#1}%
+     \iffieldundef{eprintclass}
+       {}
+       {\addspace\mkbibbrackets{\thefield{eprintclass}}}}}}
+
+\renewcommand*{\bibfont}{\normalfont\small}
+
+\renewcommand*{\newunitpunct}{\addcomma\space}
+
+\DeclareFieldFormat{volume}{\bibstring{volume}~#1~of }% volume of a book
+\DeclareFieldFormat[article,periodical]{volume}{\textbf{#1}}% volume of a journal
+\DeclareFieldFormat{series}{#1}
+\DeclareFieldFormat{sentencecase}{\MakeSentenceCase{#1}}
+\DeclareFieldFormat{edition}{#1 edition}
+\DeclareFieldFormat[article]{pages}{#1}
+
+\renewbibmacro*{title}{%
+  \ifthenelse{\iffieldundef{title}\AND\iffieldundef{subtitle}}
+    {}
+    {\ifthenelse{\ifentrytype{article}\OR\ifentrytype{inbook}%
+      \OR\ifentrytype{incollection}\OR\ifentrytype{inproceedings}%
+      \OR\ifentrytype{inreference}}
+      {\printtext[title]{%
+        \printfield[sentencecase]{title}%
+        \setunit{\subtitlepunct}%
+        \printfield[sentencecase]{subtitle}}}%
+      {\printtext[title]{%
+        \printfield[titlecase]{title}%
+        \setunit{\subtitlepunct}%
+        \printfield[titlecase]{subtitle}}}%
+     \newunit}%
+  \printfield{titleaddon}}
+
+\renewbibmacro*{series+number}{%
+  \printfield{volumes}%
+  \setunit{\addspace}%
+  \printfield{series}%
+  \setunit*{\addspace}%
+  \printfield{number}%
+  \newunit}
+
+\renewbibmacro*{publisher+location+date}{%
+  \printtext[parens]{\printlist{location}%
+  \iflistundef{publisher}
+    {\setunit*{\addcomma\space}}
+    {\setunit*{\addcolon\space}}%
+  \printlist{publisher}%
+  \setunit*{\addcomma\space}%
+  \usebibmacro{date}}%
+  \newunit}
+
+\newbibmacro{addlink}[1]{%
+  \iffieldundef{doi}{%
+       \iffieldundef{url}{#1}{\href{\thefield{url}}{#1}}}
+      {\href{https://dx.doi.org/\thefield{doi}}{#1}}}
+
+
+\DeclareFieldFormat[book,thesis,report]{title}{\usebibmacro{addlink}{\mkbibemph{#1}}}
+\DeclareFieldFormat[incollection,inbook]{title}{\usebibmacro{addlink}{\mkbibquote{#1}}}
+
+\newbibmacro*{journal+volume}{%
+  \iffieldundef{journaltitle}{}{%
+  \usebibmacro{journal}%
+  \setunit*{\addspace}%
+  \iffieldundef{series}
+    {}
+    {\newunit
+     \printfield{series}%
+     \setunit{\addspace}}%
+  \usebibmacro{volume+eid}%
+  \setunit{\addspace}%
+  \printtext[parens]{\usebibmacro{date}}%
+  \setunit{\space}%
+  \printfield{pages}}%
+  \newunit}
+
+\newbibmacro*{volume+eid}{%
+  \printfield{volume}%
+  \setunit{\addcomma\space}%
+  \printfield{eid}}
+
+\DeclareBibliographyDriver{article}{%
+  \usebibmacro{bibindex}%
+  \usebibmacro{begentry}%
+  \usebibmacro{author/translator+others}%
+  \setunit{\printdelim{nametitledelim}}\newblock
+  \usebibmacro{title}%
+  \newunit
+  \printlist{language}%
+  \newunit\newblock
+  \usebibmacro{byauthor}%
+  \newunit\newblock
+  \usebibmacro{bytranslator+others}%
+  \newunit\newblock
+  \printfield{version}%
+  \newunit\newblock
+  \usebibmacro{addlink}{\usebibmacro{journal+volume}}%
+  \newunit
+  \printfield{note}%
+  \newunit\newblock
+  \iftoggle{bbx:isbn}
+    {\printfield{issn}}
+    {}%
+  \newunit\newblock
+  \usebibmacro{doi+eprint+url}%
+  \newunit\newblock
+  \usebibmacro{addendum+pubstate}%
+  \setunit{\bibpagerefpunct}\newblock
+  \usebibmacro{pageref}%
+  \newunit\newblock
+  \iftoggle{bbx:related}
+    {\usebibmacro{related:init}%
+     \usebibmacro{related}}
+    {}%
+  \usebibmacro{finentry}}
+
+\DeclareBibliographyDriver{book}{%
+  \usebibmacro{bibindex}%
+  \usebibmacro{begentry}%
+  \usebibmacro{author/editor+others/translator+others}%
+  \setunit{\printdelim{nametitledelim}}\newblock
+  \usebibmacro{maintitle+title}%
+  \newunit
+  \printlist{language}%
+  \newunit\newblock
+  \usebibmacro{byauthor}%
+  \newunit\newblock
+  \iffieldundef{edition}{\printfield{edition}}{\printfield{edition}}%
+  \newunit\addcomma
+  \iffieldundef{maintitle}
+    {\printfield{volume}%
+     \printfield{part}}
+    {}%
+  \newunit
+  \printfield{volumes}%
+  \newunit\newblock
+  \usebibmacro{series+number}%
+  \newunit\newblock
+  \usebibmacro{byeditor+others}%
+  \newunit\newblock
+  \printfield{note}%
+  \newunit\newblock
+  \usebibmacro{publisher+location+date}%
+  \newunit\newblock
+  \usebibmacro{chapter+pages}%
+  \newunit
+  \printfield{pagetotal}%
+  \newunit\newblock
+  \iftoggle{bbx:isbn}
+    {\printfield{isbn}}
+    {}%
+  \newunit\newblock
+  \usebibmacro{doi+eprint+url}%
+  \newunit\newblock
+  \usebibmacro{addendum+pubstate}%
+  \setunit{\bibpagerefpunct}\newblock
+  \usebibmacro{pageref}%
+  \newunit\newblock
+  \iftoggle{bbx:related}
+    {\usebibmacro{related:init}%
+     \usebibmacro{related}}
+    {}%
+  \usebibmacro{finentry}}
+
+\DeclareBibliographyDriver{incollection}{%
+  \usebibmacro{bibindex}%
+  \usebibmacro{begentry}%
+  \usebibmacro{author/translator+others}%
+  \setunit{\printdelim{nametitledelim}}\newblock
+  \usebibmacro{title}%
+  \newunit
+  \printlist{language}%
+  \newunit\newblock
+  \usebibmacro{byauthor}%
+  \newunit\newblock
+  \usebibmacro{in:}%
+  \iffieldundef{booktitle}
+    {\iffieldundef{maintitle}
+    {\printfield{volume}%
+     \emph{\usebibmacro{series+number}}}
+    {}}
+    {}%
+  \usebibmacro{maintitle+booktitle}%
+  \newunit\newblock
+  \usebibmacro{byeditor+others}%
+  \newunit\newblock
+  \iffieldundef{edition}{\printfield{edition}}{\printfield{edition}}%
+  \newunit
+  \iffieldundef{booktitle}
+    {}
+   {\iffieldundef{maintitle}
+     {\printfield{volume}}
+    {}%
+  \newunit
+   \usebibmacro{series+number}}%
+  \newunit\newblock
+  \printfield{note}%
+  \newunit\newblock
+  \usebibmacro{publisher+location+date}%
+  \newunit\newblock
+  \usebibmacro{chapter+pages}%
+  \newunit\newblock
+  \iftoggle{bbx:isbn}
+    {\printfield{isbn}}
+    {}%
+  \newunit\newblock
+  \usebibmacro{doi+eprint+url}%
+  \newunit\newblock
+  \usebibmacro{addendum+pubstate}%
+  \setunit{\bibpagerefpunct}\newblock
+  \usebibmacro{pageref}%
+  \newunit\newblock
+  \iftoggle{bbx:related}
+    {\usebibmacro{related:init}%
+     \usebibmacro{related}}
+    {}%
+  \usebibmacro{finentry}}
+
+\endinput

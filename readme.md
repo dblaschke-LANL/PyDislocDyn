@@ -43,6 +43,7 @@ The LANL development team asks that any forks or derivative works include approp
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 (or add appropriate options to build with OpenMP support, e.g. with gfortran: 'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines')
+* a recent version of LaTeX to build the manual
 
 ## PyDislocDyn consists of:
 
