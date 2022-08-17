@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 26, 2022
+# Date: Nov. 3, 2017 - Aug. 17, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -91,15 +91,15 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
     '''Computes the 'critical velocities' of a dislocation for the number Ntheta (resp. 2*Ntheta-1) of character angles in the interval [0,pi/2] (resp. [-pi/2, pi/2] if symmetric=False),
        i.e. the velocities that will lead to det=0 within the StrohGeometry.
        Optionally, an explicit list of angles in units of pi/2 may be passed via theta_list (Ntheta is a required argument, but is ignored in this case).
-       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr', 'trig', 'orth', 'mono', 'tric'.
+       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr', 'tetr2', 'trig', 'orth', 'mono', 'tric'.
        Note that this function does not check for subtle cancellations that may occur in the dislocation displacement gradient at those velocities;
        use the Dislocation class and its .computevcrit(theta) method for fully automated determination of the lowest critical velocity at each character angle.'''
     cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66 = sp.symbols('cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66', real=True)
     bt2, phi = sp.symbols('bt2, phi', real=True)
     substitutions = {cc11:self.C2[0,0]/1e9, cc12:self.C2[0,1]/1e9, cc44:self.C2[3,3]/1e9}
-    if self.sym in ['hcp', 'tetr', 'trig', 'orth', 'mono', 'tric']:
+    if self.sym in ['hcp', 'tetr', 'tetr2', 'trig', 'orth', 'mono', 'tric']:
         substitutions.update({cc13:self.C2[0,2]/1e9, cc33:self.C2[2,2]/1e9})
-    if self.sym in ['tetr', 'orth', 'mono', 'tric']:
+    if self.sym in ['tetr', 'tetr2', 'orth', 'mono', 'tric']:
         substitutions.update({cc66:self.C2[5,5]/1e9})
     if self.sym=='trig' or self.sym=='tric':
         substitutions.update({cc14:self.C2[0,3]/1e9})
@@ -108,7 +108,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
     if self.sym=='mono' or self.sym=='tric':
         cc15, cc25, cc35, cc46 = sp.symbols('cc15, cc25, cc35, cc46', real=True)
         substitutions.update({cc15:self.C2[0,4]/1e9, cc25:self.C2[1,4]/1e9, cc35:self.C2[2,4]/1e9, cc46:self.C2[3,5]/1e9})
-    if self.sym=='tric':
+    if self.sym in ['tric','tetr2']:
         cc16, cc24, cc26, cc34, cc36, cc45, cc56 = sp.symbols('cc16, cc24, cc26, cc34, cc36, cc45, cc56', real=True)
         substitutions.update({cc16:self.C2[0,5]/1e9, cc24:self.C2[1,3]/1e9, cc26:self.C2[1,5]/1e9, cc34:self.C2[2,3]/1e9, cc36:self.C2[2,5]/1e9, cc45:self.C2[3,4]/1e9, cc56:self.C2[4,5]/1e9})
     if self.sym=='iso':
@@ -121,6 +121,8 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
         C2 = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33,c66=cc66)
     elif self.sym=='trig':
         C2 = elasticC2(cij=(cc11,cc12,cc13,cc14,cc33,cc44))
+    elif self.sym=='tetr2':
+        C2 = elasticC2(cij=(cc11,cc12,cc13,cc16,cc33,cc44,cc66))
     elif self.sym=='orth':
         C2 = elasticC2(cij=(cc11,cc12,cc13,cc22,cc23,cc33,cc44,cc55,cc66))
     elif self.sym=='mono':
