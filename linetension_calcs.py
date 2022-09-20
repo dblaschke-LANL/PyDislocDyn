@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 19, 2022
+# Date: Nov. 3, 2017 - Sept. 20, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -423,7 +423,7 @@ class Dislocation(StrohGeometry,metal_props):
         C2norm = UnVoigt(self.C2/norm)
         if self.vcrit_all is None: self.computevcrit(set_screwedge=False) ## need it as an upper bound on the Rayleigh speed
         if len(self.vcrit_all[1])==self.Ntheta: vcrit = self.vcrit_all[1]
-        else: vcrit = ndimage.interpolation.zoom(self.vcrit_all[1],self.Ntheta/len(self.vcrit_all[1]))
+        else: vcrit = ndimage.zoom(self.vcrit_all[1],self.Ntheta/len(self.vcrit_all[1]))
         for th in range(self.Ntheta):
             def Rayleighcond(B):
                 return abs((B[0,0]+B[1,1])/2-np.sqrt((B[0,0]-B[1,1])**2/4 + B[0,1]**2))

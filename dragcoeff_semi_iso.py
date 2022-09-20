@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 22, 2022
+# Date: Nov. 5, 2017 - Sept. 20, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -387,7 +387,7 @@ if __name__ == '__main__':
                 fixnan = pd.Series(Y[X].vcrit_all[1])
                 Y[X].vcrit_all[1] = fixnan.where(fixnan.notnull(),other=(fixnan.fillna(method='ffill')+fixnan.fillna(method='bfill'))/2).to_numpy()
             if computevcrit_for_speed != Ntheta:
-                Y[X].vcrit_inter = ndimage.interpolation.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
+                Y[X].vcrit_inter = ndimage.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
             else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
         # print("Done; proceeding ...")
     
