@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 20, 2022
+# Date: Nov. 5, 2017 - Sept. 21, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -622,7 +622,7 @@ if __name__ == '__main__':
         scale_plot=max(scale_plot,Y[X].scale_plot)
     
     with open("drag_semi_iso_fit.txt","w") as fitfile:
-        fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature:\nEdge dislocations:\n")
+        fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature:\nEdge dislocations:\n")
         for X in metal:
             fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
         fitfile.write("\nScrew dislocations:\n")
@@ -633,18 +633,18 @@ if __name__ == '__main__':
             fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
         fitfile.write("\n\nwhere $x=v/v_c$ with:\n\n")
         fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
-        fitfile.write("\n $c_{\mathrm{t}}$")
+        fitfile.write("\n $c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].ct:.0f}")
-        fitfile.write(" \\\\\n $v_c^{\mathrm{e}}/c_{\mathrm{t}}$")
+        fitfile.write(" \\\\\n $v_c^{\\mathrm{e}}/c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].vcrit_edge/Y[X].ct:.3f}")
-        fitfile.write("\n\\\\\hline\hline")
-        fitfile.write("\n $v_c^{\mathrm{s}}/c_{\mathrm{t}}$")
+        fitfile.write("\n\\\\\\hline\\hline")
+        fitfile.write("\n $v_c^{\\mathrm{s}}/c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].vcrit_screw/Y[X].ct:.3f}")
-        fitfile.write("\n\\\\\hline\hline")
-        fitfile.write("\n $v_c^{\mathrm{av}}/c_{\mathrm{t}}$")
+        fitfile.write("\n\\\\\\hline\\hline")
+        fitfile.write("\n $v_c^{\\mathrm{av}}/c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].vcrit_smallest/Y[X].ct:.3f}")
         

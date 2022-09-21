@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 27, 2022
+# Date: Nov. 5, 2017 - Sept. 21, 2022
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -258,22 +258,22 @@ if __name__ == '__main__':
     
     with open("drag_iso_fit.txt","w") as fitfile:
         if modes=='TT': ## degree of divergence is reduced for purely transverse modes
-            fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature (transverse modes only):\nEdge dislocations:\n")
+            fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature (transverse modes only):\nEdge dislocations:\n")
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_edge[X]))
             fitfile.write("\nScrew dislocations:\n")
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*x**4 + {4:.2f}*x**16\n".format(*1e3*popt_screw[X]))
         else:
-            fitfile.write("Fitting functions for B[$\mu$Pas] at room temperature:\nEdge dislocations:\n")
+            fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature:\nEdge dislocations:\n")
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*log(1-x**2) + {3:.2f}*(1/(1-x**2)**(1/2) - 1) + {4:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
             fitfile.write("\nScrew dislocations:\n")
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_screw[X]))
-        fitfile.write("\nwhere $x=v/c_{\mathrm{t}$\n\n")
+        fitfile.write("\nwhere $x=v/c_{\\mathrm{t}$\n\n")
         fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
-        fitfile.write("\n $c_{\mathrm{t}}$")
+        fitfile.write("\n $c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].ct:.0f}")
 
