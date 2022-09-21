@@ -620,9 +620,16 @@ def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
     These will then override default variables set above in this script. This function also returns a copy of 'arglist' stripped of all 
     option calls for further processing (e.g. opening input files that were passed etc.).'''
     out = arglist
-    setoptions = [i for i in out if "--" in i and "=" in i and i[:2]=="--"]
+    if '--help' in out:
+        print(f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n")
+        print("available options (see code manual for details):")
+        for key in optionlist:
+            print(f'--{key}={optionlist[key]}')
+        sys.exit()
+    setoptions = [i for i in out if "--" in i and i[:2]=="--"]
     for i in setoptions:
         out.remove(i)
+        if "=" not in i: continue ## ignore options without assigned values
         key,val = i[2:].split("=")
         if key in optionlist:
             globaldict[key] = optionlist[key](val)
