@@ -19,7 +19,6 @@ import shutil, lzma
 import numpy as np
 import sympy as sp
 from scipy import optimize, ndimage
-import scipy
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -183,7 +182,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
             bt2_res = np.zeros((3,2),dtype=complex)
             for i in range(len(bt2_curr)):
                 bt2_curr[i] = (sp.S(bt2_curr[i]).subs(substitutions))
-                fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy",{'sqrt': scipy.sqrt}])
+                fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy",{'sqrt': np.lib.scimath.sqrt}])
                 def f(x):
                     out = fphi(x)
                     return np.real(out)
