@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 20, 2022
+# Date: Nov. 3, 2017 - Sept. 28, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -19,6 +19,7 @@ import shutil, lzma
 import numpy as np
 import sympy as sp
 from scipy import optimize, ndimage
+import scipy
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -182,7 +183,7 @@ def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,the
             bt2_res = np.zeros((3,2),dtype=complex)
             for i in range(len(bt2_curr)):
                 bt2_curr[i] = (sp.S(bt2_curr[i]).subs(substitutions))
-                fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy"])
+                fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy",{'sqrt': scipy.sqrt}])
                 def f(x):
                     out = fphi(x)
                     return np.real(out)
@@ -349,7 +350,7 @@ class Dislocation(StrohGeometry,metal_props):
                     return K0+K1*y+K2*y**2+K3*y**3+K4*y**4
                 y,rv2 = sp.symbols('y,rv2')
                 ysol = sp.solve(theroot(y,rv2),y) ## 4 complex roots as fcts of rv2=rho*v**2
-                yfct=sp.lambdify(rv2,ysol,modules=["scipy"])
+                yfct=sp.lambdify(rv2,ysol,modules=["scipy",{'sqrt': scipy.sqrt}])
                 def f(x):
                     return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
                 with np.errstate(invalid='ignore'):
