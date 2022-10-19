@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 28, 2022
+# Date: Nov. 3, 2017 - Oct. 19, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -639,12 +639,12 @@ def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
     
 ### start the calculations
 if __name__ == '__main__':
-    printthreadinfo(Ncores,ompthreads)
     Y={}
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
         args = parse_options(sys.argv[1:])
+    printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the commandline for options
     dtheta = np.pi/(Ntheta-2)
     theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)

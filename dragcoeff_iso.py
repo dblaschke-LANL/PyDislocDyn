@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 21, 2022
+# Date: Nov. 5, 2017 - Oct. 19, 2022
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -84,11 +84,11 @@ OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, 
 
 #########
 if __name__ == '__main__':
-    printthreadinfo(Ncores,ompthreads)
     Y={}
     use_metaldata=True
     if len(sys.argv) > 1:
         args = parse_options(sys.argv[1:],OPTIONS,globals())
+    printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the command line for options
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)

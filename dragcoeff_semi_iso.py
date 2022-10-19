@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 21, 2022
+# Date: Nov. 5, 2017 - Oct. 19, 2022
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -259,12 +259,12 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
 
 #########
 if __name__ == '__main__':
-    dlc.printthreadinfo(Ncores,dlc.ompthreads)
     Y={}
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
         args = parse_options(sys.argv[1:],OPTIONS,globals())
+    dlc.printthreadinfo(Ncores,dlc.ompthreads)
     ### set range & step sizes (array of character angles theta is generated for every material independently below)
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)
