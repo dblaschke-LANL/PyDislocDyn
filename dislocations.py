@@ -1,7 +1,7 @@
-# Compute the line tension of a moving dislocation
+# Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 25, 2022
+# Date: Nov. 3, 2017 - Oct. 17, 2022
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -40,7 +40,7 @@ def printthreadinfo(Ncores,ompthreads=ompthreads):
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
         print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module")
-        print("OpenMP is also supported, e.g. with with gfortran: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'\n")
+        print("OpenMP is also supported, e.g. with gfortran: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'\n")
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
@@ -102,8 +102,11 @@ class StrohGeometry:
         self.C2_aligned=None
         self.C2norm = np.zeros((3,3,3,3)) # normalized
         self.sym = None ## keyword defining crystal symmetry, unknown until C2norm is set
-        self.uij = np.zeros((3,3,Ntheta,Nphi))
+        self.uij = self.uij_static = np.zeros((3,3,Ntheta,Nphi))
         self.uij_aligned = np.zeros((3,3,Ntheta,Nphi))
+        self.uij_static_aligned = None
+        self.uij_acc_screw_aligned = None
+        self.uij_acc_edge_aligned = None
         self.rot = np.zeros((Ntheta,3,3))
         self.Etot = np.zeros((Ntheta))
         self.LT = 0
@@ -131,13 +134,15 @@ class StrohGeometry:
             self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
         else:
             self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=nogradient, debug=debug)
+        if abs(beta)<1e-15:
+            self.uij_static = self.uij.copy()
         if debug:
             self.Sb = self.uij['S.b']
             self.Bb = self.uij['B.b']
             self.NN = self.uij['NN']
             self.uij = self.uij['uij']
         
-    def computeuij_acc(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
+    def computeuij_acc_screw(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
         '''Computes the displacement gradient of an accelerating screw dislocation (based on  J. Mech. Phys. Solids 152 (2021) 104448, resp. arxiv.org/abs/2009.00167).
            For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
            In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
@@ -175,11 +180,16 @@ class StrohGeometry:
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
             raise ValueError("not implemented - slip plane is not a reflection plane")
         ## change sign to match Stroh convention of steady state counter part:
-        self.uij_acc_aligned = -computeuij_acc(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
+        self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
            y, and z are optional arguments whose default values are unit vectors pointing in the y and z direction, respectively.'''
+        if self.n0.dtype == np.dtype('O') and y==[0,1,0] and z==[0,0,1]:
+            self.rot = np.zeros((self.Ntheta,3,3),dtype='object')
+            for th in range(self.Ntheta):
+                self.rot[th] = np.array([np.cross(self.n0,self.t[th]),self.n0,self.t[th]])
+            return
         cv = np.vdot(self.n0,y)
         if round(cv,15)==-1:
             rot1 = rotaround(z,0,-1)
@@ -296,9 +306,14 @@ def heaviside(x):
     '''step function with convention heaviside(0)=1/2'''
     return (np.sign(x)+1)/2
 
+@jit
+def deltadistri(x,epsilon=1e-14):
+    '''approximates the delta function as exp(-(x/epsilon)^2)/epsilon*sqrt(pi)'''
+    return np.exp(-(x/epsilon)**2)/(epsilon*np.pi)
+
 @jit(nopython=True)
 def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
-    '''subroutine of computeuij_acc'''
+    '''subroutine of computeuij_acc_screw'''
     Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
     if eta_kw is None:
         eta = np.sqrt(2*xpr/a)
@@ -321,7 +336,7 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     return integrand
 
 # @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
-def computeuij_acc(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
+def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
        C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.

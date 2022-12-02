@@ -86,125 +86,6 @@ OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":s
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
 metal = sorted(metal + ['ISO']) ### test isotropic limit
 
-## define a new method to compute critical velocities within the imported pca.metal_props class:
-def computevcrit_stroh(self,Ntheta,Ncores=Kcores,symmetric=False,cache=False,theta_list=None,setvcrit=True):
-    '''Computes the 'critical velocities' of a dislocation for the number Ntheta (resp. 2*Ntheta-1) of character angles in the interval [0,pi/2] (resp. [-pi/2, pi/2] if symmetric=False),
-       i.e. the velocities that will lead to det=0 within the StrohGeometry.
-       Optionally, an explicit list of angles in units of pi/2 may be passed via theta_list (Ntheta is a required argument, but is ignored in this case).
-       Additionally, the crystal symmetry must also be specified via sym= one of 'iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr', 'tetr2', 'trig', 'orth', 'mono', 'tric'.
-       Note that this function does not check for subtle cancellations that may occur in the dislocation displacement gradient at those velocities;
-       use the Dislocation class and its .computevcrit(theta) method for fully automated determination of the lowest critical velocity at each character angle.'''
-    cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66 = sp.symbols('cc11, cc12, cc13, cc14, cc22, cc23, cc33, cc44, cc55, cc66', real=True)
-    bt2, phi = sp.symbols('bt2, phi', real=True)
-    substitutions = {cc11:self.C2[0,0]/1e9, cc12:self.C2[0,1]/1e9, cc44:self.C2[3,3]/1e9}
-    if self.sym in ['hcp', 'tetr', 'tetr2', 'trig', 'orth', 'mono', 'tric']:
-        substitutions.update({cc13:self.C2[0,2]/1e9, cc33:self.C2[2,2]/1e9})
-    if self.sym in ['tetr', 'tetr2', 'orth', 'mono', 'tric']:
-        substitutions.update({cc66:self.C2[5,5]/1e9})
-    if self.sym=='trig' or self.sym=='tric':
-        substitutions.update({cc14:self.C2[0,3]/1e9})
-    if self.sym in ['orth', 'mono', 'tric']:
-        substitutions.update({cc22:self.C2[1,1]/1e9, cc23:self.C2[1,2]/1e9, cc55:self.C2[4,4]/1e9})
-    if self.sym=='mono' or self.sym=='tric':
-        cc15, cc25, cc35, cc46 = sp.symbols('cc15, cc25, cc35, cc46', real=True)
-        substitutions.update({cc15:self.C2[0,4]/1e9, cc25:self.C2[1,4]/1e9, cc35:self.C2[2,4]/1e9, cc46:self.C2[3,5]/1e9})
-    if self.sym in ['tric','tetr2']:
-        cc16, cc24, cc26, cc34, cc36, cc45, cc56 = sp.symbols('cc16, cc24, cc26, cc34, cc36, cc45, cc56', real=True)
-        substitutions.update({cc16:self.C2[0,5]/1e9, cc24:self.C2[1,3]/1e9, cc26:self.C2[1,5]/1e9, cc34:self.C2[2,3]/1e9, cc36:self.C2[2,5]/1e9, cc45:self.C2[3,4]/1e9, cc56:self.C2[4,5]/1e9})
-    if self.sym=='iso':
-        C2 = elasticC2(c12=cc12,c44=cc44)
-    elif self.sym in ['fcc', 'bcc', 'cubic']:
-        C2 = elasticC2(c11=cc11,c12=cc12,c44=cc44)
-    elif self.sym=='hcp':
-        C2 = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33)
-    elif self.sym=='tetr':
-        C2 = elasticC2(c11=cc11,c12=cc12,c13=cc13,c44=cc44,c33=cc33,c66=cc66)
-    elif self.sym=='trig':
-        C2 = elasticC2(cij=(cc11,cc12,cc13,cc14,cc33,cc44))
-    elif self.sym=='tetr2':
-        C2 = elasticC2(cij=(cc11,cc12,cc13,cc16,cc33,cc44,cc66))
-    elif self.sym=='orth':
-        C2 = elasticC2(cij=(cc11,cc12,cc13,cc22,cc23,cc33,cc44,cc55,cc66))
-    elif self.sym=='mono':
-        C2 = elasticC2(cij=(cc11,cc12,cc13,cc15,cc22,cc23,cc25,cc33,cc35,cc44,cc46,cc55,cc66))
-    elif self.sym=='tric':
-        C2 = elasticC2(cij=(cc11,cc12,cc13,cc14,cc15,cc16,cc22,cc23,cc24,cc25,cc26,cc33,cc34,cc35,cc36,cc44,cc45,cc46,cc55,cc56,cc66))
-    else:
-        raise ValueError("sym={} not implemented".format(self.sym))
-    if symmetric or Ntheta==1:
-        Theta = np.multiply((sp.pi/2),np.linspace(0,1,Ntheta))
-    else:
-        Theta = (sp.pi/2)*np.linspace(-1,1,2*Ntheta-1)
-        Ntheta=len(Theta)
-    if theta_list is not None:
-        Theta = np.multiply((sp.pi/2),np.asarray(theta_list))
-        Ntheta = len(Theta)
-    def compute_bt2(N,m0,C2,bt2,cc44=cc44):
-        NC2N = np.dot(N,np.dot(N,C2))
-        thedot = np.dot(N,m0)
-        for a in sp.preorder_traversal(thedot):
-            if isinstance(a, sp.Float):
-                thedot = thedot.subs(a, round(a, 12))
-        thematrix = NC2N - bt2*cc44*(thedot**2)*np.diag((1,1,1))
-        thedet = sp.det(sp.Matrix(thematrix))
-        out = sp.solve(thedet,bt2)
-        if len(out)==2: out.append(np.nan) ## only happens in the isotropic limit
-        return out
-    def computevcrit(b,n0,C2,Ntheta,bt2=bt2,Ncores=Ncores):
-        Ncores = min(Ncores,Ncpus) # don't over-commit and don't fail if joblib not loaded
-        t = np.zeros((Ntheta,3))
-        m0 = np.zeros((Ntheta,3))
-        N = np.zeros((Ntheta,3),dtype=object)
-        for thi in range(Ntheta):
-            t[thi] = sp.cos(Theta[thi])*b + sp.sin(Theta[thi])*np.cross(b,n0)
-            m0[thi] = np.cross(n0,t[thi])
-            N[thi] = n0*sp.cos(phi) - m0[thi]*sp.sin(phi)
-        bt2_curr = np.zeros((Ntheta,3),dtype=object)
-        foundcache=False
-        if cache is not False and cache is not True: ## check if cache contains needed results
-            for i in range(len(cache)):
-                if cache[i][3]==self.sym and abs(np.dot(cache[i][0],self.b)-1)<1e-15 and abs(np.dot(cache[i][1],self.n0)-1)<1e-15 and cache[i][2].shape==bt2_curr.shape:
-                    foundcache=i
-                    bt2_curr=cache[foundcache][2] ## load user-provided from previous calculation
-                    break
-        if cache is False or cache is True or foundcache is False:
-            if Ncores == 1:
-                for thi in range(Ntheta):
-                    bt2_curr[thi] = compute_bt2(N[thi],m0[thi],C2,bt2)
-            else:
-                bt2_curr = np.array(Parallel(n_jobs=Ncores)(delayed(compute_bt2)(N[thi],m0[thi],C2,bt2) for thi in range(Ntheta)),dtype=object)
-        if foundcache is False and cache is not False and cache is not True:
-            cache.append((self.b,self.n0,bt2_curr,self.sym)) ## received a cache, but it didn't contain what we need
-        if cache is True:
-            self.cache_bt2 = bt2_curr.copy()
-        vcrit = np.zeros((2,Ntheta,3))
-        def findmin(bt2_curr,substitutions=substitutions,phi=phi,norm=(self.C2[3,3]/self.rho)):
-            bt2_res = np.zeros((3,2),dtype=complex)
-            for i in range(len(bt2_curr)):
-                bt2_curr[i] = (sp.S(bt2_curr[i]).subs(substitutions))
-                fphi = sp.lambdify((phi),bt2_curr[i],modules=["scipy",{'sqrt': np.lib.scimath.sqrt}])
-                def f(x):
-                    out = fphi(x)
-                    return np.real(out)
-                with np.errstate(invalid='ignore'):
-                    minresult = optimize.minimize_scalar(f,method='bounded',bounds=(0.0,2*np.pi))
-                    if minresult.success is not True: print(f"Warning ({self.name}):\n{minresult}")
-                    bt2_res[i,0] = minresult.x
-                bt2_res[i,1] = bt2_curr[i].subs({phi:bt2_res[i,0]})
-                if abs(np.imag(bt2_res[i,1]))>1e-6 or not minresult.success: bt2_res[i,:]=bt2_res[i,:]*float('nan') ## only keep real solutions from successful minimizations
-            return np.array([np.sqrt(norm*np.real(bt2_res[:,1])),np.real(bt2_res[:,0])])
-        if Ncores == 1:
-            for thi in range(Ntheta):
-                vcrit[:,thi] = findmin(bt2_curr[thi],substitutions,phi,(self.C2[3,3]/self.rho))
-        else:
-            vcrit = np.moveaxis(np.array(Parallel(n_jobs=Ncores)(delayed(findmin)(bt2_curr[thi],substitutions,phi,self.C2[3,3]/self.rho) for thi in range(Ntheta))),1,0)
-        return vcrit
-    
-    finalresult = computevcrit(self.b,self.n0,C2,Ntheta,Ncores=Ncores)
-    if setvcrit: self.vcrit = finalresult
-    return finalresult[0]
-metal_props.computevcrit_stroh=computevcrit_stroh
-
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
        If optional keyword Miller is set to True, b and n0 are interpreted as Miller indices (and Cartesian otherwise); note since n0 defines a plane its Miller indices are in reziprocal space.'''
@@ -349,7 +230,7 @@ class Dislocation(StrohGeometry,metal_props):
                     return K0+K1*y+K2*y**2+K3*y**3+K4*y**4
                 y,rv2 = sp.symbols('y,rv2')
                 ysol = sp.solve(theroot(y,rv2),y) ## 4 complex roots as fcts of rv2=rho*v**2
-                yfct=sp.lambdify(rv2,ysol,modules=["scipy",{'sqrt':np.lib.scimath.sqrt}])
+                yfct=sp.lambdify(rv2,ysol,modules=[np.emath,'scipy'])
                 def f(x):
                     return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
                 with np.errstate(invalid='ignore'):
@@ -358,11 +239,10 @@ class Dislocation(StrohGeometry,metal_props):
                         self.vcrit_edge = np.sqrt(float(rv2limit)/self.rho)
         return self.vcrit_edge
 
-    def computevcrit(self,theta=None,cache=False,Ncores=Kcores,set_screwedge=True,setvcrit=True,use_bruteforce=False):
+    def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
         '''Compute the lowest critical (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
         The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.
-        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit.
-        Options 'cache' and 'Ncores' are only used if 'use_bruteforce=True' and will speed up the (much slower) calculation in that case.'''
+        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit.'''
         if theta is None:
             theta=self.theta
         indices = self.findedgescrewindices(theta)
@@ -371,8 +251,6 @@ class Dislocation(StrohGeometry,metal_props):
         if self.sym=='iso':
             self.computevcrit_screw()
             self.vcrit_all[1] = self.vcrit_screw
-        elif use_bruteforce:
-            self.vcrit_all[1] = np.nanmin(self.computevcrit_stroh(len(theta),cache=cache,theta_list=np.asarray(theta)*2/np.pi,Ncores=Ncores,setvcrit=setvcrit),axis=1)
         else:
             self.vcrit_all[1] = np.nanmin(self.computevcrit_barnett(theta_list=np.asarray(theta),setvcrit=setvcrit),axis=1)
         if indices[0] is not None:
@@ -393,23 +271,19 @@ class Dislocation(StrohGeometry,metal_props):
                     self.vcrit_edge = min(self.vcrit_edge,self.vcrit_all[1,indices[2]])
         return self.vcrit_all[1]
     
-    def findvcrit_smallest(self,cache=False,Ncores=Kcores,xatol=1e-2,use_bruteforce=False):
+    def findvcrit_smallest(self,xatol=1e-2):
         '''Computes the smallest critical velocity, which subsequently is stored as attribute .vcrit_smallest and the full result of scipy.minimize_scalar is returned
            (as type 'OptimizeResult' with its 'fun' being vcrit_smallest and 'x' the associated character angle theta).
            The absolute tolerance for theta can be passed via xatol; in order to improve accuracy and speed of this routine, we make use of computevcrit with Ntheta>=11 resolution
            in order to be able to pass tighter bounds to the subsequent call to minimize_scalar(). If .vcrit_all already exists in sufficient resolution from an earlier call,
            this step is skipped.'''
         if self.vcrit_all is None or self.vcrit_all.shape[1]<11:
-            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],11),cache=cache,Ncores=Ncores,set_screwedge=False,setvcrit=False,use_bruteforce=use_bruteforce)
+            self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],11),set_screwedge=False,setvcrit=False)
         vcrit_smallest = np.nanmin(self.vcrit_all[1])
         thind = np.where(self.vcrit_all[1]==vcrit_smallest)[0][0] ## find index of theta so that we may pass tighter bounds to minimize_scalar below for more accurate (and faster) results
         bounds=(max(-np.pi/2,self.vcrit_all[0][max(0,thind-1)]),min(np.pi/2,self.vcrit_all[0][min(thind+1,len(self.vcrit_all[0])-1)]))
-        if use_bruteforce:
-            def f(x):
-                return np.min(self.computevcrit_stroh(1,theta_list=[x*2/np.pi],setvcrit=False)) ## cannot use cache because 1) we keep calculating for different theta values and 2) cache only checks length of theta but not actual values (so not useful for other materials either)
-        else:
-            def f(x):
-                return np.min(self.computevcrit_barnett(theta_list=[x],setvcrit=False))
+        def f(x):
+            return np.min(self.computevcrit_barnett(theta_list=[x],setvcrit=False))
         if self.sym=='iso': result = vcrit_smallest
         else: result = optimize.minimize_scalar(f,method='bounded',bounds=bounds,options={'xatol':xatol})
         if self.sym=='iso': self.vcrit_smallest = vcrit_smallest
@@ -454,7 +328,7 @@ class Dislocation(StrohGeometry,metal_props):
            'character' is either 'edge', 'screw' (default), or an index of self.theta, and 'component' is
            a list of two indices indicating which component of displacement gradient u[ij] to plot.
            The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case,
-           'slipsystem' is required except for those metals where its keyword coincides with self.sym (see documentation of self.computeuij_acc()
+           'slipsystem' is required except for those metals where its keyword coincides with self.sym (see documentation of self.computeuij_acc_screw()
            for details on capabilities and limitations of the current implementation of the accelerating solution).
            Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
            and is currently only implemented for steady-state solutions (a=None).
@@ -508,13 +382,6 @@ class Dislocation(StrohGeometry,metal_props):
             else: acc = f"{a:.0e}"
             namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{self.name}_v{beta*self.ct:.0f}_a{acc:}.pdf"
             uijtoplot = self.uij_acc_screw_aligned[component[0],component[1]]
-        elif character=='edge' and not nogradient:
-            if not skipcalc:
-                self.computeuij_acc_edge(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
-            if a is None: acc = '_of_t'
-            else: acc = f"{a:.0e}"
-            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}edge{self.name}_v{beta*self.ct:.0f}_a{acc:}.pdf"
-            uijtoplot = self.uij_acc_edge_aligned[component[0],component[1]]
         else:
             raise ValueError("not implemented")
         plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0))
