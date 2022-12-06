@@ -2,12 +2,20 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Mar. 3, 2021
+! Date: July 23, 2018 - Dec. 2, 2022
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20210303
+  versionnumber=20221202
 end subroutine version
+
+module parameters
+implicit none
+integer,parameter :: sel = selected_real_kind(10)
+real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
+real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
+real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 ! pi squared
+end module parameters
 
 subroutine ompinfo(nthreads)
 !$   Use omp_lib
@@ -21,6 +29,7 @@ end subroutine ompinfo
 
 subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
                       lenp,lent,lenph1,lentph)
+! this wrapper parallelizes thesum() which is a subroutine of dragcoeff_iso_computepoly() in phononwind.py
 !$   Use omp_lib
 implicit none
 integer,parameter :: sel = selected_real_kind(6)
@@ -50,6 +59,7 @@ call thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,
 end subroutine parathesum
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
+! this is a subroutine of dragcoeff_iso_computepoly() in phononwind.py
 implicit none
 integer,parameter :: sel = selected_real_kind(6)
 integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
@@ -139,7 +149,7 @@ end subroutine thesum
 !!**********************************************************************
 
 subroutine dragintegrand(output,prefactor,dij,poly,lent,lenph)
-
+! this is a subroutine of dragcoeff_iso() in phononwind.py
 implicit none
 
 integer,parameter :: sel = selected_real_kind(6)
@@ -172,6 +182,8 @@ end subroutine dragintegrand
 !!**********************************************************************
 
 SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
+! Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
+! All three variables have an additional disloc. character dependence.
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
@@ -202,6 +214,7 @@ SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
 END SUBROUTINE elbrak
 
 SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
+! Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
@@ -230,6 +243,7 @@ END SUBROUTINE elbrak1d
 !!**********************************************************************
 
 SUBROUTINE trapz(f,x,n,intf)
+! integrate using the trapezoidal rule
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
@@ -246,16 +260,17 @@ END SUBROUTINE trapz
 !!**********************************************************************
 
 SUBROUTINE dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
+! this is a subroutine of dragcoeff_iso() in phononwind.py
 !-----------------------------------------------------------------------
+  use parameters
   IMPLICIT NONE
-  integer,parameter :: sel = selected_real_kind(10)
 !-----------------------------------------------------------------------
   INTEGER, INTENT(IN) :: lenq1,lent,lenphi
   REAL(KIND=sel), INTENT(IN) :: T, c1qBZ, c2qBZ
   REAL(KIND=sel), INTENT(IN) :: q1(lenq1), q1h4(lenq1), prefac(lent,lenphi), OneMinBtqcosph1(lent,lenphi)
   REAL(KIND=sel), INTENT(OUT), DIMENSION(lent,lenphi,lenq1) :: distri
   INTEGER :: i
-  REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), hbar=1.0545718d-34, kB=1.38064852d-23, beta
+  REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), beta
   
   beta = hbar/(kB*T)
   !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,phonon1,phonon2)
@@ -271,7 +286,33 @@ END SUBROUTINE dragcoeff_iso_phonondistri
 
 !!**********************************************************************
 
+SUBROUTINE elasticA3(C2, C3, A3)
+! Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons.
+! Required inputs are the tensors of SOEC and TOEC.
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  REAL(KIND=sel), INTENT(IN)  :: C2(3,3,3,3), C3(3,3,3,3,3,3)
+  REAL(KIND=sel), INTENT(OUT) :: A3(3,3,3,3,3,3)
+  INTEGER :: i
+  REAL(KIND=sel), DIMENSION(3,3,3,3) :: C2swap
+  
+  C2swap = reshape(C2, (/ 3, 3, 3, 3/), order = (/2,3,1,4/) )
+  A3 = C3
+  do i=1,3
+    A3(:,:,i,:,i,:) = A3(:,:,i,:,i,:) + C2
+    A3(i,:,:,:,i,:) = A3(i,:,:,:,i,:) + C2swap
+    A3(i,:,i,:,:,:) = A3(i,:,i,:,:,:) + C2
+  end do
+  
+  RETURN
+END SUBROUTINE elasticA3
+
+!!**********************************************************************
+
 SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
+! Computes the self energy of a straight dislocation uij moving at velocity beta.
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
@@ -310,6 +351,7 @@ END SUBROUTINE computeEtot
 !!**********************************************************************
 
 SUBROUTINE inv(A,invA)
+! invert 3x3 matrix A
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
@@ -355,9 +397,10 @@ END SUBROUTINE inv
 !!**********************************************************************
 
 SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
+! Compute the dislocation displacement gradient field uij.
 !-----------------------------------------------------------------------
+  use parameters
   IMPLICIT NONE
-  integer,parameter :: sel = selected_real_kind(10)
 !-----------------------------------------------------------------------
   REAL(KIND=sel), INTENT(IN) :: beta
   INTEGER, INTENT(IN) :: Ntheta, Nphi
@@ -372,7 +415,6 @@ SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
   real(kind=sel), dimension(3,3,3,3) :: tmpC
   real(kind=sel), dimension(3,3) :: S, BB
   real(kind=sel), dimension(3) :: Sb, BBb
-  real(kind=sel) :: pi2 = (4.d0*atan(1.d0))**2
   uij = 0.d0
   !$OMP PARALLEL DO default(shared), private(th,ph,j,k,i, &
   !$OMP                   MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb)
@@ -412,6 +454,7 @@ END SUBROUTINE computeuij
 !!**********************************************************************
 
 SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
+! this is a subroutine of dragcoeff_iso() in phononwind.py
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
@@ -456,6 +499,7 @@ END SUBROUTINE integratetphi
 !!**********************************************************************
 
 SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
+! this is a subroutine of dragcoeff_iso() in phononwind.py
 !-----------------------------------------------------------------------
   IMPLICIT NONE
   integer,parameter :: sel = selected_real_kind(10)
