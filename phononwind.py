@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 06, 2022
+# Date: Nov. 5, 2017 - Dec. 07, 2022
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -504,6 +504,33 @@ else:
             Bt[p] = np.trapz(Btmp,x = qt)
         return np.trapz(Bt,x = phi)
 
+def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
+    '''Subroutine of dragcoeff_iso_onemode(): approximation in the high temperature limit.'''
+    lent = len(qtilde) ## qtilde is a Nt x Nphi dimensional array
+    beta = beta_list[0]
+    beta_L = beta_list[1]
+    csphi = np.abs(np.cos(phi))
+    if beta_L is not False:
+        ## purely longitudinal case:
+        ct_over_cl = beta_L/beta
+        beta = beta_L
+    else:
+        ct_over_cl=1
+    OnesTwoDim = np.outer(np.ones((lent)),np.ones((len(phi))))
+    ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
+    CsPhi = np.outer(np.ones((lent)),csphi)
+    qcosphi = np.outer(np.ones((lent)),csphi/(np.ones((len(phi)))-(beta*csphi)**2))/qtilde
+    distri = np.zeros((lent,len(phi)))
+    betaqtildeCsPhi = beta*qtilde*CsPhi
+    hbarcsqBZ_TkB = hbar*cs*qBZ/(T*kB)
+    ### we have q1^6 but from d^2 we have 1/q^2, so that is q1^4/qtilde^2, and multiplied by qtildexcosphi
+    distri = 1000*np.pi*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5)*qcosphi*(T*kB*qBZ**4/(2*cs))*(-(beta/2)*qtilde*CsPhi/(OnesTwoDim-betaqtildeCsPhi)\
+            +(hbarcsqBZ_TkB**2/36)*(betaqtildeCsPhi)\
+            -(hbarcsqBZ_TkB**4/(30*4*24))*(1-(1-betaqtildeCsPhi)**3)\
+            +(hbarcsqBZ_TkB**6/(42*5*720))*(1-(1-betaqtildeCsPhi)**5))
+    
+    return distri
+
 def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, Nphi1=50, Debye_series=False, beta_long=False, update=None, chunks=None, r0cut=None):
     '''Subroutine of dragcoeff_iso(): Computes one of the four modes (TT, LL, TL, LT where T=transverse, L=longitudinal) contributing to the drag coefficient from phonon wind for an isotropic crystal.
        Required inputs are the dislocation displacement gradient (times magnitude q and rescaled by the Burgers vector) dij in Fourier space,
@@ -513,8 +540,8 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
        If velocity in units of longitudinal sound speed is passed via the keyword "beta_long", cs is assumed to be the longitudinal sound speed, and in this case the phonon wind from scattering purely longitudinal phonons is computed.
        If cs=[c1,c2] is a list of two sound speeds, the smaller one is assumed to be transverse, and in this case a different code path is employed (i.e. a different set of variables is used), which is slower but works also for the mixed modes.
        In this case, the keyword "beta_long" is ignored. beta is always assumed to be velocity over transverse sound speed.
-       Optionally, the default values for the resolution of integration variables t, q1, and phi1 may be changed. The parameter 'Debye_series' may be set to True in order to use the 4 terms of the series representation of the Debye functions instead of computing the Debye integral over the phonon spectrum numerically.
-       Note, however, that the series representation converges only for high enough temperature.'''
+       Optionally, the default values for the resolution of integration variables t, q1, and phi1 may be changed. The parameter 'Debye_series' may be set to True in order to use the 4 terms of the series representation of the Debye functions
+       instead of computing the Debye integral over the phonon spectrum numerically. Note, however, that the series representation converges only for high enough temperature.'''
     
     ### chunks = np.array(total#ofchunks=Nchk, #ofcurrentchunk=ithchk)
     ### if set, Nt is number of points to use on current chunk
@@ -531,33 +558,6 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
         Nt_total = 1 + Nchunks*(Nt-1)
     
     updatet=bool(update=='t')
-    
-    def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
-        '''approximation in the high temperature limit, at low velocity it gives OK results at room temperature, but not as v gets higher'''
-        lent = len(qtilde) ## qtilde is a Nt x Nphi dimensional array
-        beta = beta_list[0]
-        beta_L = beta_list[1]
-        csphi = np.abs(np.cos(phi))
-        if beta_L is not False:
-            ## purely longitudinal case:
-            ct_over_cl = beta_L/beta
-            beta = beta_L
-        else:
-            ct_over_cl=1
-        OnesTwoDim = np.outer(np.ones((lent)),np.ones((len(phi))))
-        ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
-        CsPhi = np.outer(np.ones((lent)),csphi)
-        qcosphi = np.outer(np.ones((lent)),csphi/(np.ones((len(phi)))-(beta*csphi)**2))/qtilde
-        distri = np.zeros((lent,len(phi)))
-        ### we have q1^6 but from d^2 we have 1/q^2, so that is q1^4/qtilde^2, and multiplied by qtildexcosphi
-        # distri = 1000*np.pi*burgers**2/(2*beta*(2*np.pi)**5)*qcosphi*(T*kB*qBZ**4/(2*ct))*(-(beta/2)*qtilde*CsPhi/(OnesTwoDim-beta*qtilde*CsPhi))
-        distri = 1000*np.pi*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5)*qcosphi*(T*kB*qBZ**4/(2*cs))*(-(beta/2)*qtilde*CsPhi/(OnesTwoDim-beta*qtilde*CsPhi)\
-                +((hbar*cs*qBZ/(T*kB))**2/36)*(beta*qtilde*CsPhi)\
-                -((hbar*cs*qBZ/(T*kB))**4/(30*4*24))*(1-(1-beta*qtilde*CsPhi)**3)\
-                +((hbar*cs*qBZ/(T*kB))**6/(42*5*720))*(1-(1-beta*qtilde*CsPhi)**5))
-            
-        return distri
-        
     ### initialize arrays
     Nphi = len(dij[0,0,0])
     phi = np.linspace(0,2*np.pi,Nphi)
