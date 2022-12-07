@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 19, 2022
+# Date: Nov. 5, 2017 - Dec. 06, 2022
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -304,7 +304,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
        Allowed values are: 'all' (default), 'TT' (only transverse phonons), 'LL' (only longitudinal), 'mix' (only the two mixed modes), 'LT' (incoming transverse, outgoing longitudinal phonon), and 'TL' (incoming longitudinal outgoing transverse phonon).
        Optionally, the default values for the resolution of integration variables t, q1, and phi1 may be changed. Note that Nt is automatically increased with larger beta depending on the computed phonon mode.
        The parameter 'Debye_series' may be set to True in order to use the 4 terms of the series representation of the Debye functions instead of computing the Debye integral over the phonon spectrum numerically.
-       Note, however, that the series representation converges only for high enough temperature and low dislocation velocity.
+       Note, however, that the series representation converges only for high enough temperature.
        Optional variable skip_theta = None (default) may be set in order to bypass the calculation for certain angles theta and instead set those entries to some predefined value=skip_theta_val, i.e. skip_theta must be a boolean mask of len(theta) where False=bypass.'''
     
     Ntheta = len(dij[0,0])
@@ -327,7 +327,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         if Nt_total < Nt:
             Nt_total += 2*Nchunks ## ensure we never reduce resolution
     
-    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=False, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, Nt_total=None, Nchunks=Nchunks, mode='??'):
+    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, Nt_total=None, Nchunks=Nchunks, mode='??'):
         if Nchunks is None:
             out = adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, Nt=Nt, mode=mode)
         else:
@@ -337,7 +337,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                 out += adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, chunks=(Nchunks,kth), Nt=Nt_current, mode=mode)
         return out
     
-    def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=False, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
+    def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
         if np.asarray(skip_theta).any() is None:
             dijtmp = dij
             A3tmp = A3
@@ -514,7 +514,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
        If cs=[c1,c2] is a list of two sound speeds, the smaller one is assumed to be transverse, and in this case a different code path is employed (i.e. a different set of variables is used), which is slower but works also for the mixed modes.
        In this case, the keyword "beta_long" is ignored. beta is always assumed to be velocity over transverse sound speed.
        Optionally, the default values for the resolution of integration variables t, q1, and phi1 may be changed. The parameter 'Debye_series' may be set to True in order to use the 4 terms of the series representation of the Debye functions instead of computing the Debye integral over the phonon spectrum numerically.
-       Note, however, that the series representation converges only for high enough temperature and low dislocation velocity.'''
+       Note, however, that the series representation converges only for high enough temperature.'''
     
     ### chunks = np.array(total#ofchunks=Nchk, #ofcurrentchunk=ithchk)
     ### if set, Nt is number of points to use on current chunk
