@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 19, 2022
+# Date: Nov. 3, 2017 - Dec. 16, 2022
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -337,7 +337,7 @@ class Dislocation(StrohGeometry,metal_props):
            Colormap and its limits are set with options 'cmap' and 'lim', respectively.` 
            If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
            if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
-        if beta==None:
+        if beta is None:
             beta = self.beta
             skipcalc = True
         ## make sure everything we need has been initialized:
@@ -384,7 +384,7 @@ class Dislocation(StrohGeometry,metal_props):
             uijtoplot = self.uij_acc_screw_aligned[component[0],component[1]]
         else:
             raise ValueError("not implemented")
-        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0))
+        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)
         
     def __repr__(self):
         return  "DISLOCATION\n" + metal_props.__repr__(self) + f"\n burgers:\t {self.burgers}\n" + StrohGeometry.__repr__(self)
@@ -442,7 +442,7 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.C2norm = UnVoigt(out.C2/out.mu)
     return out
 
-def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0)):
+def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow):
     '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
     the color-encoded values are dimensionless displacement gradients.
     Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for 
@@ -462,7 +462,7 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
     if uij.shape != (len(r),len(phi)):
         uij = np.outer(1/r,uij)
-    colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap = plt.cm.rainbow, shading='gouraud')
+    colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap=cmap, shading='gouraud')
     colmsh.set_rasterized(True)
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize = fntsize)
