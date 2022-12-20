@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug 4, 2022
+# Date: Nov. 7, 2017 - Dec. 19, 2022
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -16,6 +16,7 @@ import os
 from sympy.solvers import solve
 import sympy as sp
 import numpy as np
+from fractions import Fraction
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
@@ -47,6 +48,15 @@ def invI5(C3):
     '''Computes the trace C_ijkijk of TOEC.'''
     return np.trace(np.trace(np.trace(C3,axis1=0,axis2=3),axis1=0,axis2=2))
 
+def str_to_array(arg,dtype=float):
+    '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
+    try:
+        out = np.asarray(arg.split(','),dtype=dtype)
+    except:
+        out = arg.split(',')
+        out = np.asarray([Fraction(x) for x in out],dtype=dtype)
+    return out
+    
 ### define some symbols and functions of symbols for the effective isotropic side of our calculations
 lam, mu = sp.symbols('lam mu') ## Symbols for Lame constants
 Murl, Murm, Murn = sp.symbols('Murl Murm Murn') ## Symbols for Murnaghan constants
@@ -339,10 +349,10 @@ class metal_props:
             R[:,0] = np.cross(T[:,1],T[:,2])/V
             R[:,1] = np.cross(T[:,2],T[:,0])/V
             R[:,2] = np.cross(T[:,0],T[:,1])/V
-            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-15: v = [v[0]+v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-12: v = [v[0]+v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
             out = np.dot(R,v)
         else:
-            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-15: v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-12: v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
             out = np.dot(T,v)
         if normalize:
             out = out/np.sqrt(np.dot(out,out))
@@ -390,7 +400,7 @@ class metal_props:
             self.cc = float(inputparams['c'])
             if 'lcb' in inputparams.keys():
                 self.bc = float(inputparams['lcb'])
-            if 'Vc' in inputparams.keys():
+            if 'Vc' in inputparams.keys(): ## TODO: init_qBZ() will currently overwrite this by auto-computed Vc; do we want to support a manual override?
                 self.Vc = float(inputparams['Vc'])
             self.cij = np.asarray(inputparams['cij'].split(','),dtype=float) ## expect a list of cij in ascending order
             if 'cijk' in inputparams.keys():
@@ -414,7 +424,7 @@ class metal_props:
         if 'gamma' in keys:
             self.gammac=float(inputparams['gamma'])*np.pi/180 
         if 'Millerb' in keys:
-            self.Millerb = np.asarray(inputparams['Millerb'].split(','),dtype=float)
+            self.Millerb = str_to_array(inputparams['Millerb'])
             if 'burgers' in keys:
                 self.burgers=float(inputparams['burgers'])
             else:
@@ -429,7 +439,7 @@ class metal_props:
                 self.burgers=np.sqrt(self.b @ self.b)
             self.b = self.b/np.sqrt(np.dot(self.b,self.b))
         if 'Millern0' in keys:
-            self.Millern0 = np.asarray(inputparams['Millern0'].split(','),dtype=float)
+            self.Millern0 = str_to_array(inputparams['Millern0'])
             self.n0 = self.Miller_to_Cart(self.Millern0,reziprocal=True)
         elif 'n0' in keys:
             self.n0=np.asarray(inputparams['n0'].split(','),dtype=float)
