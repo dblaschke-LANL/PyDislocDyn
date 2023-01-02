@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 07, 2022
+# Date: Nov. 5, 2017 - Dec. 21, 2022
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -296,7 +296,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
 ### rho x ct^2  = c44, and B is devided by rho^2*ct^4 = c44^2;
 ### it is therefore convenient to devide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
 
-def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, Nq1=400, Nphi1=50, Debye_series=False, target_accuracy=5e-3, maxrec=6, accurate_to_digit=1e-5, Nchunks=20, skip_theta=None, skip_theta_val=np.inf, r0cut=None):
+def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, Nq1=400, Nphi1=50, Debye_series=False, target_accuracy=5e-3, maxrec=6, accurate_to_digit=1e-5, Nchunks=20, skip_theta=None, skip_theta_val=np.inf, r0cut=None, name='drag'):
     '''Computes the drag coefficient from phonon wind for an isotropic crystal. Required inputs are the dislocation displacement gradient (times magnitude q and rescaled by the Burgers vector) dij in Fourier space
        (being a 3x3xNthetaxNphi array where theta is the angle parametrizing the dislocation type and phi is the polar angle in Fourier space), the array of shifted 3rd order elastic constants A3 in units of the shear modulus mu,
        the radius of the Brillouin zone qBZ, the transverse and longitudinal sound speeds ct and cl, the velocity beta in units of ct (i.e. beta=v/ct), the magnitude of the Burgers vectors burgers, as well as the temperature T.
@@ -389,7 +389,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                 out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit/Nchks)))
             refnmts = rec+1
         if refnmts==maxrec and out_error >= target_accuracy and maxrec>0:
-            print(f"warning: max # recursions reached, {beta=:.4f}, {T=}, {mode=}, {chunks=}, est. error={100*out_error:.2f}%")
+            print(f"warning: max # recursions reached ({name}), {beta=:.4f}, {T=}, {mode=}, {chunks=}, est. error={100*out_error:.2f}%")
         
         return out
     
