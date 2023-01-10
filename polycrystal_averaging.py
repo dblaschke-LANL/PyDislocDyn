@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Dec. 19, 2022
+# Date: Nov. 7, 2017 - Jan. 2, 2023
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -13,10 +13,10 @@
 #################################
 import sys
 import os
+from fractions import Fraction
 from sympy.solvers import solve
 import sympy as sp
 import numpy as np
-from fractions import Fraction
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
@@ -52,7 +52,7 @@ def str_to_array(arg,dtype=float):
     '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
     try:
         out = np.asarray(arg.split(','),dtype=dtype)
-    except:
+    except ValueError:
         out = arg.split(',')
         out = np.asarray([Fraction(x) for x in out],dtype=dtype)
     return out
@@ -511,7 +511,7 @@ if __name__ == '__main__':
             inputdata = [readinputfile(i) for i in args]
             Y = {i.name:i for i in inputdata}
             metal_list = list(Y.keys())
-            metal_symm = metal = set([])
+            metal = set([])
             print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)

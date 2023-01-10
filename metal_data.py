@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 20, 2022
+# Date: Nov. 3, 2017 - Jan. 2, 2023
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
@@ -146,11 +146,13 @@ for X in tetr_metals:
     CRC_Vc[X] = CRC_a[X]*CRC_a[X]*CRC_c[X]
 
 #####################################################################################
-def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
+def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False):
     '''Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
        Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.
        To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
-       'prismatic', or 'pyramidal'.'''
+       'prismatic', or 'pyramidal'.
+       By setting 'alt_soec=True', one may swap out the CRC handbook values of SOECs for some fcc metals with alternative ones (see THLPG dictionaries).
+       Likewise, 'alt_rho=True'' will use the CRC_rho_sc dictionary instead of the CRC_rho one.'''
     with open(fname,"w") as outf:
         outf.write(f"# input parameters for {X} at ambient conditions\n\n")
         outf.write(f"name = {fname}\n")
@@ -199,7 +201,10 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
         outf.write(f"T = 300\na = {CRC_a[X]}\n")
         if X in CRC_c.keys():
             outf.write(f"c = {CRC_c[X]}\n")
-        outf.write(f"rho = {CRC_rho[X]}\n")
+        if alt_rho:
+            outf.write(f"rho = {CRC_rho_sc[X]}\n")
+        else:
+            outf.write(f"rho = {CRC_rho[X]}\n")
         outf.write(f"alpha_a = {CRC_alpha_a[X]}\n")
         outf.write(f"Tm = {CRC_T_m[X]}\n")
         outf.write("\n#soec\n")
@@ -207,6 +212,8 @@ def writeinputfile(X,fname,iso=False,bccslip='110',hcpslip='basal'):
             outf.write("\nsym = iso\t# (overwrites previous entry)")
             outf.write(f"\na = {np.cbrt(CRC_Vc[X])}\t# replace by average lattice constants such that a^3 is the true unit cell volume\n\n")
             soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
+        elif alt_soec and X in THLPG_c44.keys():
+            soec = {"c11":THLPG_c11, "c12":THLPG_c12, "c44":THLPG_c44}
         else:
             soec = {"c11":CRC_c11, "c12":CRC_c12, "c44":CRC_c44, "c13":CRC_c13, "c33":CRC_c33, "c66":CRC_c66}
         for c2 in soec:
