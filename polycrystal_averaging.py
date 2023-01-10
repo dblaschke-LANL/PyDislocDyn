@@ -504,60 +504,30 @@ def readinputfile(fname,init=True):
 
 if __name__ == '__main__':
     Y={}
-    metal_list = []
+    use_metaldata=True
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
             inputdata = [readinputfile(i) for i in args]
             Y = {i.name:i for i in inputdata}
-            metal_list = list(Y.keys())
-            metal = set([])
+            metal = list(Y.keys())
+            use_metaldata=False
             print(f"success reading input files {args}")
         except FileNotFoundError:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = sys.argv[1].split()
     
-    sym={}
-    for X in data.fcc_metals.intersection(metal): sym[X]='fcc'
-    for X in data.bcc_metals.intersection(metal): sym[X]='bcc'
-    for X in data.hcp_metals.intersection(metal): sym[X]='hcp'
-    for X in data.tetr_metals.intersection(metal): sym[X]='tetr'
-    for X in metal:
-        Y[X] = metal_props(sym[X],name=X)
-        # 2nd order elastic constants taken from the CRC handbook:
-        Y[X].c11 = data.CRC_c11[X]
-        Y[X].c12 = data.CRC_c12[X]
-        Y[X].c44 = data.CRC_c44[X]
-        Y[X].c13 = data.CRC_c13[X]
-        Y[X].c33 = data.CRC_c33[X]
-        Y[X].c66 = data.CRC_c66[X]
-        ## numbers from Thomas:1968, Hiki:1966, Leese:1968, Powell:1984, and Graham:1968
-        ## (these were used for arXiv:1706.07132)
-        # if X in data.THLPG_c11.keys():
-        #     Y[X].c11 = data.THLPG_c11[X]
-        #     Y[X].c12 = data.THLPG_c12[X]
-        #     Y[X].c44 = data.THLPG_c44[X]
-        Y[X].init_C2()
-        ## TOEC from various refs.
-        if X in data.c123.keys():
-            Y[X].c111 = data.c111[X]
-            Y[X].c112 = data.c112[X]
-            Y[X].c123 = data.c123[X]
-            Y[X].c144 = data.c144[X]
-            Y[X].c166 = data.c166[X]
-            Y[X].c456 = data.c456[X]
-            Y[X].c113 = data.c113[X]
-            Y[X].c133 = data.c133[X]
-            Y[X].c155 = data.c155[X]
-            Y[X].c222 = data.c222[X]
-            Y[X].c333 = data.c333[X]
-            Y[X].c344 = data.c344[X]
-            Y[X].c366 = data.c366[X]
-            Y[X].init_C3()
+    if use_metaldata:
+        if not os.path.exists("temp_pydislocdyn"):
+            os.mkdir("temp_pydislocdyn")
+        os.chdir("temp_pydislocdyn")
+        for X in metal:
+            ## change alt_soec=True to use SOEC numbers from Thomas:1968, Hiki:1966, Leese:1968, Powell:1984, and Graham:1968
+            ## for some of the cubic metals (these were used for arXiv:1706.07132)
+            data.writeinputfile(X,X,alt_soec=False) # write temporary input files for requested X of metal_data
+            Y[X] = readinputfile(X)
+        os.chdir("..")
     
-    if metal == set([]):
-        metal = metal_list ## triggers only if user provided one or more inputdata files
-        
     metal_cubic = []
     metal_toec = []
     metal_toec_cubic = []
