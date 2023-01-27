@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 16, 2022
+# Date: Nov. 3, 2017 - Jan. 27, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -50,14 +50,11 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, loadinputfile
-from dislocations import StrohGeometry, ompthreads, printthreadinfo, elbrak1d
+from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d
 try:
-    from joblib import Parallel, delayed, cpu_count
-    ## detect number of cpus present:
-    Ncpus = cpu_count()
+    from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
     Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
-    # Ncores = -2
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib

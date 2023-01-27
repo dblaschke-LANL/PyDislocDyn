@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 21, 2022
+# Date: Nov. 5, 2017 - Jan. 27, 2023
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -51,18 +51,15 @@ import dislocations as dlc
 from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options
 from phononwind import elasticA3, dragcoeff_iso
 try:
-    from joblib import Parallel, delayed, cpu_count
-    ## detect number of cpus present:
-    Ncpus = cpu_count()
+    from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
-    Ncores = max(1,int(Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
-    # Ncores = -2
+    Ncores = max(1,int(dlc.Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
 except ImportError:
-    Ncpus = 1
+    dlc.Ncpus = 1
     Ncores = 1 ## must be 1 (or 0) without joblib
-Kcores = max(Ncores,int(min(Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
-if Ncores==0: Kcores=max(1,int(Ncpus/2)) # in case user has set Ncores=0 above to bypass phonon wind calcs
+Kcores = max(Ncores,int(min(dlc.Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
+if Ncores==0: Kcores=max(1,int(dlc.Ncpus/2)) # in case user has set Ncores=0 above to bypass phonon wind calcs
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of dislocation character angles between 0 and pi/2 (minimum 2, i.e. pure edge and pure screw), if the range -pi/2--pi/2 is required the number of angles is increased to 2*Ntheta-1

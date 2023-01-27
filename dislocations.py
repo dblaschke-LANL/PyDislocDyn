@@ -1,13 +1,16 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 2, 2023
+# Date: Nov. 3, 2017 - Jan. 27, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
 #################################
+import os
+import multiprocessing
 import numpy as np
 from scipy.integrate import cumtrapz, quad
+Ncpus = multiprocessing.cpu_count()
 nonumba=False
 try:
     from numba import jit
@@ -20,6 +23,11 @@ except ImportError:
             return partial(jit, forceobj=forceobj,nopython=nopython)
         return func
 try:
+    if "OMP_NUM_THREADS" not in os.environ.keys(): ## allow user-override by setting this var. before running the python code
+        ompthreads = int(np.sqrt(Ncpus))
+        while (Ncpus/ompthreads != round(Ncpus/ompthreads) ):
+            ompthreads -= 1 ## choose and optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores 
+        os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import subroutines as fsub
     usefortran = True
     ompthreads = fsub.ompinfo()

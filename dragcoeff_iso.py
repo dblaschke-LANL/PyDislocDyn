@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 21, 2022
+# Date: Nov. 5, 2017 - Jan. 27, 2023
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -12,7 +12,7 @@ import sys
 import os
 import ast
 import numpy as np
-from scipy.optimize import curve_fit, fmin, fsolve
+from scipy.optimize import curve_fit
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 ##################
 plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 fntsize=11
-from matplotlib.ticker import AutoMinorLocator, MultipleLocator
+from matplotlib.ticker import AutoMinorLocator
 ##################
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -42,18 +42,15 @@ sys.path.append(dir_path)
 ##
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
-from dislocations import fourieruij_iso, ompthreads, printthreadinfo
-from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options
+from dislocations import fourieruij_iso, ompthreads, printthreadinfo, Ncpus
+from linetension_calcs import readinputfile, read_2dresults, parse_options
 from phononwind import elasticA3, dragcoeff_iso
 from dragcoeff_semi_iso import B_of_sigma
 try:
-    from joblib import Parallel, delayed, cpu_count
-    ## detect number of cpus present:
-    Ncpus = cpu_count()
+    from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
     ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
     Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
-    # Ncores = -2
 except ImportError:
     Ncores = 1 ## must be 1 (or 0) without joblib
 
