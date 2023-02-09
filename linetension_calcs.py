@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 27, 2023
+# Date: Nov. 3, 2017 - Feb. 8, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -48,9 +48,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
 import metal_data as data
-from elasticconstants import elasticC2, Voigt, UnVoigt
+from elasticconstants import roundcoeff, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, loadinputfile
-from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d
+from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
@@ -103,6 +103,7 @@ class Dislocation(StrohGeometry,metal_props):
         self.sym = sym
         self.vcrit_all = None
         self.Rayleigh = None
+        self.vRF = None
     
     def alignC2(self):
         '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
@@ -117,22 +118,6 @@ class Dislocation(StrohGeometry,metal_props):
             else:
                 self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
     
-    def findedgescrewindices(self,theta=None):
-        '''Find the indices i where theta[i] is either 0 or +/-pi/2. If theta is omitted, assume theta=self.theta.'''
-        if theta is None: theta=self.theta
-        else: theta = np.asarray(theta)
-        scrind = np.where(np.abs(theta)<1e-12)[0]
-        out = [None,None]
-        if len(scrind) == 1:
-            out[0] = int(scrind)
-        edgind = np.where(np.abs(theta-np.pi/2)<1e-12)[0]
-        if len(edgind) == 1:
-            out[1] = int(edgind)
-        negedgind = np.where(np.abs(theta+np.pi/2)<1e-12)[0]
-        if len(negedgind) == 1:
-            out.append(int(negedgind))
-        return out
-        
     def computevcrit_barnett(self, theta_list=None, setvcrit=True, verbose=False):
         '''Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
            All parameters are optional: unless a list of character angles is passed explicitly via theta_list,
@@ -199,7 +184,7 @@ class Dislocation(StrohGeometry,metal_props):
         '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.'''
         if self.C2_aligned is None:
             self.alignC2()
-        edgind = int(np.where(np.abs(self.theta-np.pi/2)<1e-12)[0])
+        edgind = self.findedgescrewindices()[1]
         test = np.abs(self.C2_aligned[edgind]/self.C2[3,3]) ## check for symmetry requirements
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
             c11=self.C2_aligned[edgind][0,0]
@@ -219,12 +204,7 @@ class Dislocation(StrohGeometry,metal_props):
                 c16 = self.C2_aligned[edgind][0,5]
                 c26 = self.C2_aligned[edgind][1,5]
                 def theroot(y,rv2):
-                    K4 = c66*c22-c26**2
-                    K3 = 2*(c26*c12-c16*c22)
-                    K2 = (c11*c22-c12**2-2*c12*c66+2*c16*c26) - (c22+c66)*rv2
-                    K1 = 2*(c16*c12-c26*c11) + 2*rv2*(c16+c26)
-                    K0 = (c11-rv2)*(c66-rv2)-c16**2
-                    return K0+K1*y+K2*y**2+K3*y**3+K4*y**4
+                    return accedge_theroot(y,rv2,c11,c12,c16,c22,c26,c66)
                 y,rv2 = sp.symbols('y,rv2')
                 ysol = sp.solve(theroot(y,rv2),y) ## 4 complex roots as fcts of rv2=rho*v**2
                 yfct=sp.lambdify(rv2,ysol,modules=[np.emath,'scipy'])
@@ -319,6 +299,23 @@ class Dislocation(StrohGeometry,metal_props):
         self.Rayleigh = Rayleigh
         return Rayleigh
     
+    def find_vRF(self):
+        '''Compute the radiation-free velocity for edge dislocations in the transonic regime.
+           For details on the method, see Gao, Huang, Gumbsch, Rosakis, JMPS 47 (1999) 1941.'''
+        if self.C2_aligned is None:
+            self.alignC2()
+        edgind = self.findedgescrewindices()[1]
+        c = self.C2_aligned[edgind]
+        test = np.abs(c/self.C2[3,3]) ## check for symmetry requirements
+        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[2,4]+test[2,4]+\
+            test[5,3]+test[5,4]+test[0,5]+test[1,5]+test[2,5]+test[3,4] < 1e-12:
+            vRF = np.sqrt((c[0,0]*c[1,1]-c[0,1]**2)/(c[0,1]+c[1,1])/self.rho)
+        else:
+            print("Not (yet) implemented for this slip system.")
+            vRF = None
+        self.vRF = vRF
+        return vRF
+    
     def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
         '''Generates a plot of the requested component of the dislocation displacement gradient.
            Optional arguments are: the normalized velocity 'beta'=v/self.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
@@ -361,27 +358,27 @@ class Dislocation(StrohGeometry,metal_props):
                         for ri in range(Nr):
                             self.uij_aligned[:,th,ri] = np.round(np.dot(self.rot[th],self.uij[:,th,ri]),15)
             if character == 'screw':
-                index = int(np.where(abs(self.theta)<1e-12)[0])
+                index = self.findedgescrewindices()[0]
             elif character == 'edge':
-                index = int(np.where(abs(self.theta-np.pi/2)<1e-12)[0])
+                index = self.findedgescrewindices()[1]
             else:
                 index=character
             if not nogradient:
-                namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}{character}_{self.name}_v{beta*self.ct:.0f}.pdf"
+                namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}{character}_{self.name}_v{beta*self.ct:.0f}"
                 uijtoplot = self.uij_aligned[component[0],component[1],index]
             else:
-                namestring = f"u{xylabel[component]}{character}_{self.name}_v{beta*self.ct:.0f}.pdf"
+                namestring = f"u{xylabel[component]}{character}_{self.name}_v{beta*self.ct:.0f}"
                 uijtoplot = self.uij_aligned[component,index]
         elif character=='screw' and not nogradient:
             if not skipcalc:
                 self.computeuij_acc_screw(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
             if a is None: acc = '_of_t'
             else: acc = f"{a:.0e}"
-            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{self.name}_v{beta*self.ct:.0f}_a{acc:}.pdf"
+            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{self.name}_v{beta*self.ct:.0f}_a{acc:}"
             uijtoplot = self.uij_acc_screw_aligned[component[0],component[1]]
         else:
             raise ValueError("not implemented")
-        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)
+        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring+".pdf",fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)
         
     def __repr__(self):
         return  "DISLOCATION\n" + metal_props.__repr__(self) + f"\n burgers:\t {self.burgers}\n" + StrohGeometry.__repr__(self)
@@ -455,7 +452,7 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize)
     plt.xlabel(r'$x[b]$',fontsize=fntsize)
     plt.ylabel(r'$y[b]$',fontsize=fntsize)
-    if title is not None: plt.title(title,fontsize=fntsize)
+    if title is not None: plt.title(title,fontsize=fntsize,loc='left')
     if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
     if uij.shape != (len(r),len(phi)):
         uij = np.outer(1/r,uij)
@@ -464,7 +461,7 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize = fntsize)
     if showplt: plt.show()
-    if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight')
+    if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
     plt.close()
 
 def read_2dresults(fname):
@@ -801,4 +798,3 @@ if __name__ == '__main__':
                         outf.write(f"vcrit_screw = {np.min(vcrit[X][0][scrind]):.0f}\n")
                     else:
                         outf.write(f"vcrit_screw = {Y[X].vcrit_screw:.0f}\n")
-        

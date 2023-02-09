@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 27, 2023
+# Date: Nov. 3, 2017 - Feb. 7, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -25,8 +25,8 @@ except ImportError:
 try:
     if "OMP_NUM_THREADS" not in os.environ.keys(): ## allow user-override by setting this var. before running the python code
         ompthreads = int(np.sqrt(Ncpus))
-        while (Ncpus/ompthreads != round(Ncpus/ompthreads) ):
-            ompthreads -= 1 ## choose and optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores 
+        while Ncpus/ompthreads != round(Ncpus/ompthreads):
+            ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores 
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import subroutines as fsub
     usefortran = True
@@ -122,6 +122,22 @@ class StrohGeometry:
     def __repr__(self):
         return f" b:\t {self.b}\n n0:\t {self.n0}\n beta:\t {self.beta}\n Ntheta:\t {self.Ntheta}"
         
+    def findedgescrewindices(self,theta=None):
+        '''Find the indices i where theta[i] is either 0 or +/-pi/2. If theta is omitted, assume theta=self.theta.'''
+        if theta is None: theta=self.theta
+        else: theta = np.asarray(theta)
+        scrind = np.where(np.abs(theta)<1e-12)[0]
+        out = [None,None]
+        if len(scrind) == 1:
+            out[0] = int(scrind)
+        edgind = np.where(np.abs(theta-np.pi/2)<1e-12)[0]
+        if len(edgind) == 1:
+            out[1] = int(edgind)
+        negedgind = np.where(np.abs(theta+np.pi/2)<1e-12)[0]
+        if len(negedgind) == 1:
+            out.append(int(negedgind))
+        return out
+        
     def computeuij(self, beta, C2=None, r=None, nogradient=False, debug=False):
         '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
            This function returns a 3x3xNthetaxNphi dimensional array.
@@ -162,9 +178,7 @@ class StrohGeometry:
            likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
            Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
         self.beta = beta
-        scrind = int((len(self.theta)-1)/2)
-        if abs(self.theta[scrind]) > 1e-12:
-            scrind=0
+        scrind = self.findedgescrewindices()[0]
         if C2_aligned is None:
             C2_aligned = self.C2_aligned
         elif C2_aligned.shape==(6,6): ## check if we received C2_aligned only for screw rather than all characters
@@ -419,6 +433,18 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
     uij[2,0] = (burgers/(2*np.pi))*((uxz[:,:,1]-uxz[:,:,0])/deltat + uxz_static + uxz_added)
     uij[2,1] = (burgers/(2*np.pi))*((uyz[:,:,1]-uyz[:,:,0])/deltat + uyz_static + uyz_added)
     return uij
+
+def accedge_theroot(y,rv2,c11,c12,c16,c22,c26,c66):
+    '''subroutine of computeuij_acc_edge()'''
+    ## rv2 = rho/lambda^2
+    ## y = mu/ (s lambda) and s lambda = i s alpha = i k, so Im(y)=0 leads to poles, i.e. equivalent to Re(mu)=0
+    K4 = c66*c22-c26**2
+    K3 = 2*(c26*c12-c16*c22)
+    K2 = (c11*c22-c12**2-2*c12*c66+2*c16*c26) - (c22+c66)*rv2
+    K1 = 2*(c16*c12-c26*c11) + 2*rv2*(c16+c26)
+    K0 = (c11-rv2)*(c66-rv2)-c16**2
+    return K0+K1*y+K2*y**2+K3*y**3+K4*y**4
+
 
 @jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError / debug option
 def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False):
@@ -697,7 +723,6 @@ def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
                 
     return result
 
-
 ############# energy and line tension
 if usefortran:
     def computeEtot(uij, betaj, C2, Cv, phi):
@@ -723,7 +748,6 @@ else:
                             Wtot[th] += uij[l,k,th]*uij[o,p,th]*(C2[k,l,o,p] + betaj*betaj*Cv[k,l,o,p,th])
             
         return np.trapz(Wtot,x=phi)/2
-    
 
 def computeLT(Etot, dtheta):
     '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t. the dislocation character theta.

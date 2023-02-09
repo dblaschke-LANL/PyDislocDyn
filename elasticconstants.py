@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 2, 2022
+# Date: Nov. 7, 2017 - Feb. 8, 2023
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -21,6 +21,14 @@ Simplify = np.vectorize(sp.simplify)
 
 delta = np.diag((1,1,1))
 Delta = sp.KroneckerDelta
+
+def roundcoeff(x,acc=12):
+    '''This function traverses a sympy expression x and rounds all floats to 'acc' digits within it.'''
+    x = sp.S(x)
+    for a in sp.preorder_traversal(x):
+        if isinstance(a, sp.Float):
+            x = x.subs(a, round(a, acc))
+    return x
 
 ### generate tensors of elastic constants
 def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=False):
@@ -345,8 +353,5 @@ class strain_poly:
             out = phi2
         else:
             raise ValueError("Error: expected 'order'>=2")
-        for a in sp.preorder_traversal(out): ## get rid of tiny numbers due to rounding errors, i.e. set numerical coefficients <10^-12 to 0.0
-            if isinstance(a, sp.Float):
-                out = out.subs(a, round(a, 12))
-        self.poly = out
-        return out
+        self.poly = roundcoeff(out) ## get rid of tiny numbers due to rounding errors, i.e. set numerical coefficients <10^-12 to 0.0
+        return self.poly
