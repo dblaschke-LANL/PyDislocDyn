@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 27, 2023
+# Date: Nov. 5, 2017 - Mar. 6, 2023
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -43,7 +43,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
 from dislocations import fourieruij_iso, ompthreads, printthreadinfo, Ncpus
-from linetension_calcs import readinputfile, read_2dresults, parse_options
+from linetension_calcs import readinputfile, read_2dresults, parse_options, str2bool
 from phononwind import elasticA3, dragcoeff_iso
 from dragcoeff_semi_iso import B_of_sigma
 try:
@@ -76,8 +76,8 @@ Nq1 = 400
 Nt = 321 # base value, grid is adaptive in Nt
 ## the following options can be set on the commandline with syntax --keyword=value:
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
-OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":bool, "use_exp":bool,\
-           "NT":int, "constantrho":bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "phononwind_opts":ast.literal_eval}
+OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":str2bool, "use_exp":str2bool,\
+           "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "phononwind_opts":ast.literal_eval}
 
 #########
 if __name__ == '__main__':

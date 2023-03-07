@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 8, 2023
+# Date: Nov. 3, 2017 - Mar. 6, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -77,7 +77,16 @@ Nphi = 1000
 bccslip = 'all' ## allowed values: '110', '112', '123', 'all' (for all three)
 hcpslip = 'all' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 ##### the following options can be set on the commandline with syntax --keyword=value:
-OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":bool, "write_vcrit":bool, "bccslip":str, "hcpslip":str, "Ncores":int}
+def str2bool(arg):
+    '''converts a string to bool'''
+    if arg in ['True', 'true', '1', 't', 'yes', 'y']:
+        out=True
+    elif arg in ['False', 'false', '0', 'f', 'no', 'n']:
+        out=False
+    else:
+        raise ValueError(f"cannot convert {arg} to bool")
+    return out
+OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "write_vcrit":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
 
 #### input data:
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
