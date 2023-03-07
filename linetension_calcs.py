@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 6, 2023
+# Date: Nov. 3, 2017 - Mar. 7, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -474,14 +474,19 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     plt.close()
 
 def read_2dresults(fname):
-    '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta and columns=theta.'''
+    '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta (or [temperature,beta]) and columns=theta.'''
     if os.access((newfn:=fname+'.xz'), os.R_OK): fname = newfn # new default
     elif os.access((newfn:=fname), os.R_OK): pass # old default
     elif os.access((newfn:=fname+'.gz'), os.R_OK): fname = newfn
     else: raise FileNotFoundError(f'tried {fname}.xz, {fname}, and {fname}.gz')
     out = pd.read_csv(fname,skiprows=1,index_col=0,sep='\t')
-    out.columns = pd.to_numeric(out.columns)*np.pi
-    out.index.name='beta'
+    try:
+        out.columns = pd.to_numeric(out.columns)*np.pi
+    except ValueError:
+        out = pd.read_csv(fname,skiprows=1,index_col=[0,1],sep='\t')
+        out.columns = pd.to_numeric(out.columns)*np.pi
+    if len(out.index.names)==1:
+        out.index.name='beta'
     out.columns.name='theta'
     return out
 
@@ -744,11 +749,6 @@ if __name__ == '__main__':
         for X in sorted(list(set(metal).intersection(vcrit.keys()))):
             for i in range(3):
                 vcritfile.write("{}\t".format(X) + '\t'.join("{:.0f}".format(thi) for thi in np.flipud(vcrit[X][0,:,i])) + '\n')
-        vcritfile.write("\ntheta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*Ntheta2-1)) + '\n')
-        vcritfile.write("metal / phi(vcrit)[pi] - polar angle at which vcrit occurs (3 solutions per theta)\n")
-        for X in sorted(list(set(metal).intersection(vcrit.keys()))):
-            for i in range(3):
-                vcritfile.write("{}\t".format(X) + '\t'.join("{:.4f}".format(thi) for thi in np.flipud(vcrit[X][1,:,i]/np.pi)) + '\n')
                 
     def mkvcritplot(X,vcrit,Ntheta):
         '''Generates a plot showing the velocities where det(nn)=0, which most of the time leads to divergences in the dislocation field.'''
