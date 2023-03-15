@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 7, 2023
+# Date: Nov. 3, 2017 - Mar. 10, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -308,22 +308,178 @@ class Dislocation(StrohGeometry,metal_props):
         self.Rayleigh = Rayleigh
         return Rayleigh
     
-    def find_vRF(self):
+    def find_vRF(self,fast=True,verbose=False,resolution=50):
         '''Compute the radiation-free velocity for edge dislocations in the transonic regime.
-           For details on the method, see Gao, Huang, Gumbsch, Rosakis, JMPS 47 (1999) 1941.'''
+           For details on the method, see Gao, Huang, Gumbsch, Rosakis, JMPS 47 (1999) 1941.
+           If the slip system has orthotropic symmetry, the analytic solution derived in that paper is used.
+           Otherwise, we use a numerical method, which at this point is still experimental and may give wrong
+           results for edge cases.
+           In the first transonic regime, there may be a range of radiation free velocities; option resolution
+           determines how many values to probe for in this regime.
+           Option 'fast=False' is only used for orthotropic slip systems in which case it will bypass the
+           analytic solution in favor of the numerical one in order to facilitate testing the latter;
+           this option will be removed in future versions.'''
         if self.C2_aligned is None:
             self.alignC2()
         edgind = self.findedgescrewindices()[1]
         c = self.C2_aligned[edgind]
         test = np.abs(c/self.C2[3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[2,4]+test[2,4]+\
+        if fast and test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[2,4]+test[2,4]+\
             test[5,3]+test[5,4]+test[0,5]+test[1,5]+test[2,5]+test[3,4] < 1e-12:
-            vRF = np.sqrt((c[0,0]*c[1,1]-c[0,1]**2)/(c[0,1]+c[1,1])/self.rho)
+            self.vRF = out = np.sqrt((c[0,0]*c[1,1]-c[0,1]**2)/(c[0,1]+c[1,1])/self.rho)
+            if verbose: print("orthotropic symmetry detected, using analytic solution")
         else:
-            print("Not (yet) implemented for this slip system.")
-            vRF = None
-        self.vRF = vRF
-        return vRF
+            print("find_vRF() warning: using experimental subroutine; it may still contain bugs!")
+            rv2 = sp.symbols('rv2') # abbreviation for rho*v^2;
+            delta = np.identity(3,dtype=int)
+            p = sp.symbols('p')
+            m = np.array([1,0,0]) ## we already rotated C2 so that now x1 is in the direction of v and x2 is the slip plane normal
+            n = np.array([0,1,0])
+            l = m + sp.I*p*n
+            norm = self.C2[3,3] ## use c44 to normalize some numbers below
+            C2eC = UnVoigt(c/norm)
+            C2M = sp.simplify(sp.Matrix(np.dot(l,np.dot(C2eC,l)) - rv2*delta))
+            thedet = sp.simplify(sp.det(C2M))
+            fct = sp.lambdify((p,rv2),thedet,modules=[np.emath])
+            if self.vcrit_edge is None:
+                self.computevcrit()
+            if self.sym=='iso': vlim = [self.ct,self.ct,self.cl]
+            else: vlim = sorted(list(self.vcrit[0][edgind]))
+            bounds = (self.rho*(vlim[1])**2/norm,self.rho*(vlim[2])**2/norm)
+            def L2_of_beta2(beta2,comp=1):
+                '''Finds eigenvector L in the 2nd transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
+                def f(x):
+                    return float(np.abs(fct(x,beta2)))
+                p1 = None
+                for x0 in [0.5,1,1.5]:
+                    psol = optimize.root(f,x0)
+                    if psol.success:
+                        p1 = abs(float(psol.x))
+                        break
+                if p1 is not None:
+                    C2Mp = C2M.subs({rv2:beta2,p:p1})
+                    Ak = C2Mp.eigenvects()
+                    p0 = abs(Ak[0][0])
+                    Ap = Ak[0][2][0]
+                    if abs(Ak[1][0])<p0:
+                        p0 = abs(Ak[1][0])
+                        Ap = Ak[1][2][0]
+                    if abs(Ak[2][0])<p0:
+                        p0 = abs(Ak[2][0])
+                        Ap = Ak[2][2][0]
+                    if p0 > 1e-5:
+                        Ap = np.array([np.inf,np.inf,np.inf])
+                    L = sp.Matrix(-np.dot(n,np.dot(np.dot(C2eC,l),np.asarray(Ap)))).subs(p,p1).evalf()
+                else:
+                    L = [1e12,1e12] ## random high number so that minimize_scalar() below will not pick this velocity
+                if comp=='all':
+                    out = L.evalf()
+                else:
+                    out = float(np.abs(L[comp]))
+                return out
+            def L1_of_beta2(beta2,comp=1):
+                '''Finds L1+L2 in the 1st transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
+                @np.vectorize
+                def f(x):
+                    return float(np.abs(fct(x,beta2)))
+                p1 = None
+                p2 = None
+                psol = optimize.root(f,np.array([0.9,1.5]))
+                if psol.success:
+                    if len(set(np.abs(np.round(psol.x,12))))==2:
+                        p1 = abs(float(psol.x[0]))
+                        p2 = abs(float(psol.x[1]))
+                if p1 is not None and p2 is not None:
+                    C2Mp1 = C2M.subs({rv2:beta2,p:p1})
+                    C2Mp2 = C2M.subs({rv2:beta2,p:p2})
+                    Ak1 = C2Mp1.eigenvects()
+                    Ak2 = C2Mp2.eigenvects()
+                    p01 = abs(Ak1[0][0])
+                    Ap1 = Ak1[0][2][0]
+                    p02 = abs(Ak2[0][0])
+                    Ap2 = Ak2[0][2][0]
+                    if abs(Ak1[1][0])<p01:
+                        p01 = abs(Ak1[1][0])
+                        Ap1 = Ak1[1][2][0]
+                    if abs(Ak1[2][0])<p01:
+                        p01 = abs(Ak1[2][0])
+                        Ap1 = Ak1[2][2][0]
+                    if p01 > 1e-5:
+                        Ap1 = np.array([np.inf,np.inf,np.inf])
+                    if abs(Ak2[1][0])<p02:
+                        p02 = abs(Ak2[1][0])
+                        Ap2 = Ak2[1][2][0]
+                    if abs(Ak2[2][0])<p02:
+                        p02 = abs(Ak2[2][0])
+                        Ap2 = Ak2[2][2][0]
+                    if p02 > 1e-5:
+                        Ap2 = np.array([np.inf,np.inf,np.inf])
+                    L1 = sp.Matrix(-np.dot(n,np.dot(np.dot(C2eC,l),np.asarray(Ap1)))).subs(p,p1).evalf()
+                    L2 = sp.Matrix(-np.dot(n,np.dot(np.dot(C2eC,l),np.asarray(Ap2)))).subs(p,p2).evalf()
+                    factor = complex(-L1[1]/L2[1])
+                else:
+                    L1 = L2 = sp.Matrix([1e12,1e12,1e12]) ## random high number so that minimize_scalar() below will not pick this velocity
+                    factor = 1
+                if comp=='all':
+                    out = (L1+factor*L2).evalf()
+                else:
+                    L1plusL2 = np.array((L1+factor*L2).evalf(),dtype=complex)
+                    out = float(np.abs((L1plusL2)[1]) + abs((L1plusL2).imag[0]*(L1plusL2).real[2] - (L1plusL2).imag[2]*(L1plusL2).real[0]))
+                return out
+            def checkprops(vRF):
+                '''checks properties (such as boundary conditions) for the solution-candidate vRF'''
+                out = None
+                tol = 1e-5
+                if vRF is None: return out
+                if vRF.success and vRF.fun < tol:
+                    out_norm = np.sqrt(vRF.x*norm/self.rho)
+                    checkL = np.array(roundcoeff(L2_of_beta2(vRF.x,comp='all'),int(-np.log10(tol))),dtype=complex)
+                    if not (abs(checkL[0].real*checkL[2].imag - checkL[2].real*checkL[0].imag)<tol) or sp.Matrix(checkL).norm()<tol:
+                        if verbose: print(f"Error: eigenvector does not meet required properties: \n{checkL=}")
+                    else:
+                        # double check number of real eigenvalues (method above only works for one pair out of three)
+                        checkdet = roundcoeff(thedet.subs(rv2,vRF.x))
+                        eigenvals = np.array(roundcoeff(sp.Matrix(sp.solve(checkdet.subs({p**6:rv2**3,p**4:rv2**2,p**2:rv2}),rv2))),dtype=complex)
+                        if (int(sum(eigenvals.real>0)) != 1) and (float(sum(eigenvals.imag**2)) > 1e-15):
+                            print(f"Error: unexpected number of real eigenvalues detected: \n{eigenvals=}")
+                            if verbose: print(f"{out_norm}")
+                        else:
+                            if verbose: print("success")
+                            out = out_norm
+                elif verbose: print(f"condition for disloc. glide not met (L[1]!=0);\n{vRF=} ")
+                return out
+            if verbose: print("searching in the 2nd transonic regime ...")
+            vRF = optimize.minimize_scalar(L2_of_beta2,method='bounded',bounds=bounds)
+            out = self.vRF = None
+            if (out:=checkprops(vRF)) is not None:
+                self.vRF = out
+            bounds_fst = (self.rho*self.vcrit_edge**2/norm,self.rho*(vlim[1])**2/norm)
+            if np.isclose(bounds_fst[0],bounds_fst[1]):
+                if verbose: print("found only one transonic regime for this gliding edge dislocation")
+            else:
+                if verbose: print("searching in the 1st transonic regime ...")
+                vels = np.linspace(bounds_fst[0],bounds_fst[1],resolution)
+                vRF_fst = []
+                for v in vels:
+                    if L1_of_beta2(v)<1e-9:
+                        if (L1_of_beta2(v,'all').norm())>1e-9: # make sure we found a non-trivial eigenvector
+                            vRF_fst.append(np.sqrt(v*norm/self.rho))
+                if len(vRF_fst)==0:
+                    vRF_fst = optimize.minimize_scalar(L1_of_beta2,method='bounded',bounds=bounds_fst)
+                    if (vRF_fst.success and vRF_fst.fun < 1e-9):
+                        vRF_fst = np.sqrt(vRF_fst.x*norm/self.rho)
+                    else:
+                        vRF_fst = None
+                if vRF_fst is not None:
+                    if verbose: print("success")
+                    if self.vRF is None:
+                        self.vRF = vRF_fst
+                    else:
+                        self.vRF = [vRF_fst,self.vRF]
+                elif verbose: print("nothing found in 1st transonic regime")
+            if self.vRF is None:
+                print(f"Failed: could not find a solution for vRF of {self.name}")
+        return self.vRF
     
     def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
         '''Generates a plot of the requested component of the dislocation displacement gradient.
