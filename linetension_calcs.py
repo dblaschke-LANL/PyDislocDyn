@@ -488,7 +488,7 @@ class Dislocation(StrohGeometry,metal_props):
            a list of two indices indicating which component of displacement gradient u[ij] to plot.
            The steady-state solution is plotted unless an acceleration 'a' (or a more general function eta_kw) is passed. In the latter case,
            'slipsystem' is required except for those metals where its keyword coincides with self.sym (see documentation of self.computeuij_acc_screw()
-           for details on capabilities and limitations of the current implementation of the accelerating solution).
+           and self.computeuij_acc_edge() for details on capabilities and limitations of the current implementation of the accelerating solution).
            Option nogradient=True will plot the displacement field instead of its gradient; this option must be combined with an integer value for 'component'
            and is currently only implemented for steady-state solutions (a=None).
            Option skipcalc=True (implied when beta is not set) may be passed to plot results of an earlier calculation with the same input parameters (useful
@@ -541,6 +541,13 @@ class Dislocation(StrohGeometry,metal_props):
             else: acc = f"{a:.0e}"
             namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}screw_{self.name}_v{beta*self.ct:.0f}_a{acc:}"
             uijtoplot = self.uij_acc_screw_aligned[component[0],component[1]]
+        elif character=='edge' and not nogradient:
+            if not skipcalc:
+                self.computeuij_acc_edge(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+            if a is None: acc = '_of_t'
+            else: acc = f"{a:.0e}"
+            namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}edge_{self.name}_v{beta*self.ct:.0f}_a{acc:}"
+            uijtoplot = self.uij_acc_edge_aligned[component[0],component[1]]
         else:
             raise ValueError("not implemented")
         plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring+".pdf",fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)

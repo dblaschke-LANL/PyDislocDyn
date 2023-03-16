@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 7, 2023
+# Date: Nov. 3, 2017 - Feb. 9, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -9,7 +9,10 @@
 import os
 import multiprocessing
 import numpy as np
+import sympy as sp
+from mpmath import findroot
 from scipy.integrate import cumtrapz, quad
+from elasticconstants import UnVoigt ## only for temporary workaround in acc_edge sol.
 Ncpus = multiprocessing.cpu_count()
 nonumba=False
 try:
@@ -203,6 +206,53 @@ class StrohGeometry:
             raise ValueError("not implemented - slip plane is not a reflection plane")
         ## change sign to match Stroh convention of steady state counter part:
         self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
+
+    def computeuij_acc_edge(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,force_static=False):
+        '''Computes the displacement gradient of an accelerating edge dislocation.
+           For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
+           In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
+           Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
+           C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+           r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
+           x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi).
+           Finally, more general dislocation motion can be defined via function eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
+           likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
+           Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
+        edgeind = self.findedgescrewindices()[1]
+        if C2_aligned is None:
+            C2_aligned = self.C2_aligned
+        elif C2_aligned.shape==(6,6): ## check if we received C2_aligned only for edge rather than all characters
+            C2_aligned=[C2_aligned]
+            edgeind=0
+        if burgers is None:
+            burgers = self.burgers
+        else:
+            self.burgers = burgers
+        if r is None:
+            if self.r is None: r=burgers*np.linspace(0,1,250)
+            else: r = burgers*self.r
+        else:
+            self.r = r/burgers
+        if rho is None:
+            rho = self.rho
+        else:
+            self.rho = rho
+        if phi is None: phi=self.phi
+        test = np.abs(self.C2_aligned[edgeind]/self.C2_aligned[edgeind,3,3]) ## check for symmetry requirements
+        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
+            raise ValueError("not implemented - slip plane is not a reflection plane")
+        self.uij_acc_edge_aligned = computeuij_acc_edge(a,beta,burgers,C2_aligned[edgeind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
+        ## workaround while static part is not yet implemented:
+        if beta_normalization == 1:
+            C2 = UnVoigt(self.C2/C2_aligned[edgeind][3,3]) ## TODO: self.C2 defined in Dislocation, but not in StrohGeometry!
+        else:
+            C2 = UnVoigt(self.C2/(self.rho*beta_normalization**2))
+        if self.uij_static_aligned is None or force_static or self.uij_static_aligned.shape[-2] != len(r):
+            self.computeuij(0,C2=C2,r=r/burgers)
+            self.alignuij()
+            self.uij_static_aligned = self.uij_aligned.copy()
+        self.beta = beta
+        self.uij_acc_edge_aligned += self.uij_static_aligned[:,:,edgeind]
         
     def computerot(self,y = [0,1,0],z = [0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
@@ -380,7 +430,7 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
     if eta_kw is None:
         t = v/a
         shift = a*t**2/2  ## = v**2/(2*a) # distance covered by the disloc. when achieving target velocity
-        # print(f"time we reach {beta=}: {t=}")
+        # print(f"time we reach {beta=}: {t=}; distance covered: {shift=}")
     uxz = np.zeros((len(r),len(phi),2))
     uyz = np.zeros((len(r),len(phi),2))
     R = np.zeros((len(r),len(phi)))
@@ -406,7 +456,7 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
                 for ti in range(2):
                     uxz[ri,ph,ti] = quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
                     uyz[ri,ph,ti] = quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
-    ## add static part and include burgers vector:
+    ##
     if eta_kw is None:
         eta = np.sign(X)*np.sqrt(2*np.abs(X)/a)
         etapr = eta/(2*X)
@@ -422,14 +472,10 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
         *(2*etapr*((X-Y*B/(2*C))/Ct)*(tau**2*ABC-(R**2)/(2*cA**2)) - tau*(tau**2-Y**2/(Ct*cA**2))*ABC/Ct)\
         /(R**2*(denom))
     uxz_static = Y*np.sqrt(ABC/Ct)/R**2
-    # uxz_static = 0 ## for testing purposes
-    # uxz_added = 0 ## for testing purposes
     uyz_added = (heaviadd/rootadd)\
         *(tau**2*(etapr)*ABC*(Y**2/Ct-X**2) + (X*etapr-tau)*(R**2/cA**2)*(X-Y*B/(2*C)) + X*tau*ABC*(tau**2-Y**2/(Ct*cA**2)))\
         /(R**2*Ct*(denom))
     uyz_static =  - X*np.sqrt(ABC/Ct)/R**2
-    # uyz_static = 0 ## for testing purposes
-    # uyz_added = 0 ## for testing purposes
     uij[2,0] = (burgers/(2*np.pi))*((uxz[:,:,1]-uxz[:,:,0])/deltat + uxz_static + uxz_added)
     uij[2,1] = (burgers/(2*np.pi))*((uyz[:,:,1]-uyz[:,:,0])/deltat + uyz_static + uyz_added)
     return uij
@@ -445,6 +491,93 @@ def accedge_theroot(y,rv2,c11,c12,c16,c22,c26,c66):
     K0 = (c11-rv2)*(c66-rv2)-c16**2
     return K0+K1*y+K2*y**2+K3*y**3+K4*y**4
 
+def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=True,beta_normalization=1):
+    '''For now, only pure edge is implemented for slip systems with the required symmetry properties.
+       a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
+       C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+       Furthermore, x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi),
+       i.e. r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core.
+       Finally, more general dislocation motion can be defined via functions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
+       likewise etapr_kw is the derivative of eta and is also a function. Acceleration a and velocity beta are ignored (and may be set to None) in this case.
+       Instead, we require the time t at which to evaluate the dislocation field as well as the current dislocation core position 'shift' at time t.'''
+    spmodules = ["mpmath"]
+    if beta_normalization==1:
+        v = beta*np.sqrt(C2p[3,3]/rho)
+    else:
+        v = beta*beta_normalization
+    if eta_kw is None:
+        t = v/a
+        shift = a*t**2/2  ## = v**2/(2*a) # distance covered by the disloc. when achieving target velocity
+        # print(f"time we reach {beta=}: {t=}; distance covered: {shift=}")
+    y2,rv2,lambd, xs, ys, taus = sp.symbols('y2,rv2,lambd, xs, ys, taus')
+    norm = C2p[3,3]
+    C2p = C2p/norm
+    ysol = sp.solve(accedge_theroot(y2,rv2,C2p[0,0],C2p[0,1],C2p[0,5],C2p[1,1],C2p[1,5],C2p[5,5]),y2) ## 4 complex roots as fcts of rv2=rho/lambda**2
+    rv2subs = rho/lambd**2 / norm
+    ysol_all = [sp.lambdify((lambd),ysol[i].subs(rv2,rv2subs),modules=spmodules) for i in range(4)]
+    lameqn_all = [sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules) for i in range(4)]
+    dLdT_all = [sp.lambdify((lambd,xs,ys), (1 / (xs+sp.diff(ys*lambd*ysol[i].subs(rv2,rv2subs),lambd))),modules=spmodules) for i in range(4)]
+    uij = np.zeros((3,3,len(r),len(phi)))
+    for ri, rx in enumerate(r):
+        if abs(rx) < 1e-25:
+            rx=1e-25
+        # if abs(C2p[0,5])>1e-3 or abs(C2p[1,5])>1e-3: print(f"{rx=}")
+        for ph, phx in enumerate(phi):
+            x = -rx*np.cos(phx) + shift ### shift x to move with the dislocations (step fct automatically fulfilled near disloc. core)
+            y = rx*np.sin(phx)
+            if eta_kw is None:
+                eta = np.sign(x)*np.sqrt(2*np.abs(x)/a)
+                etapr = eta/(2*x)
+                tau = t-0.5*eta
+            else:
+                eta = eta_kw(x)
+                etapr = etapr_kw(x)
+                tau = t-(eta-etapr*x)
+            lam=np.zeros((4),dtype=complex)
+            Jacobian=np.zeros((4),dtype=complex)
+            mu=np.zeros((4),dtype=complex)
+            muovlam=np.zeros((4),dtype=complex)
+            coeff = np.ones((4),dtype=bool)
+            for i in range(4):
+                def lameqn(lamb):
+                    return lameqn_all[i](lamb,x,y,tau)
+                lamsol = findroot(lameqn,0.001+0.001j,solver='muller') ## solver recommended in docs for complex roots
+                lam[i] = complex(lamsol)
+                muovlam[i] = complex(ysol_all[i](lam[i]))
+                Jacobian[i] = complex(dLdT_all[i](lam[i],x,y))
+                mu[i] = complex(muovlam[i] * lam[i])
+                if np.sign(y)>=0 and np.sign(np.imag(muovlam[i])) == np.sign(np.imag(lam[i])):
+                    coeff[i] = False
+                elif np.sign(y)<0 and np.sign(np.imag(muovlam[i])) != np.sign(np.imag(lam[i])):
+                    coeff[i] = False
+                elif np.sign(np.imag(lam[i]))==0 and np.sign(np.imag(muovlam[i]))>0 and abs(y)<1e-18:
+                    coeff[i] = False # treat special case at origin / y=0 where lam can become real
+            lam = lam[coeff]
+            mu = mu[coeff]
+            muovlam = muovlam[coeff]
+            Jacobian = Jacobian[coeff]
+            if len(lam)!=2:
+                print(f"Warning: something went wrong at point (r={rx/burgers:.4f}*b, phi={phx:.6f}), skipping.")
+                continue ## skip this point (will remain zero)
+            ## all four arrays should now be length 2 instead of 4 after applying the mask 'coeff'
+            lamJac = lam*Jacobian
+            muJac = mu*Jacobian
+            etaminlam = 1 / (etapr - lam)
+            amdenom = (C2p[0,5] - (C2p[0,1]+C2p[5,5])*muovlam + C2p[1,5]*muovlam**2)
+            am = - (C2p[0,0] - 2*C2p[0,5]*muovlam + C2p[5,5]*muovlam**2 - rho/lam**2/norm) /amdenom
+            A11denom = C2p[1,1]*(am[0]*mu[0]-am[1]*mu[1]) + C2p[1,5]*(-lam[0]*am[0]+lam[1]*am[1]+mu[0]-mu[1]) \
+                       + C2p[0,1]*(lam[1]-lam[0])
+            A11 = -(-lam[1]*C2p[0,1] + C2p[1,1]*mu[1]*am[1] + C2p[1,5]*(-lam[1]*am[1]+mu[1])) /A11denom
+            A12 = 1 -A11
+            A1m = np.array([A11,A12],dtype=complex) ## build the array
+            A2m = am*A1m
+            ## choose overall sign to match Stroh convention of steady state counter part:
+            uij[0,0,ri,ph] = np.sum(np.imag(-np.sign(y)*lamJac*A1m*etaminlam))
+            uij[0,1,ri,ph] = np.sum(np.imag(np.sign(y)*muJac*A1m*etaminlam))
+            uij[1,0,ri,ph] = np.sum(np.imag(-np.sign(y)*lamJac*A2m*etaminlam))
+            uij[1,1,ri,ph] = np.sum(np.imag(np.sign(y)*muJac*A2m*etaminlam))
+    ## TODO: implement higher order corrections (tend to zero for 'small' acceleration)
+    return (burgers/(2*np.pi))*uij
 
 @jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError / debug option
 def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False):
