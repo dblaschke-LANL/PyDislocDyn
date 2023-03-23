@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Mar. 20, 2023
+# Date: Nov. 7, 2017 - Mar. 23, 2023
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -331,8 +331,8 @@ class metal_props:
                 solution[i] = sp.sqrt(solution[i])
         return solution
     
-    def Miller_to_Cart(self,v,normalize=True,reziprocal=False,accuracy=15):
-        '''Converts vector v from Miller indices to Cartesian coordinates rounded to 'accuracy' digits (15 by default). If normalize=True, a unit vector is returned.
+    def Miller_to_Cart(self,v,normalize=True,reziprocal=False):
+        '''Converts vector v from Miller indices to Cartesian coordinates (very small numbers are rounded to 0). If normalize=True, a unit vector is returned.
         See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
         By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.'''
         if self.ac is None or self.ac==0: a=1
@@ -357,9 +357,17 @@ class metal_props:
         else:
             if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-12: v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
             out = np.dot(T,v)
+        accuracy = 1e-15
         if normalize:
+            if self.sym in ['cubic', 'fcc', 'bcc']:
+                out = v # minimize rounding errors
             out = out/np.sqrt(np.dot(out,out))
-        return np.round(out,accuracy)
+        else:
+            accuracy *= self.ac
+        for i in range(len(out)):
+            if abs(out[i])<accuracy:
+                out[i] = round(out[i]) # round tiny numbers to zero
+        return out
         
     def populate_from_dict(self,inputparams):
         '''Assigns values to various attributes of this class by reading a dictionary 'inputparams'. Keywords unknown to this function are ignored.'''
