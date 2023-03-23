@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 10, 2023
+# Date: Nov. 3, 2017 - Mar. 23, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -163,8 +163,8 @@ class Dislocation(StrohGeometry,metal_props):
             for i in range(3):
                 ## default minimizer sometimes yields nan, but bounded method doesn't always find the smallest value, so run both:
                 with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                    minresult1 = optimize.minimize_scalar(findvlim,bounds=(0.0,2*np.pi),args=(i))
-                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0.0,2*np.pi),args=(i))
+                    minresult1 = optimize.minimize_scalar(findvlim,bounds=(0,2.04*np.pi),args=(i)) # slightly enlarge interval for better results despite rounding errors in some cases
+                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=(i))
                 if verbose and not (minresult1.success and minresult2.success):
                     print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult1}\n{minresult2}\n\n")
                 ## always take the smaller result, ignore nan:
