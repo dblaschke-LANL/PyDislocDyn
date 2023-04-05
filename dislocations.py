@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 9, 2023
+# Date: Nov. 3, 2017 - Apr. 4, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -381,7 +381,7 @@ def heaviside(x):
 @jit
 def deltadistri(x,epsilon=1e-14):
     '''approximates the delta function as exp(-(x/epsilon)^2)/epsilon*sqrt(pi)'''
-    return np.exp(-(x/epsilon)**2)/(epsilon*np.pi)
+    return np.exp(-(x/epsilon)**2)/(epsilon*np.sqrt(np.pi))
 
 @jit(nopython=True)
 def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
