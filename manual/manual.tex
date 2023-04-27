@@ -40,7 +40,7 @@
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{August 1, 2022}
+\date{April 21, 2023}
 
 \begin{document}
 \maketitle
@@ -65,14 +65,14 @@ PyDislocDyn \cite{pydislocdyn} is a suite of python programs designed to perform
 Its main features summarize as:
 \begin{itemize}
 \item compute averages of elastic constants (various methods, see \cite{Blaschke:2017Poly})
-\item compute the steady-state displacement(gradient) field of a dislocation for arbitrary character angle in an arbitrary crystal geometry \cite{Bacon:1980,Hirth:1982}; a generalization to accelerating dislocations is in progress and so far has been implemented for pure screw dislocations \cite{Blaschke:2020acc}
+\item compute the steady-state displacement(gradient) field of a dislocation for arbitrary character angle in an arbitrary crystal geometry \cite{Bacon:1980,Hirth:1982}; a generalization to accelerating dislocations is in progress and so far has been implemented for pure screw dislocations \cite{Blaschke:2020acc} and pure edge dislocations \cite{Blaschke:2023acc}
 \item compute theoretical limiting velocities of dislocations in arbitrary slip system and with arbitrary character angle \cite{Blaschke:2021vcrit,Blaschke:2020MD,Teutonico:1961,Barnett:1973b}
 \item compute the elastic strain energy and line tension for any dislocation \cite{Blaschke:2017lten}
 \item compute the dislocation drag coefficient $B$ from phonon wind for any dislocation at any velocity \cite{Blaschke:BpaperRpt,Blaschke:2018anis,Blaschke:2019fits,Blaschke:2019Bpap} or stress \cite{Blaschke:2019a,Blaschke:2021impact,Blaschke:2021temperature}.
 \end{itemize}
 
 \noindent
-This manual is intended as a brief introduction on how to use the most common features of PyDislocDyn 1.2.6 \cite{pydislocdyn}.
+This manual is intended as a brief introduction on how to use the most common features of PyDislocDyn 1.2.7 \cite{pydislocdyn}.
 It does not describe every option of every function or method, and we refer to the doc-string of those functions, classes and methods for further details.
 \\
 PyDislocDyn is developed by the present author and can be downloaded from
@@ -88,14 +88,18 @@ Required modules include Numpy, Scipy, Sympy, Matplotlib, and Pandas with their 
 Numba (a just-in-time compiler for python), Joblib (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
 Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS compile with:
 \\\verb|`python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines'|.\\
-The number of threads used by the subroutines is then controlled by environment variable \verb|OMP_NUM_THREADS| which defaults to all available cpu cores visible to the OS (twice the number of physical cores for systems with hyperthreading). PyDislocDyn’s joblib parallelization will automatically adjust its ‘Ncores’ variable to avoid over-committing, i.e. if openmp uses all cores in the subroutines, joblib will spawn only one (higher level) python thread. Best results are achieved when \verb|OMP_NUM_THREADS<=Ncores| while \verb|OMP_NUM_THREADS*Ncores|=the number of all available (virtual) cpu cores; the value for Ncores is set automatically by the python code, so the user just needs to set \verb|OMP_NUM_THREADS| prior to running python in the terminal.
+The number of threads used by the subroutines is then controlled by environment variable \verb|OMP_NUM_THREADS|.
+Unless set by the user prior to running python in the terminal, PyDislocDyn will attempt to choose an optimal value.
+Furthermore, PyDislocDyn’s joblib parallelization will automatically adjust its ‘Ncores’ variable to avoid over-committing.
+%, i.e. if openmp uses all cores in the subroutines, joblib will spawn only one (higher level) python thread.
+%Best results are achieved when \verb|OMP_NUM_THREADS| is close to \verb|Ncores| while \verb|OMP_NUM_THREADS*Ncores|=the number of all available (virtual) cpu cores; the value for Ncores is set automatically by the python code, so the user just needs to set \verb|OMP_NUM_THREADS| prior to running python in the terminal.
 \end{itemize}
 
 
 \section{Running the code}
 
 PyDislocDyn 1.2.x reads its material data from input files, though PyDislocDyn also includes a selection of predefined material data to run simulations immediately.
-The latter are assembled in dictionaries within \verb|`metal_data.py'|, see Refs. \cite{Hertzberg:2012,Kaye:2004,CRCHandbook,Wasserbaech:1990,Seeger:1960,Graham:1968,Smith:1966,Epstein:1965,Lowrie:1967,Thomas:1968,Hiki:1966,Leese:1968,Voronov:1978,Alers:1960,Saunders:1986,Powell:1984,Naimon:1971,Riley:1973,Swartz:1972,Rao:1973,Swartz:1970,Singh:1992}.
+The latter are assembled in dictionaries within \verb|`metal_data.py'|, see Refs. \cite{Hertzberg:2012,Kaye:2004,CRCHandbook,Wasserbaech:1990,Seeger:1960,Graham:1968,Smith:1966,Epstein:1965,Lowrie:1967,Thomas:1968,Hiki:1966,Leese:1968,Voronov:1978,Alers:1960,Saunders:1986,Powell:1984,Naimon:1971,Riley:1973,Swartz:1972,Rao:1973,Swartz:1970,Singh:1992,Barrera:1993}.
 
 \subsection{Using the front-end scripts}
 \label{sec:frontends}
@@ -127,7 +131,7 @@ Additional command line options include:
 the resolution of the discretized polar angle \verb|--Nphi|,
 an option to skip generating the plots via \verb|--skip_plots|,
 an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
-and more; see the \verb|OPTIONS| dictionary within \verb|linetension_calcs| for a list of all supported command line options and their expected data types.
+and more; run \verb|linetension_calcs --help| for a list of all supported command line options and their expected data types.
 \\
 Results are saved as compressed text files with naming scheme \verb|`LT_metalname.dat.xz’| and results from a previous run will first be moved to \verb|`LT_metalname.dat.bak.xz’|.
 These result files can be conveniently read into a pandas.DataFrame by importing function \verb|`read_2dresults’| from \verb|`linetension_calcs.py’|.
@@ -148,7 +152,7 @@ the resolution of various discretized variables, \verb|--Nphi|, \verb|--Nphi1|, 
 an option to skip generating the plots via keyword \verb|--skip_plots|,
 an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
 additional options to be passed on to subroutine \verb|dragcoeff_iso| (defined in the \verb|phononwind.py| module) via \verb|--phononwind_opts|,
-and more; see the \verb|OPTIONS| dictionary within \verb|dragcoeff_iso| for a list of all supported command line options and their expected data types.
+and more; run \verb|dragcoeff_iso --help| for a list of all supported command line options and their expected data types.
 Option \verb|--Ncores=0| can be abused to skip drag coefficient calculations and to just generate the plots using results from a previous run.
 
 
@@ -162,8 +166,8 @@ Additional command line options include:
 the resolution of various discretized variables, \verb|--Nphi|, \verb|--Nphi1|, \verb|--Nq|, \verb|--Nq1|, \verb|--NphiX|, \verb|--Nt| (just the base value as variable t is adaptively refined),
 an option to skip generating the plots via \verb|--skip_plots|,
 an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
-additional options to be passed on to subroutine \verb|dragcoeff_iso| via \verb|--phononwind_opts|,
-and more; see the \verb|OPTIONS| dictionary within \verb|dragcoeff_semi_iso| for a list of all supported command line options and their expected data types.
+additional options to be passed on to subroutine \verb|dragcoeff_iso| via \verb|--phononwind_opts="{'keyword':value,...}"|,
+and more; run \verb|dragcoeff_semi_iso --help| for a list of all supported command line options and their expected data types.
 Option \verb|--Ncores=0| can be abused to skip drag coefficient calculations and to just generate the plots using results from a previous run.
 
 By default, the lowest dislocation limiting velocity is computed on the fly for every character angle and drag coefficient calculations will be skipped beyond these velocities (on a per character angle basis, see \verb|`inf’| entries in the resulting \verb|`drag_anis_metalname.dat.xz’| files).
@@ -185,7 +189,7 @@ where all numerical values must be set in SI units.
 Comments are allowed and start with \verb|`#'|.
 Required keywords include:
 \begin{itemize}
-\item \verb|sym|: defines the crystal symmetry, recognized values are \verb|iso|, \verb|fcc|, \verb|bcc|, \verb|cubic| (for cubic I), \verb|hcp|, \verb|tetr| (for tetragonal I), \verb|trig| (for trigonal I), \verb|orth| (for orthorhombic), \verb|mono| (for monoclinic), and \verb|tric| (for triclinic), see \cite{Brugger:1965} for an overview over these crystal systems.
+\item \verb|sym|: defines the crystal symmetry, recognized values are \verb|iso|, \verb|fcc|, \verb|bcc|, \verb|cubic| (for cubic I), \verb|hcp|, \verb|tetr| (for tetragonal I), \verb|trig| (for trigonal I), \verb|tetr2| (for tetragonal II), \verb|orth| (for orthorhombic), \verb|mono| (for monoclinic), and \verb|tric| (for triclinic), see \cite{Brugger:1965} for an overview over these crystal systems.
 
 \item \verb|rho|: the material density
 
@@ -237,7 +241,7 @@ Upon initialization, several quantities are automatically calculated and stored 
 the tensors of elastic constants in Voigt notation are saved as attributes \verb|.C2| (SOEC) and (if applicable) \verb|.C3| (TOEC),
 the (polycrystalline averages of) longitudinal and transverse sound speeds \verb|.cl| and \verb|.ct|, as well as the average Bulk modulus \verb|.bulk|, Young's modulus \verb|.young|, Poisson's ratio \verb|.poisson|,
 and the edge of the first Brillouin zone in the Debye approximation \verb|.qBZ|.
-If \verb|sym| is \verb|fcc| or \verb|bcc|, also the Zener anisotropy ratio \verb|.Zener| and elastic constant \verb|.cp|=$(c_{11}-c_{12})/2$ are additionally calculated.
+If \verb|sym| is \verb|fcc|, \verb|bcc|, or \verb|cubic|, also the Zener anisotropy ratio \verb|.Zener| and elastic constant \verb|.cp|=$(c_{11}-c_{12})/2$ are additionally calculated.
 Furthermore, the dislocation line and slip directions are determined for all requested dislocation character angles \verb|theta|.
 
 Function \verb|readinputfile()| defines some additional defaults and options making the initialization of the Dislocation class easier:
@@ -248,16 +252,18 @@ Once initialized, many calculations are available via the classes methods such a
 \begin{itemize}
 \item \verb|.compute_Lame()| to calculate the isotropic averages of the SOECs
 
-\item \verb|.computesound(v)| to calculate the sound speed for a wave propagating in direction v
+\item \verb|.computesound(v)| to calculate the sound speeds for a wave propagating in direction v
 
 \item \verb|.computevcrit()| to calculate limiting velocities for all character angles initialized in the class
 
 \item \verb|.findvcrit_smallest()| returns the lowest limiting velocity for all character angles (independent of \verb|Ntheta|)
 
-\item \verb|.findRayleigh()| calculates the Rayleigh wave speed for every initialized character angle, i.e. for the slip directions of dislocations of every character angle.
+\item \verb|.findRayleigh()| calculates the Rayleigh wave speed for every initialized character angle, i.e. for the slip directions of dislocations of every character angle, see \cite{Barnett:1973b}.
 
-\item \verb|.computeuij(beta)| calculates the steady-state dislocation displacement gradient field in Cartesian coordinates aligned with the crystal as a function of polar angle phi in the plane perpendicular to the dislocation line using the Stroh / integral method \cite{Bacon:1980} for all initialized character angles.
-Argument beta is the normalized velocity (e.g. \verb|v/ct| by default, where ct is the averaged transverse sound speed).
+\item \verb|.find_vRF()| calculates `radiation-free' velocities, i.e. transonic edge dislocation velocities that are free of shock waves, see \cite{Gao:1999,Blaschke:2023rad}.
+
+\item \verb|.computeuij(beta)| calculates the steady-state dislocation displacement gradient field in Cartesian coordinates aligned with the crystal as a function of polar angle \verb|phi| in the plane perpendicular to the dislocation line using the Stroh / integral method \cite{Bacon:1980} for all initialized character angles.
+Argument \verb|beta| is the normalized velocity (e.g. \verb|v/ct| by default, where \verb|ct| is the averaged transverse sound speed).
 The result is stored in attribute \verb|.uij|.
 \item \verb|.alignC2()| computes the tensor of SOEC in coordinates aligned with the dislocation line and slip plane normal; it’s result, ‘.C2aligned’, contains an array of SOEC tensors whose entries correspond to the character angles.
 
@@ -265,12 +271,15 @@ The result is stored in attribute \verb|.uij|.
 
 \item \verb|.alignuij()| rotates .uij (the result of \verb|.computeuij()|) into coordinates aligned with the dislocation line and slip plane normal and stores the result in \verb|.uij_aligned|; \verb|.computerot()| (or \verb|alignC2()|) must be called first.
 
-\item \verb|.computeuij_acc(a,beta)| calculates the dislocation displacement gradient field of a screw dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane;
-other accelerating cases (including edge and mixed dislocations) are not implemented yet.
-The result is stored in \verb|.uij_acc_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal.
+\item \verb|.computeuij_acc_screw(a,beta)| calculates the dislocation displacement gradient field of a screw dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane.
+The result is stored in \verb|.uij_acc_screw_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal\footnote{
+Note: this method and attribute were renamed  .computeuij\_acc() $\to$ .computeuij\_acc\_screw() and .uij\_acc\_aligned $\to$ .uij\_acc\_screw\_aligned in PyDislocDyn 1.2.7.}.
+
+\item \verb|.computeuij_acc_edge(a,beta)| likewise calculates the dislocation displacement gradient field of an edge dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane.
+The result is stored in \verb|.uij_acc_edge_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal.
 
 \item Method \verb|.plotdisloc()| generates a color-mesh plot of one component (choose with keyword \verb|`component’|) of the dislocation displacement gradient field of one character angle (choose with keyword \verb|`character’|) and saves it as a pdf file.
-If velocity beta is set, the dislocation field is computed on the fly (and other arguments of this function are passed along to the \verb|.computeuij()| method).
+If velocity \verb|beta| is set, the dislocation field is computed on the fly (and other arguments of this function are passed along to the \verb|.computeuij()| method).
 Setting \verb|showplt=True| will display the plot inline in addition to saving a pdf;
 this option requires that the user first set \verb|`%matplotlib inline’|, as the default matplotlib back-end set by PyDislocDyn is \verb|`Agg'| (in order to facilitate running in a remote terminal session).
 
