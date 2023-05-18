@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 17, 2023
+# Date: Nov. 5, 2017 - May 18, 2023
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -12,8 +12,11 @@ import numpy as np
 try:
     from numba import jit
 except ImportError:
-    def jit(func):
+    from functools import partial
+    def jit(func=None,forceobj=True,nopython=False):
         '''define a dummy decorator if numba is unavailable at runtime'''
+        if func is None:
+            return partial(jit, forceobj=forceobj,nopython=nopython)
         return func
 try:
     import subroutines as fsub
