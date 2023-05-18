@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 23, 2023
+# Date: Nov. 3, 2017 - Apr. 25, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -50,7 +50,7 @@ sys.path.append(dir_path)
 import metal_data as data
 from elasticconstants import roundcoeff, Voigt, UnVoigt
 from polycrystal_averaging import metal_props, loadinputfile
-from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot
+from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot, rotaround
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
@@ -308,20 +308,28 @@ class Dislocation(StrohGeometry,metal_props):
         self.Rayleigh = Rayleigh
         return Rayleigh
     
-    def find_vRF(self,fast=True,verbose=False,resolution=50):
-        '''Compute the radiation-free velocity for edge dislocations in the transonic regime.
+    def find_vRF(self,fast=True,verbose=False,resolution=50,thetaind=None,partial_burgers=None):
+        '''Compute the radiation-free velocity for dislocations (default: edge dislocations) in the transonic regime.
            For details on the method, see Gao, Huang, Gumbsch, Rosakis, JMPS 47 (1999) 1941.
            If the slip system has orthotropic symmetry, the analytic solution derived in that paper is used.
-           Otherwise, we use a numerical method, which at this point is still experimental and may give wrong
-           results for edge cases.
+           Otherwise, we use a numerical method.
            In the first transonic regime, there may be a range of radiation free velocities; option resolution
-           determines how many values to probe for in this regime.
+           determines how many values to probe for in this regime. In this regime, we also support searching for
+           radiation-free velocities for mixed dislocations: option 'thetaind' may be any index pointing to an
+           element of self.theta. Furthermore, partial_burgers may be passed using Miller indices to check for vRF 
+           of a partial dislocation (an instance of the Dislocation class always represents a perfect dislocation
+           with normalized Burgers vector self.b).
            Option 'fast=False' is only used for orthotropic slip systems in which case it will bypass the
            analytic solution in favor of the numerical one in order to facilitate testing the latter;
-           this option will be removed in future versions.'''
+           this option may be removed in future versions.'''
         if self.C2_aligned is None:
             self.alignC2()
-        edgind = self.findedgescrewindices()[1]
+        if thetaind is None:
+            edgind = self.findedgescrewindices()[1]
+        else:
+            edgind=thetaind
+            fast=False ## always use numeric code for mixed or partial disloc.
+        if partial_burgers is not None: fast=False
         c = self.C2_aligned[edgind]
         test = np.abs(c/self.C2[3,3]) ## check for symmetry requirements
         if fast and test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[2,4]+test[2,4]+\
@@ -329,7 +337,6 @@ class Dislocation(StrohGeometry,metal_props):
             self.vRF = out = np.sqrt((c[0,0]*c[1,1]-c[0,1]**2)/(c[0,1]+c[1,1])/self.rho)
             if verbose: print("orthotropic symmetry detected, using analytic solution")
         else:
-            print("find_vRF() warning: using experimental subroutine; it may still contain bugs!")
             rv2 = sp.symbols('rv2') # abbreviation for rho*v^2;
             delta = np.identity(3,dtype=int)
             p = sp.symbols('p')
@@ -345,6 +352,16 @@ class Dislocation(StrohGeometry,metal_props):
                 self.computevcrit()
             if self.sym=='iso': vlim = [self.ct,self.ct,self.cl]
             else: vlim = sorted(list(self.vcrit[0][edgind]))
+            burg = None
+            if thetaind is not None:
+                burg = self.rot[edgind] @ self.b
+            if partial_burgers is not None:
+                burg = self.rot[edgind] @ self.Miller_to_Cart(partial_burgers)
+            if burg is not None:
+                x = np.array([1,0,0])
+                v = np.cross(x,burg)
+                sv = np.sqrt(np.vdot(v,v))
+                rot = rotaround(v/sv,sv,x@burg)
             bounds = (self.rho*(vlim[1])**2/norm,self.rho*(vlim[2])**2/norm)
             def L2_of_beta2(beta2,comp=1):
                 '''Finds eigenvector L in the 2nd transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
@@ -377,7 +394,7 @@ class Dislocation(StrohGeometry,metal_props):
                 else:
                     out = float(np.abs(L[comp]))
                 return out
-            def L1_of_beta2(beta2,comp=1):
+            def L1_of_beta2(beta2,comp=1,burg = burg):
                 '''Finds L1+L2 in the 1st transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
                 @np.vectorize
                 def f(x):
@@ -424,6 +441,8 @@ class Dislocation(StrohGeometry,metal_props):
                     out = (L1+factor*L2).evalf()
                 else:
                     L1plusL2 = np.array((L1+factor*L2).evalf(),dtype=complex)
+                    if burg is not None:
+                        L1plusL2 = rot @ L1plusL2
                     out = float(np.abs((L1plusL2)[1]) + abs((L1plusL2).imag[0]*(L1plusL2).real[2] - (L1plusL2).imag[2]*(L1plusL2).real[0]))
                 return out
             def checkprops(vRF):
@@ -448,14 +467,15 @@ class Dislocation(StrohGeometry,metal_props):
                             out = out_norm
                 elif verbose: print(f"condition for disloc. glide not met (L[1]!=0);\n{vRF=} ")
                 return out
-            if verbose: print("searching in the 2nd transonic regime ...")
-            vRF = optimize.minimize_scalar(L2_of_beta2,method='bounded',bounds=bounds)
             out = self.vRF = None
-            if (out:=checkprops(vRF)) is not None:
-                self.vRF = out
+            if burg is None: #bypass for mixed or partial disloc. (not supported yet) TODO: check if we really never have a solution here for mixed dislocs.
+                if verbose: print("searching in the 2nd transonic regime ...")
+                vRF = optimize.minimize_scalar(L2_of_beta2,method='bounded',bounds=bounds)
+                if (out:=checkprops(vRF)) is not None:
+                    self.vRF = out
             bounds_fst = (self.rho*self.vcrit_edge**2/norm,self.rho*(vlim[1])**2/norm)
             if np.isclose(bounds_fst[0],bounds_fst[1]):
-                if verbose: print("found only one transonic regime for this gliding edge dislocation")
+                if verbose and thetaind is None: print("found only one transonic regime for this gliding edge dislocation")
             else:
                 if verbose: print("searching in the 1st transonic regime ...")
                 vels = np.linspace(bounds_fst[0],bounds_fst[1],resolution)
