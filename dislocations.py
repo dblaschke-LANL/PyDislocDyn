@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 4, 2023
+# Date: Nov. 3, 2017 - May 17, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -324,7 +324,7 @@ if usefortran:
            This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
         return fsub.elbrak1d(A,B,elC)
 else:
-    @jit
+    @jit(nopython=True)
     def elbrak(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
@@ -342,7 +342,7 @@ else:
                             np.add(AB[l,o,th] , np.multiply(np.multiply(A[k,th],elC[k,l,o,p,th],tmp),B[p,th],tmp) , AB[l,o,th])
         
         return AB
-    @jit
+    @jit(nopython=True)
     def elbrak1d(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
@@ -356,7 +356,7 @@ else:
                             AB[ph,l,o] += A[ph,k]*elC[k,l,o,p]*B[ph,p]
         return AB
 
-@jit
+@jit(nopython=True)
 def elbrak_alt(A,B,elC):
     '''Computes the contraction of matrices A, B with the tensor of 2nd order elastic constants elC.'''
     Ntheta = len(A[0,0,:,0])
@@ -373,12 +373,12 @@ def elbrak_alt(A,B,elC):
         
     return AB
 
-@jit
+@jit(nopython=True)
 def heaviside(x):
     '''step function with convention heaviside(0)=1/2'''
     return (np.sign(x)+1)/2
 
-@jit
+@jit(nopython=True)
 def deltadistri(x,epsilon=1e-14):
     '''approximates the delta function as exp(-(x/epsilon)^2)/epsilon*sqrt(pi)'''
     return np.exp(-(x/epsilon)**2)/(epsilon*np.sqrt(np.pi))
@@ -783,7 +783,7 @@ def fourieruij_iso(beta,ct_over_cl, theta, phi):
     
     return uij
 
-@jit
+@jit(nopython=True)
 def fourieruij_sincos(r,phiX,q,ph):
     '''Subroutine for fourieruij() that computes q*sin(r*q*cos(phiX-ph)) integrated over r, resulting in an array of shape (len(q),len(phiX)*len(ph)).
        All input parameters must be 1-dim. arrays, although only the cutoffs r[0] and r[-1] are used since the integration over r is done analytically.'''
@@ -798,7 +798,7 @@ def fourieruij_sincos(r,phiX,q,ph):
     return out
 
 ### compute fourier transform of uij for fixed velocity beta (i.e. uij is an array of shape (3,3,len(theta),len(phi)))
-@jit
+@jit(nopython=True)
 def fourieruij(uij,r,phiX,q,ph,sincos=None):
     '''Takes uij multiplied by r over the Burgers vector (which then is only phi dependent), and returns uijs Fourier transform multiplied q which then only depends on q through the cutoffs q*r[0] and q*r[-1].
        r, phi are the magnitude and angle in x-space, although of the former only the cutoffs r[0] and r[-1] are used since the integration over r is done analytically. q, ph are the magnitude and angle in Fourier space.
@@ -826,7 +826,7 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
                 
     return result
 
-@jit
+@jit(nopython=True)
 def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
     '''Takes uij multiplied by r over the Burgers vector (which then is only phi dependent), and returns uijs Fourier transform multiplied q which then only depends on q through the cutoffs q*r[0] and q*r[-1].
        This function, however, assumes these cutoffs are removed, i.e. taken to 0 and infinity, respectively. Hence, the result is q-independent and as such a smaller array of shape (3,3,len(theta),len(ph)) is returned,
@@ -864,7 +864,7 @@ if usefortran:
         as well as the integration angle phi inside the plane normal to the dislocation line.'''
         return fsub.computeetot(np.moveaxis(uij,-1,0),betaj,C2,Cv,phi)
 else:
-    @jit
+    @jit(nopython=True)
     def computeEtot(uij, betaj, C2, Cv, phi):
         '''Computes the self energy of a straight dislocation uij moving at velocity betaj.
         Additional required input parameters are the 2nd order elastic constant tensor C2 (for the strain energy) and its velocity dependent shift Cv (for the kinetic energy),

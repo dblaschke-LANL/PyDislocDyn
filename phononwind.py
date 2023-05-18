@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 21, 2022
+# Date: Nov. 5, 2017 - May 17, 2023
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -28,14 +28,14 @@ delta = np.diag((1,1,1))
 hbar = 1.0545718e-34
 kB = 1.38064852e-23
 
-@jit
+@jit(nopython=True)
 def phonon(T,omega,q):
     '''Compute a phonon distribution function. Requires input: temperature T in Kelvin, omega*q denotes the phonon energy over hbar.
        A scale omega must be given separately, so that q is roughly of order 1. Otherwise 'overflow encountered in exp' errors might occur.'''
     scale = hbar*omega/(kB*T)
     return 1/(np.exp(scale*q)-1)
 
-@jit
+@jit(nopython=True)
 def elasticA3(C2, C3):
     '''Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons. Required inputs are the tensors of SOEC and TOEC.'''
     A3 = C3.copy()
@@ -49,7 +49,7 @@ def elasticA3(C2, C3):
     return A3
 
 ### this fct. needs dij for a fixed angle theta (no array in theta space)!
-@jit
+@jit(nopython=True)
 def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
     '''Subroutine of dragcoeff_iso().'''
     ## prefactor has shape (len(t),len(phi))
@@ -65,7 +65,7 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
 
 ## dragcoeff_iso_computepoly() is currently the bottle neck, as it takes of the order of a few seconds to compute and is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta
 ## jit-compiling some of the subroutines helps somewhat
-@jit
+@jit(nopython=True)
 def dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     A3qt2 = np.zeros((3,3,3,3,lentph))
@@ -80,7 +80,7 @@ def dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph):
                             
     return A3qt2
 
-@jit
+@jit(nopython=True)
 def dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     part1 = np.zeros((3,3,3,3,lentph))
@@ -94,7 +94,7 @@ def dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph):
                             
     return part1
 
-@jit
+@jit(nopython=True)
 def dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dphi1,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     part2 = np.zeros((3,3,3,3,lentph))
@@ -108,7 +108,7 @@ def dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dphi1,lentph):
     np.multiply(part2, dphi1, part2)
     return part2
     
-@jit
+@jit(nopython=True)
 def dragcoeff_iso_computepoly_foldpart12(result_previous,part1,part2,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     result = result_previous
@@ -202,7 +202,7 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
 if usefortran:
     dragcoeff_iso_phonondistri = fsub.dragcoeff_iso_phonondistri
 else:
-    @jit
+    @jit(nopython=True)
     def dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi):
         '''Subroutine of dragcoeff_iso().'''
         distri = np.zeros((lenq1,lent,lenphi))
