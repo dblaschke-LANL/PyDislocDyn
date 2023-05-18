@@ -9,7 +9,8 @@ as well as parts of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j
 [J. Mech. Phys. Solids 152 (2021) 104448](https://dx.doi.org/10.1016/j.jmps.2021.104448) ([arxiv.org/abs/2009.00167](https://arxiv.org/abs/2009.00167)),
 [Int. J. Plast. 144 (2021) 103030](https://doi.org/10.1016/j.ijplas.2021.103030) ([arxiv.org/abs/2101.10497](https://arxiv.org/abs/2101.10497)), [J. Appl. Phys. 130 (2021) 015901](https://doi.org/10.1063/5.0054536) ([arxiv.org/abs/2104.08650](https://arxiv.org/abs/2104.08650)),
  [J. Phys.: Cond. Mat. 33 (2021) 503005](https://doi.org/10.1088/1361-648X/ac2970) ([arxiv.org/abs/2107.01220](https://arxiv.org/abs/2107.01220)),
-and [arxiv.org/abs/2303.10461](https://arxiv.org/abs/2303.10461).
+[arxiv.org/abs/2303.10461](https://arxiv.org/abs/2303.10461), and 
+[arxiv.org/abs/2305.06980](https://arxiv.org/abs/2305.06980).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
 ## Author
