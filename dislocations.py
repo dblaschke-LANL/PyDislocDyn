@@ -357,23 +357,6 @@ else:
         return AB
 
 @jit(nopython=True)
-def elbrak_alt(A,B,elC):
-    '''Computes the contraction of matrices A, B with the tensor of 2nd order elastic constants elC.'''
-    Ntheta = len(A[0,0,:,0])
-    Nphi = len(A[0,0,0])
-    tmp = np.zeros((Nphi))
-    AB= np.zeros((Ntheta,Nphi))
- 
-    for th in range(Ntheta):
-        for k in range(3):
-            for l in range(3):
-                for o in range(3):
-                    for p in range(3):
-                        np.add(AB[th] , np.multiply(np.multiply(A[k,l,th],elC[k,l,o,p],tmp),B[o,p,th],tmp) , AB[th])
-        
-    return AB
-
-@jit(nopython=True)
 def heaviside(x):
     '''step function with convention heaviside(0)=1/2'''
     return (np.sign(x)+1)/2

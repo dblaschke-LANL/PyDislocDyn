@@ -96,8 +96,6 @@ Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high reso
 NphiX = 3000
 # Nr = 500
 # cutoffs for r to be used in numerical Fourier trafo (in units of pi/qBZ)
-# rmin = 1/6
-# rmax = 90
 ### rmin smaller converges nicely, rmax bigger initially converges but if it gets to large (several hundred) we start getting numerical artefacts due to rapid oscillations
 rmin = 0
 rmax = 250
@@ -395,12 +393,11 @@ if __name__ == '__main__':
         ### compute dislocation displacement gradient uij, then its Fourier transform dij:
         Y[X].computeuij(beta=bt)
         Y[X].alignuij()
-        # uij_iso = dlc.computeuij_iso(bt,Y[X].ct_over_cl, theta, phiX)
         # r = np.exp(np.linspace(np.log(Y[X].burgers/5),np.log(100*Y[X].burgers),125))
         ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
         # r = np.exp(np.linspace(np.log(rmin*np.pi/Y[X].qBZ),np.log(rmax*np.pi/Y[X].qBZ),Nr))
         # q = Y[X].qBZ*np.linspace(0,1,Nq)
-        # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
+        # dij = np.average(dlc.fourieruij(Y[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
         dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
         if computevcrit_for_speed is None or computevcrit_for_speed<=0:
             skip_theta = None
@@ -462,7 +459,7 @@ if __name__ == '__main__':
             Y[X].computeuij(beta=betaT, C2=C2T) ## Y[X].C2norm will be overwritten with C2T here
             Y[X].alignuij()
             ## rT*qT = r*q, so does not change anything
-            # dij = np.average(dlc.fourieruij(dislocation[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
+            # dij = np.average(dlc.fourieruij(Y[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
             dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
             Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, name=X, **phononwind_opts)
         
