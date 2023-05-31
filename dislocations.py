@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 17, 2023
+# Date: Nov. 3, 2017 - May 30, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -169,7 +169,7 @@ class StrohGeometry:
             self.NN = self.uij['NN']
             self.uij = self.uij['uij']
         
-    def computeuij_acc_screw(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
+    def computeuij_acc_screw(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
         '''Computes the displacement gradient of an accelerating screw dislocation (based on  J. Mech. Phys. Solids 152 (2021) 104448, resp. arxiv.org/abs/2009.00167).
            For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
            In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
@@ -205,7 +205,7 @@ class StrohGeometry:
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
             raise ValueError("not implemented - slip plane is not a reflection plane")
         ## change sign to match Stroh convention of steady state counter part:
-        self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
+        self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization,epsilon=epsilon)
 
     def computeuij_acc_edge(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,force_static=False):
         '''Computes the displacement gradient of an accelerating edge dislocation.
@@ -362,7 +362,7 @@ def heaviside(x):
     return (np.sign(x)+1)/2
 
 @jit(nopython=True)
-def deltadistri(x,epsilon=1e-14):
+def deltadistri(x,epsilon=2e-16):
     '''approximates the delta function as exp(-(x/epsilon)^2)/epsilon*sqrt(pi)'''
     return np.exp(-(x/epsilon)**2)/(epsilon*np.sqrt(np.pi))
 
@@ -391,7 +391,7 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     return integrand
 
 # @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
-def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1):
+def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
        C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
@@ -451,6 +451,12 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
     denom = tau*(tau-2*etapr*(X-Y*B/(2*C))) + (etapr*R)**2 - Y**2/(Ct*cA**2)
     heaviadd = heaviside(tau - R/(cA*np.sqrt(ABC)))
     rootadd = np.sqrt(np.abs(tau**2*ABC/Ct-R**2/(Ct*cA**2)))
+    ## supersonic part:
+    p0 = (X-Y*B/(2*C))/(R*cA*np.sqrt(1-B**2/(4*A*C)))
+    deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*heaviside(p0/etapr-1)*deltadistri(tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(np.abs(1/(cA**2*Ct)-etapr**2*ABC/Ct)),epsilon=epsilon)
+    uxz_supersonic = deltaterms*np.sign(Y)*etapr
+    uyz_supersonic = deltaterms*(np.sqrt(1/(cA*Ct)-etapr**2*ABC/Ct)-np.sign(Y)*B*etapr/(2*C))
+    ##
     uxz_added = heaviadd*(Y/rootadd)\
         *(2*etapr*((X-Y*B/(2*C))/Ct)*(tau**2*ABC-(R**2)/(2*cA**2)) - tau*(tau**2-Y**2/(Ct*cA**2))*ABC/Ct)\
         /(R**2*(denom))
@@ -459,8 +465,8 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
         *(tau**2*(etapr)*ABC*(Y**2/Ct-X**2) + (X*etapr-tau)*(R**2/cA**2)*(X-Y*B/(2*C)) + X*tau*ABC*(tau**2-Y**2/(Ct*cA**2)))\
         /(R**2*Ct*(denom))
     uyz_static =  - X*np.sqrt(ABC/Ct)/R**2
-    uij[2,0] = (burgers/(2*np.pi))*((uxz[:,:,1]-uxz[:,:,0])/deltat + uxz_static + uxz_added)
-    uij[2,1] = (burgers/(2*np.pi))*((uyz[:,:,1]-uyz[:,:,0])/deltat + uyz_static + uyz_added)
+    uij[2,0] = (burgers/(2*np.pi))*((uxz[:,:,1]-uxz[:,:,0])/deltat + uxz_static + uxz_added) + uxz_supersonic
+    uij[2,1] = (burgers/(2*np.pi))*((uyz[:,:,1]-uyz[:,:,0])/deltat + uyz_static + uyz_added) + uyz_supersonic
     return uij
 
 def accedge_theroot(y,rv2,c11,c12,c16,c22,c26,c66):
