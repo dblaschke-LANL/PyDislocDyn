@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 30, 2023
+# Date: Nov. 3, 2017 - May 31, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -453,7 +453,8 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
     rootadd = np.sqrt(np.abs(tau**2*ABC/Ct-R**2/(Ct*cA**2)))
     ## supersonic part:
     p0 = (X-Y*B/(2*C))/(R*cA*np.sqrt(1-B**2/(4*A*C)))
-    deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*heaviside(p0/etapr-1)*deltadistri(tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(np.abs(1/(cA**2*Ct)-etapr**2*ABC/Ct)),epsilon=epsilon)
+    with np.errstate(invalid='ignore'): ## don't need to know about nan from sqrt(-...) as these will always occur in the subsonic regime (and filtered with np.nan_to_num)
+        deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*heaviside(p0/etapr-1)*np.nan_to_num(deltadistri(tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(1/(cA**2*Ct)-etapr**2*ABC/Ct),epsilon=epsilon))
     uxz_supersonic = deltaterms*np.sign(Y)*etapr
     uyz_supersonic = deltaterms*(np.sqrt(1/(cA*Ct)-etapr**2*ABC/Ct)-np.sign(Y)*B*etapr/(2*C))
     ##
