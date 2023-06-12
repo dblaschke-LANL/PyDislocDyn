@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Mar. 6, 2023
+# Date: Nov. 3, 2017 - June 12, 2023
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
@@ -152,7 +152,7 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
        To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
        'prismatic', or 'pyramidal'.
        By setting 'alt_soec=True', one may swap out the CRC handbook values of SOECs for some fcc metals with alternative ones (see THLPG dictionaries).
-       Likewise, 'alt_rho=True'' will use the CRC_rho_sc dictionary instead of the CRC_rho one.'''
+       Likewise, 'alt_rho=True' will use the CRC_rho_sc dictionary instead of the CRC_rho one.'''
     if fname=='auto': fname = X
     with open(fname,"w") as outf:
         outf.write(f"# this input file requires PyDislocDyn >=1.2.7\n# input parameters for {X} at ambient conditions\n\n")
@@ -232,3 +232,21 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
             outf.write(f"lam = {ISO_c12[X]:e}\n")
             outf.write(f"mu = {ISO_c44[X]:e}\n")
         outf.write("\n\n")
+
+def writeallinputfiles(iso=False,alt_soec=False,alt_rho=False):
+    '''Calls writeinputfile() for all metals and slip systems defined in the dictionaries of metal_data.py.
+       Additional options 'iso', 'alt_soec', and 'alt_rho' are passed on to that function.'''
+    if iso:
+        for X in fcc_metals.union(tetr_metals).union(bcc_metals).union(hcp_metals).intersection(ISO_c44):
+            writeinputfile(X,iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+    else:
+        for X in fcc_metals.union(tetr_metals):
+            writeinputfile(X,iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+        for X in bcc_metals:
+            writeinputfile(X,X+"110",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"112",bccslip="112",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"123",bccslip="123",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+        for X in hcp_metals:
+            writeinputfile(X,X+"basal",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"prismatic",hcpslip="prismatic",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"pyramidal",hcpslip="pyramidal",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
