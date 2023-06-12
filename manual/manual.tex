@@ -40,7 +40,7 @@
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{May 30, 2023}
+\date{June 12, 2023}
 
 \begin{document}
 \maketitle
@@ -83,7 +83,7 @@ where it is distributed under the BSD-3 license, (Copyright, Triad National Secu
 \section{Requirements}
 \begin{itemize}
 \item PyDislocDyn 1.2.5 and higher requires Python 3.8 or higher (the last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, and Python 3.6 up to version 1.2.4) and it is recommended to use the latest version.
-Required modules include Numpy, Scipy, Sympy, Matplotlib, and Pandas with their minimum Python 3.8-compatible versions, except for Sympy where we require 1.5 or higher.
+Required modules include Numpy, Scipy, Sympy, Matplotlib, and Pandas with their minimum Python 3.8-compatible versions, except for Sympy where we require 1.6 or higher.
 \item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
 Numba (a just-in-time compiler for python), Joblib (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
 Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS compile with:
