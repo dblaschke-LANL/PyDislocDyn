@@ -35,7 +35,7 @@ The LANL development team asks that any forks or derivative works include approp
 * [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.3,</br>
 * [sympy](https://www.sympy.org) >=1.6,</br>
 * [matplotlib](https://matplotlib.org/) >=3.1</br>
-* [pandas](https://pandas.pydata.org/) >=0.25</br>
+* [pandas](https://pandas.pydata.org/) >=1.1</br>
 
 ### Optional:
 
