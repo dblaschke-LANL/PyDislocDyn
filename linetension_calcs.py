@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 25, 2023
+# Date: Nov. 3, 2017 - July 27, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -66,7 +66,6 @@ Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts
 ## (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided in that file will be used and an average is only computed if mu is missing)
 scale_by_mu = 'exp'
 skip_plots=False ## set to True to skip generating line tension plots from the results
-write_vcrit=False ## if set to True and input files with missing vcrit are processed, append vcrit_smallest to that input file (increase Ntheta2 below for increased accuracy of vcrit_smallest)
 ### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
 ### and phi is an integration angle used in the integral method for computing dislocations
 Ntheta = 600
@@ -86,7 +85,7 @@ def str2bool(arg):
     else:
         raise ValueError(f"cannot convert {arg} to bool")
     return out
-OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "write_vcrit":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
+OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
 
 #### input data:
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
@@ -109,6 +108,7 @@ class Dislocation(StrohGeometry,metal_props):
             self.Millern0 = n0
             n0 = self.Miller_to_Cart(self.Millern0,reziprocal=True)
         StrohGeometry.__init__(self, b, n0, theta, Nphi)
+        self.vcrit_smallest=self.vcrit_screw=self.vcrit_edge=None
         self.sym = sym
         self.vcrit_all = None
         self.Rayleigh = None
@@ -131,7 +131,7 @@ class Dislocation(StrohGeometry,metal_props):
         '''Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
            All parameters are optional: unless a list of character angles is passed explicitly via theta_list,
            we calculate limiting velocities for all character angles in self.theta.
-           Option setvcrit determines whether or not to overwrite attribute self.vcrit.
+           Option setvcrit determines whether or not to overwrite attribute self.vcrit_barnett.
            Note that this method does not check for subtle cancellations that may occur in the dislocation displacement gradient at those velocities;
            use the frontend method .computevcrit(theta) for fully automated determination of the lowest critical velocity at each character angle.'''
         norm=(self.C2[3,3]/self.rho)
@@ -173,7 +173,7 @@ class Dislocation(StrohGeometry,metal_props):
                 else: minresult = minresult2
                 out[0,th,i] = minresult.fun
                 out[1,th,i] = minresult.x
-        if setvcrit: self.vcrit = out
+        if setvcrit: self.vcrit_barnett = out
         return out[0]
         
     def computevcrit_screw(self):
@@ -227,30 +227,40 @@ class Dislocation(StrohGeometry,metal_props):
 
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
         '''Compute the lowest critical (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
-        The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit[1] contains the corresponding limiting velocities.
-        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit.'''
+        The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit_all[1] contains the corresponding lowest limiting velocities.
+        Additionally, .vcrit_all[3] contains the highest critical velocities and .vcrit_all[2] constains the intermediate critical velocities (which depending on the crystal symmetry
+        can coincide with .vcrit_all[1] at times).
+        Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit_barnett.'''
         if theta is None:
             theta=self.theta
         indices = self.findedgescrewindices(theta)
-        self.vcrit_all = np.empty((2,len(theta)))
+        self.vcrit_all = np.empty((4,len(theta)))
         self.vcrit_all[0] = theta
         if self.sym=='iso':
             self.computevcrit_screw()
-            self.vcrit_all[1] = self.vcrit_screw
+            self.vcrit_all[1:] = self.vcrit_screw
+            if self.cl==0:
+                self.init_all()
+            self.vcrit_all[3] = self.cl
         else:
-            self.vcrit_all[1] = np.nanmin(self.computevcrit_barnett(theta_list=np.asarray(theta),setvcrit=setvcrit),axis=1)
+            self.vcrit_all[1:] = np.sort(self.computevcrit_barnett(theta_list=np.asarray(theta),setvcrit=setvcrit),axis=1).T
         if indices[0] is not None:
             self.computevcrit_screw()
             if self.vcrit_screw is not None:
                 self.vcrit_all[1,indices[0]] = self.vcrit_screw
+                if abs(1-self.vcrit_all[2,indices[0]]/self.vcrit_all[1,indices[0]])<0.005:
+                    self.vcrit_all[2,indices[0]] = self.vcrit_all[1,indices[0]] ## trust the analytical result in cases where the lowest one is the 2nd branch
             elif set_screwedge:
                 self.vcrit_screw = self.vcrit_all[1,indices[0]]
         if indices[1] is not None:
             self.computevcrit_edge()
             if self.vcrit_edge is not None:
                 self.vcrit_all[1,indices[1]] = self.vcrit_edge
+                if abs(1-self.vcrit_all[2,indices[1]]/self.vcrit_all[1,indices[1]])<0.005:
+                    self.vcrit_all[2,indices[1]] = self.vcrit_all[1,indices[1]]
                 if len(indices) == 3:
                     self.vcrit_all[1,indices[2]] = self.vcrit_edge
+                    self.vcrit_all[2,indices[2]] = self.vcrit_all[2,indices[1]]
             elif set_screwedge:
                 self.vcrit_edge = self.vcrit_all[1,indices[1]]
                 if len(indices) == 3:
@@ -351,7 +361,7 @@ class Dislocation(StrohGeometry,metal_props):
             if self.vcrit_edge is None:
                 self.computevcrit()
             if self.sym=='iso': vlim = [self.ct,self.ct,self.cl]
-            else: vlim = sorted(list(self.vcrit[0][edgind]))
+            else: vlim = sorted(list(self.vcrit_barnett[0][edgind]))
             burg = None
             if thetaind is not None:
                 burg = self.rot[edgind] @ self.b
@@ -778,7 +788,7 @@ if __name__ == '__main__':
             Y[X].compute_Lame()
 
     if Nbeta > 0:
-        with open("theta.dat","w") as thetafile:
+        with open("theta.dat","w", encoding="utf8") as thetafile:
             thetafile.write('\n'.join("{:.6f}".format(thi) for thi in theta[1:-1]))
                            
     C2 = {}
@@ -786,22 +796,8 @@ if __name__ == '__main__':
     beta_scaled = {}
     ## compute smallest critical velocity in ratio to the scaling velocity computed from the average shear modulus mu (see above):
     ## i.e. this corresponds to the smallest velocity leading to a divergence in the dislocation field at some character angle theta
-    writesmallest = {}
-    writeedge={}
-    writescrew={}
     for X in metal:
-        writeedge[X]=False
-        writescrew[X]=False
-        if Y[X].vcrit_screw is None:
-            writescrew[X]=True ## remember for later
-            Y[X].computevcrit_screw()
-        if Y[X].vcrit_edge is None:
-            writeedge[X]=True
-            Y[X].computevcrit_edge()
-        writesmallest[X] = False
-        if Y[X].vcrit_smallest is None:
-            Y[X].findvcrit_smallest()
-            writesmallest[X] = True
+        Y[X].findvcrit_smallest()
         if Y[X].ct==0:
             Y[X].ct = np.sqrt(Y[X].mu/Y[X].rho)
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
@@ -814,7 +810,7 @@ if __name__ == '__main__':
     def maincomputations(i):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
         X = metal[i]
-        with open("beta_{}.dat".format(X),"w") as betafile:
+        with open(f"beta_{X}.dat","w", encoding="utf8") as betafile:
             betafile.write('\n'.join("{:.5f}".format(bti) for bti in beta_scaled[X]))
     
         dislocation = Y[X]
@@ -832,10 +828,10 @@ if __name__ == '__main__':
         if os.access(fname:=f"LT_{X}.dat.xz", os.R_OK):
             shutil.move(fname,fname[:-3]+".bak.xz")
         with lzma.open(f"LT_{X}.dat.xz","wt") as LTfile:
-            LTfile.write("### dimensionless line tension prefactor LT(beta,theta) for {}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+            LTfile.write(f"### dimensionless line tension prefactor LT(beta,theta) for {X}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
             LTfile.write('beta/theta[pi]\t' + '\t'.join("{:.4f}".format(thi) for thi in theta[1:-1]/np.pi) + '\n')
             for j in range(len(beta)):
-                LTfile.write("{:.4f}".format(beta_scaled[X][j]) + '\t' + '\t'.join("{:.6f}".format(thi) for thi in LT[j]) + '\n')
+                LTfile.write(f"{beta_scaled[X][j]:.4f}\t" + '\t'.join("{:.6f}".format(thi) for thi in LT[j]) + '\n')
 
         return 0
         
@@ -866,7 +862,7 @@ if __name__ == '__main__':
             
     def mkLTplots(X):
         '''generates nice plots showing the dislocation line tension of metal X'''
-        namestring = "{}".format(X)
+        namestring = f"{X}"
         beta_trunc = [j for j in LT[X].index if j <=Y[X].vcrit_smallest/Y[X].ct]
         if X in metal_symm:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
@@ -894,7 +890,7 @@ if __name__ == '__main__':
         plt.contour(x_msh,y_msh,LT_trunc, colors=('black','red','black','black','black','black'), levels=[-0.5,0,0.5,1,1.5,2], linewidths=[0.7,1.0,0.7,0.7,0.7,0.7], linestyles=['solid','solid','dashed','dashdot','dotted','solid'])
         colmsh.set_rasterized(True)
         plt.axhline(0, color='grey', linewidth=0.5, linestyle='dotted')
-        plt.savefig("LT_{}.pdf".format(X),format='pdf',bbox_inches='tight',dpi=450)
+        plt.savefig(f"LT_{X}.pdf",format='pdf',bbox_inches='tight',dpi=450)
         plt.close()
 
     for X in set(plt_metal).difference(set(skip_plt)):
@@ -905,42 +901,29 @@ if __name__ == '__main__':
         sys.exit()
     
     print(f"Computing critical velocities for: {metal}")
-    # if Kcores > 1: print(f"(using joblib parallelization with {Kcores} cores)")
-    vcrit = {} # values contain critical velocities and associated polar angles
     for X in metal:
         if X in metal_symm:
             current_symm=True
             Y[X].computevcrit(theta=np.linspace(0,np.pi/2,Ntheta2))
-            scrind=0
         else:
             current_symm=False
             Y[X].computevcrit(theta=np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1))
-            scrind = Ntheta2-1
-        if Y[X].sym=='iso': print(f"skipping isotropic {X}, vcrit=ct")
-        else:
-            vcrit[X]=np.empty(Y[X].vcrit.shape)
-            for th in range(vcrit[X].shape[1]):
-                tmplist=[]
-                for i in range(3):
-                    tmplist.append(tuple(Y[X].vcrit[:,th,i]))
-                vcrit[X][:,th,:] = np.array(sorted(tmplist)).T
     
     ## write vcrit results to disk, then plot
-    with open("vcrit.dat","w") as vcritfile:
+    with open("vcrit.dat","w", encoding="utf8") as vcritfile:
         vcritfile.write("theta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*Ntheta2-1)) + '\n')
         vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
-        for X in sorted(list(set(metal).intersection(vcrit.keys()))):
+        for X in sorted(list(set(metal))):
             for i in range(3):
-                vcritfile.write("{}\t".format(X) + '\t'.join("{:.0f}".format(thi) for thi in np.flipud(vcrit[X][0,:,i])) + '\n')
+                vcritfile.write(f"{X}\t" + '\t'.join("{:.0f}".format(thi) for thi in np.flipud(Y[X].vcrit_all[i+1,:])) + '\n')
                 
-    def mkvcritplot(X,vcrit,Ntheta):
-        '''Generates a plot showing the velocities where det(nn)=0, which most of the time leads to divergences in the dislocation field.'''
-        fig, (ax1,ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [2, 1]}, figsize=(5.5,6.0))
+    def mkvcritplot(X,Ntheta):
+        '''Generates a plot showing the limiting (or critical) dislocation glide velocities as a function of character angle.'''
+        fig, (ax1) = plt.subplots(1, 1, sharex=True, figsize=(4.5,3.5))
         plt.tight_layout(h_pad=0.0)
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
-        vcrit0 = vcrit[0]
-        vcrit1 = vcrit[1]/np.pi
+        vcrit0 = Y[X].vcrit_all[1:].T
         if len(vcrit0)==Ntheta:
             plt.xticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
             thetapoints = np.linspace(0,np.pi/2,Ntheta)
@@ -951,42 +934,12 @@ if __name__ == '__main__':
         ax1.xaxis.set_minor_locator(AutoMinorLocator())
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
         ax1.set_ylabel(r'$v_\mathrm{c}$[m/s]',fontsize=fntsize)
-        ax1.set_title("3 vcrit solutions for {}".format(X),fontsize=fntsize)
-        plt.setp(ax1.get_xticklabels(), visible=False)
+        ax1.set_title(f"3 vcrit solutions for {X}",fontsize=fntsize)
         for i in range(3):
             ax1.plot(thetapoints,vcrit0[:,i])
-        ##
-        ax2.axis((min(thetapoints),max(thetapoints),np.nanmin(vcrit1)*0.97,np.nanmax(vcrit1)*1.02)) ## define plot range
-        ax2.xaxis.set_minor_locator(AutoMinorLocator())
-        ax2.yaxis.set_minor_locator(AutoMinorLocator())
-        ax2.set_xlabel(r'$\vartheta$',fontsize=fntsize)
-        ax2.set_ylabel(r'$\phi(v_\mathrm{c})/\pi$',fontsize=fntsize)
-        for i in range(3):
-            ax2.plot(thetapoints,vcrit1[:,i])
-        plt.savefig("vcrit_{}.pdf".format(X),format='pdf',bbox_inches='tight')
+        ax1.set_xlabel(r'$\vartheta$',fontsize=fntsize)
+        plt.savefig(f"vcrit_{X}.pdf",format='pdf',bbox_inches='tight')
         plt.close()
     
-    for X in sorted(list(set(metal).intersection(vcrit.keys()))):
-        mkvcritplot(X,vcrit[X],Ntheta2)
-        if write_vcrit and not use_metaldata:
-            with open(Y[X].filename,"a") as outf:
-                if writesmallest[X] or writeedge[X] or writescrew[X]:
-                    outf.write("## limiting velocities as computed by PyDislocDyn:\n")
-                if writesmallest[X]:
-                    print(f"writing vcrit_smallest to {X} ...")
-                    outf.write(f"vcrit_smallest = {Y[X].vcrit_smallest:.0f}\n")
-                if writeedge[X]:
-                    print(f"writing vcrit_edge to {X}")
-                    if Y[X].vcrit_edge is None: ## the case if the slip plane is not a reflection plane
-                        if scrind>0:
-                            outf.write(f"vcrit_edge = {min(np.min(vcrit[X][0][0]),np.min(vcrit[X][0][-1])):.0f}\n")
-                        else:
-                            outf.write(f"vcrit_edge = {np.min(vcrit[X][0][-1]):.0f}\n")
-                    else:
-                        outf.write(f"vcrit_edge = {Y[X].vcrit_edge:.0f}\n")
-                if writescrew[X]:
-                    print(f"writing vcrit_screw to {X}")
-                    if Y[X].vcrit_screw is None: ## the case if the slip plane is not a reflection plane
-                        outf.write(f"vcrit_screw = {np.min(vcrit[X][0][scrind]):.0f}\n")
-                    else:
-                        outf.write(f"vcrit_screw = {Y[X].vcrit_screw:.0f}\n")
+    for X in sorted(list(set(metal))):
+        mkvcritplot(X,Ntheta2)

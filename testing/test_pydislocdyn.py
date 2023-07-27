@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - June 14, 2023
+# Date: Mar. 6, 2023 - July 27, 2023
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -44,7 +44,6 @@ use_iso=False
 Nbeta_LT = 50
 Ntheta_LT = 200
 Nphi = 500
-write_vcrit=True
 scale_by_mu = 'exp'
 ## misc only options:
 P=0 ## pressure in strain_poly test
@@ -52,8 +51,7 @@ volpres=False ## set to True to compute volume preserving version of the strains
 
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "Ncores":int, "phononwind_opts":ast.literal_eval, \
            "NT":int, "skip_calcs":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool, "bccslip":str, "hcpslip":str,\
-           "Nbeta":int, "Ntheta":int, "Nbeta_LT":int, "Ntheta_LT":int, "Nphi":int, "scale_by_mu":str, "write_vcrit":str2bool, \
-           "P":sp.Symbol, "volpres":str2bool}
+           "Nbeta":int, "Ntheta":int, "Nbeta_LT":int, "Ntheta_LT":int, "Nphi":int, "scale_by_mu":str, "P":sp.Symbol, "volpres":str2bool}
 
 def printtestresult(success):
     if success: print("----------\nPASSED\n----------\n")
@@ -209,7 +207,7 @@ if __name__ == '__main__':
                 os.mkdir(LT_folders[1])
             print("running test 'LT' ...")
             os.chdir(os.path.join(cwd,LT_folders[0]))
-            LTopts = f" --{write_vcrit=} --Ntheta={Ntheta_LT} --Ntheta2={Ntheta} --Nbeta={Nbeta_LT} --{Nphi=} --{hcpslip=} --{bccslip=} --{scale_by_mu=} "
+            LTopts = f" --Ntheta={Ntheta_LT} --Ntheta2={Ntheta} --Nbeta={Nbeta_LT} --{Nphi=} --{hcpslip=} --{bccslip=} --{scale_by_mu=} "
             os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+f"'{metals}' | tee LT.log")
             os.chdir(os.path.join(cwd,LT_folders[1]))
             os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+os.path.join("..","temp_pydislocdyn","")+"* | tee LT.log")
@@ -307,7 +305,7 @@ if __name__ == '__main__':
                     logfile.write(Y[X].__repr__())
                     logfile.write("\n\ntheta:\n")
                     logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
-                    logfile.write(f'\nvcrit(theta)={Y[X].vcrit_all[-1]}')
+                    logfile.write(f'\nvcrit(theta)={Y[X].vcrit_all[1]}')
                     logfile.write(f'\nvcrit_smallest={Y[X].vcrit_smallest:.2f}')
                     logfile.write(f'\nvRayleigh(theta)={Y[X].Rayleigh}')
                     logfile.write(f'\nvRF={round_list(Y[X].vRF)}')
