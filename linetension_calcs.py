@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 27, 2023
+# Date: Nov. 3, 2017 - Aug. 15, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -58,7 +58,6 @@ try:
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
-Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
 
 ## choose which shear modulus to use for rescaling to dimensionless quantities
 ## allowed values are: 'crude', 'aver', and 'exp'
@@ -110,6 +109,7 @@ class Dislocation(StrohGeometry,metal_props):
         StrohGeometry.__init__(self, b, n0, theta, Nphi)
         self.vcrit_smallest=self.vcrit_screw=self.vcrit_edge=None
         self.sym = sym
+        self.vcrit_barnett = None
         self.vcrit_all = None
         self.Rayleigh = None
         self.vRF = None
@@ -247,16 +247,18 @@ class Dislocation(StrohGeometry,metal_props):
         if indices[0] is not None:
             self.computevcrit_screw()
             if self.vcrit_screw is not None:
+                temp = self.vcrit_all[1,indices[0]].copy()
                 self.vcrit_all[1,indices[0]] = self.vcrit_screw
-                if abs(1-self.vcrit_all[2,indices[0]]/self.vcrit_all[1,indices[0]])<0.005:
+                if np.abs(temp-self.vcrit_all[1,indices[0]])>1e-3 and abs(1-self.vcrit_all[2,indices[0]]/self.vcrit_all[1,indices[0]])<0.02:
                     self.vcrit_all[2,indices[0]] = self.vcrit_all[1,indices[0]] ## trust the analytical result in cases where the lowest one is the 2nd branch
             elif set_screwedge:
                 self.vcrit_screw = self.vcrit_all[1,indices[0]]
         if indices[1] is not None:
             self.computevcrit_edge()
             if self.vcrit_edge is not None:
+                temp = self.vcrit_all[1,indices[1]].copy()
                 self.vcrit_all[1,indices[1]] = self.vcrit_edge
-                if abs(1-self.vcrit_all[2,indices[1]]/self.vcrit_all[1,indices[1]])<0.005:
+                if np.abs(temp-self.vcrit_all[1,indices[1]])>1e-3 and abs(1-self.vcrit_all[2,indices[1]]/self.vcrit_all[1,indices[1]])<0.02:
                     self.vcrit_all[2,indices[1]] = self.vcrit_all[1,indices[1]]
                 if len(indices) == 3:
                     self.vcrit_all[1,indices[2]] = self.vcrit_edge
