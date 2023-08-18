@@ -1,12 +1,12 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Feb. 8, 2023
+# Date: Nov. 7, 2017 - Aug. 17, 2023
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
        elasticS2(), elasticS3(),
-       Voigt(), UnVoigt(), CheckVoigt(),
+       Voigt(), UnVoigt(), CheckVoigt(), CheckReflectionSymmetry(),
        and the class strain_poly.'''
 #################################
 import sympy as sp
@@ -220,6 +220,19 @@ def CheckVoigt(tensor):
     Input must be a (numpy array) tensor of rank 2, 4, 6, or 8.'''
     return np.all(UnVoigt(Voigt(tensor).T)==tensor)
     
+def CheckReflectionSymmetry(elasticC2):
+    '''Check for reflection symmetry of the z-plane assuming the tensor of second order elastic constants provided has been rotated into
+     the coordinates to be checked'''
+    if len(elasticC2)==3:
+        C2=Voigt(elasticC2)
+    else:
+        C2=elasticC2
+    test = np.abs(C2/C2[3,3])
+    out = False
+    if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
+        out = True
+    return out
+
 ##### generate tensors of elastic compliances
 def elasticS2(elasticC2,voigt=False):
     '''Generates the tensor of second order elastic compliances using a second order elastic constants tensor, elasticC2, as input data.
