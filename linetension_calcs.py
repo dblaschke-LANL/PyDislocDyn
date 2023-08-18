@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 15, 2023
+# Date: Nov. 3, 2017 - Aug. 17, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -48,7 +48,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
 import metal_data as data
-from elasticconstants import roundcoeff, Voigt, UnVoigt
+from elasticconstants import roundcoeff, Voigt, UnVoigt, CheckReflectionSymmetry
 from polycrystal_averaging import metal_props, loadinputfile
 from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot, rotaround
 try:
@@ -108,6 +108,7 @@ class Dislocation(StrohGeometry,metal_props):
             n0 = self.Miller_to_Cart(self.Millern0,reziprocal=True)
         StrohGeometry.__init__(self, b, n0, theta, Nphi)
         self.vcrit_smallest=self.vcrit_screw=self.vcrit_edge=None
+        self.C2_aligned_screw = self.C2_aligned_edge = None
         self.sym = sym
         self.vcrit_barnett = None
         self.vcrit_all = None
@@ -180,12 +181,11 @@ class Dislocation(StrohGeometry,metal_props):
         '''Compute the limiting velocity of a pure screw dislocation analytically, provided the slip plane is a reflection plane, use computevcrit() otherwise.'''
         if self.C2_aligned is None:
             self.alignC2()
-        scrind = self.findedgescrewindices()[0]
-        A = self.C2_aligned[scrind][4,4]
-        B = 2*self.C2_aligned[scrind][3,4]
-        C = self.C2_aligned[scrind][3,3]
-        test = np.abs(self.C2_aligned[scrind]/self.C2[3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
+        self.C2_aligned_screw = self.C2_aligned[self.findedgescrewindices()[0]]
+        A = self.C2_aligned_screw[4,4]
+        B = 2*self.C2_aligned_screw[3,4]
+        C = self.C2_aligned_screw[3,3]
+        if CheckReflectionSymmetry(self.C2_aligned_screw):
             self.vcrit_screw = np.sqrt((A-B**2/(4*C))/self.rho)
         return self.vcrit_screw
     
@@ -193,25 +193,23 @@ class Dislocation(StrohGeometry,metal_props):
         '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.'''
         if self.C2_aligned is None:
             self.alignC2()
-        edgind = self.findedgescrewindices()[1]
-        test = np.abs(self.C2_aligned[edgind]/self.C2[3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
-            c11=self.C2_aligned[edgind][0,0]
-            c22=self.C2_aligned[edgind][1,1]
-            c66=self.C2_aligned[edgind][5,5]
-            c12=self.C2_aligned[edgind][0,1]
+        self.C2_aligned_edge = self.C2_aligned[self.findedgescrewindices()[1]]
+        if CheckReflectionSymmetry(self.C2_aligned_edge):
+            c11=self.C2_aligned_edge[0,0]
+            c22=self.C2_aligned_edge[1,1]
+            c66=self.C2_aligned_edge[5,5]
+            c12=self.C2_aligned_edge[0,1]
+            test = np.abs(self.C2_aligned_edge/self.C2[3,3]) ## check for additional symmetry requirements
             if test[0,5] + test[1,5] < 1e-12:
                 self.vcrit_edge = np.sqrt(min(c66,c11)/self.rho)
                 ## cover case of q<0 (cf. Teutonico 1961 paper, eq (39); line above was only for q>0):
                 if ((c11*c22-c12**2-2*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66)<0:
                     ## analytic solution to Re(lambda=0) in eq. (39) (with sp.solve); sqrt below is real because of if statement above:
                     minval = (2*np.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)
-                    if minval>0:
-                        # print(f"q<0: {self.vcrit_edge}, {np.sqrt(minval/self.rho)}")
-                        self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
+                    self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
             else:
-                c16 = self.C2_aligned[edgind][0,5]
-                c26 = self.C2_aligned[edgind][1,5]
+                c16 = self.C2_aligned_edge[0,5]
+                c26 = self.C2_aligned_edge[1,5]
                 def theroot(y,rv2):
                     return accedge_theroot(y,rv2,c11,c12,c16,c22,c26,c66)
                 y,rv2 = sp.symbols('y,rv2')
@@ -228,8 +226,7 @@ class Dislocation(StrohGeometry,metal_props):
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
         '''Compute the lowest critical (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
         The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit_all[1] contains the corresponding lowest limiting velocities.
-        Additionally, .vcrit_all[3] contains the highest critical velocities and .vcrit_all[2] constains the intermediate critical velocities (which depending on the crystal symmetry
-        can coincide with .vcrit_all[1] at times).
+        Additionally, .vcrit_all[3] contains the highest critical velocities and .vcrit_all[2] constains the intermediate critical velocities.
         Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit_barnett.'''
         if theta is None:
             theta=self.theta
@@ -246,23 +243,16 @@ class Dislocation(StrohGeometry,metal_props):
             self.vcrit_all[1:] = np.sort(self.computevcrit_barnett(theta_list=np.asarray(theta),setvcrit=setvcrit),axis=1).T
         if indices[0] is not None:
             self.computevcrit_screw()
-            if self.vcrit_screw is not None:
-                temp = self.vcrit_all[1,indices[0]].copy()
-                self.vcrit_all[1,indices[0]] = self.vcrit_screw
-                if np.abs(temp-self.vcrit_all[1,indices[0]])>1e-3 and abs(1-self.vcrit_all[2,indices[0]]/self.vcrit_all[1,indices[0]])<0.02:
-                    self.vcrit_all[2,indices[0]] = self.vcrit_all[1,indices[0]] ## trust the analytical result in cases where the lowest one is the 2nd branch
+            if CheckReflectionSymmetry(self.C2_aligned_screw):
+                self.vcrit_all[1:,indices[0]] = self.vcrit_screw
             elif set_screwedge:
                 self.vcrit_screw = self.vcrit_all[1,indices[0]]
         if indices[1] is not None:
             self.computevcrit_edge()
-            if self.vcrit_edge is not None:
-                temp = self.vcrit_all[1,indices[1]].copy()
-                self.vcrit_all[1,indices[1]] = self.vcrit_edge
-                if np.abs(temp-self.vcrit_all[1,indices[1]])>1e-3 and abs(1-self.vcrit_all[2,indices[1]]/self.vcrit_all[1,indices[1]])<0.02:
-                    self.vcrit_all[2,indices[1]] = self.vcrit_all[1,indices[1]]
+            if CheckReflectionSymmetry(self.C2_aligned_edge):
+                self.vcrit_all[2,indices[1]] = self.vcrit_all[1,indices[1]] = self.vcrit_edge
                 if len(indices) == 3:
-                    self.vcrit_all[1,indices[2]] = self.vcrit_edge
-                    self.vcrit_all[2,indices[2]] = self.vcrit_all[2,indices[1]]
+                    self.vcrit_all[2,indices[2]] = self.vcrit_all[1,indices[2]] = self.vcrit_edge
             elif set_screwedge:
                 self.vcrit_edge = self.vcrit_all[1,indices[1]]
                 if len(indices) == 3:
