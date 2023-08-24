@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - July 27, 2023
+# Date: Mar. 6, 2023 - Aug. 24, 2023
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -59,12 +59,16 @@ def printtestresult(success):
 
 def readfile(fname):
     '''reads a text file (or xz compressed text file) and returns a list of its lines'''
+    if fname[-4:] == '.tex' and not os.path.isfile(fname):
+        fname = fname[:-4]+'.txt' ## allow comparing to old versions of pydislocdyn
     if fname[-3:] == '.xz':
         with lzma.open(fname,"rt") as f1:
             f1lines = f1.readlines()
     else:
         with open(fname,"r", encoding="utf8") as f1:
             f1lines = f1.readlines()
+    if fname[-4:] == '.tex' or fname[-4:] == '.txt': ## ignore expected changes in LaTeX code
+        f1lines = [x for x in f1lines if 'tabular' not in x and 'table' not in x and 'averages' not in x]
     return f1lines
 
 def diff(f1,f2,verbose=True):
@@ -136,7 +140,7 @@ if __name__ == '__main__':
     ############### TEST aver #############################################
     if runtests in ['all', 'aver']:
         success = True
-        fname = 'averaged_elastic_constants.txt'
+        fname = 'averaged_elastic_constants.tex'
         if not skip_calcs:
             print("running test 'aver' ...")
             os.system(os.path.join(dir_path,'polycrystal_averaging.py'))

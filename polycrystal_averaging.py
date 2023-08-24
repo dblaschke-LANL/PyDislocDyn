@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 1, 2023
+# Date: Nov. 7, 2017 - Aug. 24, 2023
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -17,6 +17,7 @@ from fractions import Fraction
 from sympy.solvers import solve
 import sympy as sp
 import numpy as np
+import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
@@ -593,46 +594,37 @@ if __name__ == '__main__':
         ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
     
     ##### write results to files (as LaTeX tables):
-    stringofnames = r" & $\lambda$ & $\mu$ \\ \hline"+"\n"
-    def stringofresults(dictionary,X):
-        return f"{X} & {float(dictionary[X][lam]):.1f} & {float(dictionary[X][mu]):.1f} \\\\\n"
-
-    stringofnames_toec = r" & $\lambda$ & $\mu$ & $l$ & $m$ & $n$ \\ \hline"+"\n"
-    def stringofresults_toec(dictionary,X):
-        return f"{X} & {float(dictionary[X][lam]):.1f} & {float(dictionary[X][mu]):.1f} & {float(dictionary[X][Murl]):.0f} & {float(dictionary[X][Murm]):.0f} & {float(dictionary[X][Murn]):.0f} \\\\\n"
+    def dict_to_pandas(dictionary):
+        '''converts a dictionary contraining polycrystalline averages to a pandas dataframe'''
+        if len(dictionary)==1:
+            dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
+        out = pd.DataFrame(dictionary,dtype=float).T
+        if len(dictionary)==1: out.drop('dummy')
+        out.columns = pd.Index([r'$\lambda$',r'$\mu$','$l$','$m$','$n$'])
+        return out
     
-    with open("averaged_elastic_constants.txt","w", encoding="utf8") as averfile:
-        averfile.write("Voigt averages [GPa]:\n"+stringofnames)
-        for X in metal:
-            averfile.write(stringofresults(VoigtAverage,X))
-        if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
-        for X in metal_toec:
-            averfile.write(stringofresults_toec(VoigtAverage,X))
-        averfile.write("\n\n")
-        
-        averfile.write("Reuss averages [GPa]:\n"+stringofnames)
-        for X in metal:
-            averfile.write(stringofresults(ReussAverage,X))
-        if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
-        for X in metal_toec:
-            averfile.write(stringofresults_toec(ReussAverage,X)) 
-        averfile.write("\n\n")
-        
-        averfile.write("Hill averages [GPa]:\n"+stringofnames)
-        for X in metal:
-            averfile.write(stringofresults(HillAverage,X))
-        if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
-        for X in metal_toec:
-            averfile.write(stringofresults_toec(HillAverage,X))
-        averfile.write("\n\n")
-        
-        if len(metal_cubic)>0:
-            averfile.write("improved averages [GPa]:\n"+stringofnames)
-            for X in metal_cubic:
-                averfile.write(stringofresults(ImprovedAv,X))
-            if len(metal_toec)>0: averfile.write("\n\n"+stringofnames_toec)
-            for X in metal_toec_cubic:
-                averfile.write(stringofresults_toec(ImprovedAv,X))
-            averfile.write("\n\n")
+    def writelatex(data,caption="",soec_only=False,dropna=False):
+        '''converts a pandas datafrane containing polycrystalline averages to a LaTeX table'''
+        out = data
+        if soec_only:
+            out = out.iloc[:,:2]
+        if dropna:
+            out.dropna(inplace=True)
+        if pd.__version__ < '1.3':
+            print(f"Warning: using workaround for pandas {pd.__version__}; version 1.3 or higher is recommended")## work around for pandas 1.1 and 1.2 (results in slightly different formatting though)
+            return out.to_latex(caption=caption,float_format="%.1f",escape=False).replace(r'{}','').replace('\n\\midrule',r' \hline').replace('\n\\toprule','').replace('\n\\bottomrule','').replace('\n\\centering','')
+        out = out.style.format(precision=1)
+        if not soec_only:
+            out = out.format('{:.0f}',subset=['$l$','$m$','$n$'])
+        return out.to_latex(caption=caption).replace(r'{}','').replace(r'{$','$').replace(r'$}','$').replace(r'$ \\',r'$ \\ \hline') ## pandas 1.3 puts curly brackets on column names, pandas >=1.4 does not
+    
+    Averages = {}
+    with open("averaged_elastic_constants.tex","w", encoding="utf8") as averfile:
+        for title, dictionary in [('Voigt',VoigtAverage),('Reuss',ReussAverage),('Hill',HillAverage),('improved',ImprovedAv)]:
+            if title not in ['improved'] or len(metal_cubic)>0:
+                Averages[title] = dict_to_pandas(dictionary)
+                averfile.write(writelatex(Averages[title],caption=f"{title} averages [GPa]:",soec_only=True))
+                averfile.write("\n\n")
+                if len(metal_toec)>0:
+                    averfile.write(writelatex(Averages[title],dropna=True)+"\n\n")
     print("done.")
-    
