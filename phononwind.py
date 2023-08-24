@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 18, 2023
+# Date: Nov. 5, 2017 - Aug. 24, 2023
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its only two front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -22,10 +22,8 @@ try:
     import subroutines as fsub
     assert(fsub.version()>=20210303),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
     usefortran = True
-    ompthreads = fsub.ompinfo()
 except ImportError:
     usefortran = False
-    ompthreads = 0
 
 delta = np.diag((1,1,1))
 hbar = 1.0545718e-34
@@ -314,7 +312,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     theta_ind = np.arange((Ntheta)) # generate array of theta-indices for later use
     modes_allowed = ['all', 'TT', 'LL', 'LT', 'TL', 'mix'] ## define allowed keywords for modes
     if beta <0 or beta>1:
-        raise ValueError("beta={}, but must be between 0 and 1.".format(beta))
+        raise ValueError(f"{beta=}, but must be between 0 and 1.")
         
     if Debye_series and r0cut is not None:
         print("Warning: r0cut is set, therefore ignoring 'Debye_series=True'.")
@@ -445,7 +443,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             out[thi] = BTT[th] + BLL[th] + BTL[th] + BLT[th]
     
     if modes not in modes_allowed:
-        raise ValueError("Error: invalid keyword modes='{}'.".format(modes))
+        raise ValueError(f"Error: invalid keyword {modes=}.")
     
     return out
 
