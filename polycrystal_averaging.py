@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 27, 2023
+# Date: Nov. 7, 2017 - Aug. 1, 2023
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -88,6 +88,12 @@ class IsoAverages(IsoInvariants):
     '''This class computes a number of polycrystal averages of second and third order elastic constants.
     These include, Voigt, Reuss, Hill, in general, and "improved" averages for cubic crystals.
     Required inputs upon initialization are five sympy symbols representing the Lame and Murnaghan constants.'''
+    def __init__(self,lam,mu,Murl,Murm,Murn):
+        IsoInvariants.__init__(self,lam,mu,Murl,Murm,Murn)
+        self.voigt = None
+        self.reuss = None
+        self.hill = None
+        self.improved = None
     
     def voigt_average(self,C2,C3=None):
         '''Computes the Voigt averages of elastic constants using the tensor(s) C2 and C3 of SOEC and TOEC (optional). The output is a dictionary of average values for the Lame and Murnaghan constants.
@@ -172,6 +178,7 @@ class metal_props:
     def __init__(self,sym='iso', name='some_crystal'):
         self.sym=sym
         self.name = name
+        self.filename = None ## if initialized from an inputfile, this attribute will store that file's name
         self.T=300
         self.Tm = None # melting temperature at low pressure
         self.ac = self.cc = self.bc = None ## lattice constants
@@ -186,11 +193,14 @@ class metal_props:
         self.c11=self.c12=self.c44=0
         self.c13=self.c33=self.c66=0
         self.cij=None ## list of 2nd order elastic constants for lower symmetries (trigonal/rhombohedral I, orthorhombic, monoclinic, and triclinic)
+        self.cp = None
+        self.Zener = None
         self.cijk=None ## list of 3rd order elastic constants for lower symmetries
         self.c111=self.c112=self.c123=0
         self.c144=self.c166=self.c456=0
         self.c113=self.c133=self.c155=0
         self.c222=self.c333=self.c344=self.c366=0
+        self.Murl = self.Murm = self.Murn = None
         self.C2=np.zeros((6,6)) #tensor of SOEC in Voigt notation
         self.C3=np.zeros((6,6,6)) # tensor of TOEC in Voigt notation
         self.mu=self.lam=self.bulk=self.poisson=self.young=None ## polycrystal averages
@@ -200,6 +210,8 @@ class metal_props:
         self.burgers=0 # length of Burgers vector
         self.b=np.zeros((3)) ## unit Burgers vector
         self.n0=np.zeros((3)) ## slip plane normal
+        self.Millerb = None ## Miller indices for burgers vector
+        self.Millern0 = None ## Miller indices for slip plane
         self.alpha_a=0 # thermal expansion coefficient at temperature self.T, set to 0 for constant rho calculations
         if sym=='tetr':
             self.c222=None
@@ -500,6 +512,7 @@ def readinputfile(fname,init=True):
         name = str(fname)
     out = metal_props(sym,name)
     out.populate_from_dict(inputparams)
+    out.filename = fname ## remember which file we read
     if init:
         out.init_all()
     return out

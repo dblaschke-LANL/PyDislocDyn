@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 6, 2023
+# Date: Nov. 5, 2017 - June 15, 2023
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -116,10 +116,10 @@ if __name__ == '__main__':
     if Ncores == 0:
         print("skipping phonon wind calculations as requested")
     else:
-        with open("beta.dat","w") as betafile:
+        with open("beta.dat","w", encoding="utf8") as betafile:
             betafile.write('\n'.join(map("{:.5f}".format,beta)))
         for X in metal:
-            with open(X+"_iso.log", "w") as logfile:
+            with open(X+"_iso.log", "w", encoding="utf8") as logfile:
                 logfile.write(Y[X].__repr__())
                 logfile.write("\n\nbeta =v/ct:\n")
                 logfile.write('\n'.join(map("{:.5f}".format,beta)))
@@ -136,7 +136,7 @@ if __name__ == '__main__':
             Y[X].alpha_a = 0
         ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
         if len(highT[X])>1 and Ncores !=0:
-            with open(X+"_iso.log","a") as logfile:
+            with open(X+"_iso.log","a", encoding="utf8") as logfile:
                 logfile.write("\n\nT:\n")
                 logfile.write('\n'.join(map("{:.2f}".format,highT[X])))
         A3[X] = elasticA3(UnVoigt(Y[X].C2/Y[X].mu), UnVoigt(Y[X].C3/Y[X].mu))
@@ -186,22 +186,22 @@ if __name__ == '__main__':
 
         # and write the results to disk (in various formats)
         if Ncores != 0:
-            with open("drag_{}.dat".format(X),"w") as Bfile:
-                Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+            with open(f"drag_{X}.dat","w", encoding="utf8") as Bfile:
+                Bfile.write(f"### B(beta,theta) for {X} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
-                    Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+                    Bfile.write(f"{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
-            with open("drag_T_{}.dat".format(X),"w") as Bfile:
+            with open(f"drag_T_{X}.dat","w", encoding="utf8") as Bfile:
                 if len(Y[X].theta)>2:
                     Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 else:
                     Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\tBedge[mPas]' + '\n')
                 for bi in range(len(beta)):
                     for Ti in range(len(highT[X])):
-                        Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
+                        Bfile.write(f"{highT[X][Ti]:.1f}\t{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
 
     #############################################################################################################################
 
@@ -253,7 +253,7 @@ if __name__ == '__main__':
         popt_edge[X], pcov_edge[X] = curve_fit(fit_edge, beta, Broom[X].iloc[:,-1], bounds=([0.9*Broom[X].iloc[0,-1],0.,-0.,-0., -0.], [1.1*Broom[X].iloc[0,-1], 2*Broom[X].iloc[0,-1], 1., 1.,1.]))
         popt_screw[X], pcov_screw[X] = curve_fit(fit_screw, beta, Broom[X].iloc[:,0], bounds=([0.9*Broom[X].iloc[0,0],0.,-0.,-0.,-0.], [1.1*Broom[X].iloc[0,0], 2*Broom[X].iloc[0,0], 1., 1., 1.]))
     
-    with open("drag_iso_fit.txt","w") as fitfile:
+    with open("drag_iso_fit.txt","w", encoding="utf8") as fitfile:
         if modes=='TT': ## degree of divergence is reduced for purely transverse modes
             fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature (transverse modes only):\nEdge dislocations:\n")
             for X in metal:
@@ -304,7 +304,7 @@ if __name__ == '__main__':
                 with np.errstate(all='ignore'):
                     ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
             else:
-                raise ValueError("keyword 'filename'={} undefined.".format(filename))
+                raise ValueError(f"keyword {filename=} undefined.")
         ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
         plt.savefig(f"B_iso_{filename}+fits.pdf",format='pdf',bbox_inches='tight')
         plt.close()

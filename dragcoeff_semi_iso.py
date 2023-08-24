@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 6, 2023
+# Date: Nov. 5, 2017 - June 15, 2023
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -321,10 +321,10 @@ if __name__ == '__main__':
     if Ncores == 0:
         print("skipping phonon wind calculations as requested")
     else:
-        with open("beta.dat","w") as betafile:
+        with open("beta.dat","w", encoding="utf8") as betafile:
             betafile.write('\n'.join(map("{:.5f}".format,beta)))
         for X in metal:
-            with open(X+".log", "w") as logfile:
+            with open(X+".log", "w", encoding="utf8") as logfile:
                 logfile.write(Y[X].__repr__())
                 logfile.write("\n\nbeta =v/ct:\n")
                 logfile.write('\n'.join(map("{:.5f}".format,beta)))
@@ -353,7 +353,7 @@ if __name__ == '__main__':
             Y[X].alpha_a = 0
         ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
         if len(highT[X])>1 and Ncores !=0:
-            with open(X+".log", "a") as logfile:
+            with open(X+".log", "a", encoding="utf8") as logfile:
                 logfile.write("\n\nT:\n")
                 logfile.write('\n'.join(map("{:.2f}".format,highT[X])))
         
@@ -479,10 +479,10 @@ if __name__ == '__main__':
             if os.access(fname:=f"drag_anis_{X}.dat.xz", os.R_OK):
                 shutil.move(fname,fname[:-3]+".bak.xz")
             with lzma.open(f"drag_anis_{X}.dat.xz","wt") as Bfile:
-                Bfile.write("### B(beta,theta) for {} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.".format(X) + '\n')
+                Bfile.write(f"### B(beta,theta) for {X} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
-                    Bfile.write("{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+                    Bfile.write(f"{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
@@ -493,7 +493,7 @@ if __name__ == '__main__':
                 Bfile.write('temperature[K]\tbeta\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
                 for bi in range(len(beta)):
                     for Ti in range(len(highT[X])):
-                        Bfile.write("{:.1f}".format(highT[X][Ti]) +'\t' + "{:.4f}".format(beta[bi]) + '\t' + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
+                        Bfile.write(f"{highT[X][Ti]:.1f}\t{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
 
     #############################################################################################################################
 
@@ -569,7 +569,7 @@ if __name__ == '__main__':
                 Bmax = Bmin+0.032 ## if more than 35% of the area is >Bmax, double the range
             elif np.sum(B_trunc>Bmax)/(len(Y[X].Broom.columns)*len(Y[X].beta_trunc))<0.02:
                 Bmax = Bmin+0.008 ## if less than 2% of the area is >Bmax, cut the range in half
-        namestring = "{}".format(X)
+        namestring = f"{X}"
         plt.xticks(fontsize=fntsize)
         plt.yticks(np.arange(10)/10,fontsize=fntsize)
         cbarlevels = list(np.linspace(Bmin,Bmax,9))
@@ -594,7 +594,7 @@ if __name__ == '__main__':
             cbar = plt.colorbar(fraction=clbar_frac,pad=clbar_pd, ticks=cbarlevels)
             cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, fontsize = fntsize)
             cbar.ax.tick_params(labelsize = fntsize)
-        plt.contour(x_msh,y_msh,B_trunc, colors=('gray','gray','gray','white','white','white','white','white','white'), levels=cbarlevels, linewidths=[0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9], linestyles=['dashdot','solid','dashed','dotted','dashdot','solid','dashed','dotted','dashdot'])
+        plt.contour(x_msh,y_msh,B_trunc, colors=('gray','gray','gray','white','white','white','white','white','white'), levels=cbarlevels, linewidths=0.9, linestyles=['dashdot','solid','dashed','dotted','dashdot','solid','dashed','dotted','dashdot'])
         
     def mkmeshbetaplot(X,sinex=False):
         '''Plot the drag coefficient over the character angle and the dislocation velocity as well as at low velocity over the character angle.'''
@@ -617,7 +617,7 @@ if __name__ == '__main__':
         cax.set_xticks([])
         cax.set_yticks([])
         fig.tight_layout(pad=0.3)
-        plt.savefig("B_{}.pdf".format(X),format='pdf',bbox_inches='tight',dpi=300)
+        plt.savefig(f"B_{X}.pdf",format='pdf',bbox_inches='tight',dpi=300)
         plt.close()
     
     for X in metal:
@@ -639,7 +639,7 @@ if __name__ == '__main__':
         popt_edge[X], pcov_edge[X], popt_screw[X], pcov_screw[X], popt_aver[X], pcov_aver[X] = mkfit_Bv(Y[X],Y[X].Broom,scale_plot=scale_plot)
         scale_plot=max(scale_plot,Y[X].scale_plot)
     
-    with open("drag_semi_iso_fit.txt","w") as fitfile:
+    with open("drag_semi_iso_fit.txt","w", encoding="utf8") as fitfile:
         fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature:\nEdge dislocations:\n")
         for X in metal:
             fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_edge[X]))
@@ -701,7 +701,7 @@ if __name__ == '__main__':
                 cutat = 1.007*vcrit
                 B = Y[X].Baver[beta<cutat]
             else:
-                raise ValueError("keyword 'filename'={} undefined.".format(filename))
+                raise ValueError(f"keyword {filename=} undefined.")
             if X in metalcolors.keys():
                 ax.plot(beta[beta<cutat],B,color=metalcolors[X],label=X)
             else:

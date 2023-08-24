@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 31, 2023
+# Date: Nov. 3, 2017 - Aug. 1, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -97,6 +97,7 @@ class StrohGeometry:
         self.Cv = np.zeros((3,3,3,3,Ntheta))
         self.M = np.zeros((3,Ntheta,Nphi))
         self.N = np.zeros((3,Ntheta,Nphi))
+        self.Sb = self.Bb = self.NN = None ## only used for debugging
         
         self.t = np.outer(np.cos(self.theta),self.b) + np.outer(np.sin(self.theta),np.cross(self.b,self.n0))
         self.m0 = np.cross(self.n0,self.t)
