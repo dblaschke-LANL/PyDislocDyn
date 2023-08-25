@@ -346,6 +346,11 @@ class Dislocation(StrohGeometry,metal_props):
             l = m + sp.I*p*n
             norm = self.C2[3,3] ## use c44 to normalize some numbers below
             C2eC = UnVoigt(c/norm)
+            if CheckReflectionSymmetry(c):
+                delta = delta[:2,:2] ## only need 2x2 submatrix for edge in this case
+                n = n[:2]
+                l = l[:2]
+                C2eC = C2eC[:2,:2,:2,:2]
             C2M = sp.simplify(sp.Matrix(np.dot(l,np.dot(C2eC,l)) - rv2*delta))
             thedet = sp.simplify(sp.det(C2M))
             fct = sp.lambdify((p,rv2),thedet,modules=[np.emath])
@@ -381,11 +386,11 @@ class Dislocation(StrohGeometry,metal_props):
                     if abs(Ak[1][0])<p0:
                         p0 = abs(Ak[1][0])
                         Ap = Ak[1][2][0]
-                    if abs(Ak[2][0])<p0:
+                    if len(Ak)>2 and abs(Ak[2][0])<p0:
                         p0 = abs(Ak[2][0])
                         Ap = Ak[2][2][0]
                     if p0 > 1e-5:
-                        Ap = np.array([np.inf,np.inf,np.inf])
+                        Ap = np.repeat(np.inf,len(Ak))
                     L = sp.Matrix(-np.dot(n,np.dot(np.dot(C2eC,l),np.asarray(Ap)))).subs(p,p1).evalf()
                 else:
                     L = [1e12,1e12] ## random high number so that minimize_scalar() below will not pick this velocity
@@ -453,7 +458,10 @@ class Dislocation(StrohGeometry,metal_props):
                 if vRF.success and vRF.fun < tol:
                     out_norm = np.sqrt(vRF.x*norm/self.rho)
                     checkL = np.array(roundcoeff(L2_of_beta2(vRF.x,comp='all'),int(-np.log10(tol))),dtype=complex)
-                    if not (abs(checkL[0].real*checkL[2].imag - checkL[2].real*checkL[0].imag)<tol) or sp.Matrix(checkL).norm()<tol:
+                    if CheckReflectionSymmetry(c):
+                        checkL[-1].imag = checkL[0].imag
+                        checkL[-1].real=0 ## condition below reduces to Re(L[0])=0 or Im(L[0])=0 in this case
+                    if not (abs(checkL[0].real*checkL[-1].imag - checkL[-1].real*checkL[0].imag)<tol) or sp.Matrix(checkL).norm()<tol:
                         if verbose: print(f"Error: eigenvector does not meet required properties: \n{checkL=}")
                     else:
                         # double check number of real eigenvalues (method above only works for one pair out of three)
