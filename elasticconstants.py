@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 17, 2023
+# Date: Nov. 7, 2017 - Aug. 25, 2023
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -73,7 +73,7 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
         Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':0, 'C16':0, 'C22':cij[0], 'C23':cij[2], 'C24':-cij[3], 'C25':0, 'C26':0, \
                 'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':cij[3], 'C66':(cij[0]-cij[1])/2}
     else:
-        raise ValueError("len(cij)={}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), 7 (tetragonal II), or 6 (trigonal/rhombohedral I) values".format(len(cij)))
+        raise ValueError(f"len(cij)={len(cij)}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), 7 (tetragonal II), or 6 (trigonal/rhombohedral I) values")
     if isinstance(sum(Cdict.values()),sp.Expr):
         C2 = np.empty((6,6), dtype=object)
     else:
@@ -164,7 +164,7 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
             'C235':0, 'C236':0, 'C244':cijk[9], 'C245':0, 'C246':0, 'C255':cijk[8], 'C256':(cijk[3]-cijk[5])/2, 'C266':(2*cijk[0]-cijk[1]-cijk[10])/4, 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0, \
             'C346':0, 'C355':cijk[12], 'C356':cijk[7], 'C366':(cijk[2]-cijk[4])/2, 'C444':cijk[13], 'C445':0, 'C446':0, 'C455':(-cijk[13]), 'C456':(cijk[9]-cijk[8])/2, 'C466':cijk[5], 'C555':0, 'C556':0, 'C566':0, 'C666':0 }
     else:
-        raise ValueError("len(cijk)={}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), 16 (tetragonal II), or 14 (trigonal/rhombohedral I) values".format(len(cijk)))
+        raise ValueError(f"len(cijk)={len(cijk)}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), 16 (tetragonal II), or 14 (trigonal/rhombohedral I) values")
     if isinstance(sum(Cdict.values()),sp.Expr):
         C3 = np.empty((6,6,6), dtype=object)
     else:
@@ -220,16 +220,20 @@ def CheckVoigt(tensor):
     Input must be a (numpy array) tensor of rank 2, 4, 6, or 8.'''
     return np.all(UnVoigt(Voigt(tensor).T)==tensor)
     
-def CheckReflectionSymmetry(elasticC2):
+def CheckReflectionSymmetry(elasticC2,strict=False):
     '''Check for reflection symmetry of the z-plane assuming the tensor of second order elastic constants provided has been rotated into
-     the coordinates to be checked'''
+     the coordinates to be checked. By default, we check for the slightly weaker condition where non-vanishing c34 and c35 are allowed 
+     (since they drop out of the differential equations for screw/edge dislocations. Set strict=True to check for true reflection symmetry.'''
     if len(elasticC2)==3:
         C2=Voigt(elasticC2)
     else:
         C2=elasticC2
     test = np.abs(C2/C2[3,3])
+    testsum = test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4]
+    if strict:
+        testsum += test[2,3] + test[2,4]
     out = False
-    if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] < 1e-12:
+    if testsum < 1e-12:
         out = True
     return out
 
@@ -314,13 +318,13 @@ class strain_poly:
             self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C14,C15,C16,C22,C23,C24,C25,C26,C33,C34,C35,C36,C44,C45,C46,C55,C56,C66'),voigt=True)
             self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C114,C115,C116,C122,C123,C124,C125,C126,C133,C134,C135,C136,C144,C145,C146,C155,C156,C166,C222,C223,C224,C225,C226,C233,C234,C235,C236,C244,C245,C246,C255,C256,C266,C333,C334,C335,C336,C344,C345,C346,C355,C356,C366,C444,C445,C446,C455,C456,C466,C555,C556,C566,C666'),voigt=True)
         else:
-            raise ValueError("sym={} not implemented".format(self.sym))
+            raise ValueError(f"sym={self.sym} not implemented")
         self.alpha=delta
         self.strain=np.zeros((3,3))
         self.poly=0
         
     def __repr__(self):
-        return "{}".format({'y':self.y, 'sym':self.sym})
+        return f"{({'y':self.y, 'sym':self.sym})}"
             
     def generate_alpha(self,epsilon=[0,0,0,0,0,0],preserve_volume=False):
         '''Computes the (symmetric) deformation matrix in Cartesian coordinates that would lead to infinitesimal strain epsilon,i.e.

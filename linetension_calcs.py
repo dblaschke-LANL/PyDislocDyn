@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 17, 2023
+# Date: Nov. 3, 2017 - Aug. 25, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -334,8 +334,7 @@ class Dislocation(StrohGeometry,metal_props):
         if partial_burgers is not None: fast=False
         c = self.C2_aligned[edgind]
         test = np.abs(c/self.C2[3,3]) ## check for symmetry requirements
-        if fast and test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[2,4]+test[2,4]+\
-            test[5,3]+test[5,4]+test[0,5]+test[1,5]+test[2,5]+test[3,4] < 1e-12:
+        if fast and CheckReflectionSymmetry(c,strict=True) and test[0,5]+test[1,5]+test[2,5]+test[3,4] < 1e-12:
             self.vRF = out = np.sqrt((c[0,0]*c[1,1]-c[0,1]**2)/(c[0,1]+c[1,1])/self.rho)
             if verbose: print("orthotropic symmetry detected, using analytic solution")
         else:
@@ -350,10 +349,9 @@ class Dislocation(StrohGeometry,metal_props):
             C2M = sp.simplify(sp.Matrix(np.dot(l,np.dot(C2eC,l)) - rv2*delta))
             thedet = sp.simplify(sp.det(C2M))
             fct = sp.lambdify((p,rv2),thedet,modules=[np.emath])
-            if self.vcrit_edge is None:
+            if self.vcrit_all is None:
                 self.computevcrit()
-            if self.sym=='iso': vlim = [self.ct,self.ct,self.cl]
-            else: vlim = sorted(list(self.vcrit_barnett[0][edgind]))
+            vlim = self.vcrit_all[1:,edgind]
             burg = None
             if thetaind is not None:
                 burg = self.rot[edgind] @ self.b
