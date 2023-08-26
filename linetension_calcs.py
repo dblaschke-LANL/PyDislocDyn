@@ -283,7 +283,8 @@ class Dislocation(StrohGeometry,metal_props):
         Rayleigh=np.zeros((self.Ntheta))
         norm = self.C2[3,3] # use c44
         C2norm = UnVoigt(self.C2/norm)
-        if self.vcrit_all is None: self.computevcrit(set_screwedge=False) ## need it as an upper bound on the Rayleigh speed
+        if self.vcrit_all is None or len(self.vcrit_all[0])!=self.Ntheta or np.any(self.vcrit_all[0]!=self.theta):
+            self.computevcrit(set_screwedge=False) ## need it as an upper bound on the Rayleigh speed
         if len(self.vcrit_all[1])==self.Ntheta: vcrit = self.vcrit_all[1]
         else: vcrit = ndimage.zoom(self.vcrit_all[1],self.Ntheta/len(self.vcrit_all[1]))
         for th in range(self.Ntheta):
