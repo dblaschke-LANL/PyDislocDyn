@@ -326,6 +326,8 @@ class Dislocation(StrohGeometry,metal_props):
            this option may be removed in future versions.'''
         if self.C2_aligned is None:
             self.alignC2()
+        if self.vcrit_all is None or len(self.vcrit_all[0])!=self.Ntheta or np.any(self.vcrit_all[0]!=self.theta):
+            self.computevcrit()
         if thetaind is None:
             edgind = self.findedgescrewindices()[1]
         else:
@@ -354,8 +356,6 @@ class Dislocation(StrohGeometry,metal_props):
             C2M = sp.simplify(sp.Matrix(np.dot(l,np.dot(C2eC,l)) - rv2*delta))
             thedet = sp.simplify(sp.det(C2M))
             fct = sp.lambdify((p,rv2),thedet,modules=[np.emath])
-            if self.vcrit_all is None:
-                self.computevcrit()
             vlim = self.vcrit_all[1:,edgind]
             burg = None
             if thetaind is not None:
