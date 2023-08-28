@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 25, 2023
+# Date: Nov. 3, 2017 - Aug. 28, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -265,6 +265,7 @@ class Dislocation(StrohGeometry,metal_props):
            The absolute tolerance for theta can be passed via xatol; in order to improve accuracy and speed of this routine, we make use of computevcrit with Ntheta>=11 resolution
            in order to be able to pass tighter bounds to the subsequent call to minimize_scalar(). If .vcrit_all already exists in sufficient resolution from an earlier call,
            this step is skipped.'''
+        backupvcrit = self.vcrit_all
         if self.vcrit_all is None or self.vcrit_all.shape[1]<11:
             self.computevcrit(theta=np.linspace(self.theta[0],self.theta[-1],11),set_screwedge=False,setvcrit=False)
         vcrit_smallest = np.nanmin(self.vcrit_all[1])
@@ -276,6 +277,7 @@ class Dislocation(StrohGeometry,metal_props):
         else: result = optimize.minimize_scalar(f,method='bounded',bounds=bounds,options={'xatol':xatol})
         if self.sym=='iso': self.vcrit_smallest = vcrit_smallest
         elif result.success: self.vcrit_smallest = min(result.fun,vcrit_smallest)
+        if backupvcrit is not None: self.vcrit_all = backupvcrit ## don't change vcrit_all, restore from our backup
         return result
     
     def findRayleigh(self):
@@ -285,8 +287,7 @@ class Dislocation(StrohGeometry,metal_props):
         C2norm = UnVoigt(self.C2/norm)
         if self.vcrit_all is None or len(self.vcrit_all[0])!=self.Ntheta or np.any(self.vcrit_all[0]!=self.theta):
             self.computevcrit(set_screwedge=False) ## need it as an upper bound on the Rayleigh speed
-        if len(self.vcrit_all[1])==self.Ntheta: vcrit = self.vcrit_all[1]
-        else: vcrit = ndimage.zoom(self.vcrit_all[1],self.Ntheta/len(self.vcrit_all[1]))
+        vcrit = self.vcrit_all[1]
         for th in range(self.Ntheta):
             def Rayleighcond(B):
                 return abs((B[0,0]+B[1,1])/2-np.sqrt((B[0,0]-B[1,1])**2/4 + B[0,1]**2))
