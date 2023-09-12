@@ -40,7 +40,7 @@
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{June 12, 2023}
+\date{September 12, 2023}
 
 \begin{document}
 \maketitle
@@ -72,7 +72,7 @@ Its main features summarize as:
 \end{itemize}
 
 \noindent
-This manual is intended as a brief introduction on how to use the most common features of PyDislocDyn 1.2.7 \cite{pydislocdyn}.
+This manual is intended as a brief introduction on how to use the most common features of PyDislocDyn 1.2.7 and higher \cite{pydislocdyn}.
 It does not describe every option of every function or method, and we refer to the doc-string of those functions, classes and methods for further details.
 \\
 PyDislocDyn is developed by the present author and can be downloaded from
@@ -82,10 +82,12 @@ where it is distributed under the BSD-3 license, (Copyright, Triad National Secu
 
 \section{Requirements}
 \begin{itemize}
-\item PyDislocDyn 1.2.5 and higher requires Python 3.8 or higher (the last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, and Python 3.6 up to version 1.2.4) and it is recommended to use the latest version.
-Required modules include Numpy, Scipy, Sympy, Matplotlib, and Pandas with their minimum Python 3.8-compatible versions, except for Sympy where we require 1.6 or higher.
+\item PyDislocDyn 1.2.5 and higher requires Python 3.8 or higher\footnote{
+The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, and Python 3.6 up to version 1.2.4}
+and it is recommended to use the latest version.
+As of PyDislocDyn >1.2.7, required modules include Numpy $\ge1.17$, Scipy $\ge1.3$, Sympy $\ge1.6$, Matplotlib $\ge3.1$, and Pandas $\ge1.1$ (though Pandas $\ge1.3$ including its optional dependency Jinja2 is recommended).
 \item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
-Numba (a just-in-time compiler for python), Joblib (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
+Numba $\ge0.47$ (a just-in-time compiler for python), Joblib $\ge0.14$ (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
 Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS compile with:
 \\\verb|`python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines'|.\\
 The number of threads used by the subroutines is then controlled by environment variable \verb|OMP_NUM_THREADS|.
