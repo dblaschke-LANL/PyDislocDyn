@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Aug. 24, 2023
+# Date: Mar. 6, 2023 - Sept. 12, 2023
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -18,6 +18,7 @@ import pandas as pd
 dir_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"..")
 sys.path.append(dir_path)
 
+import metal_data as data
 from metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, writeallinputfiles
 from elasticconstants import Voigt, UnVoigt, strain_poly
 from linetension_calcs import parse_options, str2bool, read_2dresults, Ncores, readinputfile
@@ -31,6 +32,7 @@ phononwind_opts="{'maxrec':4,'target_accuracy':1e-2}"
 NT = 1
 ## dragiso only options:
 metals_iso = 'Cu Fe'
+use_exp = True
 # drag and LT options:
 metals = "Al Mo Ti Sn"
 Ntheta = 4
@@ -50,7 +52,7 @@ P=0 ## pressure in strain_poly test
 volpres=False ## set to True to compute volume preserving version of the strains
 
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "Ncores":int, "phononwind_opts":ast.literal_eval, \
-           "NT":int, "skip_calcs":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool, "bccslip":str, "hcpslip":str,\
+           "NT":int, "skip_calcs":str2bool, "use_exp":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool, "bccslip":str, "hcpslip":str,\
            "Nbeta":int, "Ntheta":int, "Nbeta_LT":int, "Ntheta_LT":int, "Nphi":int, "scale_by_mu":str, "P":sp.Symbol, "volpres":str2bool}
 
 def printtestresult(success):
@@ -127,6 +129,21 @@ if __name__ == '__main__':
         slipkw_hcp = ['basal','prismatic','pyramidal']
     else:
         slipkw_hcp=[hcpslip]
+    if metals_iso == 'all':
+        if use_exp:
+            metals_iso_temp = sorted(list(data.ISO_l.keys()))
+        else:
+            metals_iso_temp = sorted(list(data.c111.keys()))
+        metals_iso=''
+        for i in metals_iso_temp:
+            metals_iso += i+' '
+        metals_iso = metals_iso.strip()
+    if metals == 'all':
+        from dragcoeff_semi_iso import metal as metals_temp
+        metals = ''
+        for i in metals_temp:
+            metals += i+' '
+        metals = metals.strip()
     metal_list = []
     for X in metals.split():
         if X in bcc_metals:
@@ -155,7 +172,7 @@ if __name__ == '__main__':
         fname = "drag_iso_fit.txt"
         if not skip_calcs:
             print("running test 'dragiso' ...")
-            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f" --{Nbeta=} --{Ncores=} --{phononwind_opts=} --{NT=} '{metals_iso}' | tee dragiso.log")
+            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f" --{Nbeta=} --{Ncores=} --{use_exp=} --{phononwind_opts=} --{NT=} '{metals_iso}' | tee dragiso.log")
         else: print("skipping test 'dragiso' as requested")
         metals_iso = metals_iso.split()
         print(f"\ncomparing dragiso results for: {metals_iso}")
@@ -235,9 +252,9 @@ if __name__ == '__main__':
         metal_acc_screw = []
         metal_acc_edge = []
         for X in metal_list:
-            if X in fcc_metals or "basal" in X or "prismatic" in X or "pyramidal" in X:
+            if X in fcc_metals or "basal" in X or "prismatic" in X or "pyramidal" in X or X in tetr_metals:
                 metal_acc_screw.append(X)
-            if "112" in X or "basal" in X or "prismatic" in X:
+            if "112" in X or "basal" in X or "prismatic" in X or X in tetr_metals:
                 metal_acc_edge.append(X)
         success = True
         if not skip_calcs:
