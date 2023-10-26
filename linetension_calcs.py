@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 28, 2023
+# Date: Nov. 3, 2017 - Oct. 26, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -220,7 +220,7 @@ class Dislocation(StrohGeometry,metal_props):
                 with np.errstate(invalid='ignore'):
                     rv2limit = optimize.fsolve(f,1e5)
                     if f(rv2limit) < 1e-12: ## check if fsolve was successful
-                        self.vcrit_edge = np.sqrt(float(rv2limit)/self.rho)
+                        self.vcrit_edge = np.sqrt(rv2limit[0]/self.rho)
         return self.vcrit_edge
 
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):

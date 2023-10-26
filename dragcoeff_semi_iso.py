@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 15, 2023
+# Date: Nov. 5, 2017 - Oct. 26, 2023
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -59,7 +59,6 @@ except ImportError:
     dlc.Ncpus = 1
     Ncores = 1 ## must be 1 (or 0) without joblib
 Kcores = max(Ncores,int(min(dlc.Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
-if Ncores==0: Kcores=max(1,int(dlc.Ncpus/2)) # in case user has set Ncores=0 above to bypass phonon wind calcs
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of dislocation character angles between 0 and pi/2 (minimum 2, i.e. pure edge and pure screw), if the range -pi/2--pi/2 is required the number of angles is increased to 2*Ntheta-1
@@ -182,12 +181,12 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         bsig = abs(burg*stress)
         def nonlinear_equation(v):
             return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
-        out = float(fmin(nonlinear_equation,0.01*vcrit,disp=False))
+        out = fmin(nonlinear_equation,0.01*vcrit,disp=False)[0]
         zero = abs(nonlinear_equation(out))
         if zero>1e-5 and zero/bsig>1e-2:
             # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
             # fall back to (slower) fsolve:
-            out = float(fsolve(nonlinear_equation,0.01*vcrit))
+            out = fsolve(nonlinear_equation,0.01*vcrit)[0]
         return out
         
     @np.vectorize
