@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 24, 2023
+# Date: Nov. 3, 2017 - Oct. 26, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -52,7 +52,8 @@ def printthreadinfo(Ncores,ompthreads=ompthreads):
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
         print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module")
-        print("OpenMP is also supported, e.g. with gfortran: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'\n")
+        print("OpenMP is also supported, e.g. with gfortran and Python <=3.11: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'")
+        print("or with Python >=3.12: \n'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines'\n")
 
 ### define the Kronecker delta
 delta = np.diag((1,1,1))
