@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Sept. 12, 2023
+# Date: Mar. 6, 2023 - Nov. 16, 2023
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -73,10 +73,21 @@ def readfile(fname):
         f1lines = [x for x in f1lines if 'tabular' not in x and 'table' not in x and 'averages' not in x]
     return f1lines
 
+def removewhitespace(somestring):
+    '''replaces excessive whitespace with ' ' in the middle of a string, and removes leading/trailing whitespace (space and tab characters only)'''
+    string1 = somestring.strip()
+    string2 = string1.replace("\t"," ").replace("  "," ")
+    while(string2!=string1):
+        string1 = string2
+        string2 = string1.replace("\t"," ").replace("  "," ")
+    return string2
+
 def diff(f1,f2,verbose=True):
     '''Compares two text files'''
     f1lines = readfile(f1)
+    f1lines = [removewhitespace(i) for i in f1lines]
     f2lines = readfile(f2)
+    f2lines = [removewhitespace(i) for i in f2lines]
     thediff = difflib.unified_diff(f1lines, f2lines, fromfile=f1,tofile=f2,lineterm="",n=0)
     equal = (f1lines==f2lines)
     if verbose and not equal:
@@ -90,6 +101,13 @@ def isclose(f1,f2):
     if f1.shape==f2.shape:
         out = np.allclose(f1,f2,equal_nan=True)
     return out
+
+def compare_df(f1,f2):
+    '''Compares two pandas.DataFrames using the pandas.compare method, but ignoring rounding errors (i.e. everything numpy.isclose decides is close enough)'''
+    themask = pd.DataFrame(np.invert(np.isclose(f1,f2,equal_nan=True)),index=f1.index,columns=f1.columns)
+    f1masked = f1[themask]
+    f2masked = f2[themask]
+    return f1masked.compare(f2masked)
 
 def round_list(lst,ndigits=2):
     '''rounds all floats in a nested list'''
@@ -210,7 +228,7 @@ if __name__ == '__main__':
             if not (result:=isclose(f1,f2)):
                 print(f"{drag_folder}/{dragname}_{X}.dat.xz differs")
                 success=False
-                if verbose and f1.shape==f2.shape: print(f1.compare(f2))
+                if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         fname = "drag_semi_iso_fit.txt"
         if not diff(os.path.join(old,drag_folder,fname),os.path.join(cwd,drag_folder,fname),verbose=verbose):
             if not verbose: print(f"{drag_folder}/{fname} differs")
@@ -242,7 +260,7 @@ if __name__ == '__main__':
                 if not (result:=isclose(f1,f2)):
                     print(f"{folder}/{X} differs")
                     success=False
-                    if verbose and f1.shape==f2.shape: print(f"{f1.compare(f2)}\n")
+                    if verbose and f1.shape==f2.shape: print(f"{compare_df(f1,f2)}\n")
             if not diff(os.path.join(old,folder,fname),os.path.join(cwd,folder,fname),verbose=verbose):
                 if not verbose: print(f"{folder}/{fname} differs")
                 success=False
@@ -293,14 +311,14 @@ if __name__ == '__main__':
             if not (result:=isclose(f1,f2)):
                 print(f"uij_acc_screw_{X}.csv differs")
                 success=False
-                if verbose and f1.shape==f2.shape: print(f1.compare(f2))
+                if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         for X in metal_acc_edge:
             f1 = pd.read_csv(os.path.join(old,f"uij_acc_edge_{X}.csv"),index_col=0)
             f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv"),index_col=0)
             if not (result:=isclose(f1,f2)):
                 print(f"uij_acc_edge_{X}.csv differs")
                 success=False
-                if verbose and f1.shape==f2.shape: print(f1.compare(f2))
+                if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         printtestresult(success)
     ############### TEST misc ###############################################
     if runtests in ['all', 'misc']:
