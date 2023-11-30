@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 26, 2023
+# Date: Nov. 3, 2017 - Nov. 29, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -219,8 +219,10 @@ class Dislocation(StrohGeometry,metal_props):
                     return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
                 with np.errstate(invalid='ignore'):
                     rv2limit = optimize.fsolve(f,1e5)
-                    if f(rv2limit) < 1e-12: ## check if fsolve was successful
+                    if f(rv2limit) < 1e-11: ## check if fsolve was successful
                         self.vcrit_edge = np.sqrt(rv2limit[0]/self.rho)
+                    else:
+                        print(f'Warning: {self.name}.computevcrit_edge() (resp. fsolve) failed, debug info: {rv2limit=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
         return self.vcrit_edge
 
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
@@ -249,7 +251,7 @@ class Dislocation(StrohGeometry,metal_props):
                 self.vcrit_screw = self.vcrit_all[1,indices[0]]
         if indices[1] is not None:
             self.computevcrit_edge()
-            if CheckReflectionSymmetry(self.C2_aligned_edge):
+            if CheckReflectionSymmetry(self.C2_aligned_edge) and self.vcrit_edge is not None:
                 self.vcrit_all[2,indices[1]] = self.vcrit_all[1,indices[1]] = self.vcrit_edge
                 if len(indices) == 3:
                     self.vcrit_all[2,indices[2]] = self.vcrit_all[1,indices[2]] = self.vcrit_edge
