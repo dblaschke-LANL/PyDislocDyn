@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Nov. 16, 2023
+# Date: Mar. 6, 2023 - Dec. 6, 2023
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -348,6 +348,12 @@ if __name__ == '__main__':
                     logfile.write(f'\nvcrit_smallest={Y[X].vcrit_smallest:.2f}')
                     logfile.write(f'\nvRayleigh(theta)={Y[X].Rayleigh}')
                     logfile.write(f'\nvRF={round_list(Y[X].vRF)}')
+            print("calculating various dislocation fields")
+            for X in metal_list:
+                Y[X].plotdisloc(0.5,nogradient=True,component=2,savefig=False)
+                np.save(f'uk_05small_{X}',Y[X].uij_aligned[:,:,::10,::10])
+                Y[X].plotdisloc(0.5,savefig=False)
+                np.save(f'uij_05small_{X}',Y[X].uij_aligned[:,:,:,::10,::10])
             print("calculating various deformations within the 'strain_poly' class")
             y = sp.Symbol('y')
             eta1, eta2, eta3, eta4, eta5, eta6 = sp.symbols('eta1 eta2 eta3 eta4 eta5 eta6')
@@ -374,6 +380,12 @@ if __name__ == '__main__':
             if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
                 if not verbose: print(f"{fname} differs")
                 success=False
+            for fname in [f'uk_05small_{X}.npy',f'uij_05small_{X}.npy']:
+                f1 = np.load(os.path.join(old,fname))
+                f2 = np.load(os.path.join(cwd,fname))
+                if not isclose(f1,f2):
+                    print(f"{fname} differs")
+                    success=False
         for sym in crystalsyms:
             fname = f"deformations_results_{sym}.txt"
             if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):

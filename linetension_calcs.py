@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Nov. 29, 2023
+# Date: Nov. 3, 2017 - Dec. 6, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -18,7 +18,7 @@ import time
 import shutil, lzma
 import numpy as np
 import sympy as sp
-from scipy import optimize, ndimage
+from scipy import optimize
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -513,7 +513,7 @@ class Dislocation(StrohGeometry,metal_props):
                 print(f"Failed: could not find a solution for vRF of {self.name}")
         return self.vRF
     
-    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1)):
+    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1),savefig=True):
         '''Generates a plot of the requested component of the dislocation displacement gradient.
            Optional arguments are: the normalized velocity 'beta'=v/self.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
            'character' is either 'edge', 'screw' (default), or an index of self.theta, and 'component' is
@@ -527,7 +527,8 @@ class Dislocation(StrohGeometry,metal_props):
            for plotting multiple components of the dislocation field).
            Colormap and its limits are set with options 'cmap' and 'lim', respectively.` 
            If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
-           if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline).'''
+           if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline). Saving the figure to
+           a file can be suppressed with option 'savefig=False'.'''
         if beta is None:
             beta = self.beta
             skipcalc = True
@@ -582,7 +583,8 @@ class Dislocation(StrohGeometry,metal_props):
             uijtoplot = self.uij_acc_edge_aligned[component[0],component[1]]
         else:
             raise ValueError("not implemented")
-        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=namestring+".pdf",fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)
+        if savefig: savefig=namestring+".pdf"
+        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=savefig,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)
         
     def __repr__(self):
         return  "DISLOCATION\n" + metal_props.__repr__(self) + f"\n burgers:\t {self.burgers}\n" + StrohGeometry.__repr__(self)
