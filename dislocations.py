@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 26, 2023
+# Date: Nov. 3, 2017 - Dec. 6, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -33,6 +33,7 @@ try:
             ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores 
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import subroutines as fsub
+    assert(fsub.version()>=20231205),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
     usefortran = True
     if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
 except ImportError:
@@ -116,6 +117,7 @@ class StrohGeometry:
         self.C2_aligned=None
         self.C2norm = np.zeros((3,3,3,3)) # normalized
         self.sym = None ## keyword defining crystal symmetry, unknown until C2norm is set
+        self.uk = self.uk_aligned = None
         self.uij = self.uij_static = np.zeros((3,3,Ntheta,Nphi))
         self.uij_aligned = np.zeros((3,3,Ntheta,Nphi))
         self.uij_static_aligned = None
@@ -144,13 +146,12 @@ class StrohGeometry:
             out.append(int(negedgind))
         return out
         
-    def computeuij(self, beta, C2=None, r=None, nogradient=False, debug=False):
+    def computeuij(self, beta, C2=None, r=None, debug=False):
         '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
            This function returns a 3x3xNthetaxNphi dimensional array.
            Required input parameters are the dislocation velocity beta and the 2nd order elastic constant tensor C2.
            If r is provided, the full displacement gradient (a 3x3xNthetaxNrxNphi dimensional array) is returned.
-           If option nogradient is set to True, the displacement field (not its gradient) is returned: a 3xNthetaxNrxNphi dimensional array.
-           In the latter two cases, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
+           In the latter case, the core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
         self.beta = beta
         if C2 is None:
             C2 = self.C2norm
@@ -158,12 +159,12 @@ class StrohGeometry:
             self.C2norm = C2
         if r is not None:
             self.r = r
-        elif nogradient:
-            r = self.r
-        if usefortran and (r is None) and not nogradient and not debug:
+        if usefortran and not debug:
             self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
+            if r is not None:
+                self.uij = np.moveaxis(np.reshape(np.outer(1/r,self.uij),(len(r),3,3,self.Ntheta,len(self.phi))),0,-2)
         else:
-            self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=nogradient, debug=debug)
+            self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, debug=debug)
         if abs(beta)<1e-15:
             self.uij_static = self.uij.copy()
         if debug:
@@ -171,6 +172,27 @@ class StrohGeometry:
             self.Bb = self.uij['B.b']
             self.NN = self.uij['NN']
             self.uij = self.uij['uij']
+        
+    def computeuk(self, beta, C2=None, r=None):
+        '''Compute the dislocation displacement field according to the integral method (which in turn is based on the Stroh method).
+           This function returns a 3xNthetaxNrxNphi dimensional array.
+           Required input parameters are the dislocation velocity beta and the 2nd order elastic constant tensor C2.
+           The core cutoff is assumed to be the first element in array r, i.e. r0=r[0] (and hence r[0]=0 will give 1/0 errors).'''
+        self.beta = beta
+        if C2 is None:
+            C2 = self.C2norm
+        else:
+            self.C2norm = C2
+        if r is not None:
+            self.r = r
+        else:
+            r = self.r
+        if r is None:
+            raise ValueError("I need an array for r.")
+        if usefortran:
+            self.uk = np.moveaxis(fsub.computeuk(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi, r),0,-1)
+        else:
+            self.uk = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=True)
         
     def computeuij_acc_screw(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
         '''Computes the displacement gradient of an accelerating screw dislocation (based on  J. Mech. Phys. Solids 152 (2021) 104448, resp. arxiv.org/abs/2009.00167).
@@ -303,6 +325,15 @@ class StrohGeometry:
                 for ri in range(n[3]):
                     uijrotated[:,:,th,ri] = np.round(np.dot(self.rot[th],np.dot(self.rot[th],self.uij[:,:,th,ri])),accuracy)
         self.uij_aligned = uijrotated
+
+    def alignuk(self,accuracy=15):
+        '''Rotates previously computed uk using rotation matrix rot (run computeuk and computerot methods first), and stores the result in attribute uk_aligned.'''
+        n = self.uk.shape
+        ukrotated = np.zeros(n)
+        for th in range(len(self.theta)):
+            for ri in range(n[2]):
+                ukrotated[:,th,ri] = np.round(np.dot(self.rot[th],self.uk[:,th,ri]),accuracy)
+        self.uk_aligned = ukrotated
         
     def computeEtot(self):
         '''Computes the self energy of a straight dislocation uij moving at velocity beta. (Requirement: run method .computeuij(beta,C2) first.)'''

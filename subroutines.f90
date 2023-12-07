@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Dec. 2, 2022
+! Date: July 23, 2018 - Dec. 5, 2023
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20221202
+  versionnumber=20231205
 end subroutine version
 
 module parameters
@@ -259,6 +259,29 @@ END SUBROUTINE trapz
 
 !!**********************************************************************
 
+SUBROUTINE cumtrapz(f,x,n,intf)
+! cumulatively integrate using the trapezoidal rule
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: n
+  REAL(KIND=sel), INTENT(IN), DIMENSION(n)  :: f, x
+  REAL(KIND=sel), INTENT(OUT), DIMENSION(n) :: intf
+  REAL(KIND=sel) :: tmp
+  INTEGER :: i
+ 
+  intf(1) = 0.d0; tmp =0.d0
+  do i=1,n-1
+    tmp = tmp + 0.5d0*(f(i+1)+f(i))*(x(i+1)-x(i))
+    intf(i+1) = tmp
+  end do
+  
+  RETURN
+END SUBROUTINE cumtrapz
+
+!!**********************************************************************
+
 SUBROUTINE dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
 ! this is a subroutine of dragcoeff_iso() in phononwind.py
 !-----------------------------------------------------------------------
@@ -393,6 +416,72 @@ SUBROUTINE inv(A,invA)
   
   RETURN
 END SUBROUTINE inv
+
+!!**********************************************************************
+
+SUBROUTINE computeuk(beta, C2, Cv, b, M, N, phi, r, Ntheta, Nphi, Nr, uk)
+! Compute the dislocation displacement field uk.
+!-----------------------------------------------------------------------
+  use parameters
+  IMPLICIT NONE
+!-----------------------------------------------------------------------
+  REAL(KIND=sel), INTENT(IN) :: beta
+  INTEGER, INTENT(IN) :: Ntheta, Nphi, Nr
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3)  :: C2
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3,Ntheta)  :: Cv
+  REAL(KIND=sel), INTENT(IN)  :: phi(Nphi), r(Nr)
+  REAL(KIND=sel), INTENT(IN), DIMENSION(3)  :: b
+  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi,3,Ntheta)  :: M, N
+  REAL(KIND=sel), INTENT(OUT), DIMENSION(Nphi,3,Ntheta,Nr)  :: uk
+  integer :: i, j, k, th, ph
+  real(kind=sel), dimension(Nphi,3,3) :: MM, NN, MN, NM, NNinv, Sphi, Bphi
+  real(kind=sel), dimension(3,3,3,3) :: tmpC
+  real(kind=sel), dimension(3,3) :: S, BB
+  real(kind=sel), dimension(3) :: Sb, BBb
+  real(kind=sel) :: uiphi(Nphi,3), tmpu(Nphi,3)
+  uk = 0.d0
+  !$OMP PARALLEL DO default(shared), private(th,ph,j,k,i, &
+  !$OMP                   MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb,tmpu,uiphi)
+  do th=1,Ntheta
+  tmpu = 0.d0
+  Sphi = 0.d0; Bphi = 0.d0
+  tmpC(:,:,:,:) = C2(:,:,:,:) - beta*beta*Cv(:,:,:,:,th)
+  call elbrak1d(M(:,:,th),M(:,:,th),tmpC,Nphi,MM)
+  call elbrak1d(M(:,:,th),N(:,:,th),tmpC,Nphi,MN)
+  call elbrak1d(N(:,:,th),M(:,:,th),tmpC,Nphi,NM)
+  call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
+  do ph=1,Nphi
+    call inv(NN(ph,:,:),NNinv(ph,:,:))
+  enddo
+  do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
+    Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
+  enddo; enddo; enddo; enddo
+  do j=1,3; do i=1,3; do ph=1,Nphi
+    Bphi(ph,i,j) = MM(ph,i,j)
+    do k=1,3
+      Bphi(ph,i,j) = Bphi(ph,i,j) + MN(ph,i,k)*Sphi(ph,k,j)
+    enddo
+  enddo; enddo; enddo
+    do i=1,3; do j=1,3
+      call trapz(Sphi(:,j,i),phi,Nphi,S(j,i))
+      call trapz(Bphi(:,j,i),phi,Nphi,BB(j,i))
+    enddo; enddo
+    Sb(:) = (0.25d0/pi2)*MATMUL(S(:,:),b)
+    BBb(:) = (0.25d0/pi2)*MATMUL(BB(:,:),b)
+  do i=1,3; do ph=1,Nphi
+    tmpu(ph,i) = DOT_PRODUCT(NNinv(ph,i,:),BBb(:)) - DOT_PRODUCT(Sphi(ph,i,:),Sb(:))
+  enddo; enddo
+  uiphi = 0d0
+  do i=1,3
+    call cumtrapz(tmpu(:,i),phi,Nphi,uiphi(:,i))
+  enddo
+  do i=1,3; do j=1,Nr
+    uk(:,i,th,j) = uiphi(:,i) - Sb(i)*log(r(j)/r(1))
+  enddo; enddo; enddo
+  !$OMP END PARALLEL DO
+  RETURN
+END SUBROUTINE computeuk
+
 
 !!**********************************************************************
 

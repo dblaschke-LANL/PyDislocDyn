@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 6, 2023
+# Date: Nov. 3, 2017 - Dec. 7, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -547,14 +547,12 @@ class Dislocation(StrohGeometry,metal_props):
         xylabel = {0:'x',1:'y',2:'z'}
         if a is None and eta_kw is None:
             if not skipcalc:
-                self.computeuij(beta=beta, r=r, nogradient=nogradient) ## compute steady state field
                 if not nogradient:
+                    self.computeuij(beta=beta)
                     self.alignuij() ## self.rot was computed as a byproduct of .alignC2() above
                 else:
-                    self.uij_aligned = np.zeros(self.uij.shape)
-                    for th in range(len(self.theta)):
-                        for ri in range(Nr):
-                            self.uij_aligned[:,th,ri] = np.round(np.dot(self.rot[th],self.uij[:,th,ri]),15)
+                    self.computeuk(beta=beta, r=r)
+                    self.alignuk()
             if character == 'screw':
                 index = self.findedgescrewindices()[0]
             elif character == 'edge':
@@ -564,9 +562,10 @@ class Dislocation(StrohGeometry,metal_props):
             if not nogradient:
                 namestring = f"u{xylabel[component[0]]}{xylabel[component[1]]}{character}_{self.name}_v{beta*self.ct:.0f}"
                 uijtoplot = self.uij_aligned[component[0],component[1],index]
+                uijtoplot = np.outer(1/r,uijtoplot)
             else:
                 namestring = f"u{xylabel[component]}{character}_{self.name}_v{beta*self.ct:.0f}"
-                uijtoplot = self.uij_aligned[component,index]
+                uijtoplot = self.uk_aligned[component,index]
         elif character=='screw' and not nogradient:
             if not skipcalc:
                 self.computeuij_acc_screw(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
