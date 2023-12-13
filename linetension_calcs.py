@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 7, 2023
+# Date: Nov. 3, 2017 - Dec. 12, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -228,7 +228,7 @@ class Dislocation(StrohGeometry,metal_props):
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
         '''Compute the lowest critical (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
         The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit_all[1] contains the corresponding lowest limiting velocities.
-        Additionally, .vcrit_all[3] contains the highest critical velocities and .vcrit_all[2] constains the intermediate critical velocities.
+        Additionally, .vcrit_all[3] contains the highest critical velocities and .vcrit_all[2] contains the intermediate critical velocities.
         Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit_barnett.'''
         if theta is None:
             theta=self.theta
