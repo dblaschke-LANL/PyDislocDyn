@@ -53,7 +53,7 @@ for X in ISO_l:
     ISO_c111[X] = ISO_c112[X] + 4*ISO_c166[X]
 ###
 
-## numbers at room temperature from the CRC handbook (hbcponline.com), 98th--103rd ed. ("Crystal Structure Parameters of the Elements" for a, "Thermal and Physical Properties of Metals" for alpha_a, T_m, and rho,
+## numbers at room temperature from the CRC handbook (hbcp.chemnetbase.com), 98th--104th ed. ("Crystal Structure Parameters of the Elements" for a, "Thermal and Physical Properties of Metals" for alpha_a, T_m, and rho,
 ## and "Elastic Constants for Single Crystals" for cii and rho_sc (single crystal), except Sc from Singh, Rathore & Agrawal 1992)
 CRC_c11 = {'Ag':123.99e9, 'Al':106.75e9, 'Au':192.44e9, 'Be':292.3e9, 'Cd':114.50e9, 'Cr':339.8e9, 'Cu':168.3e9, 'In':44.50e9, 'Ni':248.1e9, 'Fe':226e9, 'K':3.7e9, 'Mg':59.50e9,\
            'Mo':463.7e9, 'Nb':246.5e9, 'Pb':49.66e9, 'Pd':2.2710e11, 'Pt':346.7e9, 'Sc':0.993e11, 'Sn':75.29e9, 'Ta':260.2e9, 'Ti':162.40e9, 'W':522.39e9, 'Zn':163.68e9, 'Zr':143.4e9}

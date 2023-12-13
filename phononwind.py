@@ -294,8 +294,8 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
     distri[0] = 2*distri[0]
     return np.trapz(distri,x = q1, axis=0)
                
-### rho x ct^2  = c44, and B is devided by rho^2*ct^4 = c44^2;
-### it is therefore convenient to devide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
+### rho x ct^2  = c44, and B is divided by rho^2*ct^4 = c44^2;
+### it is therefore convenient to divide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
 
 def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, Nq1=400, Nphi1=50, Debye_series=False, target_accuracy=5e-3, maxrec=6, accurate_to_digit=1e-5, Nchunks=20, skip_theta=None, skip_theta_val=np.inf, r0cut=None, name='drag'):
     '''Computes the drag coefficient from phonon wind for an isotropic crystal. Required inputs are the dislocation displacement gradient (times magnitude q and rescaled by the Burgers vector) dij in Fourier space
@@ -468,7 +468,7 @@ else:
             Btmp = Btmp[tmask]
             ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
             ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
-            ## also, on updatet runs, we are missing dt/2 intevals on both ends of a chunk since we're computing intermediate points;
+            ## also, on updatet runs, we are missing dt/2 intervals on both ends of a chunk since we're computing intermediate points;
             ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
             ## this amounts to doubling the endpoints and letting trapz take care of the rest
             if len(Btmp!=0):
@@ -494,7 +494,7 @@ else:
             qt = qt[qtmask]
             Btmp = Btmp[qtmask]
             ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
-            ## also: if we're refining, we are missing dt/2 intevals on both ends of a chunk on updatet runs since we're computing intermediate points;
+            ## also: if we're refining, we are missing dt/2 intervals on both ends of a chunk on updatet runs since we're computing intermediate points;
             ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
             ## this amounts to doubling the endpoints and letting trapz take care of the rest
             if len(Btmp)!=0:
@@ -546,10 +546,10 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     
     ### chunks = np.array(total#ofchunks=Nchk, #ofcurrentchunk=ithchk)
     ### if set, Nt is number of points to use on current chunk
-    ### with this information we devide array t (or qtilde) into Nchk subintervals,
-    ### subintervals always end on exacly one point which is shared across neighboring chunks (we can then easily refine only certain chunks), i.e. initial Nt for total range must be divisible by #chunks,
+    ### with this information we divide array t (or qtilde) into Nchk subintervals,
+    ### subintervals always end on exactly one point which is shared across neighboring chunks (we can then easily refine only certain chunks), i.e. initial Nt for total range must be divisible by #chunks,
     ### i.e. Nt_total = 1 + #chunks*(Nt-1) where Nt is number of points in each chunk of initial run (we're sharing boundary points!), hence Nt_initial = (Nt_total -1)/#chunks + 1 and Nt_total = (int((Nt_userchoice)/#chunks) + 1) * #chunks + 1 (so that Nt_total>=Nt_userchoice)
-    ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we devide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
+    ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we divide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
     if np.asarray(chunks).any() is None:
         Nt_total = None
         kthchk = 0

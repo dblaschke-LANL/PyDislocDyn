@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 24, 2023
+# Date: Nov. 7, 2017 - Dec. 12, 2023
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -31,7 +31,7 @@ metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals
 def invI1(C2):
     '''Computes the trace C_iijj of SOEC.'''
     return np.trace(np.trace(C2))
-    ### einsum is slightly faster, but works only with numbers, not symbols
+    ### einsum is slightly faster, but works only with numbers, not symbols for numpy<1.25
 
 def invI2(C2):
     '''Computes the trace C_ijij of SOEC.'''
@@ -573,7 +573,7 @@ if __name__ == '__main__':
     S2 = {}
     S3 = {}
     for X in metal:
-        #### devide by 1e9 to get the results in units of GPa
+        #### divide by 1e9 to get the results in units of GPa
         C2[X] = UnVoigt(Y[X].C2/1e9)
         S2[X] = elasticS2(C2[X])
         C3[X] = None
@@ -595,7 +595,7 @@ if __name__ == '__main__':
     
     ##### write results to files (as LaTeX tables):
     def dict_to_pandas(dictionary):
-        '''converts a dictionary contraining polycrystalline averages to a pandas dataframe'''
+        '''converts a dictionary containing polycrystalline averages to a pandas DataFrame'''
         if len(dictionary)==1:
             dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
         out = pd.DataFrame(dictionary,dtype=float).T
@@ -604,7 +604,7 @@ if __name__ == '__main__':
         return out
     
     def writelatex(data,caption="",soec_only=False,dropna=False):
-        '''converts a pandas datafrane containing polycrystalline averages to a LaTeX table'''
+        '''converts a pandas DataFrame containing polycrystalline averages to a LaTeX table'''
         out = data
         if soec_only:
             out = out.iloc[:,:2]

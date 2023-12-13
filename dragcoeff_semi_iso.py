@@ -13,7 +13,7 @@ import os
 import ast
 import shutil, lzma
 import numpy as np
-from scipy.optimize import curve_fit, fmin, fsolve
+from scipy.optimize import curve_fit, minimize_scalar, fsolve
 from scipy import ndimage
 ##################
 import matplotlib as mpl
@@ -95,7 +95,7 @@ Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high reso
 NphiX = 3000
 # Nr = 500
 # cutoffs for r to be used in numerical Fourier trafo (in units of pi/qBZ)
-### rmin smaller converges nicely, rmax bigger initially converges but if it gets to large (several hundred) we start getting numerical artefacts due to rapid oscillations
+### rmin smaller converges nicely, rmax bigger initially converges but if it gets to large (several hundred) we start getting numerical artifacts due to rapid oscillations
 rmin = 0
 rmax = 250
 ## the following options can be set on the commandline with syntax --keyword=value:
@@ -181,9 +181,10 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         bsig = abs(burg*stress)
         def nonlinear_equation(v):
             return abs(bsig-abs(v)*B(v)) ## need abs() if we are to find v that minimizes this expression (and we know that minimum is 0)
-        out = fmin(nonlinear_equation,0.01*vcrit,disp=False)[0]
-        zero = abs(nonlinear_equation(out))
-        if zero>1e-5 and zero/bsig>1e-2:
+        themin = minimize_scalar(nonlinear_equation,method='bounded',bounds=(0,1.01*vcrit))
+        out = themin.x
+        zero = abs(themin.fun)
+        if not themin.success or (zero>1e-5 and zero/bsig>1e-2):
             # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
             # fall back to (slower) fsolve:
             out = fsolve(nonlinear_equation,0.01*vcrit)[0]
@@ -337,7 +338,7 @@ if __name__ == '__main__':
     q = np.linspace(0,1,Nq)
     ## needed for the Fourier transform of uij (but does not depend on beta or T, so we compute it only once here)
     # sincos = dlc.fourieruij_sincos(r,phiX,q,phi)
-    ## for use with fourieruij_nocut(), which is faster than fourieruij() if cutoffs are chosen such that they are neglegible in the result:
+    ## for use with fourieruij_nocut(), which is faster than fourieruij() if cutoffs are chosen such that they are negligible in the result:
     sincos_noq = np.average(dlc.fourieruij_sincos(r,phiX,q,phi)[3:-4],axis=0)
         
     A3rotated = {}

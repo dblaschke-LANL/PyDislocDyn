@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 15, 2023
+# Date: Nov. 5, 2017 - Nov. 16, 2023
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -63,7 +63,7 @@ maxb = 0.99
 modes = 'all'
 # modes = 'TT'
 skip_plots=False ## set to True to skip generating plots from the results
-use_exp = True # if using data from metal_data, choose beteen experimentally determined Lame and Murnaghan constants (defaul) or analytical averages of SOEC and TOEC (use_exp = False)
+use_exp = True # if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (defaul) or analytical averages of SOEC and TOEC (use_exp = False)
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
 increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
@@ -126,7 +126,7 @@ if __name__ == '__main__':
                 logfile.write("\n\ntheta:\n")
                 logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
-        print(f"Computing the drag coefficient from phonon wind ({modes} modes) for: {metal}")
+        print(f"Computing the drag coefficient from phonon wind ({modes} modes in the isotropic limit) for: {metal}")
     
     A3 = {}
     highT = {}

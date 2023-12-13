@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 6, 2023
+# Date: Nov. 3, 2017 - Dec. 12, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -199,7 +199,7 @@ class StrohGeometry:
            For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
            In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
            Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
-           C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+           C2_aligned is the tensor of SOECs in Voigt notation rotated into coordinates aligned with the dislocation.
            r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
            x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi).
            Finally, more general dislocation motion can be defined via function eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
@@ -237,7 +237,7 @@ class StrohGeometry:
            For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
            In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
            Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
-           C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+           C2_aligned is the tensor of SOECs in Voigt notation rotated into coordinates aligned with the dislocation.
            r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
            x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi).
            Finally, more general dislocation motion can be defined via function eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
@@ -346,7 +346,21 @@ class StrohGeometry:
         self.LT = computeLT(self.Etot, dtheta)
 
 #############################################################################
-    
+if not nonumba:
+    @jit(nopython=True)
+    def cumtrapz(y,x,initial=0):
+        '''Cumulatively integrate over the last axis using the trapezoidal rule (i.e. equivalent to scipy.integrate.cumtrapz(y,x,axis=-1,initial=0),
+           but faster due to the use of the numba.jit compiler).'''
+        theshape = y.shape
+        n = theshape[-1]
+        f = y.T
+        outar = np.zeros(theshape).T
+        tmp = np.zeros(theshape[:-1]).T
+        for i in range(n-1):
+            tmp += (0.5*(f[i+1]+f[i])*(x[i+1]-x[i]))
+            outar[i+1] = tmp
+        return outar.T
+
 if usefortran:
     ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
     def elbrak(A,B,elC):
@@ -428,7 +442,7 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
 def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
-       C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+       C2_aligned is the tensor of SOECs in Voigt notation rotated into coordinates aligned with the dislocation.
        Furthermore, x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi),
        i.e. r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core.
        Finally, more general dislocation motion can be defined via functions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
@@ -518,7 +532,7 @@ def accedge_theroot(y,rv2,c11,c12,c16,c22,c26,c66):
 def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=True,beta_normalization=1):
     '''For now, only pure edge is implemented for slip systems with the required symmetry properties.
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
-       C2_aligned is the tensor of SOECs in VOIGT notation rotated into coordinates aligned with the dislocation.
+       C2_aligned is the tensor of SOECs in Voigt notation rotated into coordinates aligned with the dislocation.
        Furthermore, x = r*cos(phi)+a*t**2/2 = r*cos(phi)+v**2/(2*a) = r*cos(phi)+(beta*c_A)**2/(2*a) and y=r*sin(phi),
        i.e. r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core.
        Finally, more general dislocation motion can be defined via functions eta_kw(x) (which is the inverse of core position as a function of time eta=l^{-1}(t)),
@@ -603,7 +617,7 @@ def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t
     ## TODO: implement higher order corrections (tend to zero for 'small' acceleration)
     return (burgers/(2*np.pi))*uij
 
-@jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), scipy.cumtrapz, np.linalg.inv with 3-D array arguments, and raise ValueError / debug option
+@jit(forceobj=True)  ## calls preventing nopython mode: np.dot with arrays >2D, np.moveaxis(), np.linalg.inv with 3-D array arguments, and raise ValueError / debug option
 def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False):
     '''Compute the dislocation displacement gradient field according to the integral method (which in turn is based on the Stroh method).
        This function returns a 3x3xNthetaxNphi dimensional array (where the latter two dimensions encode the discretized dependence on theta and phi as explained below),
@@ -821,7 +835,7 @@ def fourieruij_sincos(r,phiX,q,ph):
         
     return out
 
-### compute fourier transform of uij for fixed velocity beta (i.e. uij is an array of shape (3,3,len(theta),len(phi)))
+### Fourier transform of uij for fixed velocity beta (i.e. uij is an array of shape (3,3,len(theta),len(phi)))
 @jit(nopython=True)
 def fourieruij(uij,r,phiX,q,ph,sincos=None):
     '''Takes uij multiplied by r over the Burgers vector (which then is only phi dependent), and returns uijs Fourier transform multiplied q which then only depends on q through the cutoffs q*r[0] and q*r[-1].
@@ -857,7 +871,7 @@ def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
        where ph is the angle in Fourier space.
        The expression q*sin(r*q*cos(phiX-ph)) is analytically integrated over r using the given regulator 'regul' resulting in (1-cos(regul*cos(phiX-ph)))/cos(regul*cos(phiX-ph)).
        regul is necessary in order to avoid division by (close to) zero from 1/cos(phiX-ph).
-       Alternatively, the user may give an alternative form of this input via the 'sincos' variable, such as the output of fourieruij_sincos() averaged over q (assuming the cutoffs in r were chosen such that any q-dependence became neglegible).'''
+       Alternatively, the user may give an alternative form of this input via the 'sincos' variable, such as the output of fourieruij_sincos() averaged over q (assuming the cutoffs in r were chosen such that any q-dependence became negligible).'''
     phres = len(ph)
     phiXres = len(phiX)
     ph2res = phres*phiXres
