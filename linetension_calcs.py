@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 12, 2023
+# Date: Nov. 3, 2017 - Dec. 18, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -513,8 +513,8 @@ class Dislocation(StrohGeometry,metal_props):
                 print(f"Failed: could not find a solution for vRF of {self.name}")
         return self.vRF
     
-    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,cmap = plt.cm.rainbow,skipcalc=False,showplt=False,lim=(-1,1),savefig=True):
-        '''Generates a plot of the requested component of the dislocation displacement gradient.
+    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,skipcalc=False,showplt=False,savefig=True,**kwargs):
+        '''Calculates and generates a plot of the requested component of the dislocation displacement gradient; plotting is done by the function plotuij().
            Optional arguments are: the normalized velocity 'beta'=v/self.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
            'character' is either 'edge', 'screw' (default), or an index of self.theta, and 'component' is
            a list of two indices indicating which component of displacement gradient u[ij] to plot.
@@ -525,10 +525,10 @@ class Dislocation(StrohGeometry,metal_props):
            and is currently only implemented for steady-state solutions (a=None).
            Option skipcalc=True (implied when beta is not set) may be passed to plot results of an earlier calculation with the same input parameters (useful
            for plotting multiple components of the dislocation field).
-           Colormap and its limits are set with options 'cmap' and 'lim', respectively.` 
            If option 'showplt' is set to 'True', the figure is shown in an interactive session in addition to being saved to a file. Warning: this will only work
            if the user sets matplotlib's backend to an interactive one after PyDislocDyn was loaded (e.g. by calling %matplotlib inline). Saving the figure to
-           a file can be suppressed with option 'savefig=False'.'''
+           a file can be suppressed with option 'savefig=False'.
+           See the documentation of plotting function plotuij() for additional options that may be passed to it via kwargs.'''
         if beta is None:
             beta = self.beta
             skipcalc = True
@@ -583,7 +583,7 @@ class Dislocation(StrohGeometry,metal_props):
         else:
             raise ValueError("not implemented")
         if savefig: savefig=namestring+".pdf"
-        plotuij(uijtoplot,r,self.phi,lim=lim,showplt=showplt,title=namestring,savefig=savefig,fntsize=fntsize,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=cmap)
+        plotuij(uijtoplot,r,self.phi,**kwargs,showplt=showplt,title=namestring,savefig=savefig)
         
     def __repr__(self):
         return  "DISLOCATION\n" + metal_props.__repr__(self) + f"\n burgers:\t {self.burgers}\n" + StrohGeometry.__repr__(self)
@@ -641,13 +641,14 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.C2norm = UnVoigt(out.C2/out.mu)
     return out
 
-def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow):
+def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False):
     '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
     the color-encoded values are dimensionless displacement gradients.
     Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for 
     radius (in units of Burgers vector) and polar angle; note that the pot will be converted to Cartesian coordinates.
     Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
-    which filename (if any) to save it as, the fontsize to be used, and the plot range to be passed to plt.axis().'''
+    which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to plt.axis(), the size of
+    the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).'''
     phi_msh , r_msh = np.meshgrid(phi,r)
     x_msh = r_msh*np.cos(phi_msh)
     y_msh = r_msh*np.sin(phi_msh)
@@ -664,6 +665,12 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap=cmap, shading='gouraud')
     colmsh.set_rasterized(True)
     cbar = plt.colorbar()
+    levels=np.linspace(-1,1,6)
+    if not isinstance(showcontour,bool):
+        levels = showcontour
+        showcontour = True
+    if showcontour:
+        plt.contour(x_msh,y_msh,uij, colors='white', levels=levels, linewidths=0.7)
     cbar.ax.tick_params(labelsize = fntsize)
     if showplt: plt.show()
     if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
