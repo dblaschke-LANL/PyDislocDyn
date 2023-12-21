@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 26, 2023
+# Date: Nov. 5, 2017 - Dec. 20, 2023
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -596,7 +596,7 @@ if __name__ == '__main__':
             cbar.ax.tick_params(labelsize = fntsize)
         plt.contour(x_msh,y_msh,B_trunc, colors=('gray','gray','gray','white','white','white','white','white','white'), levels=cbarlevels, linewidths=0.9, linestyles=['dashdot','solid','dashed','dotted','dashdot','solid','dashed','dotted','dashdot'])
         
-    def mkmeshbetaplot(X,sinex=False):
+    def mkmeshbetaplot(X,sinex=False,**kwargs):
         '''Plot the drag coefficient over the character angle and the dislocation velocity as well as at low velocity over the character angle.'''
         fig = plt.figure(figsize=(4.5,3.6))
         gs = gridspec.GridSpec(2, 1, height_ratios=[1,0.25])
@@ -604,7 +604,7 @@ if __name__ == '__main__':
         ax0.xaxis.set_minor_locator(AutoMinorLocator())
         ax0.yaxis.set_minor_locator(AutoMinorLocator())
         plt.setp(ax0.get_xticklabels(), visible=False)
-        mkmeshplot(X,ylab=True,xlab=False,colbar=True,Bmin=None,Bmax=None,sinex=sinex)
+        mkmeshplot(X,ylab=True,xlab=False,sinex=sinex,**kwargs)
         ax1 = fig.add_subplot(gs[1] , sharex=ax0)
         ax1.set_yticks(np.arange(11)/100)
         ax1.yaxis.set_minor_locator(AutoMinorLocator())

@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 12, 2023
+# Date: Nov. 3, 2017 - Dec. 20, 2023
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -194,10 +194,11 @@ class StrohGeometry:
         else:
             self.uk = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=True)
         
-    def computeuij_acc_screw(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
+    def computeuij_acc_screw(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,**kwargs):
         '''Computes the displacement gradient of an accelerating screw dislocation (based on  J. Mech. Phys. Solids 152 (2021) 104448, resp. arxiv.org/abs/2009.00167).
            For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
-           In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
+           In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a),
+           and normalization c_A defaults to sqrt(C2_aligned[4,4]/rho) which can be overridden by setting the option beta_normalization.
            Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
            C2_aligned is the tensor of SOECs in Voigt notation rotated into coordinates aligned with the dislocation.
            r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
@@ -230,12 +231,13 @@ class StrohGeometry:
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
             raise ValueError("not implemented - slip plane is not a reflection plane")
         ## change sign to match Stroh convention of steady state counter part:
-        self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization,epsilon=epsilon)
+        self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,**kwargs)
 
-    def computeuij_acc_edge(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,force_static=False):
+    def computeuij_acc_edge(self,a,beta,burgers=None,rho=None,C2_aligned=None,phi=None,r=None,eta_kw=None,etapr_kw=None,t=None,shift=None,beta_normalization=1,force_static=False,**kwargs):
         '''Computes the displacement gradient of an accelerating edge dislocation.
            For now, it is implemented only for slip systems with the required symmetry properties, that is the plane perpendicular to the dislocation line must be a reflection plane.
-           In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
+           In particular, a=acceleration, beta=v/c_A is a normalized velocity where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).,
+           and normalization c_A defaults to sqrt(C2_aligned[3,3]/rho) which can be overridden by setting the option beta_normalization.
            Keywords burgers and rho denote the Burgers vector magnitude and material density, respectively.
            C2_aligned is the tensor of SOECs in Voigt notation rotated into coordinates aligned with the dislocation.
            r, phi are polar coordinates in a frame moving with the dislocation so that r=0 represents its core, i.e.
@@ -266,7 +268,7 @@ class StrohGeometry:
         test = np.abs(self.C2_aligned[edgeind]/self.C2_aligned[edgeind,3,3]) ## check for symmetry requirements
         if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
             raise ValueError("not implemented - slip plane is not a reflection plane")
-        self.uij_acc_edge_aligned = computeuij_acc_edge(a,beta,burgers,C2_aligned[edgeind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,deltat=deltat,fastapprox=fastapprox,beta_normalization=beta_normalization)
+        self.uij_acc_edge_aligned = computeuij_acc_edge(a,beta,burgers,C2_aligned[edgeind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,beta_normalization=beta_normalization,**kwargs)
         ## workaround while static part is not yet implemented:
         if beta_normalization == 1:
             C2 = UnVoigt(self.C2/C2_aligned[edgeind][3,3]) ## TODO: self.C2 defined in Dislocation, but not in StrohGeometry!

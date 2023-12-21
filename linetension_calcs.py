@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 18, 2023
+# Date: Nov. 3, 2017 - Dec. 20, 2023
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -641,14 +641,15 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.C2norm = UnVoigt(out.C2/out.mu)
     return out
 
-def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False):
+def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
     '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
     the color-encoded values are dimensionless displacement gradients.
     Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for 
-    radius (in units of Burgers vector) and polar angle; note that the pot will be converted to Cartesian coordinates.
+    radius (in units of Burgers vector) and polar angle; note that the plot will be converted to Cartesian coordinates.
     Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
-    which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to plt.axis(), the size of
-    the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).'''
+    which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to pyplot.axis(), the size of
+    the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).
+    Additional options may be passed on to pyplot.contour via **kwargs (ignored if showcontour=False).'''
     phi_msh , r_msh = np.meshgrid(phi,r)
     x_msh = r_msh*np.cos(phi_msh)
     y_msh = r_msh*np.sin(phi_msh)
@@ -665,12 +666,14 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap=cmap, shading='gouraud')
     colmsh.set_rasterized(True)
     cbar = plt.colorbar()
-    levels=np.linspace(-1,1,6)
     if not isinstance(showcontour,bool):
-        levels = showcontour
+        kwargs['levels'] = showcontour
         showcontour = True
     if showcontour:
-        plt.contour(x_msh,y_msh,uij, colors='white', levels=levels, linewidths=0.7)
+        if 'levels' not in kwargs: kwargs['levels'] = np.linspace(-1,1,6)
+        if 'colors' not in kwargs: kwargs['colors'] = 'white'
+        if 'linewidths' not in kwargs: kwargs['linewidths'] = 0.7
+        plt.contour(x_msh,y_msh,uij,**kwargs)
     cbar.ax.tick_params(labelsize = fntsize)
     if showplt: plt.show()
     if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
