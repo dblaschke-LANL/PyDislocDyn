@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Dec. 7, 2023
+# Date: Mar. 6, 2023 - Jan. 8, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -17,11 +17,12 @@ import pandas as pd
 
 dir_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"..")
 sys.path.append(dir_path)
+dir_path = os.path.join(dir_path,'pydislocdyn')
 
-import metal_data as data
-from metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, writeallinputfiles
-from elasticconstants import Voigt, UnVoigt, strain_poly
-from linetension_calcs import parse_options, str2bool, read_2dresults, Ncores, readinputfile
+import pydislocdyn.metal_data as data
+from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, writeallinputfiles
+from pydislocdyn.elasticconstants import Voigt, UnVoigt, strain_poly
+from pydislocdyn.linetension_calcs import parse_options, str2bool, read_2dresults, Ncores, readinputfile
 
 runtests = 'all' ## allowed values: all, LT, drag, dragiso, aver
 skip_calcs = False
