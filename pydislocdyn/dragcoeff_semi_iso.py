@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 20, 2023
+# Date: Nov. 5, 2017 - Jan. 10, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -67,7 +67,6 @@ minb = 0.01
 maxb = 0.99
 ## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
 modes = 'all'
-# modes = 'TT'
 skip_plots=False ## set to True to skip generating plots from the results
 use_exp_Lame=True ## if set to True, experimental values (where available) are taken for the Lame constants, isotropic phonon spectrum, and sound speeds
 ## missing values (such as Mo, Zr, or all if use_exp_Lame=False) are supplemented by Hill averages, or for cubic crystals the 'improved average' (see 'polycrystal_averaging.py')
@@ -116,8 +115,8 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1,Bmax_fit='auto'):
     '''Calculates fitting functions for B(v) for pure screw, pure edge, and an average over all dislocation characters.
        Required inputs are an instance of the Dislocation class Y, and the the drag coefficient Bdrag formatted as a Pandas DataFrame where index
        contains the normalized velocities beta= v/Y.ct and columns contains the character angles theta at velocity v for all character angles theta.'''
-    if not isinstance(Y,Dislocation):
-        raise ValueError("'Y' must be an instance of the Dislocation class")
+    # if not isinstance(Y,Dislocation): ## this will fail if comparing pydislocdyn.linetension_calcs.Dislocation to linetension_calcs.Dislocation
+    #     raise ValueError("'Y' must be an instance of the Dislocation class")
     if not isinstance(Bdrag,pd.DataFrame):
         raise ValueError("'Bdrag' must be a Pandas DataFrame.")
     Broom = Bdrag.to_numpy()
@@ -152,8 +151,8 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
        If option indirect=False sigma will be evenly spaced (default), whereas if indirect=True sigma will be calculated from an evenly spaced velocity array.
        The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.
        Option 'sigma_max'' is the highest stress to be considered in the present calculation. '''
-    if not isinstance(Y,Dislocation):
-        raise ValueError("'Y' must be an instance of the Dislocation class")
+    # if not isinstance(Y,Dislocation): ## this will fail if comparing pydislocdyn.linetension_calcs.Dislocation to linetension_calcs.Dislocation
+    #     raise ValueError("'Y' must be an instance of the Dislocation class")
     ftitle = f"{Y.name}, {character}"
     fname = f"B_of_sigma_{character}_{Y.name}.pdf"
     if character=='screw':
@@ -345,7 +344,6 @@ if __name__ == '__main__':
     C2 = {}
     highT = {}
     rotmat = {}
-    linet = {}
     velm0 = {}
     for X in metal:
         highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
@@ -357,7 +355,6 @@ if __name__ == '__main__':
                 logfile.write("\n\nT:\n")
                 logfile.write('\n'.join(map("{:.2f}".format,highT[X])))
         
-        linet[X] = np.round(Y[X].t,15)
         velm0[X] = np.round(Y[X].m0,15)
         Y[X].computerot()
         rotmat[X] = np.round(Y[X].rot,15)

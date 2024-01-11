@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Jan. 8, 2024
+# Date: Mar. 6, 2023 - Jan. 10, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -29,7 +29,7 @@ skip_calcs = False
 verbose = False
 ## drag and dragiso options:
 Nbeta = 7
-phononwind_opts="{'maxrec':4,'target_accuracy':1e-2}"
+phononwind_opts={'maxrec':4,'target_accuracy':1e-2}
 NT = 1
 ## dragiso only options:
 metals_iso = 'Cu Fe'
@@ -130,7 +130,7 @@ if __name__ == '__main__':
             for key in OPTIONS:
                 print(f'--{key}={OPTIONS[key]}')
             sys.exit()
-        old = parse_options(sys.argv[1:],OPTIONS,globals())[0] ## allowed values: all, LT, drag, dragiso, aver
+        old = parse_options(sys.argv[1:],OPTIONS,globals())[0]
     else:
         raise ValueError("missing one argument: folder containing old results")
     if  os.path.exists(old):
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         fname = "drag_iso_fit.txt"
         if not skip_calcs:
             print("running test 'dragiso' ...")
-            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f" --{Nbeta=} --{Ncores=} --{use_exp=} --{phononwind_opts=} --{NT=} '{metals_iso}' | tee dragiso.log")
+            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f' --{Nbeta=} --{Ncores=} --{use_exp=} --phononwind_opts="{phononwind_opts}" --{NT=} "{metals_iso}" | tee dragiso.log')
         else: print("skipping test 'dragiso' as requested")
         metals_iso = metals_iso.split()
         print(f"\ncomparing dragiso results for: {metals_iso}")
@@ -215,7 +215,7 @@ if __name__ == '__main__':
                 os.mkdir(drag_folder)
             print("running test 'drag' ...")
             os.chdir(os.path.join(cwd,drag_folder))
-            dragopts = f" --{Ncores=} --{computevcrit_for_speed=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --{phononwind_opts=} '{metals}'"
+            dragopts = f' --{Ncores=} --{computevcrit_for_speed=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
             os.system(os.path.join(dir_path,"dragcoeff_semi_iso.py")+dragopts+f" --{Ntheta=} --{Nbeta=} --{NT=} | tee dragsemi.log")
             os.chdir(cwd)
         else: print("skipping test 'drag' as requested")
