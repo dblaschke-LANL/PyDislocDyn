@@ -130,7 +130,9 @@ if __name__ == '__main__':
             for key in OPTIONS:
                 print(f'--{key}={OPTIONS[key]}')
             sys.exit()
-        old = parse_options(sys.argv[1:],OPTIONS,globals())[0]
+        old, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        old = old[0]
+        phononwind_opts.update(kwargs)
     else:
         raise ValueError("missing one argument: folder containing old results")
     if  os.path.exists(old):

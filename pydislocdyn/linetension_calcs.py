@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 20, 2023
+# Date: Nov. 3, 2017 - Jan. 10, 2024
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -83,6 +83,19 @@ def str2bool(arg):
         out=False
     else:
         raise ValueError(f"cannot convert {arg} to bool")
+    return out
+def guesstype(arg):
+    '''takes a string and tries to convert to int, float, bool, falling back to a string'''
+    try:
+        out = int(arg)
+    except ValueError:
+        try:
+            out = float(arg)
+        except ValueError:
+            try:
+                out = bool(arg)
+            except ValueError:
+                out = arg ## fall back to string
     return out
 OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
 
@@ -708,6 +721,7 @@ def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
             print(f'--{key}={optionlist[key]}')
         sys.exit()
     setoptions = [i for i in out if "--" in i and i[:2]=="--"]
+    kwargs = {}
     for i in setoptions:
         out.remove(i)
         if "=" not in i: continue ## ignore options without assigned values
@@ -715,8 +729,10 @@ def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
         if key in optionlist:
             globaldict[key] = optionlist[key](val)
             print(f"setting {key}={globaldict[key]}")
+        else:
+            kwargs[key] = guesstype(val)
     time.sleep(1) ## avoid race conditions after changing global variables
-    return out
+    return (out,kwargs)
     
 ### start the calculations
 if __name__ == '__main__':
@@ -724,7 +740,7 @@ if __name__ == '__main__':
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
-        args = parse_options(sys.argv[1:])
+        args, kwargs = parse_options(sys.argv[1:])
     printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the commandline for options
     dtheta = np.pi/(Ntheta-2)

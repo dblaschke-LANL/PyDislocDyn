@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 10, 2024
+# Date: Nov. 5, 2017 - Jan. 11, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -85,10 +85,7 @@ increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, bu
 beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature
 #####
 # in Fourier space:
-Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
-Nphi1 = 50
-Nq1 = 400
-Nt = 321 # base value, grid is adaptive in Nt
+Nphi = 50 # keep this an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
 Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high resolution if cutoffs are chosen carefully since the q-dependence drops out in that case
 # in x-space (used in numerical Fourier trafo):
 NphiX = 3000
@@ -101,7 +98,7 @@ rmax = 250
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool,\
            "bccslip":str, "hcpslip":str, "computevcrit_for_speed":int, "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str,\
-           "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float, "phononwind_opts":ast.literal_eval}
+           "Nphi":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float, "phononwind_opts":ast.literal_eval}
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
 metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.c123.keys())))
@@ -257,7 +254,8 @@ if __name__ == '__main__':
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
-        args = parse_options(sys.argv[1:],OPTIONS,globals())
+        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        phononwind_opts.update(kwargs)
     dlc.printthreadinfo(Ncores,dlc.ompthreads)
     ### set range & step sizes (array of character angles theta is generated for every material independently below)
     beta = np.linspace(minb,maxb,Nbeta)

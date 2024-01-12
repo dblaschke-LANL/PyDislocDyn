@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 16, 2023
+# Date: Nov. 5, 2017 - Jan. 11, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -71,20 +71,18 @@ beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or c
 #####
 # in Fourier space:
 Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
-Nphi1 = 50
-Nq1 = 400
-Nt = 321 # base value, grid is adaptive in Nt
 ## the following options can be set on the commandline with syntax --keyword=value:
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":str2bool, "use_exp":str2bool,\
-           "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "Nphi1":int, "Nq1":int, "Nt":int, "phononwind_opts":ast.literal_eval}
+           "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "phononwind_opts":ast.literal_eval}
 
 #########
 if __name__ == '__main__':
     Y={}
     use_metaldata=True
     if len(sys.argv) > 1:
-        args = parse_options(sys.argv[1:],OPTIONS,globals())
+        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        phononwind_opts.update(kwargs)
     printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the command line for options
     beta = np.linspace(minb,maxb,Nbeta)
