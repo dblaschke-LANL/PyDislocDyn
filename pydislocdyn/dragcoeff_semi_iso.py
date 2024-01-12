@@ -14,7 +14,7 @@ import ast
 import shutil, lzma
 import numpy as np
 from scipy.optimize import curve_fit, minimize_scalar, fsolve
-from scipy import ndimage
+import copy
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -46,19 +46,12 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
 import metal_data as data
-from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
-import dislocations as dlc
-from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options, str2bool
-from phononwind import elasticA3, dragcoeff_iso
-try:
+from dislocations import ompthreads, printthreadinfo
+from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options, str2bool, Ncores, Ncpus
+from phononwind import phonondrag
+if Ncores>1:
     from joblib import Parallel, delayed
-    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
-    Ncores = max(1,int(dlc.Ncpus/max(2,dlc.ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
-except ImportError:
-    dlc.Ncpus = 1
-    Ncores = 1 ## must be 1 (or 0) without joblib
-Kcores = max(Ncores,int(min(dlc.Ncpus/2,Ncores*dlc.ompthreads/2))) ## use this for parts of the code where openmp is not supported
+Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
 
 ### choose various resolutions and other parameters:
 Ntheta = 21 # number of dislocation character angles between 0 and pi/2 (minimum 2, i.e. pure edge and pure screw), if the range -pi/2--pi/2 is required the number of angles is increased to 2*Ntheta-1
@@ -75,8 +68,7 @@ use_iso=False ## set to True to calculate using isotropic elastic constants from
 bccslip = '110' ## allowed values: '110' (default), '112', '123', 'all' (for all three)
 hcpslip = 'basal' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 #####
-computevcrit_for_speed = 'auto' ### Optional: Unless None or 0, this integer variable is the number of theta angles (i.e. np.linspace(theta[0],theta[-1],computevcrit_for_speed)) for which we calculate vcrit explicitly, missing values will be interpolated to match len(theta);
-### value 'auto'=Ntheta even if Ntheta is changed on the command line; if provided, drag computations will be skipped for velocities bt>vcrit/ct on a per theta-angle basis
+skiptransonic = True ### if True (default) will skip phononwind calcs. for velocities above the lowest limiting velocity on a per character angle basis, filling in the blanks with np.inf
 ### Note: this will speed up calculations by avoiding slow converging drag calcs near divergences of the dislocation field
 #####
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
@@ -89,7 +81,6 @@ Nphi = 50 # keep this an even number for higher accuracy (because we integrate o
 Nq = 50 # only used in Fourier trafo of disloc. field, don't need such high resolution if cutoffs are chosen carefully since the q-dependence drops out in that case
 # in x-space (used in numerical Fourier trafo):
 NphiX = 3000
-# Nr = 500
 # cutoffs for r to be used in numerical Fourier trafo (in units of pi/qBZ)
 ### rmin smaller converges nicely, rmax bigger initially converges but if it gets to large (several hundred) we start getting numerical artifacts due to rapid oscillations
 rmin = 0
@@ -97,7 +88,7 @@ rmax = 250
 ## the following options can be set on the commandline with syntax --keyword=value:
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool,\
-           "bccslip":str, "hcpslip":str, "computevcrit_for_speed":int, "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str,\
+           "bccslip":str, "hcpslip":str, "skiptransonic":str2bool, "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str,\
            "Nphi":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float, "phononwind_opts":ast.literal_eval}
 
 ### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
@@ -256,12 +247,12 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
         phononwind_opts.update(kwargs)
-    dlc.printthreadinfo(Ncores,dlc.ompthreads)
+    phononwind_opts['modes']=modes
+    printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes (array of character angles theta is generated for every material independently below)
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)
     phiX = np.linspace(0,2*np.pi,NphiX)
-    if computevcrit_for_speed == 'auto' or computevcrit_for_speed > Ntheta: computevcrit_for_speed = Ntheta
     isokeywd='omit' ## writeinputfile(..., iso='omit') will bypass writing ISO_c44 values to the input files and missing Lame constants will always be auto-generated by averaging
     if use_exp_Lame:
         isokeywd=False
@@ -331,18 +322,8 @@ if __name__ == '__main__':
         print(f"Computing the drag coefficient from phonon wind ({modes} modes) for: {metal}")
     
     ###
-    r = np.array([rmin*np.pi,rmax*np.pi]) ## qBZ drops out of product q*r, so can rescale both vectors making them dimensionless and independent of the metal
-    q = np.linspace(0,1,Nq)
-    ## needed for the Fourier transform of uij (but does not depend on beta or T, so we compute it only once here)
-    # sincos = dlc.fourieruij_sincos(r,phiX,q,phi)
-    ## for use with fourieruij_nocut(), which is faster than fourieruij() if cutoffs are chosen such that they are negligible in the result:
-    sincos_noq = np.average(dlc.fourieruij_sincos(r,phiX,q,phi)[3:-4],axis=0)
-        
-    A3rotated = {}
-    C2 = {}
     highT = {}
     rotmat = {}
-    velm0 = {}
     for X in metal:
         highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
         if constantrho:
@@ -353,124 +334,56 @@ if __name__ == '__main__':
                 logfile.write("\n\nT:\n")
                 logfile.write('\n'.join(map("{:.2f}".format,highT[X])))
         
-        velm0[X] = np.round(Y[X].m0,15)
-        Y[X].computerot()
-        rotmat[X] = np.round(Y[X].rot,15)
-               
-        Y[X].C2norm = UnVoigt(Y[X].C2/Y[X].mu)  ## this must be the same mu that was used to define the dimensionless velocity beta, as both enter dlc.computeuij() on equal footing below!
-        C3 = UnVoigt(Y[X].C3/Y[X].mu)
-        A3 = elasticA3(Y[X].C2norm,C3)
-        A3rotated[X] = np.zeros((Y[X].Ntheta,3,3,3,3,3,3))
-        for th in range(Y[X].Ntheta):
-            rotm = rotmat[X][th]
-            A3rotated[X][th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
-        
-    if computevcrit_for_speed is not None and computevcrit_for_speed>0 and Ncores != 0:
-        # print(f"Computing vcrit for {computevcrit_for_speed} character angles, as requested ...")
-        for X in metal:
-            if Y[X].Ntheta==Ntheta:
-                Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],computevcrit_for_speed)
-            else:
-                Y[X].theta_vcrit = np.linspace(Y[X].theta[0],Y[X].theta[-1],2*computevcrit_for_speed-1)
-            Y[X].computevcrit(Y[X].theta_vcrit,set_screwedge=False)
-            if np.isnan(Y[X].vcrit_all[1]).any():
-                print(f"Warning: found NaN in vcrit for {X}, replacing with interpolated values.")
-                fixnan = pd.Series(Y[X].vcrit_all[1])
-                Y[X].vcrit_all[1] = fixnan.where(fixnan.notnull(),other=(fixnan.fillna(method='ffill')+fixnan.fillna(method='bfill'))/2).to_numpy()
-            if computevcrit_for_speed != Ntheta:
-                Y[X].vcrit_inter = ndimage.zoom(Y[X].vcrit_all[1],Y[X].Ntheta/len(Y[X].theta_vcrit))
-            else: Y[X].vcrit_inter = Y[X].vcrit_all[1]
-        # print("Done; proceeding ...")
-    
-    def maincomputations(bt,X,modes=modes):
-        '''wrap all main computations into a single function definition to be run in a parallelized loop'''
-        Bmix = np.zeros((Y[X].Ntheta,len(highT[X])))
-        ### compute dislocation displacement gradient uij, then its Fourier transform dij:
-        Y[X].computeuij(beta=bt)
-        Y[X].alignuij()
-        # r = np.exp(np.linspace(np.log(Y[X].burgers/5),np.log(100*Y[X].burgers),125))
-        ## perhaps better: relate directly to qBZ which works for all crystal structures (rmin/rmax defined at the top of this file)
-        # r = np.exp(np.linspace(np.log(rmin*np.pi/Y[X].qBZ),np.log(rmax*np.pi/Y[X].qBZ),Nr))
-        # q = Y[X].qBZ*np.linspace(0,1,Nq)
-        # dij = np.average(dlc.fourieruij(Y[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-        dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-        if computevcrit_for_speed is None or computevcrit_for_speed<=0:
-            skip_theta = None
-        else:
-            skip_theta = bt < Y[X].vcrit_inter/Y[X].ct
-        if np.all(skip_theta==False):
-            Bmix[:,0] = np.repeat(np.inf,Y[X].Ntheta)
-        else:
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3rotated[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, skip_theta=skip_theta, name=X, **phononwind_opts)
-        
-        for Ti in range(len(highT[X])-1):
-            T = highT[X][Ti+1]
-            expansionratio = (1 + Y[X].alpha_a*(T - Y[X].T)) ## TODO: replace with values from eos!
-            qBZT = Y[X].qBZ/expansionratio
-            burgersT = Y[X].burgers*expansionratio
-            rhoT = Y[X].rho/expansionratio**3
-            muT = Y[X].mu ## TODO: need to implement T dependence of shear modulus!
-            lamT = Y[X].bulk - 2*muT/3 ## TODO: need to implement T dependence of bulk modulus!
-            ctT = np.sqrt(muT/rhoT)
-            ct_over_cl_T = np.sqrt(muT/(lamT+2*muT))
-            clT = ctT/ct_over_cl_T
-            ## beta, as it appears in the equations, is v/ctT, therefore:
-            if beta_reference == 'current':
-                betaT = bt
-            else:
-                betaT = bt*Y[X].ct/ctT
-            ###### T dependence of elastic constants (TODO)
-            c11T = Y[X].c11
-            c12T = Y[X].c12
-            c44T = Y[X].c44
-            c13T = Y[X].c13
-            c33T = Y[X].c33
-            c66T = Y[X].c66
-            c111T = Y[X].c111
-            c112T = Y[X].c112
-            c113T = Y[X].c113
-            c123T = Y[X].c123
-            c133T = Y[X].c133
-            c144T = Y[X].c144
-            c155T = Y[X].c155
-            c166T = Y[X].c166
-            c222T = Y[X].c222
-            c333T = Y[X].c333
-            c344T = Y[X].c344
-            c366T = Y[X].c366
-            c456T = Y[X].c456
-            ##
-            cijT = Y[X].cij
-            cijkT = Y[X].cijk
-            ###
-            C2T = elasticC2(c11=c11T, c12=c12T, c44=c44T, c13=c13T, c33=c33T, c66=c66T, cij=cijT)/muT
-            C3T = elasticC3(c111=c111T, c112=c112T, c113=c113T, c123=c123T, c133=c133T, c144=c144T, c155=c155T, c166=c166T, c222=c222T, c333=c333T, c344=c344T, c366=c366T, c456=c456T, cijk=cijkT)/muT
-            A3T = elasticA3(C2T,C3T)
-            A3Trotated = np.zeros((Y[X].Ntheta,3,3,3,3,3,3))
-            for th in range(Y[X].Ntheta):
-                rotm = rotmat[X][th]
-                A3Trotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3T,rotm.T)))))),12)
-            ##########################
-            Y[X].computeuij(beta=betaT, C2=C2T) ## Y[X].C2norm will be overwritten with C2T here
-            Y[X].alignuij()
-            ## rT*qT = r*q, so does not change anything
-            # dij = np.average(dlc.fourieruij(Y[X].uij_aligned,r,phiX,q,phi,sincos)[:,:,:,3:-4],axis=3)
-            dij = dlc.fourieruij_nocut(Y[X].uij_aligned,phiX,phi,sincos=sincos_noq)
-            Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3Trotated, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, name=X, **phononwind_opts)
-        
-        return Bmix
-
     for X in metal:
-        # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
-        if Ncores == 1:
-            Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
-        elif Ncores == 0:
-            pass
-        else:
-            Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,X,modes) for bt in beta))
-
-        # and write the results to disk
         if Ncores != 0:
+            Bmix = np.zeros((len(beta),Y[X].Ntheta,len(highT[X])))
+            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, skiptransonic=skiptransonic, **phononwind_opts)
+            for Ti in range(len(highT[X])-1):
+                Z = copy.copy(Y[X]) ## local copy we can modify for higher T
+                Z.T = highT[X][Ti+1]
+                expansionratio = (1 + Y[X].alpha_a*(Z.T - Y[X].T)) ## TODO: replace with values from eos!
+                Z.qBZ = Y[X].qBZ/expansionratio
+                Z.burgers = Y[X].burgers*expansionratio
+                Z.rho = Y[X].rho/expansionratio**3
+                Z.mu = Y[X].mu ## TODO: need to implement T dependence of shear modulus!
+                Z.lam = Y[X].bulk - 2*Z.mu/3 ## TODO: need to implement T dependence of bulk modulus!
+                Z.ct = np.sqrt(Z.mu/Z.rho)
+                Z.ct_over_cl = np.sqrt(Z.mu/(Z.lam+2*Z.mu))
+                Z.cl = Z.ct/Z.ct_over_cl
+                ## beta, as it appears in the equations, is v/ctT, therefore:
+                if beta_reference == 'current':
+                    betaT = beta
+                else:
+                    betaT = beta*Y[X].ct/Z.ct
+                ###### T dependence of elastic constants (TODO)
+                Z.c11 = Y[X].c11
+                Z.c12 = Y[X].c12
+                Z.c44 = Y[X].c44
+                Z.c13 = Y[X].c13
+                Z.c33 = Y[X].c33
+                Z.c66 = Y[X].c66
+                Z.c111 = Y[X].c111
+                Z.c112 = Y[X].c112
+                Z.c113 = Y[X].c113
+                Z.c123 = Y[X].c123
+                Z.c133 = Y[X].c133
+                Z.c144 = Y[X].c144
+                Z.c155 = Y[X].c155
+                Z.c166 = Y[X].c166
+                Z.c222 = Y[X].c222
+                Z.c333 = Y[X].c333
+                Z.c344 = Y[X].c344
+                Z.c366 = Y[X].c366
+                Z.c456 = Y[X].c456
+                ##
+                Z.cij = Y[X].cij
+                Z.cijk = Y[X].cijk
+                ###
+                Z.init_C2()
+                Z.init_C3()
+                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, skiptransonic=skiptransonic, **phononwind_opts)
+        
+            # and write the results to disk
             if os.access(fname:=f"drag_anis_{X}.dat.xz", os.R_OK):
                 shutil.move(fname,fname[:-3]+".bak.xz")
             with lzma.open(f"drag_anis_{X}.dat.xz","wt") as Bfile:
@@ -493,16 +406,15 @@ if __name__ == '__main__':
     #############################################################################################################################
 
     ## compute smallest critical velocity in ratio (for those data provided in metal_data) to the scaling velocity and plot only up to this velocity
+    velm0 = {}
     for X in metal:
         Y[X].computevcrit()
         Y[X].findvcrit_smallest()
         ## compute sound wave speeds for sound waves propagating parallel to screw/edge dislocation glide for comparison:
-        scrindm0 = int((len(velm0[X])-1)/2)
-        if abs(Y[X].theta[scrindm0]) < 1e-12:
-            Y[X].sound_screw = Y[X].computesound(velm0[X][scrindm0])
-        else:
-            Y[X].sound_screw = Y[X].computesound(velm0[X][0])
-        Y[X].sound_edge = Y[X].computesound(velm0[X][-1])
+        velm0[X] = np.round(Y[X].m0,15)
+        edgescrewind = Y[X].findedgescrewindices()
+        Y[X].sound_screw = Y[X].computesound(velm0[X][edgescrewind[0]])
+        Y[X].sound_edge = Y[X].computesound(velm0[X][edgescrewind[1]])
         
     if skip_plots:
         print("skipping plots as requested")

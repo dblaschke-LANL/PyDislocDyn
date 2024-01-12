@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Jan. 10, 2024
+# Date: Mar. 6, 2023 - Jan. 11, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -40,7 +40,7 @@ Ntheta = 4
 bccslip='all'
 hcpslip='all'
 ## drag only options:
-computevcrit_for_speed = 'auto'
+skiptransonic = True
 use_exp_Lame=True
 use_iso=False
 ## LT only options:
@@ -52,7 +52,7 @@ scale_by_mu = 'exp'
 P=0 ## pressure in strain_poly test
 volpres=False ## set to True to compute volume preserving version of the strains
 
-OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "Ncores":int, "phononwind_opts":ast.literal_eval, \
+OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "Ncores":int, "phononwind_opts":ast.literal_eval, "skiptransonic":str2bool, \
            "NT":int, "skip_calcs":str2bool, "use_exp":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool, "bccslip":str, "hcpslip":str,\
            "Nbeta":int, "Ntheta":int, "Nbeta_LT":int, "Ntheta_LT":int, "Nphi":int, "scale_by_mu":str, "P":sp.Symbol, "volpres":str2bool}
 
@@ -141,7 +141,6 @@ if __name__ == '__main__':
         raise ValueError(f"folder {old} does not exist")
     if runtests not in tests_avail:
         raise ValueError(f"{runtests=} unknown; please select from {tests_avail}")
-    if computevcrit_for_speed == 'auto' or computevcrit_for_speed > Ntheta: computevcrit_for_speed = Ntheta
     if bccslip == 'all':
         slipkw_bcc = ['110', '112', '123']
     else:
@@ -217,7 +216,7 @@ if __name__ == '__main__':
                 os.mkdir(drag_folder)
             print("running test 'drag' ...")
             os.chdir(os.path.join(cwd,drag_folder))
-            dragopts = f' --{Ncores=} --{computevcrit_for_speed=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
+            dragopts = f' --{Ncores=} --{skiptransonic=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
             os.system(os.path.join(dir_path,"dragcoeff_semi_iso.py")+dragopts+f" --{Ntheta=} --{Nbeta=} --{NT=} | tee dragsemi.log")
             os.chdir(cwd)
         else: print("skipping test 'drag' as requested")

@@ -1,14 +1,23 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 24, 2023
+# Date: Nov. 5, 2017 - Jan. 11, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
-   Its only two front-end functions are :
+   Its three front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
        dragcoeff_iso ....... computes the drag coefficient assuming an isotropic phonon spectrum.
+       phonondrag ........ a high-level wrapper around dragcoeff_iso that takes an instance of the
+                           Dislocation class (defined in linetension_calcs.py) as its first argument.
+                           Users most likely will want to use this function instead of dragcoeff_iso().
    All other functions are subroutines of the latter.'''
 #################################
 import numpy as np
+import pandas as pd
+from elasticconstants import UnVoigt
+from dislocations import fourieruij_sincos, fourieruij_nocut, fourieruij_iso
+from linetension_calcs import Dislocation, Ncores
+if Ncores>1:
+    from joblib import Parallel, delayed
 try:
     from numba import jit
 except ImportError:
@@ -705,3 +714,65 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
                     Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet,kthchk)
     
     return Bmixfinal
+
+def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncores=Ncores,forceanis=False,**kwargs):
+    '''Computes the drag coefficient from phonon wind for dislocation 'disloc' gliding at velocity v=beta*disloc.ct
+       'disloc'' must be an instance of the Dislocation class; beta may be an array of (normalized) velocities.
+       The drag coefficient is computed for every character angle in disloc.theta and is thus returned as an array
+       of shape (len(beta),len(disloc.theta)). Additional keyword arguments may be passed to subroutine dragcoeff_iso()
+       via kwargs. If disloc.sym==iso, we use the faster analytic expressions for the displacement gradient field unless
+       option  'forceanis'=True.'''
+    # if not isinstance(disloc,Dislocation):
+    #     print(type(disloc),isinstance(disloc,Dislocation),Dislocation)
+    #     raise ValueError("'disloc' must be an instance of the Dislocation class")
+    if isinstance(beta, float) or isinstance(beta, int):
+        beta = np.asarray([beta])
+    else:
+        beta = np.asarray(beta)
+    disloc.C2norm = UnVoigt(disloc.C2/disloc.mu)
+    C3 = UnVoigt(disloc.C3/disloc.mu)
+    A3 = elasticA3(disloc.C2norm,C3)
+    phi = np.linspace(0,2*np.pi,Nphi)
+    if disloc.sym != 'iso' or forceanis:
+        phiX = disloc.phi
+        r = np.array([rmin*np.pi,rmax*np.pi])
+        q = np.linspace(0,1,Nq)
+        sincos_noq = np.average(fourieruij_sincos(r,phiX,q,phi)[3:-4],axis=0)
+        A3rotated = np.zeros((disloc.Ntheta,3,3,3,3,3,3))
+        disloc.computerot()
+        rotmat = np.round(disloc.rot,15)
+        for th in range(disloc.Ntheta):
+            rotm = rotmat[th]
+            A3rotated[th] = np.round(np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(rotm,np.dot(A3,rotm.T)))))),12)
+    else:
+        A3rotated = A3
+    if skiptransonic and (disloc.vcrit_all is None or len(disloc.vcrit_all[1])!=disloc.Ntheta or np.any(disloc.vcrit_all[0]!=disloc.theta)):
+        disloc.computevcrit(set_screwedge=False)
+        if np.isnan(disloc.vcrit_all[1]).any():
+            print(f"Warning: found NaN in vcrit for {disloc.name}, replacing with interpolated values.")
+            fixnan = pd.Series(disloc.vcrit_all[1])
+            disloc.vcrit_all[1] = fixnan.where(fixnan.notnull(),other=(fixnan.fillna(method='ffill')+fixnan.fillna(method='bfill'))/2).to_numpy()
+    
+    def maincomputations(bt):
+        '''wrap all main computations into a single function definition to be run in a parallelized loop'''
+        Bmix = np.zeros((disloc.Ntheta))
+        if disloc.sym != 'iso' or forceanis:
+            disloc.computeuij(beta=bt)
+            disloc.alignuij()
+            dij = fourieruij_nocut(disloc.uij_aligned,phiX,phi,sincos=sincos_noq)
+        else:
+            dij = fourieruij_iso(bt, disloc.ct_over_cl, disloc.theta, phi)
+        if not skiptransonic:
+            skip_theta = None
+        else:
+            skip_theta = bt < disloc.vcrit_all[1]/disloc.ct
+        if np.all(skip_theta==False):
+            Bmix = np.repeat(np.inf,disloc.Ntheta)
+        else:
+            Bmix = dragcoeff_iso(dij=dij, A3=A3rotated, qBZ=disloc.qBZ, ct=disloc.ct, cl=disloc.cl, beta=bt, burgers=disloc.burgers, T=disloc.T, skip_theta=skip_theta, name=disloc.name, **kwargs)        
+        return Bmix
+    if Ncores == 1 or len(beta)<2:
+        Bmix = np.array([maincomputations(bt) for bt in beta])
+    else:
+        Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt) for bt in beta))
+    return Bmix

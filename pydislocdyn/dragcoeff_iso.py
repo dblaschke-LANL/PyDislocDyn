@@ -13,6 +13,7 @@ import os
 import ast
 import numpy as np
 from scipy.optimize import curve_fit
+import copy
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -41,18 +42,10 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path)
 ##
 import metal_data as data
-from elasticconstants import elasticC2, elasticC3, Voigt, UnVoigt
-from dislocations import fourieruij_iso, ompthreads, printthreadinfo, Ncpus
-from linetension_calcs import readinputfile, read_2dresults, parse_options, str2bool
-from phononwind import elasticA3, dragcoeff_iso
+from dislocations import ompthreads, printthreadinfo
+from linetension_calcs import readinputfile, read_2dresults, parse_options, str2bool, Ncores
+from phononwind import phonondrag
 from dragcoeff_semi_iso import B_of_sigma
-try:
-    from joblib import Parallel, delayed
-    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    ## Ncores=0 bypasses phononwind calculations entirely and only generates plots using data from a previous run
-    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
-except ImportError:
-    Ncores = 1 ## must be 1 (or 0) without joblib
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -83,6 +76,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
         phononwind_opts.update(kwargs)
+    phononwind_opts['modes']=modes
     printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the command line for options
     beta = np.linspace(minb,maxb,Nbeta)
@@ -126,7 +120,6 @@ if __name__ == '__main__':
         
         print(f"Computing the drag coefficient from phonon wind ({modes} modes in the isotropic limit) for: {metal}")
     
-    A3 = {}
     highT = {}
     for X in metal:
         highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
@@ -137,53 +130,38 @@ if __name__ == '__main__':
             with open(X+"_iso.log","a", encoding="utf8") as logfile:
                 logfile.write("\n\nT:\n")
                 logfile.write('\n'.join(map("{:.2f}".format,highT[X])))
-        A3[X] = elasticA3(UnVoigt(Y[X].C2/Y[X].mu), UnVoigt(Y[X].C3/Y[X].mu))
     for X in metal:
-        def maincomputations(bt,X,modes=modes):
-            '''wrap all main computations into a single function definition to be run in a parallelized loop'''
-            Bmix = np.zeros((len(Y[X].theta),len(highT[X])))
-                                    
-            dij = fourieruij_iso(bt, Y[X].ct_over_cl, Y[X].theta, phi)
-            Bmix[:,0] = dragcoeff_iso(dij=dij, A3=A3[X], qBZ=Y[X].qBZ, ct=Y[X].ct, cl=Y[X].cl, beta=bt, burgers=Y[X].burgers, T=Y[X].T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, name=X, **phononwind_opts)
-            
+        if Ncores != 0:
+            Bmix = np.zeros((len(beta),len(Y[X].theta),len(highT[X])))
+            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, **phononwind_opts)
             for Ti in range(len(highT[X])-1):
-                T = highT[X][Ti+1]
-                expansionratio = (1 + Y[X].alpha_a*(T - Y[X].T)) ## TODO: replace with values from eos!
-                qBZT = Y[X].qBZ/expansionratio
-                burgersT = Y[X].burgers*expansionratio
-                rhoT = Y[X].rho/expansionratio**3
-                c44T = Y[X].mu ## TODO: need to implement T dependence of shear modulus!
-                c12T = Y[X].bulk - 2*c44T/3 ## TODO: need to implement T dependence of bulk modulus!
-                ctT = np.sqrt(c44T/rhoT)
-                ct_over_cl_T = np.sqrt(c44T/(c12T+2*c44T))
-                clT = ctT/ct_over_cl_T
+                Z = copy.copy(Y[X]) ## local copy we can modify for higher T
+                Z.T = highT[X][Ti+1]
+                expansionratio = (1 + Y[X].alpha_a*(Z.T - Y[X].T)) ## TODO: replace with values from eos!
+                Z.qBZ = Y[X].qBZ/expansionratio
+                Z.burgers = Y[X].burgers*expansionratio
+                Z.rho = Y[X].rho/expansionratio**3
+                Z.c44 = Y[X].mu ## TODO: need to implement T dependence of shear modulus!
+                Z.c12 = Y[X].bulk - 2*Z.c44/3 ## TODO: need to implement T dependence of bulk modulus!
+                Z.ct = np.sqrt(Z.c44/Z.rho)
+                Z.ct_over_cl = np.sqrt(Z.c44/(Z.c12+2*Z.c44))
+                Z.cl = Z.ct/Z.ct_over_cl
+                Z.init_C2()
                 ## beta, as it appears in the equations, is v/ctT, therefore:
                 if beta_reference == 'current':
-                    betaT = bt
+                    betaT = beta
                 else:
-                    betaT = bt*Y[X].ct/ctT
-                
-                dij = fourieruij_iso(betaT, ct_over_cl_T, Y[X].theta, phi)
+                    betaT = beta*Y[X].ct/Z.ct
                 ### TODO: need models for T dependence of TOECs!
-                c123T = Y[X].C3[0,1,2]
-                c144T = Y[X].C3[0,3,3]
-                c456T = Y[X].C3[3,4,5]
+                Z.c123 = Y[X].C3[0,1,2]
+                Z.c144 = Y[X].C3[0,3,3]
+                Z.c456 = Y[X].C3[3,4,5]
+                Z.init_C3()
+                Z.vcrit_all = None ## needs to be recomputed
                 ##
-                A3T = elasticA3(elasticC2(c12=c12T, c44=c44T), elasticC3(c123=c123T,c144=c144T,c456=c456T))/c44T
-                Bmix[:,Ti+1] = dragcoeff_iso(dij=dij, A3=A3T, qBZ=qBZT, ct=ctT, cl=clT, beta=betaT, burgers=burgersT, T=T, modes=modes, Nt=Nt, Nq1=Nq1, Nphi1=Nphi1, name=X, **phononwind_opts)
-                
-            return Bmix
-
-        # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
-        if Ncores == 1:
-            Bmix = np.array([maincomputations(bt,X,modes) for bt in beta])
-        elif Ncores == 0:
-            pass
-        else:
-            Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt,X,modes) for bt in beta))
-
-        # and write the results to disk (in various formats)
-        if Ncores != 0:
+                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, **phononwind_opts)
+            
+            # and write the results to disk (in various formats)
             with open(f"drag_{X}.dat","w", encoding="utf8") as Bfile:
                 Bfile.write(f"### B(beta,theta) for {X} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
