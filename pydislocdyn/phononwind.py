@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 11, 2024
+# Date: Nov. 5, 2017 - Jan. 14, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its three front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -716,7 +716,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     return Bmixfinal
 
 def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncores=Ncores,forceanis=False,**kwargs):
-    '''Computes the drag coefficient from phonon wind for dislocation 'disloc' gliding at velocity v=beta*disloc.ct
+    '''Computes the drag coefficient from phonon wind in mPas for dislocation 'disloc' gliding at velocity v=beta*disloc.ct
        'disloc'' must be an instance of the Dislocation class; beta may be an array of (normalized) velocities.
        The drag coefficient is computed for every character angle in disloc.theta and is thus returned as an array
        of shape (len(beta),len(disloc.theta)). Additional keyword arguments may be passed to subroutine dragcoeff_iso()
@@ -725,7 +725,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
     # if not isinstance(disloc,Dislocation):
     #     print(type(disloc),isinstance(disloc,Dislocation),Dislocation)
     #     raise ValueError("'disloc' must be an instance of the Dislocation class")
-    if isinstance(beta, float) or isinstance(beta, int):
+    if isinstance(beta, (float, int)):
         beta = np.asarray([beta])
     else:
         beta = np.asarray(beta)
@@ -759,7 +759,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
         if disloc.sym != 'iso' or forceanis:
             disloc.computeuij(beta=bt)
             disloc.alignuij()
-            dij = fourieruij_nocut(disloc.uij_aligned,phiX,phi,sincos=sincos_noq)
+            dij = fourieruij_nocut(disloc.uij_aligned,phiX,phi,regul=500,sincos=sincos_noq)
         else:
             dij = fourieruij_iso(bt, disloc.ct_over_cl, disloc.theta, phi)
         if not skiptransonic:
