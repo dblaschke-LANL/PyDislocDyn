@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 11, 2024
+# Date: Nov. 5, 2017 - Jan. 16, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -11,9 +11,9 @@
 import sys
 import os
 import ast
+import copy
 import numpy as np
 from scipy.optimize import curve_fit
-import copy
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     for X in metal:
         if Ncores != 0:
             Bmix = np.zeros((len(beta),len(Y[X].theta),len(highT[X])))
-            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, **phononwind_opts)
+            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, pandas_out=False, **phononwind_opts)
             for Ti in range(len(highT[X])-1):
                 Z = copy.copy(Y[X]) ## local copy we can modify for higher T
                 Z.T = highT[X][Ti+1]
@@ -159,7 +159,7 @@ if __name__ == '__main__':
                 Z.init_C3()
                 Z.vcrit_all = None ## needs to be recomputed
                 ##
-                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, **phononwind_opts)
+                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, pandas_out=False, **phononwind_opts)
             
             # and write the results to disk (in various formats)
             with open(f"drag_{X}.dat","w", encoding="utf8") as Bfile:

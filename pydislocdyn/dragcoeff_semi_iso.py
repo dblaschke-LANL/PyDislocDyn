@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 11, 2024
+# Date: Nov. 5, 2017 - Jan. 16, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -12,9 +12,9 @@ import sys
 import os
 import ast
 import shutil, lzma
+import copy
 import numpy as np
 from scipy.optimize import curve_fit, minimize_scalar, fsolve
-import copy
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -337,7 +337,7 @@ if __name__ == '__main__':
     for X in metal:
         if Ncores != 0:
             Bmix = np.zeros((len(beta),Y[X].Ntheta,len(highT[X])))
-            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, skiptransonic=skiptransonic, **phononwind_opts)
+            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, skiptransonic=skiptransonic, pandas_out=False, **phononwind_opts)
             for Ti in range(len(highT[X])-1):
                 Z = copy.copy(Y[X]) ## local copy we can modify for higher T
                 Z.T = highT[X][Ti+1]
@@ -381,7 +381,7 @@ if __name__ == '__main__':
                 ###
                 Z.init_C2()
                 Z.init_C3()
-                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, skiptransonic=skiptransonic, **phononwind_opts)
+                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, skiptransonic=skiptransonic, pandas_out=False, **phononwind_opts)
         
             # and write the results to disk
             if os.access(fname:=f"drag_anis_{X}.dat.xz", os.R_OK):
@@ -531,9 +531,9 @@ if __name__ == '__main__':
         mkmeshbetaplot(X,sinex=False) ## set sinex=True to change x axis from theta to sin^2(theta)
     
     ## define line colors for every metal in the same plot
-    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe110':'darkgreen', 'Nb110':'firebrick', 'Znbasal':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cdbasal':'lightgreen', 'Mgbasal':'lightsalmon', 'Mo110':'magenta', 'Ni':'silver', 'Tibasal':'olive', 'Zrbasal':'cyan'}
-    metalcolors.update({'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred'})
-    metalcolors.update({'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki', 'Mgprismatic':'deepskyblue', 'Mgpyramidal':'royalblue', 'Tiprismatic':'orange', 'Tipyramidal':'yellow', 'Znprismatic':'gray', 'Znpyramidal':'slateblue', 'Zrprismatic':'darkcyan', 'Zrpyramidal':'darkturquoise'})
+    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe110':'darkgreen', 'Nb110':'firebrick', 'Znbasal':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cdbasal':'lightgreen', 'Mgbasal':'lightsalmon', 'Mo110':'magenta', 'Ni':'silver',\
+                   'Tibasal':'olive', 'Zrbasal':'cyan', 'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred', 'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki',\
+                   'Mgprismatic':'deepskyblue', 'Mgpyramidal':'royalblue', 'Tiprismatic':'orange', 'Tipyramidal':'yellow', 'Znprismatic':'gray', 'Znpyramidal':'slateblue', 'Zrprismatic':'darkcyan', 'Zrpyramidal':'darkturquoise'}
     
     popt_edge = {}
     pcov_edge = {}

@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 14, 2024
+# Date: Nov. 5, 2017 - Jan. 26, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its three front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -715,13 +715,14 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     
     return Bmixfinal
 
-def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncores=Ncores,forceanis=False,**kwargs):
+def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncores=Ncores,forceanis=False,pandas_out=True,**kwargs):
     '''Computes the drag coefficient from phonon wind in mPas for dislocation 'disloc' gliding at velocity v=beta*disloc.ct
        'disloc'' must be an instance of the Dislocation class; beta may be an array of (normalized) velocities.
        The drag coefficient is computed for every character angle in disloc.theta and is thus returned as an array
        of shape (len(beta),len(disloc.theta)). Additional keyword arguments may be passed to subroutine dragcoeff_iso()
        via kwargs. If disloc.sym==iso, we use the faster analytic expressions for the displacement gradient field unless
-       option  'forceanis'=True.'''
+       option  'forceanis'=True. If option pandas_out=True (default), the resulting numpy array is converted to a pandas
+       DataFrame including metadata (i.e. dislocaion gliding velocities and character angles.'''
     # if not isinstance(disloc,Dislocation):
     #     print(type(disloc),isinstance(disloc,Dislocation),Dislocation)
     #     raise ValueError("'disloc' must be an instance of the Dislocation class")
@@ -775,4 +776,9 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
         Bmix = np.array([maincomputations(bt) for bt in beta])
     else:
         Bmix = np.array(Parallel(n_jobs=Ncores)(delayed(maincomputations)(bt) for bt in beta))
+    if pandas_out:
+        Bmix = pd.DataFrame(Bmix,index=beta,columns=disloc.theta/np.pi)
+        # Bmix.attrs = {'name' : f"B({disloc.name}) [mPas]"} ## .attrs is an experimental pandas feature (might go away again) and .name is not supported
+        Bmix.index.name = 'beta'
+        Bmix.columns.name = 'theta/pi'
     return Bmix
