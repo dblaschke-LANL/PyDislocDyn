@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 16, 2024
+# Date: Nov. 5, 2017 - Jan. 30, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -91,8 +91,7 @@ OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, 
            "bccslip":str, "hcpslip":str, "skiptransonic":str2bool, "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str,\
            "Nphi":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float, "phononwind_opts":ast.literal_eval}
 
-### generate a list of those fcc and bcc metals for which we have sufficient data (i.e. at least TOEC)
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.c123.keys())))
+metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
 ### define various functions for fitting drag results and for computing B(sigma) from (fitted) B(v)
 def fit_mix(x, c0, c1, c2, c4):
@@ -257,7 +256,7 @@ if __name__ == '__main__':
     if use_exp_Lame:
         isokeywd=False
     if use_iso:
-        metal = sorted(list(set(metal).intersection(data.ISO_c44.keys()).intersection(data.ISO_l.keys())))
+        metal = sorted(list(data.all_metals.intersection(data.ISO_c44.keys()).intersection(data.ISO_l.keys())))
         isokeywd=True
     if len(sys.argv) > 1 and len(args)>0:
         try:
@@ -577,10 +576,13 @@ if __name__ == '__main__':
         '''Plot the dislocation drag over velocity and show the fitting function.'''
         if len(metal_list)<5:
             fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
-            ncols=2
-        else:
+            legendops = {'loc':'upper left', 'ncol':2, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
+        elif len(metal_list)<25:
             fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
-            ncols=3
+            legendops = {'loc':'upper left', 'ncol':3, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
+        else:
+            fig, ax = plt.subplots(1, 1, figsize=(7,7))
+            legendops = {'loc':'upper left', 'bbox_to_anchor':(1.01,1),'ncol':2, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
         ax.set_xticks(np.arange(11)/10)
@@ -616,7 +618,7 @@ if __name__ == '__main__':
             beta_highres = np.linspace(0,vcrit,1000)
             with np.errstate(divide='ignore'):
                 ax.plot(beta_highres,fit_mix(beta_highres/vcrit,*popt),':',color='gray')
-        ax.legend(loc='upper left', ncol=ncols, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
+        ax.legend(numpoints=1,fontsize=fntsize,**legendops)
         plt.savefig(f"B_{filename}+fits.pdf",format='pdf',bbox_inches='tight')
         plt.close()
         

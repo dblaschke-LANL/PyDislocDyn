@@ -2,14 +2,14 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Dec. 12, 2023
+# Date: Nov. 7, 2017 - Jan. 26, 2024
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
    returns an instance of the metal_props class.
    If run as a script, this file will compute polycrystal averages of second and third order elastic constants, either for
    all metals predefined in metal_data.py, or for those input files passed as arguments to the script; results are written
-   to a text file 'averaged_elastic_constants.txt'.'''
+   to a text file 'averaged_elastic_constants.tex'.'''
 #################################
 import sys
 import os
@@ -25,8 +25,7 @@ sys.path.append(dir_path)
 from elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
 import metal_data as data
 
-### generate a list of those fcc, bcc, hcp metals for which we have sufficient data
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals).intersection(data.CRC_c11.keys())))
+metal = sorted(list(data.all_metals.intersection(data.CRC_c11.keys()))) ## generate a list of those metals for which we have sufficient data
 ### compute various contractions/invariants of elastic constant/compliance tensors:
 def invI1(C2):
     '''Computes the trace C_iijj of SOEC.'''

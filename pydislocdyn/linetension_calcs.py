@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 10, 2024
+# Date: Nov. 3, 2017 - Jan. 26, 2024
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -98,10 +98,7 @@ def guesstype(arg):
                 out = arg ## fall back to string
     return out
 OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
-
-#### input data:
-metal = sorted(list(data.fcc_metals.union(data.bcc_metals).union(data.hcp_metals).union(data.tetr_metals)))
-metal = sorted(metal + ['ISO']) ### test isotropic limit
+metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
