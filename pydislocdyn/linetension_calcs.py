@@ -18,7 +18,7 @@ import time
 import shutil, lzma
 import numpy as np
 import sympy as sp
-from scipy import optimize
+from scipy import optimize, integrate
 ##################
 import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
@@ -314,7 +314,7 @@ class Dislocation(StrohGeometry,metal_props):
                 NNinv = np.linalg.inv(NN)
                 S = - NNinv @ NM
                 B = MM + MN @ S
-                return Rayleighcond(np.trapz(B,x=self.phi,axis=0)/(4*np.pi**2))
+                return Rayleighcond(integrate.trapezoid(B,x=self.phi,axis=0)/(4*np.pi**2))
             bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
             result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
             # if result.fun>=1e-3: print(f"{bounds}\n{result}")  ## if this failed, try enlarging the search interval slightly above vcrit (there was some numerical uncertainty there too):

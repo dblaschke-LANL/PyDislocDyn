@@ -11,7 +11,7 @@ import multiprocessing
 import numpy as np
 import sympy as sp
 from mpmath import findroot
-from scipy.integrate import cumtrapz, quad
+from scipy.integrate import cumulative_trapezoid, trapezoid, quad
 from elasticconstants import UnVoigt ## only for temporary workaround in acc_edge sol.
 Ncpus = multiprocessing.cpu_count()
 nonumba=False
@@ -348,7 +348,21 @@ class StrohGeometry:
         self.LT = computeLT(self.Etot, dtheta)
 
 #############################################################################
-if not nonumba:
+if nonumba:
+    trapz = trapezoid
+    cumtrapz = cumulative_trapezoid
+else:
+    @jit(nopython=True)
+    def trapz(y,x):
+        '''integrate over the last axis using the trapezoidal rule (i.e. equivalent to numpy.trapz(y,x,axis=-1))'''
+        theshape = y.shape
+        n = theshape[-1]
+        f = y.T
+        outar = np.zeros(theshape).T
+        for i in range(n-1):
+            outar[i] = (0.5*(f[i+1]+f[i])*(x[i+1]-x[i]))
+        return np.sum(outar.T,axis=-1)
+    
     @jit(nopython=True)
     def cumtrapz(y,x,initial=0):
         '''Cumulatively integrate over the last axis using the trapezoidal rule (i.e. equivalent to scipy.integrate.cumtrapz(y,x,axis=-1,initial=0),
@@ -678,8 +692,8 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False
                 for o in range(3):
                     np.add(B[k,l,th] , np.multiply(MN[k,o,th] , S[o,l,th] , tmp) , B[k,l,th])
                     
-    Sb = (1/(4*pi*pi))*np.dot(b,np.trapz(S,x=phi))
-    B = (1/(4*pi*pi))*np.dot(b,np.trapz(B,x=phi))
+    Sb = (1/(4*pi*pi))*np.dot(b,trapz(S,x=phi))
+    B = (1/(4*pi*pi))*np.dot(b,trapz(B,x=phi))
     
     if nogradient:
         if Nr==0:
@@ -862,7 +876,7 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
                 for iq in range(qres):
                     np.multiply(uij_array[i,j] , sincos[iq] , integrand[i,j,iq])
     
-        result[:,:,th] = np.trapz(np.reshape(integrand,(3,3,qres,phres,phiXres)),x=phiX)
+        result[:,:,th] = trapz(np.reshape(integrand,(3,3,qres,phres,phiXres)),x=phiX)
                 
     return result
 
@@ -892,7 +906,7 @@ def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
                 uij_array[i,j] = np.reshape(np.outer(ph_ones,uij[i,j,th]),(ph2res))
                 np.multiply(uij_array[i,j] , sincos , integrand[i,j])
     
-        result[:,:,th] = np.trapz(np.reshape(integrand,(3,3,phres,phiXres)),x=phiX)
+        result[:,:,th] = trapz(np.reshape(integrand,(3,3,phres,phiXres)),x=phiX)
                 
     return result
 
@@ -920,7 +934,7 @@ else:
                         for p in range(3):
                             Wtot[th] += uij[l,k,th]*uij[o,p,th]*(C2[k,l,o,p] + betaj*betaj*Cv[k,l,o,p,th])
             
-        return np.trapz(Wtot,x=phi)/2
+        return trapz(Wtot,x=phi)/2
 
 def computeLT(Etot, dtheta):
     '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t. the dislocation character theta.

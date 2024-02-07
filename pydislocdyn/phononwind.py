@@ -12,6 +12,7 @@
    All other functions are subroutines of the latter.'''
 #################################
 import numpy as np
+from scipy.integrate import trapezoid
 import pandas as pd
 from elasticconstants import UnVoigt
 from dislocations import fourieruij_sincos, fourieruij_nocut, fourieruij_iso
@@ -301,7 +302,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
     ## we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval, and weighting end point 3 to 1 compared to its neighbor
     # however, edge point might introduce rounding errors due to divergence so better just keep underestimating by small value (hence multiply end point by 2 instead of 3)
     distri[0] = 2*distri[0]
-    return np.trapz(distri,x = q1, axis=0)
+    return trapezoid(distri,x = q1, axis=0)
                
 ### rho x ct^2  = c44, and B is divided by rho^2*ct^4 = c44^2;
 ### it is therefore convenient to divide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
@@ -486,8 +487,8 @@ else:
                     Btmp[-1] = 2*Btmp[-1]
                 elif kthchk==0:
                     Btmp[0] = 2*Btmp[0]
-            Bt[p] = np.trapz(Btmp,x = t1)
-        return np.trapz(Bt,x = phi)
+            Bt[p] = trapezoid(Btmp,x = t1)
+        return trapezoid(Bt,x = phi)
 
     def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
         '''Subroutine of dragcoeff_iso().'''
@@ -511,8 +512,8 @@ else:
                     Btmp[0] = 2*Btmp[0]
                 if updatet or kthchk==(Nchunks-1):
                     Btmp[-1] = 2*Btmp[-1]
-            Bt[p] = np.trapz(Btmp,x = qt)
-        return np.trapz(Bt,x = phi)
+            Bt[p] = trapezoid(Btmp,x = qt)
+        return trapezoid(Bt,x = phi)
 
 def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
     '''Subroutine of dragcoeff_iso_onemode(): approximation in the high temperature limit.'''
