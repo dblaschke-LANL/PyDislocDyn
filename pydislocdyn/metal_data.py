@@ -1,18 +1,18 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 30, 2024
+# Date: Nov. 3, 2017 - Feb. 23, 2024
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
 
 ## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012, from Kaye & Laby online (https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/),
 ##  from the CRC handbook (hbcp.chemnetbase.com), from Smith, Stern, Stephens 1966 (Mo), and from G.V. Samsonov, Handbook of the Physiochemical Properties of the Elements 1968 (Be, Co, Pd, Sc, Zr)
-ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Be':132e9, 'Cd':19.2e9, 'Co':74.8e9, 'Cr':115.4e9, 'Cu':48.3e9, 'Er':28.3e9, 'Fe':81.6e9, 'Mg':17.3e9,\
-           'Mo':124e9, 'Nb':37.5e9, 'Ni':76.0e9, 'Pb':5.59e9, 'Pd':43.7e9, 'Pt':61.0e9, 'Sc':29.4e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'W':160.6e9, 'Zn':43.4e9, 'Zr':36.0e9}
+ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Be':132e9, 'Cd':19.2e9, 'Co':74.8e9, 'Cr':115.4e9, 'Cu':48.3e9, 'Er':28.3e9, 'Fe':81.6e9, 'Mg':17.3e9, 'Mo':124e9,\
+           'Nb':37.5e9, 'Ni':76.0e9, 'Pb':5.59e9, 'Pd':43.7e9, 'Pt':61.0e9, 'Sc':29.4e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'V':46.7e9, 'W':160.6e9, 'Zn':43.4e9, 'Zr':36.0e9}
 ISO_nu = {'Ag':0.367, 'Al':0.345, 'Au':0.440, 'Be':0.032, 'Co':0.310, 'Cd':0.300, 'Cr':0.210, 'Cu':0.343, 'Fe':0.293, 'Mg':0.291, 'Nb':0.397,\
           'Ni':0.312, 'Pd':0.390, 'Sc':0.309, 'Sn':0.357, 'Ta':0.342, 'Ti':0.321, 'W':0.280, 'Zn':0.249, 'Zr':0.330}
-ISO_bulk = {'Er':44.4e9, 'Mo':178e9+(2/3)*124e9, 'Pb':45.8e9, 'Pt':228.0e9}
+ISO_bulk = {'Er':44.4e9, 'Mo':178e9+(2/3)*124e9, 'Pb':45.8e9, 'Pt':228.0e9, 'V':158e9}
 ISO_c11 = {}
 ISO_c12 = {}
 for X in ISO_nu:
@@ -28,6 +28,7 @@ for X in set(ISO_c11.keys()).difference(ISO_nu.keys()):
 ISO_young = {} ## calculate Young's modulus
 for X in ISO_nu:
     ISO_young[X] = round(2*ISO_c44[X]*(1+ISO_nu[X]),-8)
+ISO_poisson = ISO_nu
 
 ## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
 ISO_l = {'Al':-143e9, 'Cu':-160e9,  'Fe':-170e9, 'Nb':-610e9}
@@ -57,11 +58,11 @@ for X in ISO_l:
 ## numbers at room temperature from the CRC handbook (hbcp.chemnetbase.com), 98th--104th ed. ("Crystal Structure Parameters of the Elements" for a, "Thermal and Physical Properties of Metals" for alpha_a, T_m, and rho,
 ## and "Elastic Constants for Single Crystals" for cii and rho_sc (single crystal), except Sc from Singh, Rathore & Agrawal 1992)
 CRC_c11 = {'Ag':123.99e9, 'Al':106.75e9, 'Au':192.44e9, 'Be':292.3e9, 'Cd':114.50e9, 'Co':307.1e9, 'Cr':339.8e9, 'Cu':168.3e9, 'Er':86.34e9, 'In':44.50e9, 'Ni':248.1e9, 'Fe':226e9, 'K':3.7e9, 'Mg':59.50e9,\
-           'Mo':463.7e9, 'Nb':246.5e9, 'Pb':49.66e9, 'Pd':2.2710e11, 'Pt':346.7e9, 'Sc':0.993e11, 'Sn':75.29e9, 'Ta':260.2e9, 'Ti':162.40e9, 'W':522.39e9, 'Zn':163.68e9, 'Zr':143.4e9}
+           'Mo':463.7e9, 'Nb':246.5e9, 'Pb':49.66e9, 'Pd':2.2710e11, 'Pt':346.7e9, 'Sc':0.993e11, 'Sn':75.29e9, 'Ta':260.2e9, 'Ti':162.40e9, 'V':2.287e11, 'W':522.39e9, 'Zn':163.68e9, 'Zr':143.4e9}
 CRC_c12 = {'Ag':93.67e9, 'Al':60.41e9, 'Au':162.98e9, 'Be':26.7e9, 'Cd':39.50e9, 'Co':165.0e9, 'Cr':58.6e9, 'Cu':121.2e9, 'Er':30.50e9, 'In':39.50e9, 'Ni':154.9e9, 'Fe':140e9, 'K':3.14e9, 'Mg':26.12e9,\
-           'Mo':157.8e9, 'Nb':134.5e9, 'Pb':42.31e9, 'Pd':1.7604e11, 'Pt':250.7e9, 'Sc':0.457e11, 'Sn':61.56e9, 'Ta':154.4e9, 'Ti':92.00e9, 'W':204.37e9, 'Zn':36.40e9, 'Zr':72.8e9}
+           'Mo':157.8e9, 'Nb':134.5e9, 'Pb':42.31e9, 'Pd':1.7604e11, 'Pt':250.7e9, 'Sc':0.457e11, 'Sn':61.56e9, 'Ta':154.4e9, 'Ti':92.00e9, 'V':1.190e11, 'W':204.37e9, 'Zn':36.40e9, 'Zr':72.8e9}
 CRC_c44 = {'Ag':46.12e9, 'Al':28.34e9, 'Au':42.0e9, 'Be':162.5e9, 'Cd':19.85e9, 'Co':75.5e9, 'Cr':99.0e9, 'Cu':75.7e9, 'Er':28.09e9, 'In':6.55e9,  'Ni':124.2e9, 'Fe':116e9, 'K':1.88e9, 'Mg':16.35e9,\
-           'Mo':109.2e9, 'Nb':28.73e9, 'Pb':14.98e9, 'Pd':0.7173e11, 'Pt':76.5e9, 'Sc':0.277e11, 'Sn':21.93e9, 'Ta':82.55e9, 'Ti':46.70e9, 'W':160.58e9, 'Zn':38.79e9, 'Zr':32.0e9}
+           'Mo':109.2e9, 'Nb':28.73e9, 'Pb':14.98e9, 'Pd':0.7173e11, 'Pt':76.5e9, 'Sc':0.277e11, 'Sn':21.93e9, 'Ta':82.55e9, 'Ti':46.70e9, 'V':0.432e11, 'W':160.58e9, 'Zn':38.79e9, 'Zr':32.0e9}
 CRC_c13 = {'Be':14.0e9, 'Cd':39.90e9, 'Co':102.7e9, 'Er':22.70e9, 'In':40.50e9, 'Mg':21.805e9, 'Sc':0.294e11, 'Sn':44.00e9, 'Ti':69.00e9, 'Zn':53.00e9, 'Zr':65.3e9}
 CRC_c33 = {'Be':336.4e9, 'Cd':50.85e9, 'Co':358.1e9, 'Er':85.54e9, 'In':44.40e9, 'Mg':61.55e9, 'Sc':1.069e11, 'Sn':95.52e9, 'Ti':180.70e9, 'Zn':63.47e9, 'Zr':164.8e9}
 CRC_c66 = {'In':12.20e9, 'Sn':23.36e9}
@@ -69,20 +70,20 @@ CRC_c66 = {'In':12.20e9, 'Sn':23.36e9}
 CRC_ZenerA = {} ## Zener anisotropy for cubic metals, determined from their SOECs
 
 CRC_a = {'Ag':4.0857e-10, 'Al':4.0496e-10, 'Au':4.0782e-10, 'Be':2.2859e-10, 'Cd':2.9793e-10, 'Co':2.5071e-10, 'Cr':2.8848e-10, 'Cu':3.6146e-10, 'Er':3.5592e-10, 'In':3.253e-10, 'Ni':3.5240e-10, 'Fe':2.8665e-10, 'K':5.321e-10, 'Mg':3.2094e-10,\
-         'Mo':3.1470e-10, 'Nb':3.3004e-10, 'Pb':4.9502e-10, 'Pd':3.8903e-10, 'Pt':3.9242e-10, 'Sc':3.3088e-10, 'Sn':5.8318e-10, 'Ta':3.3030e-10, 'Ti':2.9506e-10, 'W':3.1652e-10, 'Zn':2.665e-10, 'Zr':3.2316e-10} # lattice constant in m
+         'Mo':3.1470e-10, 'Nb':3.3004e-10, 'Pb':4.9502e-10, 'Pd':3.8903e-10, 'Pt':3.9242e-10, 'Sc':3.3088e-10, 'Sn':5.8318e-10, 'Ta':3.3030e-10, 'Ti':2.9506e-10, 'V':3.0240e-10, 'W':3.1652e-10, 'Zn':2.665e-10, 'Zr':3.2316e-10} # lattice constant in m
 CRC_c = {'Be':3.5845e-10, 'Cd':5.6196e-10, 'Co':4.0686e-10, 'Er':5.5850e-10, 'In':4.9470e-10, 'Mg':5.2107e-10, 'Sc':5.2680e-10, 'Sn':3.1818e-10, 'Ti':4.6835e-10, 'Zn':4.947e-10, 'Zr':5.1475e-10}
 CRC_alpha_a = {'Ag':18.9e-6, 'Al':23.1e-6, 'Au':14.2e-6, 'Be':11.3e-6, 'Cd':30.8e-6, 'Co':13.0e-6, 'Cr':4.9e-6, 'Cu':16.5e-6, 'Er':12.2e-6, 'In':32.1e-6, 'Ni':13.4e-6, 'Fe':11.8e-6, 'K':83.3e-6, 'Mg':24.8e-6,\
-               'Mo':4.8e-6, 'Nb':7.3e-6, 'Pb':28.9e-6, 'Pd':11.8e-6, 'Pt':8.8e-6, 'Sc':10.2e-06, 'Sn':22.0e-6, 'Ta':6.3e-6, 'Ti':8.6e-6, 'W':4.5e-6, 'Zn':30.2e-6, 'Zr':5.7e-6} # coefficient of linear thermal expansion in [K^-1]
+               'Mo':4.8e-6, 'Nb':7.3e-6, 'Pb':28.9e-6, 'Pd':11.8e-6, 'Pt':8.8e-6, 'Sc':10.2e-06, 'Sn':22.0e-6, 'Ta':6.3e-6, 'Ti':8.6e-6, 'V':8.4e-6, 'W':4.5e-6, 'Zn':30.2e-6, 'Zr':5.7e-6} # coefficient of linear thermal expansion in [K^-1]
 CRC_rho_sc = {'Ag':10500, 'Al':26970, 'Au':19283, 'Be':1850, 'Cd':8690, 'Co':8836, 'Cr':7200, 'Cu':8932, 'Er':9064, 'In':7300, 'Ni':8910, 'Fe':7867.2, 'K':851, 'Mg':1740,\
-              'Mo':10228.4, 'Nb':8578, 'Pb':11340, 'Pd':12038, 'Pt':21500, 'Sc':2990, 'Sn':7290, 'Ta':16626, 'Ti':4506, 'W':19257, 'Zn':7134, 'Zr':6520} # density in kg/m^3
+              'Mo':10228.4, 'Nb':8578, 'Pb':11340, 'Pd':12038, 'Pt':21500, 'Sc':2990, 'Sn':7290, 'Ta':16626, 'Ti':4506, 'V':6022, 'W':19257, 'Zn':7134, 'Zr':6520} # density in kg/m^3
 CRC_rho = {'Ag':10500, 'Al':2700, 'Au':19300, 'Be':1850, 'Cd':8690, 'Co':8860, 'Cr':7150, 'Cu':8960, 'Er':9070, 'In':7310, 'Ni':8900, 'Fe':7870, 'K':890, 'Mg':1740,\
-           'Mo':10200, 'Nb':8570, 'Pb':11300, 'Pd':12000, 'Pt':21500, 'Sc':2990, 'Sn':7287, 'Ta':16400, 'Ti':4506, 'W':19300, 'Zn':7134, 'Zr':6520} # density in kg/m^3
+           'Mo':10200, 'Nb':8570, 'Pb':11300, 'Pd':12000, 'Pt':21500, 'Sc':2990, 'Sn':7287, 'Ta':16400, 'Ti':4506, 'V':6000, 'W':19300, 'Zn':7134, 'Zr':6520} # density in kg/m^3
 CRC_T_m = {'Ag':1234.93, 'Al':933.47, 'Au':1337.33, 'Be':1560.15, 'Cd':594.22, 'Co':1768.15, 'Cr':2180.15, 'Cu':1357.77, 'Er':1802.15, 'Fe':1811.15, 'In':429.75, 'K':336.65, 'Mg':923.15,\
-           'Mo':2895.15, 'Nb':2750.15, 'Ni':1728.15, 'Pb':600.61, 'Pd':1827.95, 'Pt':2041.35, 'Sc':1814.15, 'Sn':505.08, 'Ta':3290.15, 'Ti':1943.15, 'W':3687.15, 'Zn':692.68, 'Zr':2127.15} ## melting temperature in K at ambient conditions
+           'Mo':2895.15, 'Nb':2750.15, 'Ni':1728.15, 'Pb':600.61, 'Pd':1827.95, 'Pt':2041.35, 'Sc':1814.15, 'Sn':505.08, 'Ta':3290.15, 'Ti':1943.15, 'V':2183.15, 'W':3687.15, 'Zn':692.68, 'Zr':2127.15} ## melting temperature in K at ambient conditions
 
 ## sets containing names of all metals of a certain crystal structure (cubic fcc/bcc, hexagonal close packed, tetragonal) at room temperature
 fcc_metals = {'Ag', 'Al', 'Au', 'Cu', 'Ni', 'Pb', 'Pd', 'Pt'}
-bcc_metals = {'Cr', 'Fe', 'K', 'Mo', 'Nb', 'Ta', 'W'}
+bcc_metals = {'Cr', 'Fe', 'K', 'Mo', 'Nb', 'Ta', 'V', 'W'}
 hcp_metals = {'Be', 'Cd', 'Co', 'Er', 'Mg', 'Ti', 'Sc', 'Zn', 'Zr'}
 tetr_metals = {'In', 'Sn'}
 cubic_metals = fcc_metals | bcc_metals
@@ -115,13 +116,13 @@ c366 = {'Sn':-78e9}
 c456 = {'Ag':83e9, 'Al':-30e9, 'Au':-12e9, 'Cu':-95e9, 'Fe':-720e9, 'K':-12.0e9, 'Mo':-555e9, 'Nb':136.6e9, 'Ni':-70e9, 'Pb':61e9, 'Pd':1.75e11, 'Pt':2.88e11, 'Sn':-52e9, 'W':-934.7e9}
 
 ### set to "None" non-independent elastic constants (and compute the Zener anisotropy ratio for cubic metals)
-for X in fcc_metals.union(bcc_metals).intersection(CRC_c11.keys()):
+for X in cubic_metals.intersection(CRC_c11.keys()):
     CRC_c13[X] = None
     CRC_c33[X] = None
     CRC_c66[X] = None
     CRC_ZenerA[X] = 2*CRC_c44[X]/(CRC_c11[X] - CRC_c12[X])
 
-for X in fcc_metals.union(bcc_metals).intersection(c111.keys()):
+for X in cubic_metals.intersection(c111.keys()):
     c113[X] = None
     c133[X] = None
     c155[X] = None
@@ -143,7 +144,7 @@ for X in tetr_metals.intersection(c111.keys()):
     
 ### compute the unit cell volumes:
 CRC_Vc = {}
-for X in fcc_metals.union(bcc_metals):
+for X in cubic_metals:
     CRC_Vc[X] = CRC_a[X]**3
 for X in hcp_metals:
     CRC_Vc[X] = CRC_a[X]*CRC_a[X]*CRC_c[X]*3*np.sin(np.pi/3)
