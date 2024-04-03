@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Jan. 26, 2024
+# Date: Nov. 7, 2017 - Apr. 3, 2024
 '''This module defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -19,11 +19,12 @@ import sympy as sp
 import numpy as np
 import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path)
+dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+if dir_path not in sys.path:
+    sys.path.append(dir_path)
 ##
-from elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
-import metal_data as data
+from pydislocdyn.elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
+import pydislocdyn.metal_data as data
 
 metal = sorted(list(data.all_metals.intersection(data.CRC_c11.keys()))) ## generate a list of those metals for which we have sufficient data
 ### compute various contractions/invariants of elastic constant/compliance tensors:
@@ -305,7 +306,7 @@ class metal_props:
         elif self.Vc<=0 and self.sym=='tric':
             self.Vc = self.ac*self.bc*self.cc*np.sqrt(1 - np.cos(self.alphac)**2 - np.cos(self.betac)**2\
                  - np.cos(self.gammac)**2 + 2*np.cos(self.alphac)*np.cos(self.betac)*np.cos(self.gammac))
-        self.qBZ = ((6*np.pi**2/self.Vc)**(1/3))
+        self.qBZ = (6*np.pi**2/self.Vc)**(1/3)
     
     def init_all(self):
         '''call all other initializing functions for the data currently available'''
@@ -334,12 +335,12 @@ class metal_props:
         thematrix = np.dot(v , np.dot(UnVoigt(self.C2/c44) , v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
         thedet = sp.det(sp.Matrix(thematrix))
         solution = sp.solve(thedet,bt2)
-        for i in range(len(solution)):
-            solution[i] = solution[i]  * c44/self.rho
-            if solution[i].free_symbols == set():
-                solution[i] = np.sqrt(float(sp.re(solution[i])))
+        for i, si  in enumerate(solution):
+            si = si*c44/self.rho
+            if si.free_symbols == set():
+                solution[i] = np.sqrt(float(sp.re(si)))
             else:
-                solution[i] = sp.sqrt(solution[i])
+                solution[i] = sp.sqrt(si)
         return solution
     
     def Miller_to_Cart(self,v,normalize=True,reziprocal=False):
@@ -375,17 +376,16 @@ class metal_props:
             out = out/np.sqrt(np.dot(out,out))
         else:
             accuracy *= self.ac
-        for i in range(len(out)):
-            if abs(out[i])<accuracy:
-                out[i] = round(out[i]) # round tiny numbers to zero
+        for i,outi in enumerate(out):
+            if abs(outi)<accuracy:
+                out[i] = round(outi) # round tiny numbers to zero
         return out
         
     def populate_from_dict(self,inputparams):
         '''Assigns values to various attributes of this class by reading a dictionary 'inputparams'. Keywords unknown to this function are ignored.'''
         keys = inputparams.keys()
         sym = self.sym
-        if 'name' in keys:
-            self.name = inputparams['name']
+        self.name = inputparams.get('name',self.name)
         if 'T' in keys:
             self.T=float(inputparams['T'])
         if 'Tm' in keys:
@@ -398,17 +398,17 @@ class metal_props:
             self.young = 2*self.mu*(1+self.poisson)
         self.ac=float(inputparams['a'])
         self.rho = float(inputparams['rho'])
-        if 'c11' in inputparams.keys() and sym != 'iso':
+        if 'c11' in keys and sym != 'iso':
             self.c11 = float(inputparams['c11'])
-        if 'c12' in inputparams.keys():
+        if 'c12' in keys:
             self.c12 = float(inputparams['c12'])
-        if 'c44' in inputparams.keys():
+        if 'c44' in keys:
             self.c44 = float(inputparams['c44'])
-        if sym=='hcp' or sym=='tetr':
+        if sym in ('hcp', 'tetr'):
             self.cc = float(inputparams['c'])
             self.c13 = float(inputparams['c13'])
             self.c33 = float(inputparams['c33'])
-            if 'c113' in inputparams.keys():
+            if 'c113' in keys:
                 self.c113 = float(inputparams['c113'])
                 self.c133 = float(inputparams['c133'])
                 self.c155 = float(inputparams['c155'])
@@ -416,24 +416,24 @@ class metal_props:
                 self.c344 = float(inputparams['c344'])
         if sym=='tetr':
             self.c66 = float(inputparams['c66'])
-            if 'c366' in inputparams.keys():
+            if 'c366' in keys:
                 self.c366 = float(inputparams['c366'])
         if sym not in ['iso', 'fcc', 'bcc', 'cubic', 'hcp', 'tetr']: ## support for other/lower crystal symmetries
             self.cc = float(inputparams['c'])
-            if 'lcb' in inputparams.keys():
+            if 'lcb' in keys:
                 self.bc = float(inputparams['lcb'])
-            if 'Vc' in inputparams.keys(): ## TODO: init_qBZ() will currently overwrite this by auto-computed Vc; do we want to support a manual override?
+            if 'Vc' in keys: ## TODO: init_qBZ() will currently overwrite this by auto-computed Vc; do we want to support a manual override?
                 self.Vc = float(inputparams['Vc'])
             self.cij = np.asarray(inputparams['cij'].split(','),dtype=float) ## expect a list of cij in ascending order
-            if 'cijk' in inputparams.keys():
+            if 'cijk' in keys:
                 self.cijk = np.asarray(inputparams['cijk'].split(','),dtype=float) ## expect a list of cijk in ascending order
-        if 'c111' in inputparams.keys() and sym != 'iso':
+        if 'c111' in keys and sym != 'iso':
             self.c111 = float(inputparams['c111'])
             self.c112 = float(inputparams['c112'])
-        if 'c123' in inputparams.keys():
+        if 'c123' in keys:
             self.c123 = float(inputparams['c123'])
             self.c144 = float(inputparams['c144'])
-            if sym != 'hcp' and sym != 'iso':
+            if sym not in ('hcp', 'iso'):
                 self.c166 = float(inputparams['c166'])
             if sym !='hcp':
                 self.c456 = float(inputparams['c456'])
@@ -493,11 +493,10 @@ def loadinputfile(fname):
                             addval = currentline[i+3]
                             if addval[0] == '#':
                                 break
-                            elif value[-1] == '#':
+                            if value[-1] == '#':
                                 value = value[:-1]
                                 break
-                            else:
-                                value += addval
+                            value += addval
                     inputparams[key] = value
     return inputparams
 
@@ -506,10 +505,7 @@ def readinputfile(fname,init=True):
        and returns a populated instance of the metal_props class. If option init=True, some derived quantities are computed immediately via the classes .init_all() method.'''
     inputparams = loadinputfile(fname)
     sym = inputparams['sym']
-    if 'name' in inputparams.keys():
-        name = inputparams['name']
-    else:
-        name = str(fname)
+    name = inputparams.get('name',str(fname))
     out = metal_props(sym,name)
     out.populate_from_dict(inputparams)
     out.filename = fname ## remember which file we read
@@ -522,6 +518,7 @@ def readinputfile(fname,init=True):
 if __name__ == '__main__':
     Y={}
     use_metaldata=True
+    metal_kws = metal.copy()
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         try:
@@ -530,9 +527,12 @@ if __name__ == '__main__':
             metal = list(Y.keys())
             use_metaldata=False
             print(f"success reading input files {args}")
-        except FileNotFoundError:
+        except FileNotFoundError as fnameerror:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = sys.argv[1].split()
+            for X in metal:
+                if X not in metal_kws:
+                    raise ValueError(f"One or more input files not found and {X} is not a valid keyword") from fnameerror
     
     if use_metaldata:
         if not os.path.exists("temp_pydislocdyn"):

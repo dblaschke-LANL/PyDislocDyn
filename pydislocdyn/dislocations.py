@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Dec. 20, 2023
+# Date: Nov. 3, 2017 - Apr. 2, 2024
 '''This module contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in linetension_calcs.py,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -12,7 +12,7 @@ import numpy as np
 import sympy as sp
 from mpmath import findroot
 from scipy.integrate import cumulative_trapezoid, trapezoid, quad
-from elasticconstants import UnVoigt ## only for temporary workaround in acc_edge sol.
+from pydislocdyn.elasticconstants import UnVoigt ## only for temporary workaround in acc_edge sol.
 Ncpus = multiprocessing.cpu_count()
 nonumba=False
 try:
@@ -27,12 +27,12 @@ except ImportError:
         return func
 try:
     ompthreads = None
-    if "OMP_NUM_THREADS" not in os.environ.keys(): ## allow user-override by setting this var. before running the python code
+    if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
         ompthreads = int(np.sqrt(Ncpus))
         while Ncpus/ompthreads != round(Ncpus/ompthreads):
             ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores 
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
-    import subroutines as fsub
+    import pydislocdyn.subroutines as fsub
     assert(fsub.version()>=20231205),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
     usefortran = True
     if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
@@ -468,7 +468,7 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
     B = 2*C2_aligned[3,4]
     C = C2_aligned[3,3]
     cA = np.sqrt(A/rho)
-    ABC = (1-B**2/(4*A*C))
+    ABC = 1-B**2/(4*A*C)
     Ct = C/A
     if beta_normalization==1:
         v = beta*cA
@@ -810,8 +810,8 @@ def fourieruij_iso(beta,ct_over_cl, theta, phi):
        i.e. we only return the dependence on the (discretized) polar angle phi in Fourier space, and hence the result is a 3x3xNthetaxNphi dimensional array.
        Required input parameters are: the dislocation velocity beta in units of transverse sound speed, the ratio of transverse to longitudinal sound speed,
        and two arrays encoding the discretized dependence on the angle theta between dislocation line and Burgers vector and the polar angle phi.'''
-    gamt = (1-beta**2) ## defined as 1/gamma**2
-    gaml = (1-(ct_over_cl*beta)**2)
+    gamt = 1-beta**2 ## defined as 1/gamma**2
+    gaml = 1-(ct_over_cl*beta)**2
     uij = np.zeros((3,3,len(theta),len(phi)))
     sinph = np.sin(phi)
     cosph = np.cos(phi)

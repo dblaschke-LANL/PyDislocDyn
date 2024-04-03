@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 30, 2024
+# Date: Nov. 5, 2017 - Apr. 2, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -42,13 +42,14 @@ from matplotlib.ticker import AutoMinorLocator
 ##################
 import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path)
+dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+if dir_path not in sys.path:
+    sys.path.append(dir_path)
 ##
-import metal_data as data
-from dislocations import ompthreads, printthreadinfo
-from linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options, str2bool, Ncores, Ncpus
-from phononwind import phonondrag
+from pydislocdyn import metal_data as data
+from pydislocdyn.dislocations import ompthreads, printthreadinfo
+from pydislocdyn.linetension_calcs import readinputfile, Dislocation, read_2dresults, parse_options, str2bool, Ncores, Ncpus
+from pydislocdyn.phononwind import phonondrag
 if Ncores>1:
     from joblib import Parallel, delayed
 Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
@@ -258,6 +259,7 @@ if __name__ == '__main__':
     if use_iso:
         metal = sorted(list(data.all_metals.intersection(data.ISO_c44.keys()).intersection(data.ISO_l.keys())))
         isokeywd=True
+    metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
         try:
             inputdata = [readinputfile(i, Nphi=NphiX, Ntheta=Ntheta) for i in args]
@@ -265,9 +267,12 @@ if __name__ == '__main__':
             metal = metal_list = list(Y.keys())
             use_metaldata=False
             print(f"success reading input files {args}")
-        except FileNotFoundError:
+        except FileNotFoundError as fnameerror:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = args[0].split()
+            for X in metal:
+                if X not in metal_kws:
+                    raise ValueError(f"One or more input files not found and {X} is not a valid keyword") from fnameerror
         
     bcc_metals = data.bcc_metals.copy()
     hcp_metals = data.hcp_metals.copy()
@@ -312,7 +317,7 @@ if __name__ == '__main__':
             betafile.write('\n'.join(map("{:.5f}".format,beta)))
         for X in metal:
             with open(X+".log", "w", encoding="utf8") as logfile:
-                logfile.write(Y[X].__repr__())
+                logfile.write(repr(Y[X]))
                 logfile.write("\n\nbeta =v/ct:\n")
                 logfile.write('\n'.join(map("{:.5f}".format,beta)))
                 logfile.write("\n\ntheta:\n")
@@ -340,7 +345,7 @@ if __name__ == '__main__':
             for Ti in range(len(highT[X])-1):
                 Z = copy.copy(Y[X]) ## local copy we can modify for higher T
                 Z.T = highT[X][Ti+1]
-                expansionratio = (1 + Y[X].alpha_a*(Z.T - Y[X].T)) ## TODO: replace with values from eos!
+                expansionratio = 1 + Y[X].alpha_a*(Z.T - Y[X].T) ## TODO: replace with values from eos!
                 Z.qBZ = Y[X].qBZ/expansionratio
                 Z.burgers = Y[X].burgers*expansionratio
                 Z.rho = Y[X].rho/expansionratio**3
@@ -388,8 +393,8 @@ if __name__ == '__main__':
             with lzma.open(f"drag_anis_{X}.dat.xz","wt") as Bfile:
                 Bfile.write(f"### B(beta,theta) for {X} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
-                for bi in range(len(beta)):
-                    Bfile.write(f"{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+                for bi, bt in enumerate(beta):
+                    Bfile.write(f"{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
@@ -398,9 +403,9 @@ if __name__ == '__main__':
             with lzma.open(fname:=f"drag_anis_T_{X}.dat.xz","wt") as Bfile:
                 Bfile.write(fr"### B(T,beta,theta[pi]) for {X} in units of mPas. Read this as pandas multiindex dataframe using .read_csv({fname},skiprows=1,index_col=[0,1],sep='\t')."+"\n")
                 Bfile.write('temperature[K]\tbeta\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
-                for bi in range(len(beta)):
-                    for Ti in range(len(highT[X])):
-                        Bfile.write(f"{highT[X][Ti]:.1f}\t{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
+                for bi, bt in enumerate(beta):
+                    for Ti, hTi in enumerate(highT[X]):
+                        Bfile.write(f"{hTi:.1f}\t{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
 
     #############################################################################################################################
 
@@ -611,7 +616,7 @@ if __name__ == '__main__':
                 B = Y[X].Baver[beta<cutat]
             else:
                 raise ValueError(f"keyword {filename=} undefined.")
-            if X in metalcolors.keys():
+            if X in metalcolors:
                 ax.plot(beta[beta<cutat],B,color=metalcolors[X],label=X)
             else:
                 ax.plot(beta[beta<cutat],B,label=X) ## fall back to automatic colors

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 26, 2024
+# Date: Nov. 3, 2017 - Apr. 2, 2024
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -44,13 +44,14 @@ from matplotlib.ticker import AutoMinorLocator
 ##################
 import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path)
+dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+if dir_path not in sys.path:
+    sys.path.append(dir_path)
 ##
-import metal_data as data
-from elasticconstants import roundcoeff, Voigt, UnVoigt, CheckReflectionSymmetry
-from polycrystal_averaging import metal_props, loadinputfile
-from dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot, rotaround
+from pydislocdyn import metal_data as data
+from pydislocdyn.elasticconstants import roundcoeff, Voigt, UnVoigt, CheckReflectionSymmetry
+from pydislocdyn.polycrystal_averaging import metal_props, loadinputfile
+from pydislocdyn.dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot, rotaround
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
@@ -169,13 +170,13 @@ class Dislocation(StrohGeometry,metal_props):
                 a = Q - P**2/3
                 d = (2*P**3-9*Q*P+27*R)/27
                 gamma = np.arccos(-0.5*d/np.sqrt(-a**3/27))
-                tmpout = (-P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3))
+                tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
                 return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
             for i in range(3):
                 ## default minimizer sometimes yields nan, but bounded method doesn't always find the smallest value, so run both:
                 with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                    minresult1 = optimize.minimize_scalar(findvlim,bounds=(0,2.04*np.pi),args=(i)) # slightly enlarge interval for better results despite rounding errors in some cases
-                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=(i))
+                    minresult1 = optimize.minimize_scalar(findvlim,bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results despite rounding errors in some cases
+                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i)
                 if verbose and not (minresult1.success and minresult2.success):
                     print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult1}\n{minresult2}\n\n")
                 ## always take the smaller result, ignore nan:
@@ -609,11 +610,8 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
        with sym=iso and using those averages.'''
     inputparams = loadinputfile(fname)
     sym = inputparams['sym']
-    if 'name' in inputparams.keys():
-        name = inputparams['name']
-    else:
-        name = str(fname)
-    if 'Millerb' in inputparams.keys() or 'Millern0' in inputparams.keys():
+    name = inputparams.get('name',str(fname))
+    if 'Millerb' in inputparams or 'Millern0' in inputparams:
         temp = metal_props(sym,name) ## need a metal_props method to convert to Cartesian b, n0
         temp.populate_from_dict(inputparams)
         b = temp.b
@@ -622,8 +620,8 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         b = np.asarray(inputparams['b'].split(','),dtype=float)
         n0 = np.asarray(inputparams['n0'].split(','),dtype=float)
     if theta is None:
-        if 'symmetric' in inputparams.keys(): symmetric = inputparams['symmetric']
-        if symmetric == True or symmetric == 'True' or Ntheta<=2: theta = np.linspace(0,np.pi/2,Ntheta)
+        symmetric = inputparams.get('symmetric',symmetric)
+        if symmetric is True or symmetric == 'True' or Ntheta<=2: theta = np.linspace(0,np.pi/2,Ntheta)
         else: theta = np.linspace(-np.pi/2,np.pi/2,2*Ntheta-1)
     out = Dislocation(sym=sym, name=name, b=b, n0=n0, theta=theta, Nphi=Nphi)
     out.populate_from_dict(inputparams)
@@ -631,14 +629,14 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
     if isotropify and sym != 'iso': # bypass if we're already isotropic
         inputparams['sym'] = 'iso'
         inputparams['name'] = name+'_ISO'
-        if 'lam' in inputparams.keys(): inputparams.pop('lam') ## ignore if read from file, use averages instead
-        if 'mu' in inputparams.keys(): inputparams.pop('mu')
+        if 'lam' in inputparams: inputparams.pop('lam') ## ignore if read from file, use averages instead
+        if 'mu' in inputparams: inputparams.pop('mu')
         out.lam = out.mu = None
         out.init_all()
         inputparams['c12'] = out.lam
         inputparams['c44'] = out.mu
         inputparams['a'] = np.cbrt(out.Vc)
-        if 'c123' in inputparams.keys():
+        if 'c123' in inputparams:
             print("Warning: there is no good averaging scheme for TOECs, calculating (unreliable) Hill averages for the Murnaghan constants.")
             out.compute_Lame(include_TOEC=True)
             inputparams['c123'] = 2*out.Murl-2*out.Murm+out.Murn
@@ -743,6 +741,7 @@ if __name__ == '__main__':
     dtheta = np.pi/(Ntheta-2)
     theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
     beta = np.linspace(0,1,Nbeta)
+    metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
         try:
             inputdata = [readinputfile(i,init=False,theta=theta,Nphi=Nphi) for i in args]
@@ -750,9 +749,13 @@ if __name__ == '__main__':
             metal = metal_list = list(Y.keys())
             use_metaldata=False
             print(f"success reading input files {args}")
-        except FileNotFoundError:
+        except FileNotFoundError as fnameerror:
             ## only compute the metals the user has asked us to
             metal = args[0].split()
+            for X in metal:
+                if X not in metal_kws:
+                    raise ValueError(f"One or more input files not found and {X} is not a valid keyword") from fnameerror
+        
     bcc_metals = data.bcc_metals.copy()
     hcp_metals = data.hcp_metals.copy()
     if use_metaldata:

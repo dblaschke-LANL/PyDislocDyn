@@ -2,7 +2,7 @@
 # PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Jan. 11, 2024
+# Date: Jan. 8, 2024 - Apr. 2, 2024
 '''PyDislocDyn is a suite of python programs designed to perform various calculations for basic research
    in dislocation dynamics in metals with various crystal symmetries in the continuum limit. In particular,
    one of its main purposes is to calculate dislocation drag from phonon wind. Additional features include
@@ -18,7 +18,7 @@ from .linetension_calcs import readinputfile, Dislocation, plotuij, read_2dresul
 from .phononwind import elasticA3, phonondrag
 from .dragcoeff_semi_iso import B_of_sigma
 
-__version__ = '1.2.9'
+__version__ = '1.2.9+dev'
 
 if usefortran:
     from .dislocations import fsub as subroutines

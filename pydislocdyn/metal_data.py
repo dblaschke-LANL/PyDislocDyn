@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 23, 2024
+# Date: Nov. 3, 2017 - Apr. 1, 2024
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
@@ -15,19 +15,19 @@ ISO_nu = {'Ag':0.367, 'Al':0.345, 'Au':0.440, 'Be':0.032, 'Co':0.310, 'Cd':0.300
 ISO_bulk = {'Er':44.4e9, 'Mo':178e9+(2/3)*124e9, 'Pb':45.8e9, 'Pt':228.0e9, 'V':158e9}
 ISO_c11 = {}
 ISO_c12 = {}
-for X in ISO_nu:
-    ISO_c12[X] = round(ISO_c44[X]*2*ISO_nu[X]/(1-2*ISO_nu[X]),-8)  ## round to same precision that we have for c44 above, i.e. 0.1GPa
+for X, Y in ISO_nu.items():
+    ISO_c12[X] = round(ISO_c44[X]*2*Y/(1-2*Y),-8)  ## round to same precision that we have for c44 above, i.e. 0.1GPa
     ISO_c11[X] = ISO_c12[X]+2*ISO_c44[X]
-for X in ISO_bulk:
-    ISO_c12[X] = round(ISO_bulk[X] - 2*ISO_c44[X]/3,-8)
+for X, Y in ISO_bulk.items():
+    ISO_c12[X] = round(Y - 2*ISO_c44[X]/3,-8)
     ISO_c11[X] = ISO_c12[X]+2*ISO_c44[X]
 for X in set(ISO_c11.keys()).difference(ISO_bulk.keys()):
     ISO_bulk[X] = round(ISO_c12[X]+2*ISO_c44[X]/3,-8)
 for X in set(ISO_c11.keys()).difference(ISO_nu.keys()):
     ISO_nu[X] = round(ISO_c12[X]/(2*(ISO_c12[X]+ISO_c44[X])),3)
 ISO_young = {} ## calculate Young's modulus
-for X in ISO_nu:
-    ISO_young[X] = round(2*ISO_c44[X]*(1+ISO_nu[X]),-8)
+for X, Y in ISO_nu.items():
+    ISO_young[X] = round(2*ISO_c44[X]*(1+Y),-8)
 ISO_poisson = ISO_nu
 
 ## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
@@ -41,13 +41,13 @@ ISO_c456 = {'Ag':-86e9, 'Au':-127e9, 'Co':-618e9, 'Mg':-42.1e9, 'Mo':-227e9, 'Ni
 ISO_c111 = {}
 ISO_c112 = {}
 ISO_c166 = {}
-for X in ISO_c123: ## convert to Murnaghan constants
-    ISO_l[X] = ISO_c123[X]/2 + ISO_c144[X]
+for X, Y in ISO_c123.items(): ## convert to Murnaghan constants
+    ISO_l[X] = Y/2 + ISO_c144[X]
     ISO_m[X] = ISO_c144[X] + 2*ISO_c456[X]
     ISO_n[X] = 4*ISO_c456[X]
 # derive cijk (resp. Toupin & Bernstein constants) from Murnaghan constants
-for X in ISO_l:
-    ISO_c123[X] = 2*ISO_l[X] - 2*ISO_m[X] + ISO_n[X] ## =nu1
+for X, Y in ISO_l.items():
+    ISO_c123[X] = 2*Y - 2*ISO_m[X] + ISO_n[X] ## =nu1
     ISO_c144[X] = ISO_m[X] - ISO_n[X]/2              ## =nu2
     ISO_c456[X] = ISO_n[X]/4                         ## =nu3
     ISO_c112[X] = ISO_c123[X] + 2*ISO_c144[X]
@@ -151,6 +151,7 @@ for X in hcp_metals:
 for X in tetr_metals:
     CRC_Vc[X] = CRC_a[X]*CRC_a[X]*CRC_c[X]
 
+X=Y=None
 #####################################################################################
 def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False):
     '''Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
@@ -160,7 +161,7 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
        By setting 'alt_soec=True', one may swap out the CRC handbook values of SOECs for some fcc metals with alternative ones (see THLPG dictionaries).
        Likewise, 'alt_rho=True' will use the CRC_rho_sc dictionary instead of the CRC_rho one.'''
     if fname=='auto': fname = X
-    with open(fname,"w") as outf:
+    with open(fname,"w", encoding="utf8") as outf:
         outf.write(f"# this input file requires PyDislocDyn >=1.2.7\n# input parameters for {X} at ambient conditions\n\n")
         outf.write(f"name = {fname}\n")
         if X in fcc_metals:
@@ -202,7 +203,7 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
             ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
         outf.write("# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
         outf.write(f"T = 300\na = {CRC_a[X]}\n")
-        if X in CRC_c.keys():
+        if X in CRC_c:
             outf.write(f"c = {CRC_c[X]}\n")
         if alt_rho:
             outf.write(f"rho = {CRC_rho_sc[X]}\n")
@@ -215,12 +216,12 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
             outf.write("\nsym = iso\t# (overwrites previous entry)")
             outf.write(f"\na = {np.cbrt(CRC_Vc[X])}\t# replace by average lattice constants such that a^3 is the true unit cell volume\n\n")
             soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
-        elif alt_soec and X in THLPG_c44.keys():
+        elif alt_soec and X in THLPG_c44:
             soec = {"c11":THLPG_c11, "c12":THLPG_c12, "c44":THLPG_c44}
         else:
             soec = {"c11":CRC_c11, "c12":CRC_c12, "c44":CRC_c44, "c13":CRC_c13, "c33":CRC_c33, "c66":CRC_c66}
-        for c2 in soec:
-            val = soec[c2][X]
+        for c2, soec_c2 in soec.items():
+            val = soec_c2[X]
             if val is not None:
                 outf.write(f"{c2} = {val:e}\n")
         outf.write("\n#toec\n")
@@ -228,12 +229,12 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
             toec = {"c123":ISO_c123, "c144":ISO_c144, "c456":ISO_c456}
         else:
             toec = {"c111":c111, "c112":c112, "c113":c113, "c123":c123, "c133":c133, "c144":c144, "c155":c155, "c166":c166, "c222":c222, "c333":c333, "c344":c344, "c366":c366, "c456":c456}
-        for c3 in toec:
-            if X in toec[c3].keys():
-                val = toec[c3][X]
+        for c3, toec_c3 in toec.items():
+            if X in toec_c3:
+                val = toec_c3[X]
                 if val is not None:
                     outf.write(f"{c3} = {val:e}\n")
-        if X in ISO_c44.keys() and not iso:
+        if X in ISO_c44 and not iso:
             outf.write("\n## optional - if omitted, averages will be used:\n")
             outf.write(f"lam = {ISO_c12[X]:e}\n")
             outf.write(f"mu = {ISO_c44[X]:e}\n")

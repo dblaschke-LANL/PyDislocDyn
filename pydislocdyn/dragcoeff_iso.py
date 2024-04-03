@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 16, 2024
+# Date: Nov. 5, 2017 - Apr. 2, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -38,14 +38,15 @@ fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path)
+dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+if dir_path not in sys.path:
+    sys.path.append(dir_path)
 ##
-import metal_data as data
-from dislocations import ompthreads, printthreadinfo
-from linetension_calcs import readinputfile, read_2dresults, parse_options, str2bool, Ncores
-from phononwind import phonondrag
-from dragcoeff_semi_iso import B_of_sigma
+import pydislocdyn.metal_data as data
+from pydislocdyn.dislocations import ompthreads, printthreadinfo
+from pydislocdyn.linetension_calcs import readinputfile, read_2dresults, parse_options, str2bool, Ncores
+from pydislocdyn.phononwind import phonondrag
+from pydislocdyn.dragcoeff_semi_iso import B_of_sigma
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -85,6 +86,7 @@ if __name__ == '__main__':
         metal = sorted(list(data.ISO_l.keys()))
     else:
         metal = sorted(list(data.c111.keys()))
+    metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
         try:
             inputdata = [readinputfile(i, Ntheta=Ntheta, isotropify=True) for i in args]
@@ -92,9 +94,12 @@ if __name__ == '__main__':
             metal = list(Y.keys())
             use_metaldata=False
             print(f"success reading input files {args}")
-        except FileNotFoundError:
+        except FileNotFoundError as fnameerror:
             ## only compute the metals the user has asked us to (or otherwise all those for which we have sufficient data)
             metal = args[0].split()
+            for X in metal:
+                if X not in metal_kws:
+                    raise ValueError(f"One or more input files not found and {X} is not a valid keyword") from fnameerror
     
     if use_metaldata:
         if not os.path.exists("temp_pydislocdyn"):
@@ -112,7 +117,7 @@ if __name__ == '__main__':
             betafile.write('\n'.join(map("{:.5f}".format,beta)))
         for X in metal:
             with open(X+"_iso.log", "w", encoding="utf8") as logfile:
-                logfile.write(Y[X].__repr__())
+                logfile.write(repr(Y[X]))
                 logfile.write("\n\nbeta =v/ct:\n")
                 logfile.write('\n'.join(map("{:.5f}".format,beta)))
                 logfile.write("\n\ntheta:\n")
@@ -137,7 +142,7 @@ if __name__ == '__main__':
             for Ti in range(len(highT[X])-1):
                 Z = copy.copy(Y[X]) ## local copy we can modify for higher T
                 Z.T = highT[X][Ti+1]
-                expansionratio = (1 + Y[X].alpha_a*(Z.T - Y[X].T)) ## TODO: replace with values from eos!
+                expansionratio = 1 + Y[X].alpha_a*(Z.T - Y[X].T) ## TODO: replace with values from eos!
                 Z.qBZ = Y[X].qBZ/expansionratio
                 Z.burgers = Y[X].burgers*expansionratio
                 Z.rho = Y[X].rho/expansionratio**3
@@ -165,8 +170,8 @@ if __name__ == '__main__':
             with open(f"drag_{X}.dat","w", encoding="utf8") as Bfile:
                 Bfile.write(f"### B(beta,theta) for {X} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
-                for bi in range(len(beta)):
-                    Bfile.write(f"{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+                for bi, bt in enumerate(beta):
+                    Bfile.write(f"{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and Ncores !=0:
@@ -175,9 +180,9 @@ if __name__ == '__main__':
                     Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
                 else:
                     Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\tBedge[mPas]' + '\n')
-                for bi in range(len(beta)):
-                    for Ti in range(len(highT[X])):
-                        Bfile.write(f"{highT[X][Ti]:.1f}\t{beta[bi]:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
+                for bi, bt in enumerate(beta):
+                    for Ti, hTi in enumerate(highT[X]):
+                        Bfile.write(f"{hTi:.1f}\t{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,Ti])) + '\n')
 
     #############################################################################################################################
 
@@ -266,14 +271,14 @@ if __name__ == '__main__':
         for X in metal_list:
             beta_highres = np.linspace(0,1,1000)
             if filename=="edge":
-                if X in metalcolors.keys():
+                if X in metalcolors:
                     ax.plot(beta,Broom[X].iloc[:,-1],color=metalcolors[X],label=X)
                 else:
                     ax.plot(beta,Broom[X].iloc[:,-1],label=X) # fall back to automatic colors
                 with np.errstate(all='ignore'):
                     ax.plot(beta_highres,fit_edge(beta_highres,*popt_edge[X]),':',color='gray')
             elif filename=="screw":
-                if X in metalcolors.keys():
+                if X in metalcolors:
                     ax.plot(beta,Broom[X].iloc[:,0],color=metalcolors[X],label=X)
                 else:
                     ax.plot(beta,Broom[X].iloc[:,0],label=X) # fall back to automatic colors
