@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 25, 2023
+# Date: Nov. 7, 2017 - Apr. 3, 2024
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -11,24 +11,7 @@
 #################################
 import sympy as sp
 import numpy as np
-
-### vectorize some sympy fcts to make them work on numpy arrays
-### (as an alternative to loops and/or converting to and from sympy matrices):
-Expand = np.vectorize(sp.expand)
-Factor = np.vectorize(sp.factor)
-Simplify = np.vectorize(sp.simplify)
-###############
-
-delta = np.diag((1,1,1))
-Delta = sp.KroneckerDelta
-
-def roundcoeff(x,acc=12):
-    '''This function traverses a sympy expression x and rounds all floats to 'acc' digits within it.'''
-    x = sp.S(x)
-    for a in sp.preorder_traversal(x):
-        if isinstance(a, sp.Float):
-            x = x.subs(a, round(a, acc))
-    return x
+from pydislocdyn.utilities import delta, roundcoeff
 
 ### generate tensors of elastic constants
 def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=False):

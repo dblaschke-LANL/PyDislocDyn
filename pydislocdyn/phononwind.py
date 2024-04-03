@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 2, 2024
+# Date: Nov. 5, 2017 - Apr. 3, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its three front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -14,30 +14,14 @@
 import numpy as np
 from scipy.integrate import trapezoid
 import pandas as pd
+from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import fourieruij_sincos, fourieruij_nocut, fourieruij_iso
-from pydislocdyn.linetension_calcs import Dislocation, Ncores
+from pydislocdyn.linetension_calcs import Dislocation
 if Ncores>1:
     from joblib import Parallel, delayed
-try:
-    from numba import jit
-except ImportError:
-    from functools import partial
-    def jit(func=None,forceobj=True,nopython=False):
-        '''define a dummy decorator if numba is unavailable at runtime'''
-        if func is None:
-            return partial(jit, forceobj=forceobj,nopython=nopython)
-        return func
-try:
+if usefortran:
     import pydislocdyn.subroutines as fsub
-    assert(fsub.version()>=20210303),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
-    usefortran = True
-except ImportError:
-    usefortran = False
-
-delta = np.diag((1,1,1))
-hbar = 1.0545718e-34
-kB = 1.38064852e-23
 
 @jit(nopython=True)
 def phonon(T,omega,q):

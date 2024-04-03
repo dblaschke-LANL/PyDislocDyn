@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 2, 2024
+# Date: Nov. 3, 2017 - Apr. 3, 2024
 '''This module defines the Dislocation class which inherits from metal_props of polycrystal_averaging.py
    and StrohGeometry of dislocations.py. As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -14,7 +14,6 @@
 #################################
 import sys
 import os
-import time
 import shutil, lzma
 import numpy as np
 import sympy as sp
@@ -42,23 +41,17 @@ plt.rc('font',**{'family':'Liberation Serif','size':'11'})
 fntsize=11
 from matplotlib.ticker import AutoMinorLocator
 ##################
-import pandas as pd
-## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.elasticconstants import roundcoeff, Voigt, UnVoigt, CheckReflectionSymmetry
+from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, str2bool, roundcoeff, parse_options, elbrak1d, rotaround, read_2dresults
+from pydislocdyn.elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from pydislocdyn.polycrystal_averaging import metal_props, loadinputfile
-from pydislocdyn.dislocations import StrohGeometry, ompthreads, printthreadinfo, Ncpus, elbrak1d, accedge_theroot, rotaround
-try:
+from pydislocdyn.dislocations import StrohGeometry, accedge_theroot
+if Ncores>1:
     from joblib import Parallel, delayed
-    ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
-except ImportError:
-    print("WARNING: module 'joblib' not found, will run on only one core\n")
-    Ncores = Ncpus = 1 ## must be 1 without joblib
 
 ## choose which shear modulus to use for rescaling to dimensionless quantities
 ## allowed values are: 'crude', 'aver', and 'exp'
@@ -76,28 +69,6 @@ Nphi = 1000
 bccslip = 'all' ## allowed values: '110', '112', '123', 'all' (for all three)
 hcpslip = 'all' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 ##### the following options can be set on the commandline with syntax --keyword=value:
-def str2bool(arg):
-    '''converts a string to bool'''
-    if arg in ['True', 'true', '1', 't', 'yes', 'y']:
-        out=True
-    elif arg in ['False', 'false', '0', 'f', 'no', 'n']:
-        out=False
-    else:
-        raise ValueError(f"cannot convert {arg} to bool")
-    return out
-def guesstype(arg):
-    '''takes a string and tries to convert to int, float, bool, falling back to a string'''
-    try:
-        out = int(arg)
-    except ValueError:
-        try:
-            out = float(arg)
-        except ValueError:
-            try:
-                out = bool(arg)
-            except ValueError:
-                out = arg ## fall back to string
-    return out
 OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
@@ -687,55 +658,13 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
     plt.close()
 
-def read_2dresults(fname):
-    '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta (or [temperature,beta]) and columns=theta.'''
-    if os.access((newfn:=fname+'.xz'), os.R_OK): fname = newfn # new default
-    elif os.access((newfn:=fname), os.R_OK): pass # old default
-    elif os.access((newfn:=fname+'.gz'), os.R_OK): fname = newfn
-    else: raise FileNotFoundError(f'tried {fname}.xz, {fname}, and {fname}.gz')
-    out = pd.read_csv(fname,skiprows=1,index_col=0,sep='\t')
-    try:
-        out.columns = pd.to_numeric(out.columns)*np.pi
-    except ValueError:
-        out = pd.read_csv(fname,skiprows=1,index_col=[0,1],sep='\t')
-        out.columns = pd.to_numeric(out.columns)*np.pi
-    if len(out.index.names)==1:
-        out.index.name='beta'
-    out.columns.name='theta'
-    return out
-
-def parse_options(arglist,optionlist=OPTIONS,globaldict=globals()):
-    '''Search commandline arguments passed to this script for known options to set by comparing to a list of keyword strings "optionlist".
-    These will then override default variables set above in this script. This function also returns a copy of 'arglist' stripped of all 
-    option calls for further processing (e.g. opening input files that were passed etc.).'''
-    out = arglist
-    if '--help' in out:
-        print(f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n")
-        print("available options (see code manual for details):")
-        for key in optionlist:
-            print(f'--{key}={optionlist[key]}')
-        sys.exit()
-    setoptions = [i for i in out if "--" in i and i[:2]=="--"]
-    kwargs = {}
-    for i in setoptions:
-        out.remove(i)
-        if "=" not in i: continue ## ignore options without assigned values
-        key,val = i[2:].split("=")
-        if key in optionlist:
-            globaldict[key] = optionlist[key](val)
-            print(f"setting {key}={globaldict[key]}")
-        else:
-            kwargs[key] = guesstype(val)
-    time.sleep(1) ## avoid race conditions after changing global variables
-    return (out,kwargs)
-    
 ### start the calculations
 if __name__ == '__main__':
     Y={}
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
-        args, kwargs = parse_options(sys.argv[1:])
+        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
     printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the commandline for options
     dtheta = np.pi/(Ntheta-2)
