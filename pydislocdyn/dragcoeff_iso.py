@@ -44,7 +44,7 @@ if dir_path not in sys.path:
 ##
 import pydislocdyn.metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, read_2dresults
-from pydislocdyn.linetension_calcs import readinputfile
+from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag
 from pydislocdyn.dragcoeff_semi_iso import B_of_sigma
 

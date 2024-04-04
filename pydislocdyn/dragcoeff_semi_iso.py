@@ -48,7 +48,7 @@ if dir_path not in sys.path:
 ##
 from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, Ncpus, read_2dresults
-from pydislocdyn.linetension_calcs import readinputfile, Dislocation
+from pydislocdyn.dislocations import readinputfile, Dislocation
 from pydislocdyn.phononwind import phonondrag
 if Ncores>1:
     from joblib import Parallel, delayed

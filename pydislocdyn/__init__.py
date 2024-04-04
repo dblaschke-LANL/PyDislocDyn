@@ -14,13 +14,12 @@ from .utilities import usefortran, ompthreads, nonumba, Ncores, Ncpus, read_2dre
 from .elasticconstants import Voigt, UnVoigt, CheckVoigt, strain_poly, elasticC2, elasticC3, \
     elasticS2, elasticS3, CheckReflectionSymmetry
 from .polycrystal_averaging import metal_props
-from .dislocations import StrohGeometry
-from .linetension_calcs import readinputfile, Dislocation, plotuij
+from .dislocations import StrohGeometry, Dislocation, plotuij, readinputfile
 from .phononwind import elasticA3, phonondrag
 from .dragcoeff_semi_iso import B_of_sigma
 
 __version__ = '1.2.9+dev'
 
 if usefortran:
-    from .dislocations import fsub as subroutines
+    from .utilities import fsub as subroutines
 

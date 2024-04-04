@@ -16,8 +16,7 @@ from scipy.integrate import trapezoid
 import pandas as pd
 from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB
 from pydislocdyn.elasticconstants import UnVoigt
-from pydislocdyn.dislocations import fourieruij_sincos, fourieruij_nocut, fourieruij_iso
-from pydislocdyn.linetension_calcs import Dislocation
+from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
 if Ncores>1:
     from joblib import Parallel, delayed
 if usefortran:
