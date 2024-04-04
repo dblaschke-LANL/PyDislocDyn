@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 3, 2024
+# Date: Nov. 7, 2017 - Apr. 4, 2024
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -239,7 +239,8 @@ class metal_props:
             aver = IsoAverages(lam,mu,0,0,0)
         if include_TOEC or self.sym not in ['iso','fcc','bcc', 'cubic']:
             S2 = elasticS2(C2)
-            if include_TOEC: S3 = elasticS3(S2,C3)
+            if include_TOEC:
+                S3 = elasticS3(S2,C3)
             else: S3 = None
             aver.voigt_average(C2,C3)
             aver.reuss_average(S2,S3)
@@ -333,11 +334,14 @@ class metal_props:
         '''Converts vector v from Miller indices to Cartesian coordinates (very small numbers are rounded to 0). If normalize=True, a unit vector is returned.
         See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
         By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.'''
-        if self.ac is None or self.ac==0: a=1
+        if self.ac is None or self.ac==0:
+            a=1
         else: a=self.ac
-        if self.bc is None or self.bc==0: b=a
+        if self.bc is None or self.bc==0:
+            b=a
         else: b=self.bc
-        if self.cc is None or self.cc==0 : c=a
+        if self.cc is None or self.cc==0 :
+            c=a
         else:c=self.cc
         d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)
         T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],\

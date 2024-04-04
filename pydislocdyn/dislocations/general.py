@@ -3,38 +3,16 @@
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 3, 2017 - Apr. 4, 2024
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
-   As such, it is the most complete class to compute properties
-   dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
-   additional properties like limiting velocities of dislocations. We also define a function, readinputfile,
-   which reads a PyDislocDyn input file and returns an instance of the Dislocation class.'''
+   As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
+   Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
+   a function, readinputfile, which reads a PyDislocDyn input file and returns an instance of the Dislocation class.'''
 #################################
 import numpy as np
 import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
-##################
-import matplotlib as mpl
-mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
-import matplotlib.pyplot as plt
-##### use pdflatex and specify font through preamble:
-# mpl.use("pgf")
-# plt.rcParams.update({
-#     "text.usetex": True, 
-#     "text.latex.preamble": r"\usepackage{fouriernc}",
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.rcfonts": False,
-#     "pgf.preamble": "\n".join([
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#     ]),
-# })
-##################
-plt.rc('font',**{'family':'Liberation Serif','size':'11'})
-fntsize=11
-##################
-from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff
+from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff, \
+    plt ## =matplotlib.pyplot
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from .steadystate import StrohGeometry

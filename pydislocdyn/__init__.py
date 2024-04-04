@@ -15,11 +15,9 @@ from .elasticconstants import Voigt, UnVoigt, CheckVoigt, strain_poly, elasticC2
     elasticS2, elasticS3, CheckReflectionSymmetry
 from .crystals import IsoAverages, metal_props
 from .dislocations import StrohGeometry, Dislocation, plotuij, readinputfile
-from .phononwind import elasticA3, phonondrag
-from .dragcoeff_postprocess import B_of_sigma
+from .phononwind import elasticA3, phonondrag, B_of_sigma
 
 __version__ = '1.2.9+dev'
 
 if usefortran:
     from .utilities import fsub as subroutines
-

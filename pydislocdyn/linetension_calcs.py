@@ -2,44 +2,23 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 3, 2024
+# Date: Nov. 3, 2017 - Apr. 4, 2024
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
 #################################
 import sys
 import os
-import shutil, lzma
+import shutil
+import lzma
 import numpy as np
-##################
-import matplotlib as mpl
-mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
-import matplotlib.pyplot as plt
-##### use pdflatex and specify font through preamble:
-# mpl.use("pgf")
-# plt.rcParams.update({
-#     "text.usetex": True, 
-#     "text.latex.preamble": r"\usepackage{fouriernc}",
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.rcfonts": False,
-#     "pgf.preamble": "\n".join([
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#     ]),
-# })
-##################
-plt.rc('font',**{'family':'Liberation Serif','size':'11'})
-fntsize=11
-from matplotlib.ticker import AutoMinorLocator
-##################
 dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, str2bool, parse_options, read_2dresults
+from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, str2bool, parse_options, read_2dresults, \
+    plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
 if Ncores>1:

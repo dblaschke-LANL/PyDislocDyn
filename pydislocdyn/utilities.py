@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Apr 3, 2024
+# Date: Apr 4, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -13,6 +13,31 @@ from fractions import Fraction
 import numpy as np
 from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
+##################
+import matplotlib as mpl
+mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
+import matplotlib.pyplot as plt
+##### use pdflatex and specify font through preamble:
+# mpl.use("pgf")
+# plt.rcParams.update({
+#     "text.usetex": True, 
+#     "text.latex.preamble": r"\usepackage{fouriernc}",
+#     "pgf.texsystem": "pdflatex",
+#     "pgf.rcfonts": False,
+#     "pgf.preamble": "\n".join([
+#           r"\usepackage[utf8x]{inputenc}",
+#           r"\usepackage[T1]{fontenc}",
+#           r"\usepackage{fouriernc}",
+#           r"\usepackage{amsmath}",
+#     ]),
+# })
+##################
+plt.rc('font',**{'family':'Liberation Serif','size':'11'})
+from matplotlib import gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+fntsize=11
+from matplotlib.ticker import AutoMinorLocator
+##################
 import pandas as pd
 Ncpus = multiprocessing.cpu_count()
 nonumba=False
@@ -44,7 +69,8 @@ except ImportError:
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used) ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
+    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
+    ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
@@ -125,9 +151,12 @@ def str_to_array(arg,dtype=float):
     
 def read_2dresults(fname):
     '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta (or [temperature,beta]) and columns=theta.'''
-    if os.access((newfn:=fname+'.xz'), os.R_OK): fname = newfn # new default
-    elif os.access((newfn:=fname), os.R_OK): pass # old default
-    elif os.access((newfn:=fname+'.gz'), os.R_OK): fname = newfn
+    if os.access((newfn:=fname+'.xz'), os.R_OK):
+        fname = newfn # new default
+    elif os.access((newfn:=fname), os.R_OK):
+        pass # old default
+    elif os.access((newfn:=fname+'.gz'), os.R_OK):
+        fname = newfn
     else: raise FileNotFoundError(f'tried {fname}.xz, {fname}, and {fname}.gz')
     out = pd.read_csv(fname,skiprows=1,index_col=0,sep='\t')
     try:
@@ -258,4 +287,3 @@ else:
                         for p in range(3):
                             AB[ph,l,o] += A[ph,k]*elC[k,l,o,p]*B[ph,p]
         return AB
-

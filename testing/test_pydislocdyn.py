@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 3, 2024
+# Date: Mar. 6, 2023 - Apr. 4, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -58,7 +58,9 @@ OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "
            "Nbeta":int, "Ntheta":int, "Nbeta_LT":int, "Ntheta_LT":int, "Nphi":int, "scale_by_mu":str, "P":sp.Symbol, "volpres":str2bool}
 
 def printtestresult(success):
-    if success: print("----------\nPASSED\n----------\n")
+    '''print passed/failed message depending on Boolean input'''
+    if success:
+        print("----------\nPASSED\n----------\n")
     else: print("----------\nFAILED\n----------\n")
 
 def readfile(fname):
@@ -79,7 +81,7 @@ def removewhitespace(somestring):
     '''replaces excessive whitespace with ' ' in the middle of a string, and removes leading/trailing whitespace (space and tab characters only)'''
     string1 = somestring.strip()
     string2 = string1.replace("\t"," ").replace("  "," ")
-    while(string2!=string1):
+    while string2!=string1:
         string1 = string2
         string2 = string1.replace("\t"," ").replace("  "," ")
     return string2
@@ -91,14 +93,14 @@ def diff(f1,f2,verbose=True):
     f2lines = readfile(f2)
     f2lines = [removewhitespace(i) for i in f2lines]
     thediff = difflib.unified_diff(f1lines, f2lines, fromfile=f1,tofile=f2,lineterm="",n=0)
-    equal = (f1lines==f2lines)
+    equal = f1lines==f2lines
     if verbose and not equal:
         for line in thediff:
             print(line.strip("\n"))
     return equal
 
 def isclose(f1,f2):
-    '''Returns True if all elements of arrays f1 and f2 are 'close' to one another and theirs shapes match, and False otherwise.'''
+    '''Returns True if all elements of arrays f1 and f2 are 'close' to one another and their shapes match, and False otherwise.'''
     out = False
     if f1.shape==f2.shape:
         out = np.allclose(f1,f2,equal_nan=True)
@@ -115,10 +117,9 @@ def round_list(lst,ndigits=2):
     '''rounds all floats in a nested list'''
     if isinstance(lst,float):
         return round(lst,ndigits)
-    elif isinstance(lst,list):
+    if isinstance(lst,list):
         return [round_list(i,ndigits) for i in lst]
-    else:
-        return lst
+    return lst
 
 if __name__ == '__main__':
     tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc']
@@ -128,8 +129,8 @@ if __name__ == '__main__':
             print(f"\nUsage: {sys.argv[0]} <options> <folder_to_compare_cwd_to>\n")
             print(f"use option --runtests to run only one of these available tests: {tests_avail[1:]} (default: 'all').\n")
             print("available options:")
-            for key in OPTIONS:
-                print(f'--{key}={OPTIONS[key]}')
+            for key, OPTk in OPTIONS.items():
+                print(f'--{key}={OPTk}')
             sys.exit()
         old, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
         old = old[0]
@@ -344,7 +345,7 @@ if __name__ == '__main__':
                 Y[X].find_vRF()
                 with open(X+"props.txt", "w", encoding="utf8") as logfile:
                     np.set_printoptions(precision=2)
-                    logfile.write(Y[X].__repr__())
+                    logfile.write(repr(Y[X]))
                     logfile.write("\n\ntheta:\n")
                     logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
                     logfile.write(f'\nvcrit(theta)={Y[X].vcrit_all[1]}')
@@ -368,8 +369,8 @@ if __name__ == '__main__':
                 alpha = {}
                 polynom = {}
                 strain = [[y,0,0,0,0,0],[y,y,y,0,0,0],[y,0,0,y,0,0],[0,0,0,y,y,y],[0,y,-y,y,y,0],[y,0,0,y,y,y],[0,0,0,y,0,0],[y,-y,0,0,0,y]]
-                for i in range(len(strain)):
-                    polynom[i] = poly.generate_poly(strain[i],preserve_volume=volpres,P=P)
+                for i,strni in enumerate(strain):
+                    polynom[i] = poly.generate_poly(strni,preserve_volume=volpres,P=P)
                     alpha[i] = poly.alpha
                     strain[i] = Voigt(poly.strain)
                 with open(f"deformations_results_{sym}.txt","w", encoding="utf8") as deffile:
@@ -396,4 +397,3 @@ if __name__ == '__main__':
                 if not verbose: print(f"{fname} differs")
                 success=False
         printtestresult(success)
-

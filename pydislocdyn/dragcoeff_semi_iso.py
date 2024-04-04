@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 3, 2024
+# Date: Nov. 5, 2017 - Apr. 4, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -11,44 +11,20 @@
 import sys
 import os
 import ast
-import shutil, lzma
+import shutil
+import lzma
 import copy
 import numpy as np
-##################
-import matplotlib as mpl
-mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
-import matplotlib.pyplot as plt
-##### use pdflatex and specify font through preamble:
-# mpl.use("pgf")
-# plt.rcParams.update({
-#     "text.usetex": True, 
-#     "text.latex.preamble": r"\usepackage{fouriernc}",
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.rcfonts": False,
-#     "pgf.preamble": "\n".join([
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#     ]),
-# })
-##################
-plt.rc('font',**{'family':'Liberation Serif','size':'11'})
-from matplotlib import gridspec
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-fntsize=11
-from matplotlib.ticker import AutoMinorLocator
-##################
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, Ncpus, read_2dresults
+from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, Ncpus, read_2dresults, \
+    plt, fntsize, AutoMinorLocator, gridspec, make_axes_locatable ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag
-from pydislocdyn.dragcoeff_postprocess import fit_mix, mkfit_Bv, B_of_sigma
+from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma
 if Ncores>1:
     from joblib import Parallel, delayed
 Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
@@ -531,8 +507,10 @@ if __name__ == '__main__':
         plt.close()
         return (B_of_sig,sigma,B0,vc)
     
-    if Kcores ==1: B_of_sig_results = [plotall_B_of_sigma(character) for character in ['aver', 'screw', 'edge']]
-    else: B_of_sig_results = Parallel(max_nbytes=None, n_jobs=Kcores)(delayed(plotall_B_of_sigma)(character) for character in ['aver', 'screw', 'edge'])
+    if Kcores ==1:
+        B_of_sig_results = [plotall_B_of_sigma(character) for character in ['aver', 'screw', 'edge']]
+    else:
+        B_of_sig_results = Parallel(max_nbytes=None, n_jobs=Kcores)(delayed(plotall_B_of_sigma)(character) for character in ['aver', 'screw', 'edge'])
     B_of_sig,sigma,B0,vc = B_of_sig_results[0]
     for i in [1,2]:
         B_of_sig.update(B_of_sig_results[i][0])

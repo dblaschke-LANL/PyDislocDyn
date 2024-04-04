@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 3, 2024
+# Date: Nov. 5, 2017 - Apr. 4, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -14,39 +14,16 @@ import ast
 import copy
 import numpy as np
 from scipy.optimize import curve_fit
-##################
-import matplotlib as mpl
-mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
-import matplotlib.pyplot as plt
-##### use pdflatex and specify font through preamble:
-# mpl.use("pgf")
-# plt.rcParams.update({
-#     "text.usetex": True, 
-#     "text.latex.preamble": r"\usepackage{fouriernc}",
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.rcfonts": False,
-#     "pgf.preamble": "\n".join([
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#     ]),
-# })
-##################
-plt.rc('font',**{'family':'Liberation Serif','size':'11'})
-fntsize=11
-from matplotlib.ticker import AutoMinorLocator
-##################
 ## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, read_2dresults
+from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, read_2dresults, \
+    plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag
-from pydislocdyn.dragcoeff_postprocess import B_of_sigma
+from pydislocdyn.phononwind import phonondrag, B_of_sigma
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)

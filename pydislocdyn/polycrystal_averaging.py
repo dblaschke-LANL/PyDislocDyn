@@ -21,6 +21,30 @@ from pydislocdyn.crystals import readinputfile, IsoAverages, lam, mu, Murl, Murm
 
 metal = sorted(list(data.all_metals.intersection(data.CRC_c11.keys()))) ## generate a list of those metals for which we have sufficient data
     
+def dict_to_pandas(dictionary):
+    '''converts a dictionary containing polycrystalline averages to a pandas DataFrame'''
+    if len(dictionary)==1:
+        dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
+    out = pd.DataFrame(dictionary,dtype=float).T
+    if len(dictionary)==1: out.drop('dummy')
+    out.columns = pd.Index([r'$\lambda$',r'$\mu$','$l$','$m$','$n$'])
+    return out
+
+def writelatex(data,caption="",soec_only=False,dropna=False):
+    '''converts a pandas DataFrame containing polycrystalline averages to a LaTeX table'''
+    out = data
+    if soec_only:
+        out = out.iloc[:,:2]
+    if dropna:
+        out.dropna(inplace=True)
+    if pd.__version__ < '1.3':
+        print(f"Warning: using workaround for pandas {pd.__version__}; version 1.3 or higher is recommended")## work around for pandas 1.1 and 1.2 (results in slightly different formatting though)
+        return out.to_latex(caption=caption,float_format="%.1f",escape=False).replace(r'{}','').replace('\n\\midrule',r' \hline').replace('\n\\toprule','').replace('\n\\bottomrule','').replace('\n\\centering','')
+    out = out.style.format(precision=1)
+    if not soec_only:
+        out = out.format('{:.0f}',subset=['$l$','$m$','$n$'])
+    return out.to_latex(caption=caption).replace(r'{}','').replace(r'{$','$').replace(r'$}','$').replace(r'$ \\',r'$ \\ \hline') ## pandas 1.3 puts curly brackets on column names, pandas >=1.4 does not
+
 if __name__ == '__main__':
     Y={}
     use_metaldata=True
@@ -99,30 +123,6 @@ if __name__ == '__main__':
         ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
     
     ##### write results to files (as LaTeX tables):
-    def dict_to_pandas(dictionary):
-        '''converts a dictionary containing polycrystalline averages to a pandas DataFrame'''
-        if len(dictionary)==1:
-            dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
-        out = pd.DataFrame(dictionary,dtype=float).T
-        if len(dictionary)==1: out.drop('dummy')
-        out.columns = pd.Index([r'$\lambda$',r'$\mu$','$l$','$m$','$n$'])
-        return out
-    
-    def writelatex(data,caption="",soec_only=False,dropna=False):
-        '''converts a pandas DataFrame containing polycrystalline averages to a LaTeX table'''
-        out = data
-        if soec_only:
-            out = out.iloc[:,:2]
-        if dropna:
-            out.dropna(inplace=True)
-        if pd.__version__ < '1.3':
-            print(f"Warning: using workaround for pandas {pd.__version__}; version 1.3 or higher is recommended")## work around for pandas 1.1 and 1.2 (results in slightly different formatting though)
-            return out.to_latex(caption=caption,float_format="%.1f",escape=False).replace(r'{}','').replace('\n\\midrule',r' \hline').replace('\n\\toprule','').replace('\n\\bottomrule','').replace('\n\\centering','')
-        out = out.style.format(precision=1)
-        if not soec_only:
-            out = out.format('{:.0f}',subset=['$l$','$m$','$n$'])
-        return out.to_latex(caption=caption).replace(r'{}','').replace(r'{$','$').replace(r'$}','$').replace(r'$ \\',r'$ \\ \hline') ## pandas 1.3 puts curly brackets on column names, pandas >=1.4 does not
-    
     Averages = {}
     with open("averaged_elastic_constants.tex","w", encoding="utf8") as averfile:
         for title, dictionary in [('Voigt',VoigtAverage),('Reuss',ReussAverage),('Hill',HillAverage),('improved',ImprovedAv)]:
