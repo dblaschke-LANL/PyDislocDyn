@@ -9,9 +9,10 @@ import sys
 import os
 import time
 import multiprocessing
-import sympy as sp
+from fractions import Fraction
 import numpy as np
 from scipy.integrate import cumulative_trapezoid, trapezoid
+import sympy as sp
 import pandas as pd
 Ncpus = multiprocessing.cpu_count()
 nonumba=False
@@ -113,6 +114,15 @@ def parse_options(arglist,optionlist,globaldict=globals()):
     time.sleep(1) ## avoid race conditions after changing global variables
     return (out,kwargs)
 
+def str_to_array(arg,dtype=float):
+    '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
+    try:
+        out = np.asarray(arg.split(','),dtype=dtype)
+    except ValueError:
+        out = arg.split(',')
+        out = np.asarray([Fraction(x) for x in out],dtype=dtype)
+    return out
+    
 def read_2dresults(fname):
     '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta (or [temperature,beta]) and columns=theta.'''
     if os.access((newfn:=fname+'.xz'), os.R_OK): fname = newfn # new default

@@ -46,7 +46,7 @@ import pydislocdyn.metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, read_2dresults
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag
-from pydislocdyn.dragcoeff_semi_iso import B_of_sigma
+from pydislocdyn.dragcoeff_postprocess import B_of_sigma
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)

@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 3, 2024
+# Date: Nov. 3, 2017 - Apr. 4, 2024
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties
    dislocations, both steady state and accelerating. Additionally, the Dislocation class can calculate
@@ -36,7 +36,7 @@ fntsize=11
 ##################
 from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
-from ..polycrystal_averaging import metal_props, loadinputfile
+from ..crystals import metal_props, loadinputfile
 from .steadystate import StrohGeometry
 
 def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
@@ -655,7 +655,7 @@ class Dislocation(StrohGeometry,metal_props):
             uijtoplot = self.uij_acc_screw_aligned[component[0],component[1]]
         elif character=='edge' and not nogradient:
             if not skipcalc:
-                self.computeuij_acc_edge(a,beta,burgers=self.burgers,fastapprox=fastapprox,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
+                self.computeuij_acc_edge(a,beta,burgers=self.burgers,r=r*self.burgers,beta_normalization=self.ct,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift)
             if a is None:
                 acc = '_of_t'
             else: acc = f"{a:.0e}"

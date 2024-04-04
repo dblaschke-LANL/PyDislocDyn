@@ -50,7 +50,17 @@ with Python >=3.12: 'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m sub
 
 ## PyDislocDyn consists of:
 
-### Python programs / examples
+### Python module
+
+* *pydislocdyn*</br>
+Defines functions to generate tensors of elastic constants and compliances,
+functions and classes to compute dislocation displacement gradient fields, self energy, and line tension,
+as well as functions to compute the drag coefficient from phonon wind.
+One of its submodules (pydislocdyn.metaldata) contains
+dictionaries storing input data taken from the references listed in that file, the most important ones being the ['CRC Handbook of Chemistry and Physics'](http://hbcp.chemnetbase.com); as well as ['Kaye and Laby Online'](https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/).
+In particular, this submodule contains elastic constants, densities, lattice constants, and thermal expansion coefficients at room temperature for various metals necessary to run the programs listed above.
+
+### Python programs / examples (using the module above)
 
 * *linetension_calcs.py*</br>
 Computes the line tension of a moving dislocation for various metals.
@@ -66,21 +76,5 @@ See LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)),
 
 * *dragcoeff_semi_iso.py*</br>
 Computes the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation, where only the phonon spectrum is isotropic and everything else (i.e. the dislocation field and the elastic constants) respect the crystal symmetry. See [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.
-
-### Python modules (used by the programs listed above):
-
-* *elasticconstants.py*</br>
-Defines functions to generate tensors of elastic constants and compliances.
-
-* *dislocations.py*</br>
-Defines functions and classes to compute dislocation displacement gradient fields, self energy, and line tension.
-
-* *phononwind.py*</br>
-Defines functions to compute the drag coefficient from phonon wind.
-
-* *metal_data.py*</br>
-Defines dictionaries storing input data taken from the references listed in that file, the most important ones being the ['CRC Handbook of Chemistry and Physics'](http://hbcp.chemnetbase.com); as well as ['Kaye and Laby Online'](https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/).
-In particular, this module contains elastic constants, densities, lattice constants, and thermal expansion coefficients at room temperature for various metals necessary to run the programs listed above.
-
 
 
