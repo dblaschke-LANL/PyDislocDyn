@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Apr 4, 2024
+# Date: Apr 9, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -74,6 +74,10 @@ try:
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
+
+dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+if dir_path not in sys.path:
+    sys.path.append(dir_path)
 
 def printthreadinfo(Ncores,ompthreads=ompthreads):
     '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
