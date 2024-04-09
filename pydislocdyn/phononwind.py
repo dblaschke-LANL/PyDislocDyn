@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 4, 2024
+# Date: Nov. 5, 2017 - Apr. 9, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -707,9 +707,9 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
        via kwargs. If disloc.sym==iso, we use the faster analytic expressions for the displacement gradient field unless
        option  'forceanis'=True. If option pandas_out=True (default), the resulting numpy array is converted to a pandas
        DataFrame including metadata (i.e. dislocaion gliding velocities and character angles.'''
-    # if not isinstance(disloc,Dislocation):
-    #     print(type(disloc),isinstance(disloc,Dislocation),Dislocation)
-    #     raise ValueError("'disloc' must be an instance of the Dislocation class")
+    if not isinstance(disloc,Dislocation):
+        print(type(disloc),isinstance(disloc,Dislocation),Dislocation)
+        raise ValueError("'disloc' must be an instance of the Dislocation class")
     if isinstance(beta, (float, int)):
         beta = np.asarray([beta])
     else:
@@ -751,7 +751,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
             skip_theta = None
         else:
             skip_theta = bt < disloc.vcrit_all[1]/disloc.ct
-        if np.all(skip_theta is False):
+        if np.all(skip_theta==False): ## ignore pylint on this one: 'is False' does not work as expected on arrays
             Bmix = np.repeat(np.inf,disloc.Ntheta)
         else:
             Bmix = dragcoeff_iso(dij=dij, A3=A3rotated, qBZ=disloc.qBZ, ct=disloc.ct, cl=disloc.cl, beta=bt, burgers=disloc.burgers, T=disloc.T, skip_theta=skip_theta, name=disloc.name, **kwargs)        
@@ -776,8 +776,8 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1,Bmax_fit='auto'):
     '''Calculates fitting functions for B(v) for pure screw, pure edge, and an average over all dislocation characters.
        Required inputs are an instance of the Dislocation class Y, and the the drag coefficient Bdrag formatted as a Pandas DataFrame where index
        contains the normalized velocities beta= v/Y.ct and columns contains the character angles theta at velocity v for all character angles theta.'''
-    # if not isinstance(Y,Dislocation): ## this will fail if comparing pydislocdyn.linetension_calcs.Dislocation to linetension_calcs.Dislocation
-    #     raise ValueError("'Y' must be an instance of the Dislocation class")
+    if not isinstance(Y,Dislocation):
+        raise ValueError("'Y' must be an instance of the Dislocation class")
     if not isinstance(Bdrag,pd.DataFrame):
         raise ValueError("'Bdrag' must be a Pandas DataFrame.")
     Broom = Bdrag.to_numpy()
@@ -812,8 +812,8 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
        If option indirect=False sigma will be evenly spaced (default), whereas if indirect=True sigma will be calculated from an evenly spaced velocity array.
        The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.
        Option 'sigma_max'' is the highest stress to be considered in the present calculation. '''
-    # if not isinstance(Y,Dislocation): ## this will fail if comparing pydislocdyn.linetension_calcs.Dislocation to linetension_calcs.Dislocation
-    #     raise ValueError("'Y' must be an instance of the Dislocation class")
+    if not isinstance(Y,Dislocation):
+        raise ValueError("'Y' must be an instance of the Dislocation class")
     ftitle = f"{Y.name}, {character}"
     fname = f"B_of_sigma_{character}_{Y.name}.pdf"
     if character=='screw':
