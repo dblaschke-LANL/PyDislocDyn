@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Apr 9, 2024
+# Date: Nov. 5, 2017 - Apr. 12, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -119,9 +119,10 @@ def guesstype(arg):
                 out = arg ## fall back to string
     return out
 
+OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
 def parse_options(arglist,optionlist,globaldict=globals()):
-    '''Search commandline arguments passed to this script for known options to set by comparing to a list of keyword strings "optionlist".
-    These will then override default variables set above in this script. This function also returns a copy of 'arglist' stripped of all 
+    '''Search commandline arguments for known options to set by comparing to a list of keyword strings "optionlist".
+    These will then override default variables. This function also returns a copy of 'arglist' stripped of all 
     option calls for further processing (e.g. opening input files that were passed etc.).'''
     out = arglist
     if '--help' in out:

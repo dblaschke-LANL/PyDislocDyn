@@ -2,13 +2,12 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 4, 2024
+# Date: Mar. 6, 2023 - Apr. 12, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
 import os
 import sys
-import ast
 import difflib
 import lzma
 import numpy as np
@@ -24,6 +23,8 @@ import pydislocdyn.metal_data as data
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals
 from pydislocdyn.utilities import parse_options, str2bool
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
+from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
+from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
 
 runtests = 'all' ## allowed values: all, LT, drag, dragiso, aver
 skip_calcs = False
@@ -32,9 +33,9 @@ verbose = False
 Nbeta = 7
 phononwind_opts={'maxrec':4,'target_accuracy':1e-2}
 NT = 1
+use_exp_Lame=True
 ## dragiso only options:
 metals_iso = 'Cu Fe'
-use_exp = True
 # drag and LT options:
 metals = "Al Mo Ti Sn"
 Ntheta = 4
@@ -42,7 +43,6 @@ bccslip='all'
 hcpslip='all'
 ## drag only options:
 skiptransonic = True
-use_exp_Lame=True
 use_iso=False
 ## LT only options:
 Nbeta_LT = 50
@@ -53,9 +53,9 @@ scale_by_mu = 'exp'
 P=0 ## pressure in strain_poly test
 volpres=False ## set to True to compute volume preserving version of the strains
 
-OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "Ncores":int, "phononwind_opts":ast.literal_eval, "skiptransonic":str2bool, \
-           "NT":int, "skip_calcs":str2bool, "use_exp":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool, "bccslip":str, "hcpslip":str,\
-           "Nbeta":int, "Ntheta":int, "Nbeta_LT":int, "Ntheta_LT":int, "Nphi":int, "scale_by_mu":str, "P":sp.Symbol, "volpres":str2bool}
+OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool, \
+                "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
+OPTIONS |= OPTIONS_LT | OPTIONS_drag
 
 def printtestresult(success):
     '''print passed/failed message depending on Boolean input'''
@@ -132,9 +132,15 @@ if __name__ == '__main__':
             for key, OPTk in OPTIONS.items():
                 print(f'--{key}={OPTk}')
             sys.exit()
+        oldglobals = globals().copy()
         old, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
         old = old[0]
         phononwind_opts.update(kwargs)
+        NEWopts = globals().keys()-oldglobals.keys() ## pass options which we haven't previously defined but that the user has set
+        LTopts = {i:globals()[i] for i in NEWopts if i in OPTIONS_LT.keys()}
+        dragopts = {i:globals()[i] for i in NEWopts if i in OPTIONS_drag.keys()}
+        LTopts = [f" --{i}={j}" for i,j in LTopts.items()]
+        dragopts = [f" --{i}={j}" for i,j in dragopts.items()]
     else:
         raise ValueError("missing one argument: folder containing old results")
     if  os.path.exists(old):
@@ -152,7 +158,7 @@ if __name__ == '__main__':
     else:
         slipkw_hcp=[hcpslip]
     if metals_iso == 'all':
-        if use_exp:
+        if use_exp_Lame:
             metals_iso_temp = sorted(list(data.ISO_l.keys()))
         else:
             metals_iso_temp = sorted(list(data.c111.keys()))
@@ -194,7 +200,7 @@ if __name__ == '__main__':
         fname = "drag_iso_fit.txt"
         if not skip_calcs:
             print("running test 'dragiso' ...")
-            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f' --{Nbeta=} --{Ncores=} --{use_exp=} --phononwind_opts="{phononwind_opts}" --{NT=} "{metals_iso}" | tee dragiso.log')
+            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f'{"".join(dragopts)} --{Nbeta=} --{Ncores=} --{use_exp_Lame=} --phononwind_opts="{phononwind_opts}" --{NT=} "{metals_iso}" | tee dragiso.log')
         else: print("skipping test 'dragiso' as requested")
         metals_iso = metals_iso.split()
         print(f"\ncomparing dragiso results for: {metals_iso}")
@@ -218,7 +224,7 @@ if __name__ == '__main__':
                 os.mkdir(drag_folder)
             print("running test 'drag' ...")
             os.chdir(os.path.join(cwd,drag_folder))
-            dragopts = f' --{Ncores=} --{skiptransonic=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
+            dragopts = f'{"".join(dragopts)} --{Ncores=} --{skiptransonic=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
             os.system(os.path.join(dir_path,"dragcoeff_semi_iso.py")+dragopts+f" --{Ntheta=} --{Nbeta=} --{NT=} | tee dragsemi.log")
             os.chdir(cwd)
         else: print("skipping test 'drag' as requested")
@@ -250,7 +256,7 @@ if __name__ == '__main__':
                 os.mkdir(LT_folders[1])
             print("running test 'LT' ...")
             os.chdir(os.path.join(cwd,LT_folders[0]))
-            LTopts = f" --Ntheta={Ntheta_LT} --Ntheta2={Ntheta} --Nbeta={Nbeta_LT} --{Nphi=} --{hcpslip=} --{bccslip=} --{scale_by_mu=} "
+            LTopts = f"{''.join(LTopts)} --Ntheta={Ntheta_LT} --Ntheta2={Ntheta} --Nbeta={Nbeta_LT} --{Nphi=} --{hcpslip=} --{bccslip=} --{scale_by_mu=} "
             os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+f"'{metals}' | tee LT.log")
             os.chdir(os.path.join(cwd,LT_folders[1]))
             os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+os.path.join("..","temp_pydislocdyn","")+"* | tee LT.log")

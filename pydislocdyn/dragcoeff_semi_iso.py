@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 9, 2024
+# Date: Nov. 5, 2017 - Apr. 12, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -10,12 +10,10 @@
 #################################
 import sys
 import os
-import ast
 import shutil
 import lzma
 import copy
 import numpy as np
-## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
@@ -24,7 +22,7 @@ from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, Ncpus, read_2dresults, \
     plt, fntsize, AutoMinorLocator, gridspec, make_axes_locatable ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma
+from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS
 if Ncores>1:
     from joblib import Parallel, delayed
 Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
@@ -63,10 +61,8 @@ rmin = 0
 rmax = 250
 ## the following options can be set on the commandline with syntax --keyword=value:
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
-OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":str2bool, "use_exp_Lame":str2bool, "use_iso":str2bool,\
-           "bccslip":str, "hcpslip":str, "skiptransonic":str2bool, "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str,\
-           "Nphi":int, "Nq":int, "NphiX":int, "rmin":float, "rmax":float, "phononwind_opts":ast.literal_eval}
-
+OPTIONS = OPTIONS|{"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool, \
+                     "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
 metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
 #########

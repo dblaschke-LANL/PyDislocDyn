@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 4, 2024
+# Date: Nov. 7, 2017 - Apr. 11, 2024
 '''If run as a script, this file will compute polycrystal averages of second and third order elastic constants, either for
    all metals predefined in metal_data.py, or for those input files passed as arguments to the script; results are written
    to a text file 'averaged_elastic_constants.tex'.'''
@@ -37,9 +37,6 @@ def writelatex(data,caption="",soec_only=False,dropna=False):
         out = out.iloc[:,:2]
     if dropna:
         out.dropna(inplace=True)
-    if pd.__version__ < '1.3':
-        print(f"Warning: using workaround for pandas {pd.__version__}; version 1.3 or higher is recommended")## work around for pandas 1.1 and 1.2 (results in slightly different formatting though)
-        return out.to_latex(caption=caption,float_format="%.1f",escape=False).replace(r'{}','').replace('\n\\midrule',r' \hline').replace('\n\\toprule','').replace('\n\\bottomrule','').replace('\n\\centering','')
     out = out.style.format(precision=1)
     if not soec_only:
         out = out.format('{:.0f}',subset=['$l$','$m$','$n$'])

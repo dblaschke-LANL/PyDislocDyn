@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 9, 2024
+# Date: Nov. 5, 2017 - Apr. 12, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -13,10 +13,11 @@
                        for the latter (which is a required input, see mkfit_Bv)
    All other functions are subroutines of the latter.'''
 #################################
+import ast
 import numpy as np
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit, minimize_scalar, fsolve
-from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB, \
+from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB, str2bool, OPTIONS, \
     plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
@@ -911,3 +912,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         plt.savefig(fname,format='pdf',bbox_inches='tight')
         plt.close()
     return (B0,vcrit,sigma,B_of_sig)
+
+## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
+OPTIONS = OPTIONS|{"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool, \
+                          "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval}

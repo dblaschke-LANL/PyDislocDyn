@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 4, 2024
+# Date: Nov. 5, 2017 - Apr. 12, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -10,20 +10,18 @@
 #################################
 import sys
 import os
-import ast
 import copy
 import numpy as np
 from scipy.optimize import curve_fit
-## workaround for spyder's runfile() command when cwd is somewhere else:
 dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, str2bool, Ncores, read_2dresults, \
+from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, Ncores, read_2dresults, \
     plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag, B_of_sigma
+from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
 
 ### choose various resolutions and other parameters:
 Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -34,7 +32,7 @@ maxb = 0.99
 modes = 'all'
 # modes = 'TT'
 skip_plots=False ## set to True to skip generating plots from the results
-use_exp = True # if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (defaul) or analytical averages of SOEC and TOEC (use_exp = False)
+use_exp_Lame= True # if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default) or analytical averages of SOEC and TOEC (use_exp_Lame = False)
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
 increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
@@ -44,8 +42,6 @@ beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or c
 Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
 ## the following options can be set on the commandline with syntax --keyword=value:
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
-OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "minb":float, "maxb":float, "modes":str, "skip_plots":str2bool, "use_exp":str2bool,\
-           "NT":int, "constantrho":str2bool, "increaseTby":float, "beta_reference":str, "Nphi":int, "phononwind_opts":ast.literal_eval}
 
 #########
 if __name__ == '__main__':
@@ -59,7 +55,7 @@ if __name__ == '__main__':
     ### set range & step sizes after parsing the command line for options
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)
-    if use_exp:
+    if use_exp_Lame:
         metal = sorted(list(data.ISO_l.keys()))
     else:
         metal = sorted(list(data.c111.keys()))
@@ -83,7 +79,7 @@ if __name__ == '__main__':
             os.mkdir("temp_pydislocdyn")
         os.chdir("temp_pydislocdyn")
         for X in metal:
-            data.writeinputfile(X,X,iso=use_exp) # write temporary input files for requested X of metal_data
+            data.writeinputfile(X,X,iso=use_exp_Lame) # write temporary input files for requested X of metal_data
             Y[X] = readinputfile(X,Ntheta=Ntheta,isotropify=True)
         os.chdir("..")
     

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 4, 2024
+# Date: Nov. 3, 2017 - Apr. 12, 2024
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -17,7 +17,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, str2bool, parse_options, read_2dresults, \
+from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, parse_options, read_2dresults, OPTIONS, \
     plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
@@ -40,7 +40,7 @@ Nphi = 1000
 bccslip = 'all' ## allowed values: '110', '112', '123', 'all' (for all three)
 hcpslip = 'all' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 ##### the following options can be set on the commandline with syntax --keyword=value:
-OPTIONS = {"Ntheta":int, "Ntheta2":int, "Nbeta":int, "Nphi":int, "scale_by_mu":str, "skip_plots":str2bool, "bccslip":str, "hcpslip":str, "Ncores":int}
+OPTIONS = OPTIONS|{"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str}
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
 ### start the calculations
@@ -76,6 +76,8 @@ if __name__ == '__main__':
         if not os.path.exists("temp_pydislocdyn"):
             os.mkdir("temp_pydislocdyn")
         os.chdir("temp_pydislocdyn")
+        if scale_by_mu not in ('exp','crude','aver'):
+            raise ValueError("option 'scale_by_mu must be one of 'exp','crude', or 'aver'.")
         if scale_by_mu=='exp':
             isokw=False ## use single crystal elastic constants and additionally write average shear modulus of polycrystal to temp. input file
         else:

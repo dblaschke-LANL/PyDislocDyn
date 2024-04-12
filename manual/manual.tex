@@ -40,7 +40,7 @@
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{April 8, 2024}
+\date{April 11, 2024}
 
 \begin{document}
 \maketitle
@@ -82,12 +82,12 @@ where it is distributed under the BSD-3 license, (Copyright, Triad National Secu
 
 \section{Requirements}
 \begin{itemize}
-\item PyDislocDyn 1.2.5 and higher requires Python 3.8 or higher\footnote{
-The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, and Python 3.6 up to version 1.2.4}
+\item PyDislocDyn 1.3.0 and higher requires Python 3.9 or higher\footnote{
+The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, Python 3.6 up to version 1.2.4, and Python 3.8 up to version 1.2.9.}
 and it is recommended to use the latest version.
-As of PyDislocDyn 1.2.9, required modules include Numpy $\ge1.17$, Scipy $\ge1.6$, Sympy $\ge1.6$, Matplotlib $\ge3.1$, and Pandas $\ge1.1$ (though Pandas $\ge1.3$ including its optional dependency Jinja2 is recommended).
+As of PyDislocDyn 1.3.0, required modules include Numpy $\ge1.19$, Scipy $\ge1.6$, Sympy $\ge1.6$, Matplotlib $\ge3.3$, and Pandas $\ge1.3$ (including its optional dependency Jinja2).
 \item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
-Numba $\ge0.47$ (a just-in-time compiler for python), Joblib $\ge0.14$ (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
+Numba $\ge0.53$ (a just-in-time compiler for python), Joblib $\ge1.1$ (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
 Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS with python $\leq3.11$ compile with:
 \\\verb|`python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines'|;\\
 or with python $\geq3.12$:

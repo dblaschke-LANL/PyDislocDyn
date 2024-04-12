@@ -30,17 +30,17 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Requirements
 
-* Python >=3.8,</br>
-* [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.17,</br>
+* Python >=3.9,</br>
+* [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.19,</br>
 * [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.6,</br>
 * [sympy](https://www.sympy.org) >=1.6,</br>
-* [matplotlib](https://matplotlib.org/) >=3.1</br>
-* [pandas](https://pandas.pydata.org/) >=1.1 (recommended: pandas >=1.3 and Jinja2)</br>
+* [matplotlib](https://matplotlib.org/) >=3.3</br>
+* [pandas](https://pandas.pydata.org/) >=1.3 (and Jinja2)</br>
 
 ### Optional:
 
-* [numba](https://numba.pydata.org/) >=0.47 (for speedup via just-in-time compilation of some subroutines),</br>
-* [joblib](https://joblib.readthedocs.io) >=0.14 (for parallelization),</br>
+* [numba](https://numba.pydata.org/) >=0.53 (for speedup via just-in-time compilation of some subroutines),</br>
+* [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
 * a Fortran 90 compiler
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use </br>
