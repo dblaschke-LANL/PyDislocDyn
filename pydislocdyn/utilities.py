@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 12, 2024
+# Date: Nov. 5, 2017 - Apr. 17, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -114,7 +114,7 @@ def guesstype(arg):
             out = float(arg)
         except ValueError:
             try:
-                out = bool(arg)
+                out = str2bool(arg)
             except ValueError:
                 out = arg ## fall back to string
     return out
