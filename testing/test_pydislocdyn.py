@@ -115,7 +115,7 @@ def compare_df(f1,f2):
 def round_list(lst,ndigits=2):
     '''rounds all floats in a nested list'''
     if isinstance(lst,float):
-        return round(lst,ndigits)
+        return float(round(lst,ndigits))
     if isinstance(lst,list):
         return [round_list(i,ndigits) for i in lst]
     return lst
