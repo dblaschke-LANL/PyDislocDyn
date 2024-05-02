@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 30, 2024
+# Date: Nov. 7, 2017 - May 2, 2024
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -85,7 +85,7 @@ class IsoAverages(IsoInvariants):
         If C3 is omitted (or 'None'), only the average Lame constants are computed.'''
         out = solve([self.invI1-invI1(C2),self.invI2-invI2(C2)],[self.lam,self.mu],dict=True)[0]
         ## combine all five Voigt-averaged answers into one dictionary for each metal (i.e. Voigt is a dictionary of dictionaries)
-        if np.asarray(C3).all() is not None:
+        if C3 is not None:
             out.update(solve([self.invI3-invI3(C3),self.invI4-invI4(C3),self.invI5-invI5(C3)],[self.l,self.m,self.n],dict=True)[0])
         self.voigt = out
         return out
@@ -95,7 +95,7 @@ class IsoAverages(IsoInvariants):
         If S3 is omitted (or 'None'), only the average Lame constants are computed.'''
         out = solve([self.invI1b-invI1(S2),self.invI2b-invI2(S2)],[self.lam,self.mu],dict=True)[0]
         ## plug in results for lam and mu to compute l,m,n, then combine the results into one dictionary:
-        if np.asarray(S3).all() is not None:
+        if S3 is not None:
             out.update(solve([self.invI3b.subs(out)-invI3(S3),self.invI4b.subs(out)-invI4(S3),self.invI5b.subs(out)-invI5(S3)],[self.l,self.m,self.n],dict=True)[0])
         self.reuss = out
         return out
@@ -140,7 +140,7 @@ class IsoAverages(IsoInvariants):
         tmplam = tmplam.subs(mu,tmpmu)
         out = {lam:tmplam, mu:tmpmu}
         
-        if np.asarray(C3).all() is not None:
+        if C3 is not None:
             C3hat = np.dot(Hm,np.dot(Hm,np.dot(Voigt(C3),Hm.T)))
             for i in range(6):
                 C3hat[i] = np.array(((sp.expand(sp.Matrix(C3hat[i])).subs(Sh**2,0)).subs(Sh**3,0)).subs(Sh,hfactor/2))

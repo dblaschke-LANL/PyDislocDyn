@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 30, 2024
+# Date: Mar. 6, 2023 - May 2, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -349,7 +349,7 @@ if __name__ == '__main__':
                 Y[X].findRayleigh()
                 Y[X].find_vRF()
                 with open(X+"props.txt", "w", encoding="utf8") as logfile:
-                    np.set_printoptions(precision=2)
+                    np.set_printoptions(precision=2,suppress=True)
                     logfile.write(repr(Y[X]))
                     logfile.write("\n\ntheta:\n")
                     logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
