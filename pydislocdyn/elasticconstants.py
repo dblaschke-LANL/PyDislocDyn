@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 3, 2024
+# Date: Nov. 7, 2017 - Apr. 30, 2024
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -38,23 +38,23 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
             c22=c11
             c23=c13
             c55=c44
-        Cdict = {'C11':c11, 'C12':c12, 'C13':c13, 'C14':0, 'C15':0, 'C16':0, 'C22':c22, 'C23':c23, 'C24':0, 'C25':0, 'C26':0, \
-                'C33':c33, 'C34':0, 'C35':0, 'C36':0, 'C44':c44, 'C45':0, 'C46':0, 'C55':c55, 'C56':0, 'C66':c66}
+        Cdict = {'C11':c11, 'C12':c12, 'C13':c13, 'C14':0, 'C15':0, 'C16':0, 'C22':c22, 'C23':c23, 'C24':0, 'C25':0, 'C26':0,
+                 'C33':c33, 'C34':0, 'C35':0, 'C36':0, 'C44':c44, 'C45':0, 'C46':0, 'C55':c55, 'C56':0, 'C66':c66}
     elif len(cij)==21:
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':cij[4], 'C16':cij[5], 'C22':cij[6], 'C23':cij[7], 'C24':cij[8], 'C25':cij[9], 'C26':cij[10], \
-            'C33':cij[11], 'C34':cij[12], 'C35':cij[13], 'C36':cij[14], 'C44':cij[15], 'C45':cij[16], 'C46':cij[17], 'C55':cij[18], 'C56':cij[19], 'C66':cij[20]}
+        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':cij[4], 'C16':cij[5], 'C22':cij[6], 'C23':cij[7], 'C24':cij[8], 'C25':cij[9], 'C26':cij[10],
+                 'C33':cij[11], 'C34':cij[12], 'C35':cij[13], 'C36':cij[14], 'C44':cij[15], 'C45':cij[16], 'C46':cij[17], 'C55':cij[18], 'C56':cij[19], 'C66':cij[20]}
     elif len(cij)==13:
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':cij[3], 'C16':0, 'C22':cij[4], 'C23':cij[5], 'C24':0, 'C25':cij[6], 'C26':0, \
-            'C33':cij[7], 'C34':0, 'C35':cij[8], 'C36':0, 'C44':cij[9], 'C45':0, 'C46':cij[10], 'C55':cij[11], 'C56':0, 'C66':cij[12]}
+        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':cij[3], 'C16':0, 'C22':cij[4], 'C23':cij[5], 'C24':0, 'C25':cij[6], 'C26':0,
+                 'C33':cij[7], 'C34':0, 'C35':cij[8], 'C36':0, 'C44':cij[9], 'C45':0, 'C46':cij[10], 'C55':cij[11], 'C56':0, 'C66':cij[12]}
     elif len(cij)==9:
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':0, 'C22':cij[3], 'C23':cij[4], 'C24':0, 'C25':0, 'C26':0, \
-                'C33':cij[5], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[6], 'C45':0, 'C46':0, 'C55':cij[7], 'C56':0, 'C66':cij[8]}
+        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':0, 'C22':cij[3], 'C23':cij[4], 'C24':0, 'C25':0, 'C26':0,
+                 'C33':cij[5], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[6], 'C45':0, 'C46':0, 'C55':cij[7], 'C56':0, 'C66':cij[8]}
     elif len(cij)==7: ## tetragonal II
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':cij[3], 'C22':cij[0], 'C23':cij[2], 'C24':0, 'C25':0, 'C26':-cij[3], \
-                'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':0, 'C66':cij[6]}
+        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':cij[3], 'C22':cij[0], 'C23':cij[2], 'C24':0, 'C25':0, 'C26':-cij[3],
+                 'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':0, 'C66':cij[6]}
     elif len(cij)==6: ## trigonal (rhombohedral) I
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':0, 'C16':0, 'C22':cij[0], 'C23':cij[2], 'C24':-cij[3], 'C25':0, 'C26':0, \
-                'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':cij[3], 'C66':(cij[0]-cij[1])/2}
+        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':0, 'C16':0, 'C22':cij[0], 'C23':cij[2], 'C24':-cij[3], 'C25':0, 'C26':0,
+                 'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':cij[3], 'C66':(cij[0]-cij[1])/2}
     else:
         raise ValueError(f"len(cij)={len(cij)}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), 7 (tetragonal II), or 6 (trigonal/rhombohedral I) values")
     if isinstance(sum(Cdict.values()),sp.Expr):
@@ -118,34 +118,34 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
     elif cijk is None:
         raise ValueError("ERROR: not implemented.")
     if cijk is None:
-        Cdict = {'C111':c111, 'C112':c112, 'C113':c113, 'C114':0, 'C115':0, 'C116':0, 'C122':c122, 'C123':c123, 'C124':0, 'C125':0, 'C126':0, 'C133':c133, 'C134':0, 'C135':0, 'C136':0, 'C144':c144, 'C145':0, 'C146':0, 'C155':c155, 'C156':0, 'C166':c166,\
-            'C222':c222, 'C223':c223, 'C224':0, 'C225':0, 'C226':0, 'C233':c233, 'C234':0, 'C235':0, 'C236':0, 'C244':c244, 'C245':0, 'C246':0, 'C255':c255, 'C256':0, 'C266':c266,\
-                'C333':c333, 'C334':0, 'C335':0, 'C336':0, 'C344':c344, 'C345':0, 'C346':0, 'C355':c355, 'C356':0, 'C366':c366, 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':c456, 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0 }
+        Cdict = {'C111':c111, 'C112':c112, 'C113':c113, 'C114':0, 'C115':0, 'C116':0, 'C122':c122, 'C123':c123, 'C124':0, 'C125':0, 'C126':0, 'C133':c133, 'C134':0, 'C135':0, 'C136':0, 'C144':c144, 'C145':0, 'C146':0, 'C155':c155, 'C156':0, 'C166':c166,
+                 'C222':c222, 'C223':c223, 'C224':0, 'C225':0, 'C226':0, 'C233':c233, 'C234':0, 'C235':0, 'C236':0, 'C244':c244, 'C245':0, 'C246':0, 'C255':c255, 'C256':0, 'C266':c266,
+                 'C333':c333, 'C334':0, 'C335':0, 'C336':0, 'C344':c344, 'C345':0, 'C346':0, 'C355':c355, 'C356':0, 'C366':c366, 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':c456, 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0}
     elif len(cijk)==56:
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':cijk[4], 'C116':cijk[5], 'C122':cijk[6], 'C123':cijk[7], 'C124':cijk[8], 'C125':cijk[9], 'C126':cijk[10], 'C133':cijk[11], 'C134':cijk[12], 'C135':cijk[13], \
-            'C136':cijk[14], 'C144':cijk[15], 'C145':cijk[16], 'C146':cijk[17], 'C155':cijk[18], 'C156':cijk[19], 'C166':cijk[20], 'C222':cijk[21], 'C223':cijk[22], 'C224':cijk[23], 'C225':cijk[24], 'C226':cijk[25], 'C233':cijk[26], 'C234':cijk[27], \
-            'C235':cijk[28], 'C236':cijk[29], 'C244':cijk[30], 'C245':cijk[31], 'C246':cijk[32], 'C255':cijk[33], 'C256':cijk[34], 'C266':cijk[35], 'C333':cijk[36], 'C334':cijk[37], 'C335':cijk[38], 'C336':cijk[39], 'C344':cijk[40], 'C345':cijk[41], \
-            'C346':cijk[42], 'C355':cijk[43], 'C356':cijk[44], 'C366':cijk[45], 'C444':cijk[46], 'C445':cijk[47], 'C446':cijk[48], 'C455':cijk[49], 'C456':cijk[50], 'C466':cijk[51], 'C555':cijk[52], 'C556':cijk[53], 'C566':cijk[54], 'C666':cijk[55] }
+        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':cijk[4], 'C116':cijk[5], 'C122':cijk[6], 'C123':cijk[7], 'C124':cijk[8], 'C125':cijk[9], 'C126':cijk[10], 'C133':cijk[11], 'C134':cijk[12], 'C135':cijk[13],
+                 'C136':cijk[14], 'C144':cijk[15], 'C145':cijk[16], 'C146':cijk[17], 'C155':cijk[18], 'C156':cijk[19], 'C166':cijk[20], 'C222':cijk[21], 'C223':cijk[22], 'C224':cijk[23], 'C225':cijk[24], 'C226':cijk[25], 'C233':cijk[26], 'C234':cijk[27],
+                 'C235':cijk[28], 'C236':cijk[29], 'C244':cijk[30], 'C245':cijk[31], 'C246':cijk[32], 'C255':cijk[33], 'C256':cijk[34], 'C266':cijk[35], 'C333':cijk[36], 'C334':cijk[37], 'C335':cijk[38], 'C336':cijk[39], 'C344':cijk[40], 'C345':cijk[41],
+                 'C346':cijk[42], 'C355':cijk[43], 'C356':cijk[44], 'C366':cijk[45], 'C444':cijk[46], 'C445':cijk[47], 'C446':cijk[48], 'C455':cijk[49], 'C456':cijk[50], 'C466':cijk[51], 'C555':cijk[52], 'C556':cijk[53], 'C566':cijk[54], 'C666':cijk[55]}
     elif len(cijk)==32:
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':cijk[3], 'C116':0, 'C122':cijk[4], 'C123':cijk[5], 'C124':0, 'C125':cijk[6], 'C126':0, 'C133':cijk[7], 'C134':0, 'C135':cijk[8], \
-            'C136':0, 'C144':cijk[9], 'C145':0, 'C146':cijk[10], 'C155':cijk[11], 'C156':0, 'C166':cijk[12], 'C222':cijk[13], 'C223':cijk[14], 'C224':0, 'C225':cijk[15], 'C226':0, 'C233':cijk[16], 'C234':0, \
-            'C235':cijk[17], 'C236':0, 'C244':cijk[18], 'C245':0, 'C246':cijk[19], 'C255':cijk[20], 'C256':0, 'C266':cijk[21], 'C333':cijk[22], 'C334':0, 'C335':cijk[23], 'C336':0, 'C344':cijk[24], 'C345':0, \
-            'C346':cijk[25], 'C355':cijk[26], 'C356':0, 'C366':cijk[27], 'C444':0, 'C445':cijk[28], 'C446':0, 'C455':0, 'C456':cijk[29], 'C466':0, 'C555':cijk[30], 'C556':0, 'C566':cijk[31], 'C666':0 }
+        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':cijk[3], 'C116':0, 'C122':cijk[4], 'C123':cijk[5], 'C124':0, 'C125':cijk[6], 'C126':0, 'C133':cijk[7], 'C134':0, 'C135':cijk[8],
+                 'C136':0, 'C144':cijk[9], 'C145':0, 'C146':cijk[10], 'C155':cijk[11], 'C156':0, 'C166':cijk[12], 'C222':cijk[13], 'C223':cijk[14], 'C224':0, 'C225':cijk[15], 'C226':0, 'C233':cijk[16], 'C234':0,
+                 'C235':cijk[17], 'C236':0, 'C244':cijk[18], 'C245':0, 'C246':cijk[19], 'C255':cijk[20], 'C256':0, 'C266':cijk[21], 'C333':cijk[22], 'C334':0, 'C335':cijk[23], 'C336':0, 'C344':cijk[24], 'C345':0,
+                 'C346':cijk[25], 'C355':cijk[26], 'C356':0, 'C366':cijk[27], 'C444':0, 'C445':cijk[28], 'C446':0, 'C455':0, 'C456':cijk[29], 'C466':0, 'C555':cijk[30], 'C556':0, 'C566':cijk[31], 'C666':0}
     elif len(cijk)==20:
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':0, 'C122':cijk[3], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0, \
-            'C136':0, 'C144':cijk[6], 'C145':0, 'C146':0, 'C155':cijk[7], 'C156':0, 'C166':cijk[8], 'C222':cijk[9], 'C223':cijk[10], 'C224':0, 'C225':0, 'C226':0, 'C233':cijk[11], 'C234':0, \
-            'C235':0, 'C236':0, 'C244':cijk[12], 'C245':0, 'C246':0, 'C255':cijk[13], 'C256':0, 'C266':cijk[14], 'C333':cijk[15], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[16], 'C345':0, \
-            'C346':0, 'C355':cijk[17], 'C356':0, 'C366':cijk[18], 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':cijk[19], 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0 }
+        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':0, 'C122':cijk[3], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0,
+                 'C136':0, 'C144':cijk[6], 'C145':0, 'C146':0, 'C155':cijk[7], 'C156':0, 'C166':cijk[8], 'C222':cijk[9], 'C223':cijk[10], 'C224':0, 'C225':0, 'C226':0, 'C233':cijk[11], 'C234':0,
+                 'C235':0, 'C236':0, 'C244':cijk[12], 'C245':0, 'C246':0, 'C255':cijk[13], 'C256':0, 'C266':cijk[14], 'C333':cijk[15], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[16], 'C345':0,
+                 'C346':0, 'C355':cijk[17], 'C356':0, 'C366':cijk[18], 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':cijk[19], 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0}
     elif len(cijk)==16: ## tetragonal II
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':cijk[3], 'C122':cijk[1], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0, \
-            'C136':cijk[6], 'C144':cijk[7], 'C145':cijk[8], 'C146':0, 'C155':cijk[9], 'C156':0, 'C166':cijk[10], 'C222':cijk[0], 'C223':cijk[2], 'C224':0, 'C225':0, 'C226':-cijk[3], 'C233':cijk[5], 'C234':0, \
-            'C235':0, 'C236':-cijk[6], 'C244':cijk[9], 'C245':-cijk[8], 'C246':0, 'C255':cijk[7], 'C256':0, 'C266':cijk[10], 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0, \
-            'C346':0, 'C355':cijk[12], 'C356':0, 'C366':cijk[13], 'C444':0, 'C445':0, 'C446':cijk[14], 'C455':0, 'C456':cijk[15], 'C466':0, 'C555':0, 'C556':-cijk[14], 'C566':0, 'C666':0 }
+        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':cijk[3], 'C122':cijk[1], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0,
+                 'C136':cijk[6], 'C144':cijk[7], 'C145':cijk[8], 'C146':0, 'C155':cijk[9], 'C156':0, 'C166':cijk[10], 'C222':cijk[0], 'C223':cijk[2], 'C224':0, 'C225':0, 'C226':-cijk[3], 'C233':cijk[5], 'C234':0,
+                 'C235':0, 'C236':-cijk[6], 'C244':cijk[9], 'C245':-cijk[8], 'C246':0, 'C255':cijk[7], 'C256':0, 'C266':cijk[10], 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0,
+                 'C346':0, 'C355':cijk[12], 'C356':0, 'C366':cijk[13], 'C444':0, 'C445':0, 'C446':cijk[14], 'C455':0, 'C456':cijk[15], 'C466':0, 'C555':0, 'C556':-cijk[14], 'C566':0, 'C666':0}
     elif len(cijk)==14: ## trigonal (rhombohedral) I
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':0, 'C116':0, 'C122':(cijk[0]+cijk[1]-cijk[10]), 'C123':cijk[4], 'C124':cijk[5], 'C125':0, 'C126':0, 'C133':cijk[6], 'C134':cijk[7], 'C135':0, \
-            'C136':0, 'C144':cijk[8], 'C145':0, 'C146':0, 'C155':cijk[9], 'C156':(cijk[3]+3*cijk[5])/2, 'C166':(3*cijk[10]-2*cijk[0]-cijk[1])/4, 'C222':cijk[10], 'C223':cijk[2], 'C224':(-cijk[3]-2*cijk[5]), 'C225':0, 'C226':0, 'C233':cijk[6], 'C234':(-cijk[7]), \
-            'C235':0, 'C236':0, 'C244':cijk[9], 'C245':0, 'C246':0, 'C255':cijk[8], 'C256':(cijk[3]-cijk[5])/2, 'C266':(2*cijk[0]-cijk[1]-cijk[10])/4, 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0, \
-            'C346':0, 'C355':cijk[12], 'C356':cijk[7], 'C366':(cijk[2]-cijk[4])/2, 'C444':cijk[13], 'C445':0, 'C446':0, 'C455':(-cijk[13]), 'C456':(cijk[9]-cijk[8])/2, 'C466':cijk[5], 'C555':0, 'C556':0, 'C566':0, 'C666':0 }
+        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':0, 'C116':0, 'C122':(cijk[0]+cijk[1]-cijk[10]), 'C123':cijk[4], 'C124':cijk[5], 'C125':0, 'C126':0, 'C133':cijk[6], 'C134':cijk[7], 'C135':0,
+                 'C136':0, 'C144':cijk[8], 'C145':0, 'C146':0, 'C155':cijk[9], 'C156':(cijk[3]+3*cijk[5])/2, 'C166':(3*cijk[10]-2*cijk[0]-cijk[1])/4, 'C222':cijk[10], 'C223':cijk[2], 'C224':(-cijk[3]-2*cijk[5]), 'C225':0, 'C226':0, 'C233':cijk[6], 'C234':(-cijk[7]),
+                 'C235':0, 'C236':0, 'C244':cijk[9], 'C245':0, 'C246':0, 'C255':cijk[8], 'C256':(cijk[3]-cijk[5])/2, 'C266':(2*cijk[0]-cijk[1]-cijk[10])/4, 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0,
+                 'C346':0, 'C355':cijk[12], 'C356':cijk[7], 'C366':(cijk[2]-cijk[4])/2, 'C444':cijk[13], 'C445':0, 'C446':0, 'C455':(-cijk[13]), 'C456':(cijk[9]-cijk[8])/2, 'C466':cijk[5], 'C555':0, 'C556':0, 'C566':0, 'C666':0}
     else:
         raise ValueError(f"len(cijk)={len(cijk)}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), 16 (tetragonal II), or 14 (trigonal/rhombohedral I) values")
     if isinstance(sum(Cdict.values()),sp.Expr):
@@ -205,7 +205,7 @@ def CheckVoigt(tensor):
     
 def CheckReflectionSymmetry(elasticC2,strict=False):
     '''Check for reflection symmetry of the z-plane assuming the tensor of second order elastic constants provided has been rotated into
-     the coordinates to be checked. By default, we check for the slightly weaker condition where non-vanishing c34 and c35 are allowed 
+     the coordinates to be checked. By default, we check for the slightly weaker condition where non-vanishing c34 and c35 are allowed
      (since they drop out of the differential equations for screw/edge dislocations. Set strict=True to check for true reflection symmetry.'''
     if len(elasticC2)==3:
         C2=Voigt(elasticC2)

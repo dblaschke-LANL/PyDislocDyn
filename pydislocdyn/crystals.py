@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 4, 2024
+# Date: Nov. 7, 2017 - Apr. 30, 2024
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -105,12 +105,12 @@ class IsoAverages(IsoInvariants):
         Requirements: run methods voigt_average() and reuss_average() first.'''
         voigt = self.voigt
         reuss = self.reuss
-        out = {self.lam : (voigt[self.lam] + reuss[self.lam])/2}
-        out.update({self.mu : (voigt[self.mu] + reuss[self.mu])/2})
+        out = {self.lam: (voigt[self.lam] + reuss[self.lam])/2}
+        out.update({self.mu: (voigt[self.mu] + reuss[self.mu])/2})
         if len(reuss.keys())==5:
-            out.update({self.l : (voigt[self.l] + reuss[self.l])/2})
-            out.update({self.m : (voigt[self.m] + reuss[self.m])/2})
-            out.update({self.n : (voigt[self.n] + reuss[self.n])/2})
+            out.update({self.l: (voigt[self.l] + reuss[self.l])/2})
+            out.update({self.m: (voigt[self.m] + reuss[self.m])/2})
+            out.update({self.n: (voigt[self.n] + reuss[self.n])/2})
         self.hill = out
         return out
     
@@ -228,7 +228,7 @@ class metal_props:
     
     def compute_Lame(self, roundto=-8, include_TOEC=False):
         '''Computes the Lame constants by averaging over the second order elastic constants.
-           If option include_TOEC=True, Hill averages for the Murnaghan constants are calculated as well, 
+           If option include_TOEC=True, Hill averages for the Murnaghan constants are calculated as well,
            but the user should be aware that the latter are not reliable as there is no good averaging scheme for TOECs.'''
         C2 = UnVoigt(self.C2)
         if include_TOEC:
@@ -314,15 +314,15 @@ class metal_props:
             v = self.Miller_to_Cart(v,reziprocal=reziprocal)
         elif self.C2.dtype == np.dtype('O'): ## force purely analytical calculation if C2 contains non-floats
             v = np.asarray(v,dtype=object)
-            v = v/sp.sqrt(np.dot(v , v))
+            v = v/sp.sqrt(np.dot(v, v))
         else:
             v = np.asarray(v)
-            v = v/np.sqrt(np.dot(v , v))
+            v = v/np.sqrt(np.dot(v, v))
         c44 = self.C2[3,3]
-        thematrix = np.dot(v , np.dot(UnVoigt(self.C2/c44) , v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
+        thematrix = np.dot(v, np.dot(UnVoigt(self.C2/c44), v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
         thedet = sp.det(sp.Matrix(thematrix))
         solution = sp.solve(thedet,bt2)
-        for i, si  in enumerate(solution):
+        for i, si in enumerate(solution):
             si = si*c44/self.rho
             if si.free_symbols == set():
                 solution[i] = np.sqrt(float(sp.re(si)))
@@ -340,12 +340,12 @@ class metal_props:
         if self.bc is None or self.bc==0:
             b=a
         else: b=self.bc
-        if self.cc is None or self.cc==0 :
+        if self.cc is None or self.cc==0:
             c=a
         else:c=self.cc
         d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)
-        T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],\
-                      [0,b*np.sin(self.gammac),d],\
+        T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],
+                      [0,b*np.sin(self.gammac),d],
                       [0,0,np.sqrt((c*np.sin(self.betac))**2-d**2)]])
         if reziprocal:
             ## real space basis vectors a_i = T[:,i]
@@ -432,9 +432,9 @@ class metal_props:
         if 'alpha' in keys:
             self.alphac=float(inputparams['alpha'])*np.pi/180 ## convert degrees to radians
         if 'beta' in keys:
-            self.betac=float(inputparams['beta'])*np.pi/180 
+            self.betac=float(inputparams['beta'])*np.pi/180
         if 'gamma' in keys:
-            self.gammac=float(inputparams['gamma'])*np.pi/180 
+            self.gammac=float(inputparams['gamma'])*np.pi/180
         if 'Millerb' in keys:
             self.Millerb = str_to_array(inputparams['Millerb'])
             if 'burgers' in keys:
@@ -472,7 +472,7 @@ def loadinputfile(fname):
             if line[0] != "#":
                 currentline = line.lstrip().rstrip().split()
                 if len(currentline) > 2:
-                    key  = currentline[0]
+                    key = currentline[0]
                     if len(currentline)==3 or currentline[3]=='#':
                         value = currentline[2]
                         if value[-1] == '#':

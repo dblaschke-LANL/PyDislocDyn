@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 17, 2024
+# Date: Nov. 5, 2017 - Apr. 30, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
 # mpl.use("pgf")
 # plt.rcParams.update({
-#     "text.usetex": True, 
+#     "text.usetex": True,
 #     "text.latex.preamble": r"\usepackage{fouriernc}",
 #     "pgf.texsystem": "pdflatex",
 #     "pgf.rcfonts": False,
@@ -56,10 +56,10 @@ try:
     if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
         ompthreads = int(np.sqrt(Ncpus))
         while Ncpus/ompthreads != round(Ncpus/ompthreads):
-            ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores 
+            ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import pydislocdyn.subroutines as fsub
-    assert(fsub.version()>=20231205),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
+    assert (fsub.version()>=20231205),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
     usefortran = True
     if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
 except ImportError:
@@ -122,7 +122,7 @@ def guesstype(arg):
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
 def parse_options(arglist,optionlist,globaldict=globals()):
     '''Search commandline arguments for known options to set by comparing to a list of keyword strings "optionlist".
-    These will then override default variables. This function also returns a copy of 'arglist' stripped of all 
+    These will then override default variables. This function also returns a copy of 'arglist' stripped of all
     option calls for further processing (e.g. opening input files that were passed etc.).'''
     out = arglist
     if '--help' in out:
@@ -256,6 +256,7 @@ if usefortran:
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
         return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
+    
     def elbrak1d(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
@@ -276,9 +277,10 @@ else:
                         for p in range(3):
                             # AB[l,o,th] += A[k,th]*elC[k,l,o,p,th]*B[p,th]
                             #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
-                            np.add(AB[l,o,th] , np.multiply(np.multiply(A[k,th],elC[k,l,o,p,th],tmp),B[p,th],tmp) , AB[l,o,th])
+                            np.add(AB[l,o,th], np.multiply(np.multiply(A[k,th], elC[k,l,o,p,th],tmp), B[p,th],tmp), AB[l,o,th])
         
         return AB
+    
     @jit(nopython=True)
     def elbrak1d(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.

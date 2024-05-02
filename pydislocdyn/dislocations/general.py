@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 4, 2024
+# Date: Nov. 3, 2017 - Apr. 30, 2024
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -20,13 +20,13 @@ from .steadystate import StrohGeometry
 def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
     '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
     the color-encoded values are dimensionless displacement gradients.
-    Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for 
+    Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for
     radius (in units of Burgers vector) and polar angle; note that the plot will be converted to Cartesian coordinates.
     Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
     which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to pyplot.axis(), the size of
     the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).
     Additional options may be passed on to pyplot.contour via **kwargs (ignored if showcontour=False).'''
-    phi_msh , r_msh = np.meshgrid(phi,r)
+    phi_msh, r_msh = np.meshgrid(phi,r)
     x_msh = r_msh*np.cos(phi_msh)
     y_msh = r_msh*np.sin(phi_msh)
     plt.figure(figsize=figsize)
@@ -50,7 +50,7 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
         if 'colors' not in kwargs: kwargs['colors'] = 'white'
         if 'linewidths' not in kwargs: kwargs['linewidths'] = 0.7
         plt.contour(x_msh,y_msh,uij,**kwargs)
-    cbar.ax.tick_params(labelsize = fntsize)
+    cbar.ax.tick_params(labelsize=fntsize)
     if showplt: plt.show()
     if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
     plt.close()
@@ -119,8 +119,8 @@ class Dislocation(StrohGeometry,metal_props):
                 P = -np.trace(MM)
                 Q = 0.5*(P**2-np.trace((MM @ MM)))
                 # R = -np.linalg.det(MM)
-                R = -( MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
-                      - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2] )
+                R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
+                      - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
                 a = Q - P**2/3
                 d = (2*P**3-9*Q*P+27*R)/27
                 gamma = np.arccos(-0.5*d/np.sqrt(-a**3/27))
@@ -379,7 +379,7 @@ class Dislocation(StrohGeometry,metal_props):
            In the first transonic regime, there may be a range of radiation free velocities; option resolution
            determines how many values to probe for in this regime. In this regime, we also support searching for
            radiation-free velocities for mixed dislocations: option 'thetaind' may be any index pointing to an
-           element of self.theta. Furthermore, partial_burgers may be passed using Miller indices to check for vRF 
+           element of self.theta. Furthermore, partial_burgers may be passed using Miller indices to check for vRF
            of a partial dislocation (an instance of the Dislocation class always represents a perfect dislocation
            with normalized Burgers vector self.b).
            Option 'fast=False' is only used for orthotropic slip systems in which case it will bypass the
@@ -460,7 +460,7 @@ class Dislocation(StrohGeometry,metal_props):
                 else:
                     out = float(np.abs(L[comp]))
                 return out
-            def L1_of_beta2(beta2,comp=1,burg = burg):
+            def L1_of_beta2(beta2,comp=1,burg=burg):
                 '''Finds L1+L2 in the 1st transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
                 @np.vectorize
                 def f(x):
@@ -645,7 +645,7 @@ class Dislocation(StrohGeometry,metal_props):
         plotuij(uijtoplot,r,self.phi,**kwargs,showplt=showplt,title=namestring,savefig=savefig)
         
     def __repr__(self):
-        return  "DISLOCATION\n" + metal_props.__repr__(self) + f"\n burgers:\t {self.burgers}\n" + StrohGeometry.__repr__(self)
+        return "DISLOCATION\n" + metal_props.__repr__(self) + f"\n burgers:\t {self.burgers}\n" + StrohGeometry.__repr__(self)
 
 def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,isotropify=False):
     '''Reads an inputfile like the one generated by writeinputfile() defined in metal_data.py (some of these data are only needed by other parts of PyDislocDyn),
@@ -710,7 +710,7 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
         etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)) )
+    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)))
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
@@ -797,7 +797,7 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
     uyz_added = (heaviadd/rootadd)\
         *(tau**2*(etapr)*ABC*(Y**2/Ct-X**2) + (X*etapr-tau)*(R**2/cA**2)*(X-Y*B/(2*C)) + X*tau*ABC*(tau**2-Y**2/(Ct*cA**2)))\
         /(R**2*Ct*(denom))
-    uyz_static =  - X*np.sqrt(ABC/Ct)/R**2
+    uyz_static = - X*np.sqrt(ABC/Ct)/R**2
     uij[2,0] = (burgers/(2*np.pi))*((uxz[:,:,1]-uxz[:,:,0])/deltat + uxz_static + uxz_added) + uxz_supersonic
     uij[2,1] = (burgers/(2*np.pi))*((uyz[:,:,1]-uyz[:,:,0])/deltat + uyz_static + uyz_added) + uyz_supersonic
     return uij

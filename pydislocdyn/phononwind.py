@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 12, 2024
+# Date: Nov. 5, 2017 - Apr. 30, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -75,7 +75,7 @@ def dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph):
                 for kk in range(3):
                     for ii in range(3):
                         for jj in range(3):
-                            np.add(A3qt2[i,j,k,kk] , np.multiply(qt[ii] , np.multiply(qtshift[jj] , A3[i,ii,j,jj,k,kk] , tmp) , tmp) , A3qt2[i,j,k,kk])
+                            np.add(A3qt2[i,j,k,kk], np.multiply(qt[ii], np.multiply(qtshift[jj], A3[i,ii,j,jj,k,kk], tmp), tmp), A3qt2[i,j,k,kk])
                             
     return A3qt2
 
@@ -89,7 +89,7 @@ def dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph):
             for l in range(3):
                 for j in range(3):
                     for i in range(3):
-                        np.add(part1[l,j,k,kk] , np.multiply(np.subtract(delta1[l,i] , np.multiply(qt[l] , qt[i] , tmp) , tmp) , A3qt2[i,j,k,kk] , tmp) , part1[l,j,k,kk])
+                        np.add(part1[l,j,k,kk], np.multiply(np.subtract(delta1[l,i], np.multiply(qt[l], qt[i], tmp), tmp), A3qt2[i,j,k,kk], tmp), part1[l,j,k,kk])
                             
     return part1
 
@@ -103,7 +103,7 @@ def dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dphi1,lentph):
             for l in range(3):
                 for j in range(3):
                     for m in range(3):
-                        np.add(part2[l,j,n,nn] , np.multiply(np.subtract(delta2[j,m] , np.divide(np.multiply(qtshift[j] , qtshift[m] , tmp) , mag , tmp) , tmp) , A3qt2[l,m,n,nn] , tmp) , part2[l,j,n,nn])
+                        np.add(part2[l,j,n,nn], np.multiply(np.subtract(delta2[j,m], np.divide(np.multiply(qtshift[j], qtshift[m], tmp), mag, tmp), tmp), A3qt2[l,m,n,nn], tmp), part2[l,j,n,nn])
     np.multiply(part2, dphi1, part2)
     return part2
     
@@ -118,7 +118,7 @@ def dragcoeff_iso_computepoly_foldpart12(result_previous,part1,part2,lentph):
                 for nn in range(3):
                     for l in range(3):
                         for j in range(3):
-                            np.add(result[k,kk,n,nn] , np.multiply(part1[l,j,k,kk] , part2[l,j,n,nn] , tmp) , result[k,kk,n,nn])
+                            np.add(result[k,kk,n,nn], np.multiply(part1[l,j,k,kk], part2[l,j,n,nn], tmp), result[k,kk,n,nn])
                             
     return result
 
@@ -206,7 +206,7 @@ else:
         '''Subroutine of dragcoeff_iso().'''
         distri = np.zeros((lenq1,lent,lenphi))
         for i in range(lenq1):
-        ### we have q1^6 but from d^2 we have 1/q^2, so that is q1^4/qtilde^2, and multiplied by qtildexcosphi
+            ### we have q1^6 but from d^2 we have 1/q^2, so that is q1^4/qtilde^2, and multiplied by qtildexcosphi
             distri[i] = prefac*(phonon(T,c1qBZ,q1[i]) - phonon(T,c2qBZ,q1[i]*OneMinBtqcosph1))*q1h4[i]
         return distri
 
@@ -290,7 +290,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
     ## we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval, and weighting end point 3 to 1 compared to its neighbor
     # however, edge point might introduce rounding errors due to divergence so better just keep underestimating by small value (hence multiply end point by 2 instead of 3)
     distri[0] = 2*distri[0]
-    return trapezoid(distri,x = q1, axis=0)
+    return trapezoid(distri,x=q1, axis=0)
                
 ### rho x ct^2  = c44, and B is divided by rho^2*ct^4 = c44^2;
 ### it is therefore convenient to divide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
@@ -326,17 +326,17 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         if Nt_total < Nt:
             Nt_total += 2*Nchunks ## ensure we never reduce resolution
     
-    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, Nt_total=None, Nchunks=Nchunks, mode='??'):
+    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt_total=None, Nchunks=Nchunks, mode='??'):
         if Nchunks is None:
-            out = adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, Nt=Nt, mode=mode)
+            out = adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt=Nt, mode=mode)
         else:
             out = 0
             Nt_current = int((Nt_total-1)/Nchunks+1)
             for kth in range(Nchunks):
-                out += adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, chunks=(Nchunks,kth), Nt=Nt_current, mode=mode)
+                out += adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=(Nchunks,kth), Nt=Nt_current, mode=mode)
         return out
     
-    def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta = skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
+    def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
         if np.asarray(skip_theta).any() is None:
             dijtmp = dij
             A3tmp = A3
@@ -473,8 +473,8 @@ else:
                     Btmp[-1] = 2*Btmp[-1]
                 elif kthchk==0:
                     Btmp[0] = 2*Btmp[0]
-            Bt[p] = trapezoid(Btmp,x = t1)
-        return trapezoid(Bt,x = phi)
+            Bt[p] = trapezoid(Btmp, x=t1)
+        return trapezoid(Bt, x=phi)
 
     def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
         '''Subroutine of dragcoeff_iso().'''
@@ -498,8 +498,8 @@ else:
                     Btmp[0] = 2*Btmp[0]
                 if updatet or kthchk==(Nchunks-1):
                     Btmp[-1] = 2*Btmp[-1]
-            Bt[p] = trapezoid(Btmp,x = qt)
-        return trapezoid(Bt,x = phi)
+            Bt[p] = trapezoid(Btmp, x=qt)
+        return trapezoid(Bt, x=phi)
 
 def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
     '''Subroutine of dragcoeff_iso_onemode(): approximation in the high temperature limit.'''
@@ -755,7 +755,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
         if np.all(skip_theta==False): ## ignore pylint on this one: 'is False' does not work as expected on arrays
             Bmix = np.repeat(np.inf,disloc.Ntheta)
         else:
-            Bmix = dragcoeff_iso(dij=dij, A3=A3rotated, qBZ=disloc.qBZ, ct=disloc.ct, cl=disloc.cl, beta=bt, burgers=disloc.burgers, T=disloc.T, skip_theta=skip_theta, name=disloc.name, **kwargs)        
+            Bmix = dragcoeff_iso(dij=dij, A3=A3rotated, qBZ=disloc.qBZ, ct=disloc.ct, cl=disloc.cl, beta=bt, burgers=disloc.burgers, T=disloc.T, skip_theta=skip_theta, name=disloc.name, **kwargs)
         return Bmix
     if Ncores == 1 or len(beta)<2:
         Bmix = np.array([maincomputations(bt) for bt in beta])
@@ -794,15 +794,15 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1,Bmax_fit='auto'):
     Y.Baver = np.average(Broom,axis=-1)
     beta_edgecrit = (vel/Y.vcrit_edge)[vel<Y.vcrit_edge]
     beta_screwcrit = (vel/Y.vcrit_screw)[vel<Y.vcrit_screw]
-    beta_avercrit =  (vel/Y.vcrit_smallest)[vel<Y.vcrit_smallest]
+    beta_avercrit = (vel/Y.vcrit_smallest)[vel<Y.vcrit_smallest]
     ### having cut everything beyond the critical velocities (where B diverges), we additionally remove very high values (which are likely inaccurate close to vcrit) to improve the fits everywhere else; adjust Bmax_fit to your needs!
     beta_edgecrit = beta_edgecrit[[j for j in range(len(beta_edgecrit)) if Broom[j,-1] <Bmax_fit + np.min(Broom[:,-1])]]
     beta_screwcrit = beta_screwcrit[[j for j in range(len(beta_screwcrit)) if Broom[j,Y.scrind]<Bmax_fit + np.min(Broom[:,Y.scrind])]]
-    beta_avercrit =  beta_avercrit[[j for j in range(len(beta_avercrit)) if Y.Baver[j]<Bmax_fit + np.min(Y.Baver)]]
+    beta_avercrit = beta_avercrit[[j for j in range(len(beta_avercrit)) if Y.Baver[j]<Bmax_fit + np.min(Y.Baver)]]
     popt_edge, pcov_edge = curve_fit(fit_mix, beta_edgecrit[beta_edgecrit<0.995], (Broom[:len(beta_edgecrit)])[beta_edgecrit<0.995,-1], bounds=([0.9*Broom[0,-1],0.,-0.,-0.], [1.1*Broom[0,-1], 2*Broom[0,-1], 1., 1.]))
     popt_screw, pcov_screw = curve_fit(fit_mix, beta_screwcrit[beta_screwcrit<0.995], (Broom[:len(beta_screwcrit)])[beta_screwcrit<0.995,Y.scrind], bounds=([0.9*Broom[0,Y.scrind],0.,-0.,-0.], [1.1*Broom[0,Y.scrind], 2*Broom[0,Y.scrind], 1., 1.]))
     popt_aver, pcov_aver = curve_fit(fit_mix, beta_avercrit[beta_avercrit<0.995], (Y.Baver[:len(beta_avercrit)])[beta_avercrit<0.995], bounds=([0.9*Y.Baver[0],0.,-0.,-0.], [1.1*Y.Baver[0], 2*Y.Baver[0], 1., 1.]))
-    return popt_edge, pcov_edge, popt_screw, pcov_screw, popt_aver, pcov_aver 
+    return popt_edge, pcov_edge, popt_screw, pcov_screw, popt_aver, pcov_aver
 
 def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indirect=False,fit=fit_mix,sigma_max='auto'):
     '''Computes arrays sigma and B_of_sigma of length 'resolution', and returns a tuple (B0,vcrit,sigma,B_of_sigma) where B0 is either the minimum value, or B(v=0) if B0fit=='zero'
@@ -866,7 +866,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         '''Simple functional approximation to B(sigma), follows from B(v)=B0/sqrt(1-(v/vcrit)**2).'''
         return B0*np.sqrt(1+(sigma*burg/(vcrit*B0))**2)
     
-    if sigma_max=='auto':    
+    if sigma_max=='auto':
         ## determine stress that will lead to velocity of 99% critical speed and stop plotting there, or at 1.5GPa (whichever is smaller)
         sigma_max = sigma_eff(0.99*vcrit)
         # print(f"{Y.name}, {character}: sigma(99%vcrit) = {sigma_max/1e6:.1f} MPa")
@@ -874,7 +874,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
             sigma_max = sigma_eff(0.999*vcrit)
             # print(f"{Y.name}, {character}: sigma(99.9%vcrit) = {sigma_max/1e6:.1f} MPa")
         sigma_max = min(1.5e9,sigma_max)
-    Boffset = max( float(B(vr(sigma_max))-Bstraight(sigma_max,0)) , 0) ## don't allow negative values
+    Boffset = max(float(B(vr(sigma_max))-Bstraight(sigma_max,0)), 0) ## don't allow negative values
     ## find min(B(v)) to use for B0 in Bsimple():
     B0 = round(np.min(B(np.linspace(0,0.8*vcrit,1000))),7)
     if B0fit == 'weighted':
@@ -914,5 +914,5 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
     return (B0,vcrit,sigma,B_of_sig)
 
 ## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
-OPTIONS = OPTIONS|{"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool, \
-                          "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval}
+OPTIONS = OPTIONS | {"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool,
+                     "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval}

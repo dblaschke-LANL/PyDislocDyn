@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 3, 2024
+# Date: Nov. 3, 2017 - Apr. 30, 2024
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
@@ -132,7 +132,7 @@ class StrohGeometry:
         else:
             self.uk = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=True)
         
-    def computerot(self,y = [0,1,0],z = [0,0,1]):
+    def computerot(self,y=[0,1,0],z=[0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
            y, and z are optional arguments whose default values are unit vectors pointing in the y and z direction, respectively.'''
         if self.n0.dtype == np.dtype('O') and y==[0,1,0] and z==[0,0,1]:
@@ -249,14 +249,13 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False
         for k in range(3):
             for l in range(3):
                 for o in range(3):
-                    np.subtract(S[k,l,th] , np.multiply(NNinv[k,o,th] , NM[o,l,th] , tmp) , S[k,l,th])
-                    
+                    np.subtract(S[k,l,th], np.multiply(NNinv[k,o,th], NM[o,l,th], tmp), S[k,l,th])
         
         for k in range(3):
             for l in range(3):
-                np.add(B[k,l,th] , MM[k,l,th] , B[k,l,th])
+                np.add(B[k,l,th], MM[k,l,th], B[k,l,th])
                 for o in range(3):
-                    np.add(B[k,l,th] , np.multiply(MN[k,o,th] , S[o,l,th] , tmp) , B[k,l,th])
+                    np.add(B[k,l,th], np.multiply(MN[k,o,th], S[o,l,th], tmp), B[k,l,th])
                     
     Sb = (1/(4*pi*pi))*np.dot(b,trapz(S,x=phi))
     B = (1/(4*pi*pi))*np.dot(b,trapz(B,x=phi))
@@ -434,7 +433,7 @@ def fourieruij(uij,r,phiX,q,ph,sincos=None):
             for j in range(3):
                 uij_array[i,j] = np.reshape(np.outer(ph_ones,uij[i,j,th]),(phres*phiXres))
                 for iq in range(qres):
-                    np.multiply(uij_array[i,j] , sincos[iq] , integrand[i,j,iq])
+                    np.multiply(uij_array[i,j], sincos[iq], integrand[i,j,iq])
     
         result[:,:,th] = trapz(np.reshape(integrand,(3,3,qres,phres,phiXres)),x=phiX)
                 
@@ -464,7 +463,7 @@ def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
         for i in range(3):
             for j in range(3):
                 uij_array[i,j] = np.reshape(np.outer(ph_ones,uij[i,j,th]),(ph2res))
-                np.multiply(uij_array[i,j] , sincos , integrand[i,j])
+                np.multiply(uij_array[i,j], sincos, integrand[i,j])
     
         result[:,:,th] = trapz(np.reshape(integrand,(3,3,phres,phiXres)),x=phiX)
                 

@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 12, 2024
+# Date: Nov. 5, 2017 - Apr. 30, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -61,7 +61,7 @@ rmin = 0
 rmax = 250
 ## the following options can be set on the commandline with syntax --keyword=value:
 phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
-OPTIONS = OPTIONS|{"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool, \
+OPTIONS = OPTIONS | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
                      "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
 metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
@@ -295,10 +295,11 @@ if __name__ == '__main__':
     clbar_pd=0.03
     wrat1=1-clbar_frac-clbar_pd
     wspc=(clbar_frac+clbar_pd)*100/wrat1
+    
     def mkmeshplot(X,ylab=True,xlab=True,colbar=True,Bmin=None,Bmax=None,sinex=False):
         '''Plot the drag coefficient over the character angle and the dislocation velocity.'''
         B_trunc = (Y[X].Broom.iloc[:len(Y[X].beta_trunc)].to_numpy()).T
-        y_msh , x_msh = np.meshgrid(Y[X].beta_trunc,Y[X].Broom.columns) ## plots against theta and beta
+        y_msh, x_msh = np.meshgrid(Y[X].beta_trunc,Y[X].Broom.columns) ## plots against theta and beta
         if Bmin is None:
             Bmin = (int(1000*np.min(B_trunc)))/1000
         if Bmax is None:
@@ -327,12 +328,12 @@ if __name__ == '__main__':
         if ylab:
             plt.ylabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
         plt.title(namestring,fontsize=fntsize)
-        colmsh=plt.pcolormesh(x_msh,y_msh,B_trunc,vmin=Bmin, vmax=Bmax,cmap = plt.cm.cubehelix_r,shading='gouraud')
+        colmsh=plt.pcolormesh(x_msh,y_msh,B_trunc,vmin=Bmin, vmax=Bmax,cmap=plt.cm.cubehelix_r,shading='gouraud')
         colmsh.set_rasterized(True)
         if colbar:
             cbar = plt.colorbar(fraction=clbar_frac,pad=clbar_pd, ticks=cbarlevels)
-            cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, fontsize = fntsize)
-            cbar.ax.tick_params(labelsize = fntsize)
+            cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, fontsize=fntsize)
+            cbar.ax.tick_params(labelsize=fntsize)
         plt.contour(x_msh,y_msh,B_trunc, colors=('gray','gray','gray','white','white','white','white','white','white'), levels=cbarlevels, linewidths=0.9, linestyles=['dashdot','solid','dashed','dotted','dashdot','solid','dashed','dotted','dashdot'])
         
     def mkmeshbetaplot(X,sinex=False,**kwargs):
@@ -344,7 +345,7 @@ if __name__ == '__main__':
         ax0.yaxis.set_minor_locator(AutoMinorLocator())
         plt.setp(ax0.get_xticklabels(), visible=False)
         mkmeshplot(X,ylab=True,xlab=False,sinex=sinex,**kwargs)
-        ax1 = fig.add_subplot(gs[1] , sharex=ax0)
+        ax1 = fig.add_subplot(gs[1], sharex=ax0)
         ax1.set_yticks(np.arange(11)/100)
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
         mksmallbetaplot(X,ylab=True,xlab=True,sinex=sinex)
@@ -363,8 +364,8 @@ if __name__ == '__main__':
         mkmeshbetaplot(X,sinex=False) ## set sinex=True to change x axis from theta to sin^2(theta)
     
     ## define line colors for every metal in the same plot
-    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe110':'darkgreen', 'Nb110':'firebrick', 'Znbasal':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cdbasal':'lightgreen', 'Mgbasal':'lightsalmon', 'Mo110':'magenta', 'Ni':'silver',\
-                   'Tibasal':'olive', 'Zrbasal':'cyan', 'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred', 'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki',\
+    metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe110':'darkgreen', 'Nb110':'firebrick', 'Znbasal':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cdbasal':'lightgreen', 'Mgbasal':'lightsalmon', 'Mo110':'magenta', 'Ni':'silver',
+                   'Tibasal':'olive', 'Zrbasal':'cyan', 'Fe112':'yellowgreen', 'Fe123':'olivedrab', 'Mo112':'deeppink', 'Mo123':'hotpink', 'Nb112':'red', 'Nb123':'darkred', 'Cdprismatic':'khaki', 'Cdpyramidal':'darkkhaki',
                    'Mgprismatic':'deepskyblue', 'Mgpyramidal':'royalblue', 'Tiprismatic':'orange', 'Tipyramidal':'yellow', 'Znprismatic':'gray', 'Znpyramidal':'slateblue', 'Zrprismatic':'darkcyan', 'Zrpyramidal':'darkturquoise'}
     
     popt_edge = {}

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 12, 2024
+# Date: Nov. 3, 2017 - Apr. 30, 2024
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -40,7 +40,7 @@ Nphi = 1000
 bccslip = 'all' ## allowed values: '110', '112', '123', 'all' (for all three)
 hcpslip = 'all' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
 ##### the following options can be set on the commandline with syntax --keyword=value:
-OPTIONS = OPTIONS|{"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str}
+OPTIONS = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str}
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
 ### start the calculations
@@ -150,7 +150,6 @@ if __name__ == '__main__':
         ## ct was determined from mu above and thus may not be the actual transverse sound speed (if scale_by_mu='crude')
         scaling[X] = min(1,round(Y[X].vcrit_smallest/Y[X].ct+5e-3,2))
         beta_scaled[X] = scaling[X]*beta
-
     
     def maincomputations(i):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
@@ -212,12 +211,12 @@ if __name__ == '__main__':
         if X in metal_symm:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
             LT_trunc = LT[X].iloc[:len(beta_trunc),int((LT[X].shape[1]-1)/2):].to_numpy()
-            y_msh , x_msh = np.meshgrid(LT[X].columns[int((LT[X].shape[1]-1)/2):],beta_trunc)
+            y_msh, x_msh = np.meshgrid(LT[X].columns[int((LT[X].shape[1]-1)/2):],beta_trunc)
             plt.yticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
         else:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,4.5))
             LT_trunc = LT[X].iloc[:len(beta_trunc)].to_numpy()
-            y_msh , x_msh = np.meshgrid(LT[X].columns,beta_trunc)
+            y_msh, x_msh = np.meshgrid(LT[X].columns,beta_trunc)
             plt.yticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$-\pi/2$", r"$-3\pi/8$", r"$-\pi/4$", r"$-\pi/8$", r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
         plt.xticks(fontsize=fntsize)
         plt.yticks(fontsize=fntsize)
@@ -230,7 +229,7 @@ if __name__ == '__main__':
             plt.xlabel(r'$\beta_{\bar\mu}$',fontsize=fntsize)
             plt.title(namestring,fontsize=fntsize)
         plt.ylabel(r'$\vartheta$',rotation=0,fontsize=fntsize)
-        colmsh = plt.pcolormesh(x_msh,y_msh, LT_trunc, vmin=-0.5, vmax=2, cmap = plt.cm.rainbow, shading='gouraud')
+        colmsh = plt.pcolormesh(x_msh,y_msh, LT_trunc, vmin=-0.5, vmax=2, cmap=plt.cm.rainbow, shading='gouraud')
         plt.colorbar()
         plt.contour(x_msh,y_msh,LT_trunc, colors=('black','red','black','black','black','black'), levels=[-0.5,0,0.5,1,1.5,2], linewidths=[0.7,1.0,0.7,0.7,0.7,0.7], linestyles=['solid','solid','dashed','dashdot','dotted','solid'])
         colmsh.set_rasterized(True)
