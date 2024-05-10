@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - May 2, 2024
+# Date: Mar. 6, 2023 - May 10, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -127,12 +127,15 @@ if __name__ == '__main__':
         if '--help' in sys.argv:
             print(f"\nUsage: {sys.argv[0]} <options> <folder_to_compare_cwd_to>\n")
             print(f"use option --runtests to run only one of these available tests: {tests_avail[1:]} (default: 'all').\n")
+            print("use option --fromfile to read additional options from a file")
             print("available options:")
             for key, OPTk in OPTIONS.items():
                 print(f'--{key}={OPTk}')
             sys.exit()
         oldglobals = globals().copy()
         old, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        if len(old)==0:
+            raise ValueError("missing one argument: folder containing old results")
         old = old[0]
         phononwind_opts.update(kwargs)
         NEWopts = globals().keys()-oldglobals.keys() ## pass options which we haven't previously defined but that the user has set
@@ -382,7 +385,7 @@ if __name__ == '__main__':
                     deffile.write(f"{phi=}\n")
                     deffile.write("\nbelow we list alphas and corresponding phi2+phi3 polynomials; alphas are in Voigt notation (only consider symmetric cases)\n")
                     for i in range(len(strain)):
-                        deffile.write("\nalpha[{}]: {}\n".format(i,np.array2string(Voigt(alpha[i]), separator=', ')))
+                        deffile.write(f"\nalpha[{i}]: {np.array2string(Voigt(alpha[i]), separator=', ')}\n")
                         deffile.write(f"poly[{i}]: {polynom[i]}\n")
         print("\ncomparing misc results")
         for X in metal_list:
