@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - May 10, 2024
+# Date: Mar. 6, 2023 - May 20, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -20,7 +20,7 @@ if dir_path not in sys.path:
 dir_path = os.path.join(dir_path,'pydislocdyn')
 
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, ISO_l, c111
-from pydislocdyn.utilities import parse_options, str2bool
+from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
@@ -97,20 +97,6 @@ def diff(f1,f2,verbose=True):
         for line in thediff:
             print(line.strip("\n"))
     return equal
-
-def isclose(f1,f2):
-    '''Returns True if all elements of arrays f1 and f2 are 'close' to one another and their shapes match, and False otherwise.'''
-    out = False
-    if f1.shape==f2.shape:
-        out = np.allclose(f1,f2,equal_nan=True)
-    return out
-
-def compare_df(f1,f2):
-    '''Compares two pandas.DataFrames using the pandas.compare method, but ignoring rounding errors (i.e. everything numpy.isclose decides is close enough)'''
-    themask = pd.DataFrame(np.invert(np.isclose(f1,f2,equal_nan=True)),index=f1.index,columns=f1.columns)
-    f1masked = f1[themask]
-    f2masked = f2[themask]
-    return f1masked.compare(f2masked)
 
 def round_list(lst,ndigits=2):
     '''rounds all floats in a nested list'''

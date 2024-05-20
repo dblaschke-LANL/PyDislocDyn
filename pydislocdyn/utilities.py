@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 10, 2024
+# Date: Nov. 5, 2017 - May 20, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -219,6 +219,28 @@ def read_2dresults(fname):
     out.columns.name='theta'
     return out
     
+def isclose(f1,f2):
+    '''Returns True if all elements of arrays f1 and f2 are 'close' to one another and their shapes match, and False otherwise.'''
+    out = False
+    if f1.shape==f2.shape:
+        out = np.allclose(f1,f2,equal_nan=True)
+    return out
+
+def compare_df(f1,f2):
+    '''Compares two pandas.DataFrames using the pandas.compare method, but ignoring rounding errors (i.e. everything numpy.isclose decides is close enough)'''
+    if f1.shape != f2.shape:
+        return f"Error: Cannot compare arrays with different shapes: {f1.shape=}, {f2.shape=}"
+    if isinstance(f1, np.ndarray) or isinstance(f2, np.ndarray):
+        f1 = pd.DataFrame(f1)
+        f2 = pd.DataFrame(f2)
+    if isinstance(f1, pd.Series) or isinstance(f2, pd.Series):
+        themask = pd.Series(np.invert(np.isclose(f1,f2,equal_nan=True)),index=f1.index)
+    else:
+        themask = pd.DataFrame(np.invert(np.isclose(f1,f2,equal_nan=True)),index=f1.index,columns=f1.columns)
+    f1masked = f1[themask]
+    f2masked = f2[themask]
+    return f1masked.compare(f2masked)
+
 ################################################
 hbar = 1.0545718e-34
 kB = 1.38064852e-23
