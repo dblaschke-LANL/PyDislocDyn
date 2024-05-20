@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 30, 2024
+# Date: Nov. 3, 2017 - May 20, 2024
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -17,7 +17,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, parse_options, read_2dresults, OPTIONS, \
+from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, parse_options, showoptions, read_2dresults, OPTIONS, \
     plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
@@ -133,8 +133,11 @@ if __name__ == '__main__':
             Y[X].compute_Lame()
 
     if Nbeta > 0:
-        with open("theta.dat","w", encoding="utf8") as thetafile:
-            thetafile.write('\n'.join("{:.6f}".format(thi) for thi in theta[1:-1]))
+        with open("linetension_calcs_options.log","w", encoding="utf8") as logfile:
+            optiondict = showoptions(OPTIONS,globals())
+            for key, item in optiondict.items():
+                if key not in ['Ncores', 'skip_plots']:
+                    logfile.write(f"{key} = {item}\n")
                            
     C2 = {}
     scaling = {}
@@ -154,9 +157,6 @@ if __name__ == '__main__':
     def maincomputations(i):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
         X = metal[i]
-        with open(f"beta_{X}.dat","w", encoding="utf8") as betafile:
-            betafile.write('\n'.join("{:.5f}".format(bti) for bti in beta_scaled[X]))
-    
         dislocation = Y[X]
         
         ### compute dislocation displacement gradient uij and line tension LT

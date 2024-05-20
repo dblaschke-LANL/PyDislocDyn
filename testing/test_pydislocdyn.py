@@ -55,6 +55,7 @@ volpres=False ## set to True to compute volume preserving version of the strains
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool,
            "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
 OPTIONS |= OPTIONS_LT | OPTIONS_drag
+OPTIONS.pop('Ntheta2') ## using Ntheta in this script instead
 
 def printtestresult(success):
     '''print passed/failed message depending on Boolean input'''

@@ -190,6 +190,13 @@ def parse_options(arglist,optionlist,globaldict=globals()):
     time.sleep(1) ## avoid race conditions after changing global variables
     return (out,kwargs)
 
+def showoptions(optionlist,globaldict=globals()):
+    '''returns a python dictionary of all options that can be set by the user (showing default values for those that have not been set by the user)'''
+    optiondict = {}
+    for key in optionlist:
+        optiondict[key] = globaldict.get(key)
+    return optiondict
+
 def str_to_array(arg,dtype=float):
     '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
     try:

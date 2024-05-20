@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 12, 2024
+# Date: Nov. 5, 2017 - May 20, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -18,7 +18,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, Ncores, read_2dresults, \
+from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
     plt, fntsize, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
@@ -86,8 +86,11 @@ if __name__ == '__main__':
     if Ncores == 0:
         print("skipping phonon wind calculations as requested")
     else:
-        with open("beta.dat","w", encoding="utf8") as betafile:
-            betafile.write('\n'.join(map("{:.5f}".format,beta)))
+        with open("dragcoeff_iso_options.log","w", encoding="utf8") as logfile:
+            optiondict = showoptions(OPTIONS,globals())
+            for key, item in optiondict.items():
+                if key not in ['Ncores', 'skip_plots']:
+                    logfile.write(f"{key} = {item}\n")
         for X in metal:
             with open(X+"_iso.log", "w", encoding="utf8") as logfile:
                 logfile.write(repr(Y[X]))
