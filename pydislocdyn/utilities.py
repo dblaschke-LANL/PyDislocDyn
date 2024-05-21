@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 20, 2024
+# Date: Nov. 5, 2017 - May 21, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -152,7 +152,7 @@ def loadinputfile(fname,optionmode=False):
     return inputparams
 
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
-def parse_options(arglist,optionlist,globaldict=globals()):
+def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n"):
     '''Search commandline arguments for known options to set by comparing to a list of keyword strings "optionlist".
     These will then override default variables. This function also returns a copy of 'arglist' stripped of all
     option calls for further processing (e.g. opening input files that were passed etc.). If options are to be read
@@ -160,11 +160,11 @@ def parse_options(arglist,optionlist,globaldict=globals()):
     order of appearance even if an option appears more than once.'''
     out = arglist
     if '--help' in out:
-        print(f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n")
+        print(starthelpwith)
         print("use option --fromfile to read additional options from a file")
         print("available options (see code manual for details):")
-        for key in optionlist:
-            print(f'--{key}={optionlist[key]}')
+        for key, OPTk in optionlist.items():
+            print(f'--{key}={OPTk.__name__}')
         sys.exit()
     setoptions = [i for i in out if "--" in i and i[:2]=="--"]
     kwargs = {}

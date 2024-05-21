@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - May 20, 2024
+# Date: Mar. 6, 2023 - May 21, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -111,16 +111,10 @@ if __name__ == '__main__':
     tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc']
     cwd = os.getcwd()
     if len(sys.argv) > 1:
-        if '--help' in sys.argv:
-            print(f"\nUsage: {sys.argv[0]} <options> <folder_to_compare_cwd_to>\n")
-            print(f"use option --runtests to run only one of these available tests: {tests_avail[1:]} (default: 'all').\n")
-            print("use option --fromfile to read additional options from a file")
-            print("available options:")
-            for key, OPTk in OPTIONS.items():
-                print(f'--{key}={OPTk}')
-            sys.exit()
         oldglobals = globals().copy()
-        old, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        starthelpwith=(f"\nUsage: {sys.argv[0]} <options> <folder_to_compare_cwd_to>\n\n"
+            f"use option --runtests to run only one of these available tests: {tests_avail[1:]} (default: 'all').\n")
+        old, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),starthelpwith=starthelpwith)
         if len(old)==0:
             raise ValueError("missing one argument: folder containing old results")
         old = old[0]
