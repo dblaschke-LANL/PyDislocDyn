@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 11, 2024
+# Date: Nov. 7, 2017 - June 19, 2024
 '''If run as a script, this file will compute polycrystal averages of second and third order elastic constants, either for
    all metals predefined in metal_data.py, or for those input files passed as arguments to the script; results are written
    to a text file 'averaged_elastic_constants.tex'.'''
@@ -27,7 +27,10 @@ def dict_to_pandas(dictionary):
         dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
     out = pd.DataFrame(dictionary,dtype=float).T
     if len(dictionary)==1: out.drop('dummy')
-    out.columns = pd.Index([r'$\lambda$',r'$\mu$','$l$','$m$','$n$'])
+    if len(out.columns) == 2:
+        out.columns = pd.Index([r'$\lambda$',r'$\mu$'])
+    else:
+        out.columns = pd.Index([r'$\lambda$',r'$\mu$','$l$','$m$','$n$'])
     return out
 
 def writelatex(data,caption="",soec_only=False,dropna=False):
