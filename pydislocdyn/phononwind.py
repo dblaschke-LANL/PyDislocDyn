@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Apr. 30, 2024
+# Date: Nov. 5, 2017 - June 24, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -18,7 +18,7 @@ import numpy as np
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit, minimize_scalar, fsolve
 from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB, str2bool, OPTIONS, \
-    plt, fntsize, AutoMinorLocator ## matplotlib stuff
+    plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
 import pandas as pd
@@ -897,15 +897,15 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
             Bmax = 1.15*B_of_sig[sigma<sigma_max][-1]
     if mkplot:
         fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
-        ax.set_xlabel(r'$\sigma$[MPa]',fontsize=fntsize)
-        ax.set_ylabel(r'$B$[mPas]',fontsize=fntsize)
-        ax.set_title(ftitle,fontsize=fntsize)
+        ax.set_xlabel(r'$\sigma$[MPa]',**fntsettings)
+        ax.set_ylabel(r'$B$[mPas]',**fntsettings)
+        ax.set_title(ftitle,**fntsettings)
         ax.axis((0,sigma_max/1e6,0,Bmax*1e3))
         ax.plot(sigma/1e6,Bsimple(sigma,B0)*1e3,':',color='gray',label=r"$\sqrt{B_0^2\!+\!\left(\frac{\sigma b}{v_\mathrm{c}}\right)^2}$, $B_0=$"+f"{1e6*B0:.1f}"+r"$\mu$Pas")
         ax.plot(sigma/1e6,Bstraight(sigma,Boffset)*1e3,':',color='green',label=r"$B_0+\frac{\sigma b}{v_\mathrm{c}}$, $B_0=$"+f"{1e6*Boffset:.1f}"+r"$\mu$Pas")
         ax.plot(sigma/1e6,B_of_sig*1e3,label=r"$B_\mathrm{fit}(v(\sigma))$")
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.legend(loc='upper left',handlelength=1.1, frameon=False, shadow=False,fontsize=8)

@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 30, 2024
+# Date: Nov. 3, 2017 - June 24, 2024
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,7 +12,7 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff, \
-    plt ## =matplotlib.pyplot
+    fntsettings, plt ## =matplotlib.pyplot
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from .steadystate import StrohGeometry
@@ -31,11 +31,11 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     y_msh = r_msh*np.sin(phi_msh)
     plt.figure(figsize=figsize)
     plt.axis(axis)
-    plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize)
-    plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize)
-    plt.xlabel(r'$x[b]$',fontsize=fntsize)
-    plt.ylabel(r'$y[b]$',fontsize=fntsize)
-    if title is not None: plt.title(title,fontsize=fntsize,loc='left')
+    plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize,family=fntsettings['family'])
+    plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize,family=fntsettings['family'])
+    plt.xlabel(r'$x[b]$',fontsize=fntsize,family=fntsettings['family'])
+    plt.ylabel(r'$y[b]$',fontsize=fntsize,family=fntsettings['family'])
+    if title is not None: plt.title(title,fontsize=fntsize,family=fntsettings['family'],loc='left')
     if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
     if uij.shape != (len(r),len(phi)):
         uij = np.outer(1/r,uij)

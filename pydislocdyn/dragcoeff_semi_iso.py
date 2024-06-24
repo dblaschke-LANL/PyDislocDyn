@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 20, 2024
+# Date: Nov. 5, 2017 - June 24, 2024
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -20,7 +20,7 @@ if dir_path not in sys.path:
 ##
 from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, str2bool, Ncores, Ncpus, read_2dresults, \
-    plt, fntsize, AutoMinorLocator, gridspec, make_axes_locatable ## matplotlib stuff
+    plt, fntsettings, AutoMinorLocator, gridspec, make_axes_locatable ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS
 if Ncores>1:
@@ -283,13 +283,13 @@ if __name__ == '__main__':
         else:
             xlabel = r'$\vartheta$'
             xticks = (r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$", r"$\frac{5\pi}{8}$", r"$\frac{3\pi}{4}$", r"$\frac{7\pi}{8}$", r"$\pi$")
-        plt.yticks(fontsize=fntsize)
+        plt.yticks(**fntsettings)
         if xlab:
-            plt.xticks(xtickvals,xticks,fontsize=fntsize)
-            plt.xlabel(xlabel,fontsize=fntsize)
+            plt.xticks(xtickvals,xticks,**fntsettings)
+            plt.xlabel(xlabel,**fntsettings)
         if ylab:
-            plt.ylabel(r'$B(\beta_\mathrm{t}=0.01)$',fontsize=fntsize)
-            plt.ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
+            plt.ylabel(r'$B(\beta_\mathrm{t}=0.01)$',**fntsettings)
+            plt.ylabel(r'$B$[mPa$\,$s]',**fntsettings)
         plt.axis((xvals[0],xvals[-1],ymin,ymax))
         plt.plot(xvals,B_trunc[bt])
     
@@ -313,8 +313,8 @@ if __name__ == '__main__':
             elif np.sum(B_trunc>Bmax)/(len(Y[X].Broom.columns)*len(Y[X].beta_trunc))<0.02:
                 Bmax = Bmin+0.008 ## if less than 2% of the area is >Bmax, cut the range in half
         namestring = f"{X}"
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(np.arange(10)/10,fontsize=fntsize)
+        plt.xticks(**fntsettings)
+        plt.yticks(np.arange(10)/10,**fntsettings)
         cbarlevels = list(np.linspace(Bmin,Bmax,9))
         xtickvals = [-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2,5*np.pi/8,3*np.pi/4,7*np.pi/8,np.pi]
         if sinex:
@@ -326,17 +326,17 @@ if __name__ == '__main__':
             xlabel = r'$\vartheta$'
             xticks = (r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$", r"$\frac{5\pi}{8}$", r"$\frac{3\pi}{4}$", r"$\frac{7\pi}{8}$", r"$\pi$")
         if xlab:
-            plt.xticks(xtickvals,xticks,fontsize=fntsize)
-            plt.xlabel(xlabel,fontsize=fntsize)
+            plt.xticks(xtickvals,xticks,**fntsettings)
+            plt.xlabel(xlabel,**fntsettings)
         if ylab:
-            plt.ylabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
-        plt.title(namestring,fontsize=fntsize)
+            plt.ylabel(r'$\beta_\mathrm{t}$',**fntsettings)
+        plt.title(namestring,**fntsettings)
         colmsh=plt.pcolormesh(x_msh,y_msh,B_trunc,vmin=Bmin, vmax=Bmax,cmap=plt.cm.cubehelix_r,shading='gouraud')
         colmsh.set_rasterized(True)
         if colbar:
             cbar = plt.colorbar(fraction=clbar_frac,pad=clbar_pd, ticks=cbarlevels)
-            cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, fontsize=fntsize)
-            cbar.ax.tick_params(labelsize=fntsize)
+            cbar.set_label(r'$B$[mPa$\,$s]', labelpad=-22, y=1.11, rotation=0, **fntsettings)
+            cbar.ax.tick_params(labelsize=fntsettings['fontsize'])
         plt.contour(x_msh,y_msh,B_trunc, colors=('gray','gray','gray','white','white','white','white','white','white'), levels=cbarlevels, linewidths=0.9, linestyles=['dashdot','solid','dashed','dotted','dashdot','solid','dashed','dotted','dashdot'])
         
     def mkmeshbetaplot(X,sinex=False,**kwargs):
@@ -420,16 +420,16 @@ if __name__ == '__main__':
         else:
             fig, ax = plt.subplots(1, 1, figsize=(7,7))
             legendops = {'loc':'upper left', 'bbox_to_anchor':(1.01,1),'ncol':2, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
         ax.set_xticks(np.arange(11)/10)
         ax.set_yticks(np.arange(12)*scale_plot/100)
         ax.axis((0,maxb,0,0.11*scale_plot)) ## define plot range
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
-        ax.set_ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
-        ax.set_title(figtitle,fontsize=fntsize)
+        ax.set_xlabel(r'$\beta_\mathrm{t}$',**fntsettings)
+        ax.set_ylabel(r'$B$[mPa$\,$s]',**fntsettings)
+        ax.set_title(figtitle,**fntsettings)
         for X in metal_list:
             if filename=="edge":
                 vcrit = Y[X].vcrit_edge/Y[X].ct
@@ -455,7 +455,7 @@ if __name__ == '__main__':
             beta_highres = np.linspace(0,vcrit,1000)
             with np.errstate(divide='ignore'):
                 ax.plot(beta_highres,fit_mix(beta_highres/vcrit,*popt),':',color='gray')
-        ax.legend(numpoints=1,fontsize=fntsize,**legendops)
+        ax.legend(numpoints=1,fontsize=fntsettings['fontsize'],**legendops)
         plt.savefig(f"B_{filename}+fits.pdf",format='pdf',bbox_inches='tight')
         plt.close()
         
@@ -476,18 +476,18 @@ if __name__ == '__main__':
         else:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.,5.))
             legendops={'loc':'upper left','bbox_to_anchor':(1.01,1),'ncol':1}
-        ax.set_xlabel(r'$\sigma b/(v_\mathrm{c}B_0)$',fontsize=fntsize)
-        ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
+        ax.set_xlabel(r'$\sigma b/(v_\mathrm{c}B_0)$',**fntsettings)
+        ax.set_ylabel(r'$B/B_0$',**fntsettings)
         if character=='screw':
-            ax.set_title("screw",fontsize=fntsize)
+            ax.set_title("screw",**fntsettings)
             fname = "B_of_sigma_all_screw.pdf"
             popt = popt_screw
         elif character=='edge':
-            ax.set_title("edge",fontsize=fntsize)
+            ax.set_title("edge",**fntsettings)
             fname = "B_of_sigma_all_edge.pdf"
             popt = popt_edge
         else:
-            ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
+            ax.set_title("averaged over $\\vartheta$",**fntsettings)
             fname = "B_of_sigma_all.pdf"
             popt = popt_aver
         for X in metal:
@@ -500,9 +500,9 @@ if __name__ == '__main__':
             sig0 = vc[Xc]*B0[Xc]/Y[X].burgers
             ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0\!=\!{1e6*B0[Xc]:.1f}\mu$Pas, "+r"$v_\mathrm{c}\!=\!"+f"{vc[Xc]/1e3:.2f}$km/s")
         ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{v_\mathrm{c}B_0}\right)^2}$")
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
-        ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
+        ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsettings['fontsize']-1)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         plt.savefig(fname,format='pdf',bbox_inches='tight')

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 21, 2024
+# Date: Nov. 5, 2017 - June 24, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -32,10 +32,12 @@ import matplotlib.pyplot as plt
 #     ]),
 # })
 ##################
-plt.rc('font',**{'family':'Liberation Serif','size':'11'})
+plt.rc('font',**{'family':'serif','size':'11'})
+plt.rcParams['font.serif'].insert(0,'Liberation Serif')
+plt.rcParams['font.sans-serif'].insert(0,'Liberation Sans')
 from matplotlib import gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-fntsize=11
+fntsettings = {'family':'serif', 'fontsize':11}
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import pandas as pd

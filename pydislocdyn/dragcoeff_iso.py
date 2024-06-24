@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 20, 2024
+# Date: Nov. 5, 2017 - June 24, 2024
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -19,7 +19,7 @@ if dir_path not in sys.path:
 ##
 import pydislocdyn.metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
-    plt, fntsize, AutoMinorLocator ## matplotlib stuff
+    plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
 
@@ -234,16 +234,16 @@ if __name__ == '__main__':
     def mkfitplot(metal_list,filename):
         '''Plot the dislocation drag over velocity and show the fitting function.'''
         fig, ax = plt.subplots(1, 1, figsize=(4.5,4.))
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
         ax.set_xticks(np.arange(11)/10)
         ax.set_yticks(np.arange(12)/100)
         ax.axis((0,maxb,0,0.11)) ## define plot range
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel(r'$\beta_\mathrm{t}$',fontsize=fntsize)
-        ax.set_ylabel(r'$B$[mPa$\,$s]',fontsize=fntsize)
-        ax.set_title(filename,fontsize=fntsize)
+        ax.set_xlabel(r'$\beta_\mathrm{t}$',**fntsettings)
+        ax.set_ylabel(r'$B$[mPa$\,$s]',**fntsettings)
+        ax.set_title(filename,**fntsettings)
         for X in metal_list:
             beta_highres = np.linspace(0,1,1000)
             if filename=="edge":
@@ -262,7 +262,7 @@ if __name__ == '__main__':
                     ax.plot(beta_highres,fit_screw(beta_highres,*popt_screw[X]),':',color='gray')
             else:
                 raise ValueError(f"keyword {filename=} undefined.")
-        ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsize)
+        ax.legend(loc='upper left', ncol=3, columnspacing=0.8, handlelength=1.2, frameon=True, shadow=False, numpoints=1,fontsize=fntsettings['fontsize'])
         plt.savefig(f"B_iso_{filename}+fits.pdf",format='pdf',bbox_inches='tight')
         plt.close()
         
@@ -300,16 +300,16 @@ if __name__ == '__main__':
         else:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.,5.))
             legendops={'loc':'upper left','bbox_to_anchor':(1.01,1),'ncol':1}
-        ax.set_xlabel(r'$\sigma b/(c_\mathrm{t}B_0)$',fontsize=fntsize)
-        ax.set_ylabel(r'$B/B_0$',fontsize=fntsize)
+        ax.set_xlabel(r'$\sigma b/(c_\mathrm{t}B_0)$',**fntsettings)
+        ax.set_ylabel(r'$B/B_0$',**fntsettings)
         if character=='screw':
-            ax.set_title("screw",fontsize=fntsize)
+            ax.set_title("screw",**fntsettings)
             fname = "Biso_of_sigma_all_screw.pdf"
         elif character=='edge':
-            ax.set_title("edge",fontsize=fntsize)
+            ax.set_title("edge",**fntsettings)
             fname = "Biso_of_sigma_all_edge.pdf"
         else:
-            ax.set_title("averaged over $\\vartheta$",fontsize=fntsize)
+            ax.set_title("averaged over $\\vartheta$",**fntsettings)
             fname = "Biso_of_sigma_all.pdf"
         sig_norm = np.linspace(0,3.6,500)
         ax.axis((0,sig_norm[-1],0.5,4))
@@ -319,9 +319,9 @@ if __name__ == '__main__':
             ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0={1e6*B0[Xc]:.1f}\mu$Pas")
         ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{c_\mathrm{t}B_0}\right)^2}$")
         # ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{c_\mathrm{t}B_0}$")
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
-        ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsize-1)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
+        ax.legend(**legendops, columnspacing=0.8, handlelength=1.1, frameon=False, shadow=False,fontsize=fntsettings['fontsize']-1)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         plt.savefig(fname,format='pdf',bbox_inches='tight')

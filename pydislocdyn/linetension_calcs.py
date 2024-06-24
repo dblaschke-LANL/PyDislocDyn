@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 20, 2024
+# Date: Nov. 3, 2017 - June 24, 2024
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
@@ -18,7 +18,7 @@ if dir_path not in sys.path:
 ##
 from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, parse_options, showoptions, read_2dresults, OPTIONS, \
-    plt, fntsize, AutoMinorLocator ## matplotlib stuff
+    plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
 if Ncores>1:
@@ -212,23 +212,23 @@ if __name__ == '__main__':
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
             LT_trunc = LT[X].iloc[:len(beta_trunc),int((LT[X].shape[1]-1)/2):].to_numpy()
             y_msh, x_msh = np.meshgrid(LT[X].columns[int((LT[X].shape[1]-1)/2):],beta_trunc)
-            plt.yticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
+            plt.yticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),**fntsettings)
         else:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,4.5))
             LT_trunc = LT[X].iloc[:len(beta_trunc)].to_numpy()
             y_msh, x_msh = np.meshgrid(LT[X].columns,beta_trunc)
-            plt.yticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$-\pi/2$", r"$-3\pi/8$", r"$-\pi/4$", r"$-\pi/8$", r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),fontsize=fntsize)
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
+            plt.yticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$-\pi/2$", r"$-3\pi/8$", r"$-\pi/4$", r"$-\pi/8$", r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),**fntsettings)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         if X=='ISO':
-            plt.xlabel(r'$\beta_\mathrm{t}=v/c_\mathrm{t}$',fontsize=fntsize)
-            plt.title(r'Isotropic',fontsize=fntsize)
+            plt.xlabel(r'$\beta_\mathrm{t}=v/c_\mathrm{t}$',**fntsettings)
+            plt.title(r'Isotropic',**fntsettings)
         else:
-            plt.xlabel(r'$\beta_{\bar\mu}$',fontsize=fntsize)
-            plt.title(namestring,fontsize=fntsize)
-        plt.ylabel(r'$\vartheta$',rotation=0,fontsize=fntsize)
+            plt.xlabel(r'$\beta_{\bar\mu}$',**fntsettings)
+            plt.title(namestring,**fntsettings)
+        plt.ylabel(r'$\vartheta$',rotation=0,**fntsettings)
         colmsh = plt.pcolormesh(x_msh,y_msh, LT_trunc, vmin=-0.5, vmax=2, cmap=plt.cm.rainbow, shading='gouraud')
         plt.colorbar()
         plt.contour(x_msh,y_msh,LT_trunc, colors=('black','red','black','black','black','black'), levels=[-0.5,0,0.5,1,1.5,2], linewidths=[0.7,1.0,0.7,0.7,0.7,0.7], linestyles=['solid','solid','dashed','dashdot','dotted','solid'])
@@ -265,23 +265,23 @@ if __name__ == '__main__':
         '''Generates a plot showing the limiting (or critical) dislocation glide velocities as a function of character angle.'''
         fig, (ax1) = plt.subplots(1, 1, sharex=True, figsize=(4.5,3.5))
         plt.tight_layout(h_pad=0.0)
-        plt.xticks(fontsize=fntsize)
-        plt.yticks(fontsize=fntsize)
+        plt.xticks(**fntsettings)
+        plt.yticks(**fntsettings)
         vcrit0 = Y[X].vcrit_all[1:].T
         if len(vcrit0)==Ntheta:
-            plt.xticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
+            plt.xticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),**fntsettings)
             thetapoints = np.linspace(0,np.pi/2,Ntheta)
         else:
-            plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),fontsize=fntsize)
+            plt.xticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$\frac{-\pi}{2}$", r"$\frac{-3\pi}{8}$", r"$\frac{-\pi}{4}$", r"$\frac{-\pi}{8}$", r"$0$", r"$\frac{\pi}{8}$", r"$\frac{\pi}{4}$", r"$\frac{3\pi}{8}$", r"$\frac{\pi}{2}$"),**fntsettings)
             thetapoints = np.linspace(-np.pi/2,np.pi/2,2*Ntheta-1)
         ax1.axis((min(thetapoints),max(thetapoints),np.nanmin(vcrit0)*0.97,np.nanmax(vcrit0)*1.02)) ## define plot range
         ax1.xaxis.set_minor_locator(AutoMinorLocator())
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
-        ax1.set_ylabel(r'$v_\mathrm{c}$[m/s]',fontsize=fntsize)
-        ax1.set_title(f"3 vcrit solutions for {X}",fontsize=fntsize)
+        ax1.set_ylabel(r'$v_\mathrm{c}$[m/s]',**fntsettings)
+        ax1.set_title(f"3 vcrit solutions for {X}",**fntsettings)
         for i in range(3):
             ax1.plot(thetapoints,vcrit0[:,i])
-        ax1.set_xlabel(r'$\vartheta$',fontsize=fntsize)
+        ax1.set_xlabel(r'$\vartheta$',**fntsettings)
         plt.savefig(f"vcrit_{X}.pdf",format='pdf',bbox_inches='tight')
         plt.close()
     
