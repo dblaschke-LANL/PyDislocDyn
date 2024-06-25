@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 24, 2024
+# Date: Nov. 5, 2017 - June 25, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
 import os
+import shutil
 import time
 import multiprocessing
 from fractions import Fraction
@@ -18,19 +19,23 @@ import matplotlib as mpl
 mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
 import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
-# mpl.use("pgf")
-# plt.rcParams.update({
-#     "text.usetex": True,
-#     "text.latex.preamble": r"\usepackage{fouriernc}",
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.rcfonts": False,
-#     "pgf.preamble": "\n".join([
-#           r"\usepackage[utf8x]{inputenc}",
-#           r"\usepackage[T1]{fontenc}",
-#           r"\usepackage{fouriernc}",
-#           r"\usepackage{amsmath}",
-#     ]),
-# })
+if shutil.which('latex'):
+    mpl.use("pgf")
+    texpreamble = "\n".join([
+          r"\usepackage[utf8x]{inputenc}",
+          r"\usepackage[T1]{fontenc}",
+          r"\DeclareUnicodeCharacter{2212}{-}",
+          r"\IfFileExists{fouriernc.sty}",
+          r"{\usepackage{fouriernc}}{}",
+          r"\usepackage{amsmath}",
+    ])
+    plt.rcParams.update({
+        "text.usetex": True,
+        "text.latex.preamble": texpreamble,
+        "pgf.texsystem": "pdflatex",
+        "pgf.rcfonts": False,
+        "pgf.preamble": texpreamble,
+    })
 ##################
 plt.rc('font',**{'family':'serif','size':'11'})
 plt.rcParams['font.serif'].insert(0,'Liberation Serif')
