@@ -45,8 +45,23 @@ The LANL development team asks that any forks or derivative works include approp
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use </br>
 (or add appropriate options to build with OpenMP support, e.g. with gfortran and Python <=3.11: 'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'; </br>
-with Python >=3.12: 'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines')
+with Python >=3.12: 'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines').</br>
+A helper function, pydislocdyn.utilities.compilefortranmodule(), has been included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
 * a recent version of LaTeX to build the manual (LA-UR-22-28074), pdf available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
+
+## Installation
+
+* Download and unpack PyDislocDyn 1.3.0 or higher from https://github.com/dblaschke-LANL/PyDislocDyn/releases (or clone the latest master branch via:</br>
+git clone https://github.com/dblaschke-LANL/PyDislocDyn.git ), then from within the PyDislocDyn folder (which contains the pyproject.toml file) simply run</br>
+pip install . </br>
+Note: installation is optional, i.e. pydislocdyn can also be run locally (in which case it will temporarily add itself to sys.path upon importing or running a frontend script).
+* then compile the Fortran submodule (optional) via</br>
+python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()' </br>
+If compilation was successful, the following command will print 'True':</br>
+python -c 'import pydislocdyn; print(pydislocdyn.usefortran)'
+* to uninstall PyDislocDyn, run</br>
+pip uninstall pydislocdyn</br>
+Note: the compiled Fortran module has to be deleted manually upon uninstalling (and pip will let the user know its location)
 
 ## PyDislocDyn consists of:
 
