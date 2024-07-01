@@ -57,6 +57,9 @@ pip install . </br>
 Note: installation is optional, i.e. pydislocdyn can also be run locally (in which case it will temporarily add itself to sys.path upon importing or running a frontend script).
 * then compile the Fortran submodule (optional) via</br>
 python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()' </br>
+Note: if you have chosen not to install PyDislocDyn, run the above command from within the PyDislocDyn folder, </br>
+otherwise if PyDislocDyn is installed, make sure to change your current working directory so that it is <i>not</i> the one you ran 'pip install .' from.</br>
+(Otherwise the local version will be imported instead of the installed one.)</br>
 If compilation was successful, the following command will print 'True':</br>
 python -c 'import pydislocdyn; print(pydislocdyn.usefortran)'
 * to uninstall PyDislocDyn, run</br>
