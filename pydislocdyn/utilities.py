@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 25, 2024
+# Date: Nov. 5, 2017 - July 1, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -48,6 +48,7 @@ from matplotlib.ticker import AutoMinorLocator
 import pandas as pd
 Ncpus = multiprocessing.cpu_count()
 nonumba=False
+usefortran = False
 try:
     from numba import jit
 except ImportError:
@@ -66,11 +67,13 @@ try:
             ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import pydislocdyn.subroutines as fsub
-    assert (fsub.version()>=20231205),"the subroutines module is outdated, please re-compile with f2py" ## make sure the compiled subroutines module is up to date
-    usefortran = True
-    if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
+    if fsub.version()>=20231205:
+        usefortran = True
+        if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
+    else:
+        print("Error: the subroutines module is outdated, please re-compile with f2py or by calling pydislocdy.utilities.compilefortranmodule() and reloading pydislocdyn")
+        ompthreads = 0
 except ImportError:
-    usefortran = False
     ompthreads = 0
 
 try:
@@ -86,6 +89,19 @@ dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 
+def compilefortranmodule():
+    '''compiles the Fortran subroutines if a Fortran compiler is available'''
+    cwd = os.getcwd()
+    if sys.version_info[:2]<=(3,11) and shutil.which('gfortran'):
+        compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
+    elif sys.version_info[:2]>=(3,12):
+        compilerflags = '--dep=openmp' # requires f2py with new meson backend (default in numpy>=2.0 and python>=3.12)
+    else:
+        compilerflags = '' ## when in doubt, build without OpenMP support
+    os.chdir(os.path.dirname(__file__))
+    os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
+    os.chdir(cwd)
+
 def printthreadinfo(Ncores,ompthreads=ompthreads):
     '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
        or both are currently employed; also warn if imports of numba and/or subroutines failed.'''
@@ -98,9 +114,8 @@ def printthreadinfo(Ncores,ompthreads=ompthreads):
     if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
-        print("run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to compile this module")
-        print("OpenMP is also supported, e.g. with gfortran and Python <=3.11: \n'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'")
-        print("or with Python >=3.12: \n'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines'\n")
+        print("call pydislocdyn.utilities.compilefortranmodule() or run 'python -m numpy.f2py -c subroutines.f90 -m subroutines'")
+        print("to compile this module (OpenMP is also supported with appropriate compiler flags), then reload pydislocdyn")
 
 def str2bool(arg):
     '''converts a string to bool'''
