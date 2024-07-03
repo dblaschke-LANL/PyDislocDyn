@@ -92,7 +92,7 @@ Optionally, the subroutines can also be compiled with OpenMP parallelization sup
 \\\verb|`python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines'|;\\
 or with python $\geq3.12$:
 \\\verb|`python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines'|.\\
-Additionally, a helper function, \verb|pydislocdyn.utilities.compilefortanmodule()|, has been included in PyDislocDyn 1.3.0 to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.\\
+Additionally, a helper function, \verb|pydislocdyn.utilities.compilefortranmodule()|, has been included in PyDislocDyn 1.3.0 to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.\\
 The number of threads used by the subroutines is then controlled by environment variable \verb|OMP_NUM_THREADS|.
 Unless set by the user prior to running python in the terminal, PyDislocDyn will attempt to choose an optimal value.
 Furthermore, PyDislocDyn’s joblib parallelization will automatically adjust its ‘Ncores’ variable to avoid over-committing.
