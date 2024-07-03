@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - May 9, 2024
+# Date: Nov. 7, 2017 - July 3, 2024
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -334,6 +334,7 @@ class metal_props:
         '''Converts vector v from Miller indices to Cartesian coordinates (very small numbers are rounded to 0). If normalize=True, a unit vector is returned.
         See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
         By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.'''
+        v = np.asarray(v).astype(dtype=float)
         if self.ac is None or self.ac==0:
             a=1
         else: a=self.ac

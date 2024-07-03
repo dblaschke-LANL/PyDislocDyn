@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 1, 2024
+# Date: Nov. 5, 2017 - July 3, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -225,7 +225,7 @@ def str_to_array(arg,dtype=float):
         out = np.asarray(arg.split(','),dtype=dtype)
     except ValueError:
         out = arg.split(',')
-        out = np.asarray([Fraction(x) for x in out],dtype=dtype)
+        out = np.asarray([Fraction(x) for x in out],dtype=object)
     return out
     
 def read_2dresults(fname):
