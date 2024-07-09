@@ -53,17 +53,21 @@ A helper function, pydislocdyn.utilities.compilefortranmodule(), has been includ
 
 * Download and unpack PyDislocDyn 1.3.0 or higher from https://github.com/dblaschke-LANL/PyDislocDyn/releases (or clone the latest master branch via:</br>
 git clone https://github.com/dblaschke-LANL/PyDislocDyn.git ), then from within the PyDislocDyn folder (which contains the pyproject.toml file) simply run</br>
-pip install . </br>
+pip install . </br></br>
+or (in order to install also the optional dependencies numba and joblib):</br>
+pip install .\[fast\] </br></br>
 Note: installation is optional, i.e. pydislocdyn can also be run locally (in which case it will temporarily add itself to sys.path upon importing or running a frontend script).
+
 * then compile the Fortran submodule (optional) via</br>
-python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()' </br>
+python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()' </br></br>
 Note: if you have chosen not to install PyDislocDyn, run the above command from within the PyDislocDyn folder, </br>
 otherwise if PyDislocDyn is installed, make sure to change your current working directory so that it is <i>not</i> the one you ran 'pip install .' from.</br>
 (Otherwise the local version will be imported instead of the installed one.)</br>
 If compilation was successful, the following command will print 'True':</br>
 python -c 'import pydislocdyn; print(pydislocdyn.usefortran)'
+
 * to uninstall PyDislocDyn, run</br>
-pip uninstall pydislocdyn</br>
+pip uninstall pydislocdyn</br></br>
 Note: the compiled Fortran module has to be deleted manually upon uninstalling (and pip will let the user know its location)
 
 ## PyDislocDyn consists of:
