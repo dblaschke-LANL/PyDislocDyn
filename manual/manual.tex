@@ -40,7 +40,7 @@
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{July 1, 2024}
+\date{July 10, 2024}
 
 \begin{document}
 \maketitle
@@ -83,8 +83,7 @@ where it is distributed under the BSD-3 license, (Copyright, Triad National Secu
 \section{Requirements}
 \begin{itemize}
 \item PyDislocDyn 1.3.0 and higher requires Python 3.9 or higher\footnote{
-The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, Python 3.6 up to version 1.2.4, and Python 3.8 up to version 1.2.9.}
-and it is recommended to use the latest version.
+The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, Python 3.6 up to version 1.2.4, and Python 3.8 up to version 1.2.9.}.
 As of PyDislocDyn 1.3.0, required modules include Numpy $\ge1.19$, Scipy $\ge1.6$, Sympy $\ge1.6$, Matplotlib $\ge3.3$, and Pandas $\ge1.3$ (including its optional dependency Jinja2).
 \item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
 Numba $\ge0.53$ (a just-in-time compiler for python), Joblib $\ge1.1$ (for parallelization), and a Fortran compiler supported by numpy.f2py. To compile the optional Fortran subroutines run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
@@ -313,7 +312,7 @@ The \verb|metal_props| class is one of the parents of the \verb|Dislocation| cla
 It lets the user who is not interested in dislocations work with elastic constants (including polycrystal averages), compute sound speeds, convert Miller indices to Cartesian indices and more.
 Instances of this class can be populated using the same input file format discussed above in section \ref{sec:inputfiles}, though keywords relating to dislocations (i.e. \verb|b|, \verb|n0|, \verb|Millerb|, \verb|Millern0|, \verb|burgers|) can be omitted.
 In order to read an input file to initialize an instance of the \verb|metal_props| class, import the following
-\footnote{In PyDislocDyn 1.3.0 the module part of `polycrystal\_averaging.py' was split off and the function to initialize the `metal\_props' class from and input file was moved to crystals.py.}:
+\footnote{In PyDislocDyn 1.3.0 the module part of `polycrystal\_averaging.py' was split off and the function to initialize the `metal\_props' class from an input file was moved to crystals.py.}:
 \\\verb|`from pydislocdyn.crystals import readinputfile'|
 
 
