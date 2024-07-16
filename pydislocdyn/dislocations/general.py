@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 24, 2024
+# Date: Nov. 3, 2017 - July 16, 2024
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -181,11 +181,12 @@ class Dislocation(StrohGeometry,metal_props):
                 y,rv2 = sp.symbols('y,rv2')
                 ysol = sp.solve(theroot(y,rv2),y) ## 4 complex roots as fcts of rv2=rho*v**2
                 yfct=sp.lambdify(rv2,ysol,modules=[np.emath,'scipy'])
+                @np.vectorize
                 def f(x):
                     return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
                 with np.errstate(invalid='ignore'):
                     rv2limit = optimize.fsolve(f,1e5)
-                    if f(rv2limit) < 1e-11: ## check if fsolve was successful
+                    if f(rv2limit) < 1e-11 and not np.allclose(rv2limit,1e5): ## check if fsolve was successful
                         self.vcrit_edge = np.sqrt(rv2limit[0]/self.rho)
                     else:
                         print(f'Warning: {self.name}.computevcrit_edge() (resp. fsolve) failed, debug info: {rv2limit=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
