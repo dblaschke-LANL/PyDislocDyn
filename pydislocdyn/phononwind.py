@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 24, 2024
+# Date: Nov. 5, 2017 - July 30, 2024
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -386,7 +386,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                 out_norm = (np.abs(out))[err_mask]
                 out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit/Nchks)))
             refnmts = rec+1
-        if refnmts==maxrec and out_error >= target_accuracy and maxrec>0:
+        if refnmts==maxrec and out_error > 2*target_accuracy and maxrec>0:
             print(f"warning: max # recursions reached ({name}), {beta=:.4f}, {T=}, {mode=}, {chunks=}, est. error={100*out_error:.2f}%")
         
         return out
