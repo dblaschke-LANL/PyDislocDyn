@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 3, 2024
+# Date: Nov. 7, 2017 - Dec. 5, 2024
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -11,6 +11,7 @@
 import numpy as np
 import sympy as sp
 from sympy.solvers import solve
+from scipy import optimize
 ##
 from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
 from .utilities import str_to_array, loadinputfile
@@ -221,6 +222,9 @@ class metal_props:
         if self.sym in ('fcc', 'bcc', 'cubic'):
             self.cp = (self.c11-self.c12)/2
             self.Zener = self.c44/self.cp
+        elif self.sym=='iso':
+            self.cp = self.c44
+            self.Zener = 1
     
     def init_C3(self):
         '''initializes the tensor of third order elastic constants'''
@@ -329,6 +333,72 @@ class metal_props:
             else:
                 solution[i] = sp.sqrt(si)
         return solution
+    
+    def find_wavespeed(self,which='l',verbose=False,accuracy=1e-4,maxfun=1000):
+        '''For keyword which in ["l","h","hs"], this method determines the [lowest, highest, or highest (quasi-)shear] wave speed
+           in the crystal. We use scipy's optimize.direct() algorithm to search over all directions in the crystal (2 angles).
+           Keywords accuracy and maxfun are passed to optimize.direct, where f_min_rtol=accuracy=len_tol and  vol_tol=accuracy**2.
+           See the docs of optimize.direct() for further information on those parameters (which we reduce here to speed up
+           the calculation).'''
+        if which=='l':
+            def select(x):
+                return min(x)
+        elif which=='h':
+            def select(x):
+                return 1/max(x)
+        elif which=='hs':
+            def select(x):
+                if len(x)<3:
+                    return 1/min(x)
+                else:
+                    return 1/max(np.sort(x)[:2])
+        else:
+            raise ValueError("keyword which must be one of ['l','h','hs']")
+        def f(x):
+            v = [np.sin(x[0])*np.cos(x[1]),np.sin(x[0])*np.sin(x[1]),np.cos(x[0])]
+            return select(self.computesound(v))
+        bounds = [(0,2*np.pi),(0,2*np.pi)]
+        result = optimize.direct(f,bounds,f_min_rtol=accuracy,maxfun=maxfun,vol_tol=accuracy**2,len_tol=accuracy)
+        # result = optimize.dual_annealing(f,bounds,maxfun=maxfun)
+        if not result.success or verbose:
+            print(result)
+        if which =='l':
+            return result.fun
+        else:
+            return 1/result.fun
+    
+    # def anisotropy_ratio(self,verbose=False,accuracy=1e-4,maxfun=500): ## not the best measure and too slow to compute
+    #     '''Determines the ratio of highest to lowest (quasi-)shear wave speed squared
+    #        as suggested by Ledbetter and Migliori 2006.
+    #        For cubic crystals, this coincides with Zener's ratio A if A>=1 and with 1/A
+    #        if A<1, i.e. this function always returns a number >=1.'''
+    #     if self.sym in ('fcc', 'bcc', 'cubic','iso') and not verbose:
+    #         if self.Zener<1:
+    #             return 1/self.Zener
+    #         else:
+    #             return self.Zener
+    #     else:
+    #         shearmin = self.find_wavespeed('l',verbose=verbose,accuracy=accuracy,maxfun=maxfun)
+    #         shearmax = self.find_wavespeed('hs',verbose=verbose,accuracy=accuracy,maxfun=maxfun)
+    #         if verbose: print(f"\n{shearmax=}, {shearmin=}")
+    #         return shearmax**2/shearmin**2
+    
+    def anisotropy_index(self):
+        '''Computes a number quantifying the anisotropy of a crystal following the
+           recommendation of Kube 2016. In particular, we compute a measure of the
+           difference between Voigt and Reuss averages of shear and bulk modulus, 
+           known also as the universal log-Euclidean anisotropy index:
+           A_L = sqrt([ln(B_V/B_R)]^2 + 5*[ln(G_V/G_R)]^2), see AIP Advances 6, 095209 (2016).'''
+        C2 = UnVoigt(self.C2)
+        aver = IsoAverages(lam,mu,0,0,0)
+        aver.voigt_average(C2)
+        S2 = elasticS2(C2)
+        aver.reuss_average(S2)
+        muV = float(aver.voigt[mu])
+        muR = float(aver.reuss[mu])
+        bulkV = float(aver.voigt[lam]) + 2*muV/3
+        bulkR = float(aver.reuss[lam]) + 2*muR/3
+        return np.round(np.sqrt((np.log(bulkV/bulkR))**2 + 5*(np.log(muV/muR))**2),12)
     
     def Miller_to_Cart(self,v,normalize=True,reziprocal=False):
         '''Converts vector v from Miller indices to Cartesian coordinates (very small numbers are rounded to 0). If normalize=True, a unit vector is returned.
