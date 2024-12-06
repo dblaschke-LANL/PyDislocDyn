@@ -359,29 +359,15 @@ class metal_props:
             return select(self.computesound(v))
         bounds = [(0,2*np.pi),(0,2*np.pi)]
         result = optimize.direct(f,bounds,f_min_rtol=accuracy,maxfun=maxfun,vol_tol=accuracy**2,len_tol=accuracy)
-        # result = optimize.dual_annealing(f,bounds,maxfun=maxfun)
         if not result.success or verbose:
             print(result)
+            x = result.x
+            v = [np.sin(x[0])*np.cos(x[1]),np.sin(x[0])*np.sin(x[1]),np.cos(x[0])]
+            print(f"{v=}")
         if which =='l':
             return result.fun
         else:
             return 1/result.fun
-    
-    # def anisotropy_ratio(self,verbose=False,accuracy=1e-4,maxfun=500): ## not the best measure and too slow to compute
-    #     '''Determines the ratio of highest to lowest (quasi-)shear wave speed squared
-    #        as suggested by Ledbetter and Migliori 2006.
-    #        For cubic crystals, this coincides with Zener's ratio A if A>=1 and with 1/A
-    #        if A<1, i.e. this function always returns a number >=1.'''
-    #     if self.sym in ('fcc', 'bcc', 'cubic','iso') and not verbose:
-    #         if self.Zener<1:
-    #             return 1/self.Zener
-    #         else:
-    #             return self.Zener
-    #     else:
-    #         shearmin = self.find_wavespeed('l',verbose=verbose,accuracy=accuracy,maxfun=maxfun)
-    #         shearmax = self.find_wavespeed('hs',verbose=verbose,accuracy=accuracy,maxfun=maxfun)
-    #         if verbose: print(f"\n{shearmax=}, {shearmin=}")
-    #         return shearmax**2/shearmin**2
     
     def anisotropy_index(self):
         '''Computes a number quantifying the anisotropy of a crystal following the
