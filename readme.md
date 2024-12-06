@@ -31,8 +31,8 @@ The LANL development team asks that any forks or derivative works include approp
 ## Requirements
 
 * Python >=3.9,</br>
-* [numpy](https://docs.scipy.org/doc/numpy/user/) >=1.19,</br>
-* [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.6,</br>
+* [numpy](https://numpy.org/doc/stable/user/) >=1.19,</br>
+* [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.9,</br>
 * [sympy](https://www.sympy.org) >=1.6,</br>
 * [matplotlib](https://matplotlib.org/) >=3.3</br>
 * [pandas](https://pandas.pydata.org/) >=1.3 (and Jinja2)</br>
