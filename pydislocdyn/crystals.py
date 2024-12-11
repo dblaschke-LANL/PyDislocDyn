@@ -356,8 +356,7 @@ class metal_props:
             def select(x):
                 if len(x)<3:
                     return 1/min(x)
-                else:
-                    return 1/max(np.sort(x)[:2])
+                return 1/max(np.sort(x)[:2])
         else:
             raise ValueError("keyword which must be one of ['l','h','hs']")
         def f(x):
@@ -372,8 +371,7 @@ class metal_props:
             print(f"{v=}")
         if which =='l':
             return result.fun
-        else:
-            return 1/result.fun
+        return 1/result.fun
     
     def anisotropy_index(self):
         '''Computes a number quantifying the anisotropy of a crystal following the

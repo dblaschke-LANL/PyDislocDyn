@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Dec. 9, 2024
+# Date: Mar. 6, 2023 - Dec. 11, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -21,7 +21,7 @@ dir_path = os.path.join(dir_path,'pydislocdyn')
 
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, ISO_l, c111
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
-from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
+from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
 
@@ -370,6 +370,17 @@ if __name__ == '__main__':
                         deffile.write(f"poly[{i}]: {polynom[i]}\n")
             print("running some unit tests ...")
             for X in metal_list:
+                Y[X].sumofsounds = 0
+                for v in ([1,0,0],[0,1,0],[0,0,1]):
+                    sound = Y[X].computesound(v)
+                    if len(sound)==2:
+                        Y[X].sumofsounds += 2*min(sound)**2+max(sound)**2
+                    else:
+                        Y[X].sumofsounds += sum(np.array(sound)**2)
+                Y[X].C2tracerho = np.trace(np.trace(UnVoigt(Y[X].C2),axis1=1,axis2=2))/Y[X].rho
+                if not np.isclose(Y[X].C2tracerho,Y[X].sumofsounds): ## see Fitzgerald 1967 for details on this relation
+                    print(f"invariant sum of sound speeds unit test failed for {X}: {Y[X].C2tracerho=}, {Y[X].sumofsounds=}")
+                    success = False
                 if Y[X].Zener is not None:
                     Y[X].AL = Y[X].anisotropy_index()
                     Y[X].AL_Z = np.sqrt(5)*np.log((2+3*Y[X].Zener)*(3+2*Y[X].Zener)/(25*Y[X].Zener))
