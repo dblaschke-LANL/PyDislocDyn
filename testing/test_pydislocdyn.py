@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Dec. 11, 2024
+# Date: Mar. 6, 2023 - Dec. 12, 2024
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -24,6 +24,8 @@ from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
 from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
+if Ncores>1:
+    from joblib import Parallel, delayed
 
 runtests = 'all' ## allowed values: all, LT, drag, dragiso, aver
 skip_calcs = False
@@ -352,7 +354,7 @@ if __name__ == '__main__':
             y = sp.Symbol('y')
             eta1, eta2, eta3, eta4, eta5, eta6 = sp.symbols('eta1 eta2 eta3 eta4 eta5 eta6')
             etaS = np.array([eta1, eta2, eta3, eta4, eta5, eta6])
-            for sym in crystalsyms:
+            def maincomputations(sym):
                 poly=strain_poly(y=y,sym=sym)
                 phi = poly.generate_poly(etaS,make_eta=False,P=P)
                 alpha = {}
@@ -368,6 +370,10 @@ if __name__ == '__main__':
                     for i in range(len(strain)):
                         deffile.write(f"\nalpha[{i}]: {np.array2string(Voigt(alpha[i]), separator=', ')}\n")
                         deffile.write(f"poly[{i}]: {polynom[i]}\n")
+            if Ncores>1:
+                Parallel(n_jobs=Ncores)(delayed(maincomputations)(sym) for sym in crystalsyms)
+            else:
+                [maincomputations(sym) for sym in crystalsyms]
             print("running some unit tests ...")
             for X in metal_list:
                 Y[X].sumofsounds = 0
