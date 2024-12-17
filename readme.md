@@ -46,6 +46,7 @@ to employ the alternative faster Fortran implementations of some subroutines via
 run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use </br>
 (or add appropriate options to build with OpenMP support, e.g. with gfortran and Python <=3.11: 'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'; </br>
 with Python >=3.12: 'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines').</br>
+Note: building with numpy <=1.26 requires setuptools<70; building with numpy >=2.0 requires meson.</br>
 A helper function, pydislocdyn.utilities.compilefortranmodule(), has been included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
 * a recent version of LaTeX to build the manual (LA-UR-22-28074), pdf available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
 
@@ -55,7 +56,7 @@ A helper function, pydislocdyn.utilities.compilefortranmodule(), has been includ
 git clone https://github.com/dblaschke-LANL/PyDislocDyn.git ), then from within the PyDislocDyn folder (which contains the pyproject.toml file) simply run</br>
 pip install . </br></br>
 or (in order to install also the optional dependencies numba and joblib):</br>
-pip install .\[fast\] </br></br>
+pip install ".\[fast\]" </br></br>
 Note: installation is optional, i.e. pydislocdyn can also be run locally (in which case it will temporarily add itself to sys.path upon importing or running a frontend script).
 
 * then compile the Fortran submodule (optional) via</br>
