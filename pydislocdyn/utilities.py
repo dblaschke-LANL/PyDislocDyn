@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 3, 2024
+# Date: Nov. 5, 2017 - Dec. 18, 2024
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -89,8 +89,9 @@ dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 
-def compilefortranmodule():
-    '''compiles the Fortran subroutines if a Fortran compiler is available'''
+def compilefortranmodule(buildopts=''):
+    '''Compiles the Fortran subroutines if a Fortran compiler is available.
+       Keyword 'buildopts' may be used to pass additional options to f2py.'''
     cwd = os.getcwd()
     if sys.version_info[:2]<=(3,11) and shutil.which('gfortran'):
         compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
@@ -98,6 +99,8 @@ def compilefortranmodule():
         compilerflags = '--dep=openmp' # requires f2py with new meson backend (default in numpy>=2.0 and python>=3.12)
     else:
         compilerflags = '' ## when in doubt, build without OpenMP support
+    if buildopts != '':
+        compilerflags += f" {buildopts}"
     os.chdir(os.path.dirname(__file__))
     os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
     os.chdir(cwd)
