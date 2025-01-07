@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 16, 2024
+# Date: Nov. 3, 2017 - Jan. 7, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -837,9 +837,18 @@ def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t
     C2p = C2p/norm
     ysol = sp.solve(accedge_theroot(y2,rv2,C2p[0,0],C2p[0,1],C2p[0,5],C2p[1,1],C2p[1,5],C2p[5,5]),y2) ## 4 complex roots as fcts of rv2=rho/lambda**2
     rv2subs = rho/lambd**2 / norm
-    ysol_all = [sp.lambdify((lambd),ysol[i].subs(rv2,rv2subs),modules=spmodules) for i in range(4)]
-    lameqn_all = [sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules) for i in range(4)]
-    dLdT_all = [sp.lambdify((lambd,xs,ys), (1 / (xs+sp.diff(ys*lambd*ysol[i].subs(rv2,rv2subs),lambd))),modules=spmodules) for i in range(4)]
+    # ysol_all = [sp.lambdify((lambd),ysol[i].subs(rv2,rv2subs),modules=spmodules) for i in range(4)]
+    # lameqn_all = [sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules) for i in range(4)]
+    # dLdT_all = [sp.lambdify((lambd,xs,ys), (1 / (xs+sp.diff(ys*lambd*ysol[i].subs(rv2,rv2subs),lambd))),modules=spmodules) for i in range(4)]
+    ## work around a python 3.13 (or sympy?) bug where lambdify inside a certain list comprehension (see above) triggers Segmentation fault: 11
+    ysol_all = [0,0,0,0]
+    lameqn_all = [0,0,0,0]
+    dLdT_all = [0,0,0,0]
+    for i in range(4):
+        ysol_all[i] = sp.lambdify((lambd),ysol[i].subs(rv2,rv2subs),modules=spmodules)
+        lameqn_all[i] = sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules)
+        dLdT_all[i] = sp.lambdify((lambd,xs,ys), (1 / (xs+sp.diff(ys*lambd*ysol[i].subs(rv2,rv2subs),lambd))),modules=spmodules)
+    # end of workaround
     uij = np.zeros((3,3,len(r),len(phi)))
     for ri, rx in enumerate(r):
         if abs(rx) < 1e-25:
