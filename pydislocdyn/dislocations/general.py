@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 7, 2025
+# Date: Nov. 3, 2017 - Jan. 9, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -856,7 +856,10 @@ def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t
         # if abs(C2p[0,5])>1e-3 or abs(C2p[1,5])>1e-3: print(f"{rx=}")
         for ph, phx in enumerate(phi):
             x = -rx*np.cos(phx) + shift ### shift x to move with the dislocations (step fct automatically fulfilled near disloc. core)
-            y = rx*np.sin(phx)
+            if np.abs(np.sin(phx)) < 1e-15:
+                y = 0 ## avoid numerical issues for multiples of pi
+            else:
+                y = rx*np.sin(phx)
             if eta_kw is None:
                 eta = np.sign(x)*np.sqrt(2*np.abs(x)/a)
                 etapr = eta/(2*x)
