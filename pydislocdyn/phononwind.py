@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 30, 2024
+# Date: Nov. 5, 2017 - Jan. 16, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -16,7 +16,7 @@
 import ast
 import numpy as np
 from scipy.integrate import trapezoid
-from scipy.optimize import curve_fit, minimize_scalar, fsolve
+from scipy.optimize import curve_fit, minimize_scalar, root
 from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB, str2bool, OPTIONS, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
@@ -847,8 +847,9 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         zero = abs(themin.fun)
         if not themin.success or (zero>1e-5 and zero/bsig>1e-2):
             # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
-            # fall back to (slower) fsolve:
-            out = fsolve(nonlinear_equation,0.01*vcrit)[0]
+            # fall back to (slower) root:
+            themin = root(nonlinear_equation,0.01*vcrit)
+            out = themin.x
         return out
         
     @np.vectorize

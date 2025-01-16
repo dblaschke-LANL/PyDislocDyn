@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 9, 2025
+# Date: Nov. 3, 2017 - Jan. 16, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -185,11 +185,12 @@ class Dislocation(StrohGeometry,metal_props):
                 def f(x):
                     return np.abs(np.asarray(yfct(x)).imag.prod()) ## lambda=i*y, and any Re(lambda)=0 implies a divergence/limiting velocity
                 with np.errstate(invalid='ignore'):
-                    rv2limit = optimize.fsolve(f,1e5)
-                    if f(rv2limit) < 1e-11 and not np.allclose(rv2limit,1e5): ## check if fsolve was successful
+                    rv2limit_sol = optimize.root(f,x0=1e5)
+                    rv2limit = rv2limit_sol.x
+                    if rv2limit_sol.success and len(rv2limit_sol.x)==1:
                         self.vcrit_edge = np.sqrt(rv2limit[0]/self.rho)
                     else:
-                        print(f'Warning: {self.name}.computevcrit_edge() (resp. fsolve) failed, debug info: {rv2limit=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
+                        print(f'Warning: {self.name}.computevcrit_edge() (resp. scipy.optimize.root()) failed, debug info: {rv2limit_sol=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
         return self.vcrit_edge
 
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
