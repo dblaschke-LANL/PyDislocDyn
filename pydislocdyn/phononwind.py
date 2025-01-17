@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 16, 2025
+# Date: Nov. 5, 2017 - Jan. 17, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -845,11 +845,13 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         themin = minimize_scalar(nonlinear_equation,method='bounded',bounds=(0,1.01*vcrit))
         out = themin.x
         zero = abs(themin.fun)
-        if not themin.success or (zero>1e-5 and zero/bsig>1e-2):
-            # print(f"Warning: bad convergence for vr({stress=}): eq={zero:.6f}, eq/(burg*sig)={zero/bsig:.6f}")
-            # fall back to (slower) root:
-            themin = root(nonlinear_equation,0.01*vcrit)
+        if not themin.success or zero>1e-6:
+            # fall back to (slower) root (try x0 close to vcrit as this case typically happens for very large stress):
+            themin = root(nonlinear_equation,x0=0.999*vcrit)
             out = themin.x
+            zero=themin.fun[0]
+            if not themin.success or zero>1e-6:
+                print(f"Warning: bad convergence for vr({stress=:.3e})={out[0]:.2f}; {vcrit=:.2f}, eq={zero:.6e}, {character}")
         return out
         
     @np.vectorize
