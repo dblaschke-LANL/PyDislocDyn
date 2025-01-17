@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 24, 2024
+# Date: Nov. 5, 2017 - Jan. 17, 2025
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -20,7 +20,7 @@ if dir_path not in sys.path:
 ##
 from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, str2bool, Ncores, Ncpus, read_2dresults, \
-    plt, fntsettings, AutoMinorLocator, gridspec, make_axes_locatable ## matplotlib stuff
+    plt, fntsettings, AutoMinorLocator, gridspec, make_axes_locatable, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS
 if Ncores>1:
@@ -495,10 +495,15 @@ if __name__ == '__main__':
             B0[Xc], vc[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt[X],character,mkplot=ploteach,B0fit='weighted',indirect=False)
         sig_norm = np.linspace(0,3.5,500)
         ax.axis((0,sig_norm[-1],0.5,4.5))
+        if not os.path.exists("BofSig_anis"):
+            os.mkdir("BofSig_anis")
         for X in metal:
             Xc = X+character
             sig0 = vc[Xc]*B0[Xc]/Y[X].burgers
             ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0\!=\!{1e6*B0[Xc]:.1f}\mu$Pas, "+r"$v_\mathrm{c}\!=\!"+f"{vc[Xc]/1e3:.2f}$km/s")
+            Bsig = pd.Series(1e3*B_of_sig[Xc],index=1e-6*sigma[Xc],name=f"{Xc}, B [mPa s]")
+            Bsig.index.name="resolved shear stress [MPa]"
+            Bsig.to_csv(os.path.join("BofSig_anis",f"B_of_sigma_{Xc}.csv.xz"),compression='xz',header=True)
         ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{v_\mathrm{c}B_0}\right)^2}$")
         plt.xticks(**fntsettings)
         plt.yticks(**fntsettings)

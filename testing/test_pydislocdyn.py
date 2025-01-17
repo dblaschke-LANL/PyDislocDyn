@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Dec. 12, 2024
+# Date: Mar. 6, 2023 - Jan. 17, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -182,7 +182,6 @@ if __name__ == '__main__':
     ############### TEST dragiso ##########################################
     if runtests in ['all', 'dragiso']:
         success = True
-        fname = "drag_iso_fit.txt"
         if not skip_calcs:
             print("running test 'dragiso' ...")
             os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f'{"".join(dragopts)} --{Nbeta=} --{Ncores=} --{use_exp_Lame=} --phononwind_opts="{phononwind_opts}" --{NT=} "{metals_iso}" | tee dragiso.log')
@@ -196,6 +195,15 @@ if __name__ == '__main__':
             if not diff(os.path.join(old,f"{dragname}_{X}.dat"),os.path.join(cwd,f"{dragname}_{X}.dat"),verbose=verbose):
                 if not verbose: print(f"{dragname}_{X} differs")
                 success = False
+            for ch in ["screw","edge","aver"]:
+                fname = os.path.join("BofSig_iso",f"B_of_sigma_{X}{ch}.csv.xz")
+                f1 = pd.read_csv(os.path.join(old,fname))
+                f2 = pd.read_csv(os.path.join(cwd,fname))
+                if not (result:=isclose(f1,f2)):
+                    print(f"{fname} differs")
+                    success=False
+                    if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
+        fname = "drag_iso_fit.txt"
         if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
             if not verbose: print(f"{fname} differs")
             success=False
@@ -224,6 +232,14 @@ if __name__ == '__main__':
                 print(f"{drag_folder}/{dragname}_{X}.dat.xz differs")
                 success=False
                 if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
+            for ch in ["screw","edge","aver"]:
+                fname = os.path.join(drag_folder,"BofSig_anis",f"B_of_sigma_{X}{ch}.csv.xz")
+                f1 = pd.read_csv(os.path.join(old,fname))
+                f2 = pd.read_csv(os.path.join(cwd,fname))
+                if not (result:=isclose(f1,f2)):
+                    print(f"{fname} differs")
+                    success=False
+                    if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         fname = "drag_semi_iso_fit.txt"
         if not diff(os.path.join(old,drag_folder,fname),os.path.join(cwd,drag_folder,fname),verbose=verbose):
             if not verbose: print(f"{drag_folder}/{fname} differs")

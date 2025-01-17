@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 24, 2024
+# Date: Nov. 5, 2017 - Jan. 17, 2025
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -19,7 +19,7 @@ if dir_path not in sys.path:
 ##
 import pydislocdyn.metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
-    plt, fntsettings, AutoMinorLocator ## matplotlib stuff
+    plt, fntsettings, AutoMinorLocator, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
 
@@ -313,10 +313,15 @@ if __name__ == '__main__':
             fname = "Biso_of_sigma_all.pdf"
         sig_norm = np.linspace(0,3.6,500)
         ax.axis((0,sig_norm[-1],0.5,4))
+        if not os.path.exists("BofSig_iso"):
+            os.mkdir("BofSig_iso")
         for X in metal:
             Xc = X+character
             sig0 = Y[X].ct*B0[Xc]/Y[X].burgers
             ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0={1e6*B0[Xc]:.1f}\mu$Pas")
+            Bsig = pd.Series(1e3*B_of_sig[Xc],index=1e-6*sigma[Xc],name=f"{Xc}, B [mPa s]")
+            Bsig.index.name="resolved shear stress [MPa]"
+            Bsig.to_csv(os.path.join("BofSig_iso",f"B_of_sigma_{Xc}.csv.xz"),compression='xz',header=True)
         ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{c_\mathrm{t}B_0}\right)^2}$")
         # ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{c_\mathrm{t}B_0}$")
         plt.xticks(**fntsettings)
