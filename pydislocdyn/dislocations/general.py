@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 16, 2025
+# Date: Nov. 3, 2017 - Jan. 22, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -839,7 +839,7 @@ def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t
     ysol = sp.solve(accedge_theroot(y2,rv2,C2p[0,0],C2p[0,1],C2p[0,5],C2p[1,1],C2p[1,5],C2p[5,5]),y2) ## 4 complex roots as fcts of rv2=rho/lambda**2
     rv2subs = rho/lambd**2 / norm
     # ysol_all = [sp.lambdify((lambd),ysol[i].subs(rv2,rv2subs),modules=spmodules) for i in range(4)]
-    # lameqn_all = [sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules) for i in range(4)]
+    # lameqn_all = [sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules,cse=True) for i in range(4)]
     # dLdT_all = [sp.lambdify((lambd,xs,ys), (1 / (xs+sp.diff(ys*lambd*ysol[i].subs(rv2,rv2subs),lambd))),modules=spmodules) for i in range(4)]
     ## work around a python 3.13 (or sympy?) bug where lambdify inside a certain list comprehension (see above) triggers Segmentation fault: 11
     ysol_all = [0,0,0,0]
@@ -847,7 +847,7 @@ def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t
     dLdT_all = [0,0,0,0]
     for i in range(4):
         ysol_all[i] = sp.lambdify((lambd),ysol[i].subs(rv2,rv2subs),modules=spmodules)
-        lameqn_all[i] = sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules)
+        lameqn_all[i] = sp.lambdify((lambd,xs,ys,taus),lambd*xs + (ys*lambd*ysol[i].subs(rv2,rv2subs)) - taus,modules=spmodules,cse=True)
         dLdT_all[i] = sp.lambdify((lambd,xs,ys), (1 / (xs+sp.diff(ys*lambd*ysol[i].subs(rv2,rv2subs),lambd))),modules=spmodules)
     # end of workaround
     uij = np.zeros((3,3,len(r),len(phi)))
@@ -875,9 +875,7 @@ def computeuij_acc_edge(a,beta,burgers,C2p,rho,phi,r,eta_kw=None,etapr_kw=None,t
             muovlam=np.zeros((4),dtype=complex)
             coeff = np.ones((4),dtype=bool)
             for i in range(4):
-                def lameqn(lamb):
-                    return lameqn_all[i](lamb,x,y,tau)
-                lamsol = findroot(lameqn,0.001+0.001j,solver='muller') ## solver recommended in docs for complex roots
+                lamsol = findroot(lambda lamb: lameqn_all[i](lamb,x,y,tau),0.001+0.001j,solver='muller') ## solver recommended in docs for complex roots
                 lam[i] = complex(lamsol)
                 muovlam[i] = complex(ysol_all[i](lam[i]))
                 Jacobian[i] = complex(dLdT_all[i](lam[i],x,y))
