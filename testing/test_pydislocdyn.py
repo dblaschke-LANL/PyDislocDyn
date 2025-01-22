@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Jan. 17, 2025
+# Date: Mar. 6, 2023 - Jan. 21, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -305,7 +305,7 @@ if __name__ == '__main__':
                 uij_acc_screw[X] = pd.DataFrame(acc_screw[X].uij_acc_screw_aligned[2,0],index=acc_screw[X].r,columns=acc_screw[X].phi/np.pi)
                 uij_acc_screw[X].index.name="r[burgers]"
                 uij_acc_screw[X].columns.name="phi[pi]"
-                uij_acc_screw[X].to_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv"))
+                uij_acc_screw[X].to_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv.xz"),compression='xz')
             print(f"calculating accelerating edge dislocation fields for {metal_acc_edge}")
             for X in metal_acc_edge:
                 acc_edge[X] = readinputfile(os.path.join("temp_pydislocdyn",X),Nphi=25)
@@ -314,20 +314,23 @@ if __name__ == '__main__':
                 uij_acc_edge[X] = pd.DataFrame(acc_edge[X].uij_acc_edge_aligned[1,1],index=acc_edge[X].r,columns=acc_edge[X].phi/np.pi)
                 uij_acc_edge[X].index.name="r[burgers]"
                 uij_acc_edge[X].columns.name="phi[pi]"
-                uij_acc_edge[X].to_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv"))
+                uij_acc_edge[X].to_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv.xz"),compression='xz')
         print("\ncomparing acc results")
         for X in metal_acc_screw:
-            f1 = pd.read_csv(os.path.join(old,f"uij_acc_screw_{X}.csv"),index_col=0)
-            f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv"),index_col=0)
+            fending = ".csv.xz"
+            if not os.path.isfile(os.path.join(old,f"uij_acc_screw_{X}{fending}")):
+                fending = ".csv" # support reading old uncompressed files
+            f1 = pd.read_csv(os.path.join(old,f"uij_acc_screw_{X}{fending}"),index_col=0)
+            f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv.xz"),index_col=0)
             if not (result:=isclose(f1,f2)):
-                print(f"uij_acc_screw_{X}.csv differs")
+                print(f"uij_acc_screw_{X}.csv.xz differs")
                 success=False
                 if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         for X in metal_acc_edge:
-            f1 = pd.read_csv(os.path.join(old,f"uij_acc_edge_{X}.csv"),index_col=0)
-            f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv"),index_col=0)
+            f1 = pd.read_csv(os.path.join(old,f"uij_acc_edge_{X}{fending}"),index_col=0)
+            f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
             if not (result:=isclose(f1,f2)):
-                print(f"uij_acc_edge_{X}.csv differs")
+                print(f"uij_acc_edge_{X}.csv.xz differs")
                 success=False
                 if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         printtestresult(success)
@@ -362,10 +365,9 @@ if __name__ == '__main__':
             print("calculating various dislocation fields")
             for X in metal_list:
                 Y[X].plotdisloc(0.5,nogradient=True,component=2,savefig=False)
-                np.save(f'uk_05small_{X}',Y[X].uk_aligned[:,:,::10,::10])
                 Y[X].computeuij(0.5,r=Y[X].r)
                 Y[X].alignuij()
-                np.save(f'uij_05small_{X}',Y[X].uij_aligned[:,:,:,::10,::10])
+                np.savez_compressed(f"u_{X}.npz",uk_05small=Y[X].uk_aligned[:,:,::10,::10],uij_05small=Y[X].uij_aligned[:,:,:,::10,::10])
             print("calculating various deformations within the 'strain_poly' class")
             y = sp.Symbol('y')
             eta1, eta2, eta3, eta4, eta5, eta6 = sp.symbols('eta1 eta2 eta3 eta4 eta5 eta6')
@@ -421,11 +423,17 @@ if __name__ == '__main__':
             if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
                 if not verbose: print(f"{fname} differs")
                 success=False
-            for fname in [f'uk_05small_{X}.npy',f'uij_05small_{X}.npy']:
-                f1 = np.load(os.path.join(old,fname))
-                f2 = np.load(os.path.join(cwd,fname))
+            fname = f"u_{X}.npz"
+            if os.path.isfile(os.path.join(old,fname)):
+                u_results1 = np.load(os.path.join(old,fname))
+            else:
+                u_results1 = {'uk_05small':np.load(os.path.join(old,f'uk_05small_{X}.npy')),'uij_05small':np.load(os.path.join(old,f'uij_05small_{X}.npy'))}
+            u_results2 = np.load(os.path.join(cwd,fname))
+            for aname in ['uk_05small','uij_05small']:
+                f1 = u_results1[aname]
+                f2 = u_results2[aname]
                 if not isclose(f1,f2):
-                    print(f"{fname} differs")
+                    print(f"{fname}/{aname} differs")
                     success=False
         for sym in crystalsyms:
             fname = f"deformations_results_{sym}.txt"
