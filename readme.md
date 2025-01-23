@@ -36,6 +36,7 @@ The LANL development team asks that any forks or derivative works include approp
 * [sympy](https://www.sympy.org) >=1.9,</br>
 * [matplotlib](https://matplotlib.org/) >=3.3</br>
 * [pandas](https://pandas.pydata.org/) >=1.3 (and Jinja2)</br>
+* [mpmath](https://mpmath.org/) (recommended optional dependency of mpmath: gmpy)
 
 ### Optional:
 
