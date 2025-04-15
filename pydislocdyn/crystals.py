@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Dec. 9, 2024
+# Date: Nov. 7, 2017 - Apr. 15, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -12,6 +12,7 @@ import numpy as np
 import sympy as sp
 from sympy.solvers import solve
 from scipy import optimize
+import pandas as pd
 ##
 from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
 from .utilities import str_to_array, loadinputfile
@@ -230,10 +231,17 @@ class metal_props:
         '''initializes the tensor of third order elastic constants'''
         self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,cijk=self.cijk,voigt=True)
     
-    def compute_Lame(self, roundto=-8, include_TOEC=False):
+    def compute_Lame(self, roundto=-8, include_TOEC=False, scheme='auto'):
         '''Computes the Lame constants by averaging over the second order elastic constants.
            If option include_TOEC=True, Hill averages for the Murnaghan constants are calculated as well,
-           but the user should be aware that the latter are not reliable as there is no good averaging scheme for TOECs.'''
+           but the user should be aware that the latter are not reliable as there is no good averaging scheme for TOECs.
+           By default, the best available averaging scheme is used for SOECs, i.e. Kroener's method for cubic
+           and Hill averages for all other crystals. However, keyword "scheme" (default: "auto") can be set to force
+           one of "voigt", "reuss", "hill" averages to be used instead. Other common representations of SOECs are also
+           determined from the averaged Lame constants, i.e. bulk and Young moduli as well as Poisson's ratio.
+           Computed results are stored as class attributes and additionally we return the results as a pandas.Series;
+           the latter includes additional representations of the TOEC (if include_TOEC) such as the Toupin/Bernstein
+           constants nui and the standard repr. of cijk.'''
         C2 = UnVoigt(self.C2)
         if include_TOEC:
             C3 = UnVoigt(self.C3)
@@ -241,7 +249,7 @@ class metal_props:
         else:
             C3 = None
             aver = IsoAverages(lam,mu,0,0,0)
-        if include_TOEC or self.sym not in ['iso','fcc','bcc', 'cubic']:
+        if include_TOEC or self.sym not in ['iso','fcc','bcc', 'cubic'] or scheme!='auto':
             S2 = elasticS2(C2)
             if include_TOEC:
                 S3 = elasticS3(S2,C3)
@@ -255,7 +263,13 @@ class metal_props:
             self.Murl = self.C3[0,3,3] + self.C3[0,1,2]/2 # c144+c123/2
             self.Murm = self.C3[0,3,3] + 2*self.C3[3,4,5] # c144+2*c456
             self.Murn = 4*self.C3[3,4,5] # 4*c456
-        elif self.sym in ('fcc', 'bcc', 'cubic'):
+        elif scheme=='voigt':
+            self.lam = round(float(aver.voigt[lam]),roundto)
+            self.mu = round(float(aver.voigt[mu]),roundto)
+        elif scheme=='reuss':
+            self.lam = round(float(aver.reuss[lam]),roundto)
+            self.mu = round(float(aver.reuss[mu]),roundto)
+        elif self.sym in ('fcc', 'bcc', 'cubic') and scheme!='hill':
             ImprovedAv = aver.improved_average(C2,C3)
             self.lam = round(float(ImprovedAv[lam]),roundto)
             self.mu = round(float(ImprovedAv[mu]),roundto)
@@ -267,9 +281,32 @@ class metal_props:
             self.Murl = round(float(HillAverage[Murl]),roundto)
             self.Murm = round(float(HillAverage[Murm]),roundto)
             self.Murn = round(float(HillAverage[Murn]),roundto)
+            if scheme=='voigt':
+                self.Murl = round(float(aver.voigt[Murl]),roundto)
+                self.Murm = round(float(aver.voigt[Murm]),roundto)
+                self.Murn = round(float(aver.voigt[Murn]),roundto)
+            if scheme=='reuss':
+                self.Murl = round(float(aver.reuss[Murl]),roundto)
+                self.Murm = round(float(aver.reuss[Murm]),roundto)
+                self.Murn = round(float(aver.reuss[Murn]),roundto)
         self.bulk = self.lam + 2*self.mu/3
         self.poisson = self.lam/(2*(self.lam+self.mu)) ## average Poisson ratio nu
         self.young = 2*self.mu*(1+self.poisson)
+        out = {"lambda":self.lam, "mu":self.mu, "bulk":self.bulk, "young":self.young, "poisson":self.poisson}
+        if include_TOEC:
+            nu1 = 2*self.Murl-2*self.Murm+self.Murn
+            nu2 = self.Murm-self.Murn/2
+            nu3 = self.Murn/4
+            c111 = 2*self.Murl+4*self.Murm
+            c112 = 2*self.Murl
+            c123 = nu1
+            c144 = nu2
+            c166 = self.Murm
+            c456 = self.Murn/4
+            out |= {"l":self.Murl, "m":self.Murm, "n":self.Murn}
+            out |= {"nu1":nu1, "nu2":nu2, "nu3":nu3}
+            out |= {"c111":c111, "c112":c112, "c123":c123, "c144":c144, "c166":c166, "c456":c456}
+        return pd.Series(out)
     
     def init_sound(self):
         '''Computes the effective sound speeds of a polycrystal from its averaged Lame constants.'''
