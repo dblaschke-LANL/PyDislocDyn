@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Jan. 21, 2025
+# Date: Mar. 6, 2023 - Apr. 15, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -315,6 +315,7 @@ if __name__ == '__main__':
                 uij_acc_edge[X].index.name="r[burgers]"
                 uij_acc_edge[X].columns.name="phi[pi]"
                 uij_acc_edge[X].to_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv.xz"),compression='xz')
+        else: print("skipping test 'acc' as requested")
         print("\ncomparing acc results")
         for X in metal_acc_screw:
             fending = ".csv.xz"
@@ -417,6 +418,7 @@ if __name__ == '__main__':
                     if not (np.isclose(Y[X].clowest1, Y[X].clowest2) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
                         print(f"find lowest sound speed unit test failed for {X}: {Y[X].clowest1=}, {Y[X].clowest2=}, {Y[X].vcrit_smallest=}")
                         success = False
+        else: print("skipping tests 'misc' as requested")
         print("\ncomparing misc results")
         for X in metal_list:
             fname = X+"props.txt"
