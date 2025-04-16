@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Jan. 22, 2025
+# Date: Nov. 3, 2017 - Apr. 16, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -689,10 +689,10 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         inputparams['a'] = np.cbrt(out.Vc)
         if 'c123' in inputparams:
             print("Warning: there is no good averaging scheme for TOECs, calculating (unreliable) Hill averages for the Murnaghan constants.")
-            out.compute_Lame(include_TOEC=True)
-            inputparams['c123'] = 2*out.Murl-2*out.Murm+out.Murn
-            inputparams['c144'] = out.Murm-out.Murn/2
-            inputparams['c456'] = out.Murn/4
+            out_toec = out.compute_Lame(include_TOEC=True)
+            inputparams['c123'] = float(out_toec['c123'])
+            inputparams['c144'] = float(out_toec['c144'])
+            inputparams['c456'] = float(out_toec['c456'])
         out = Dislocation(sym='iso', name=name+'_ISO', b=b, n0=n0, theta=theta, Nphi=Nphi)
         out.populate_from_dict(inputparams)
     if init:

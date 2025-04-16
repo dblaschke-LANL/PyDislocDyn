@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 15, 2025
+# Date: Nov. 7, 2017 - Apr. 16, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -14,7 +14,7 @@ from sympy.solvers import solve
 from scipy import optimize
 import pandas as pd
 ##
-from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt
+from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt, convert_SOECiso, convert_TOECiso
 from .utilities import str_to_array, loadinputfile
 
 ### compute various contractions/invariants of elastic constant/compliance tensors:
@@ -260,9 +260,7 @@ class metal_props:
         if self.sym=='iso':
             self.lam=self.C2[0,1]
             self.mu=self.C2[3,3]
-            self.Murl = self.C3[0,3,3] + self.C3[0,1,2]/2 # c144+c123/2
-            self.Murm = self.C3[0,3,3] + 2*self.C3[3,4,5] # c144+2*c456
-            self.Murn = 4*self.C3[3,4,5] # 4*c456
+            self.Murl, self.Murm, self.Murn = tuple(convert_TOECiso(c123=self.C3[0,1,2],c144=self.C3[0,3,3],c456=self.C3[3,4,5]))[:3]
         elif scheme=='voigt':
             self.lam = round(float(aver.voigt[lam]),roundto)
             self.mu = round(float(aver.voigt[mu]),roundto)
@@ -289,17 +287,10 @@ class metal_props:
                 self.Murl = round(float(aver.reuss[Murl]),roundto)
                 self.Murm = round(float(aver.reuss[Murm]),roundto)
                 self.Murn = round(float(aver.reuss[Murn]),roundto)
-        self.bulk = self.lam + 2*self.mu/3
-        self.poisson = self.lam/(2*(self.lam+self.mu)) ## average Poisson ratio nu
-        self.young = 2*self.mu*(1+self.poisson)
+        self.bulk,self.young,self.poisson = tuple(convert_SOECiso(c12=self.lam,c44=self.mu))[-3:]
         out = {"lambda":self.lam, "mu":self.mu, "bulk":self.bulk, "young":self.young, "poisson":self.poisson}
         if include_TOEC:
-            c111 = 2*self.Murl+4*self.Murm
-            c112 = 2*self.Murl
-            c123 = nu1 = 2*self.Murl-2*self.Murm+self.Murn
-            c144 = nu2 = self.Murm-self.Murn/2
-            c166 = self.Murm
-            c456 = nu3 = self.Murn/4
+            nu1,nu2,nu3,c111,c112,c123,c144,c166,c456 = tuple(convert_TOECiso(l=self.Murl,m=self.Murm,n=self.Murn))[-9:]
             out |= {"l":self.Murl, "m":self.Murm, "n":self.Murn}
             out |= {"nu1":nu1, "nu2":nu2, "nu3":nu3}
             out |= {"c111":c111, "c112":c112, "c123":c123, "c144":c144, "c166":c166, "c456":c456}
@@ -478,9 +469,7 @@ class metal_props:
         if 'lam' in keys and 'mu' in keys:
             self.lam=float(inputparams['lam'])
             self.mu=float(inputparams['mu'])
-            self.bulk = self.lam + 2*self.mu/3
-            self.poisson = self.lam/(2*(self.lam+self.mu)) ## average Poisson ratio nu
-            self.young = 2*self.mu*(1+self.poisson)
+            self.bulk,self.young,self.poisson = tuple(convert_SOECiso(c12=self.lam,c44=self.mu))[-3:]
         self.ac=float(inputparams['a'])
         self.rho = float(inputparams['rho'])
         if 'c11' in keys and sym != 'iso':
