@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 30, 2024
+# Date: Nov. 7, 2017 - Apr. 16, 2025
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -11,7 +11,82 @@
 #################################
 import sympy as sp
 import numpy as np
+import pandas as pd
 from pydislocdyn.utilities import delta, roundcoeff
+
+def convert_SOECiso(lam=None, mu=None,c12=None,c44=None,bulk=None,young=None,poisson=None):
+    '''takes combinations of 2 linearly independent isotropic elastic constants and returns SOECs in the following order:
+       c11, c12(=lambda), c44(=mu=shear modulus), bulk modulus, Young's modulus, Poisson's ratio
+       (where lambda and mu are the Lame constants).'''
+    if lam is not None:
+        c12=lam
+    if mu is not None:
+        c44=mu
+    if c44 is not None:
+        if c12 is not None:
+            bulk = c12 + 2*c44/3
+            poisson = c12/(2*(c12+c44))
+            young = 2*c44*(1+poisson)
+        elif bulk is not None:
+            c12 = bulk - 2*c44/3
+            poisson = c12/(2*(c12+c44))
+            young = 2*c44*(1+poisson)
+        elif young is not None:
+            poisson = young/(2*c44) - 1
+            c12 = poisson*2*c44/(1-2*poisson)
+            bulk = c12 + 2*c44/3
+        elif poisson is not None:
+            young = 2*c44*(1+poisson)
+            c12 = poisson*2*c44/(1-2*poisson)
+            bulk = c12 + 2*c44/3
+    elif poisson is not None:
+        if young is not None:
+            c44 = young/(2*(1+poisson))
+            c12 = poisson*2*c44/(1-2*poisson)
+            bulk = c12 + 2*c44/3
+        elif c12 is not None:
+            c44 = c12/(2*poisson) - c12
+            bulk = c12 + 2*c44/3
+            young = 2*c44*(1+poisson)
+        elif bulk is not None:
+            c44 = 3*bulk*(1/2 - poisson)/(1+poisson)
+            c12 = bulk - 2*c44/3
+            young = 2*c44*(1+poisson)
+    elif young is not None:
+        if c12 is not None:
+            p = (3*c12-young)/4
+            c44 = np.sqrt(p**2+young*c12/2) - p
+            bulk = c12 + 2*c44/3
+            poisson = young/(2*c44) - 1
+        elif bulk is not None:
+            c44  = bulk*young/(3*bulk-young/3)
+            c12 = bulk - 2*c44/3
+            poisson = c12/(2*(c12+c44))
+    elif bulk is not None:
+        if c12 is not None:
+            c44 = 3*(bulk-c12)/2
+            poisson = c12/(2*(c12+c44))
+            young = 2*c44*(1+poisson)
+    if int(pd.Series([c12,c44,bulk,young,poisson]).isna().sum())>0:
+        raise ValueError("need any 2 of these 5: [c12,c44,bulk,young,poisson] (and note that lam=c12, mu=c44)")
+    c11 = c12+2*c44
+    out = {"c11":c11,"c12":c12,"c44":c44,"bulk":bulk,"young":young,"poisson":poisson}
+    return pd.Series(out)
+
+def convert_TOECiso(c123=None, c144=None, c456=None, l=None, m=None, n=None, nu1=None, nu2=None, nu3=None):
+    '''takes 3 linearly independent isotropic third order elastic constants in either the standard repr. (c123,c144,c456), the Tupin/Bernstein
+       constants (nu1,nu2,nu3 which coincide with the former), or the Murnaghan constants (l,m,n) and returns a pandas.Series of TOECs in the
+       following order: l,m,n,nu1,nu2,nu3,c111,c112,c123,c144,c166,c456'''
+    if nu1 is None or nu2 is None or nu3 is None:
+        C3 = elasticC3(c123=c123,c144=c144,c456=c456,l=l,m=m,n=n,voigt=True)
+    else:
+        C3 = elasticC3(c123=nu1,c144=nu2,c456=nu3,voigt=True)
+    n = 4*C3[3,4,5]
+    m = C3[0,3,3] + n/2
+    l = C3[0,1,2]/2 + m - n/2
+    out = {"l":l, "m":m, "n":n, "nu1":C3[0,1,2], "nu2":C3[0,3,3], "nu3":C3[3,4,5]}
+    out |= {"c111":C3[0,0,0], "c112":C3[0,0,1], "c123":C3[0,1,2], "c144":C3[0,3,3], "c166":C3[0,5,5], "c456":C3[3,4,5]}
+    return pd.Series(out)
 
 ### generate tensors of elastic constants
 def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=False):

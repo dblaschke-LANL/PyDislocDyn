@@ -294,15 +294,12 @@ class metal_props:
         self.young = 2*self.mu*(1+self.poisson)
         out = {"lambda":self.lam, "mu":self.mu, "bulk":self.bulk, "young":self.young, "poisson":self.poisson}
         if include_TOEC:
-            nu1 = 2*self.Murl-2*self.Murm+self.Murn
-            nu2 = self.Murm-self.Murn/2
-            nu3 = self.Murn/4
             c111 = 2*self.Murl+4*self.Murm
             c112 = 2*self.Murl
-            c123 = nu1
-            c144 = nu2
+            c123 = nu1 = 2*self.Murl-2*self.Murm+self.Murn
+            c144 = nu2 = self.Murm-self.Murn/2
             c166 = self.Murm
-            c456 = self.Murn/4
+            c456 = nu3 = self.Murn/4
             out |= {"l":self.Murl, "m":self.Murm, "n":self.Murn}
             out |= {"nu1":nu1, "nu2":nu2, "nu3":nu3}
             out |= {"c111":c111, "c112":c112, "c123":c123, "c144":c144, "c166":c166, "c456":c456}
