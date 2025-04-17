@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 15, 2025
+# Date: Mar. 6, 2023 - Apr. 17, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -21,7 +21,8 @@ dir_path = os.path.join(dir_path,'pydislocdyn')
 
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, ISO_l, c111
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
-from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, readinputfile
+from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, \
+    readinputfile, convert_SOECiso, convert_TOECiso
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
 if Ncores>1:
@@ -418,6 +419,19 @@ if __name__ == '__main__':
                     if not (np.isclose(Y[X].clowest1, Y[X].clowest2) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
                         print(f"find lowest sound speed unit test failed for {X}: {Y[X].clowest1=}, {Y[X].clowest2=}, {Y[X].vcrit_smallest=}")
                         success = False
+                testC = (12.3e9,4.5e9,6e9)
+                a1 = convert_SOECiso(*testC[:2])
+                if not (np.allclose(a1,convert_SOECiso(bulk=a1['bulk'],c44=a1['c44'])) and np.allclose(a1,convert_SOECiso(lam=a1['c12'],bulk=a1['bulk'])) \
+                        and np.allclose(a1,convert_SOECiso(c12=a1['c12'],young=a1['young'])) and np.allclose(a1,convert_SOECiso(c12=a1['c12'],poisson=a1['poisson'])) \
+                        and np.allclose(a1,convert_SOECiso(bulk=a1['bulk'],young=a1['young'])) and np.allclose(a1,convert_SOECiso(bulk=a1['bulk'],poisson=a1['poisson'])) \
+                        and np.allclose(a1,convert_SOECiso(c44=a1['c44'],young=a1['young'])) and np.allclose(a1,convert_SOECiso(c44=a1['c44'],poisson=a1['poisson'])) \
+                        and np.allclose(a1,convert_SOECiso(poisson=a1['poisson'],young=a1['young']))):
+                    print("convert_SOECiso unit test failed")
+                    sucess = False
+                a2 = convert_TOECiso(*testC)
+                if not (np.allclose(a2,convert_TOECiso(l=a2['l'],m=a2['m'],n=a2['n'])) and np.allclose(a2,convert_TOECiso(nu1=a2['nu1'],nu2=a2['nu2'],nu3=a2['nu3']))):
+                    print("convert_TOECiso unit test failed")
+                    sucess = False
         else: print("skipping tests 'misc' as requested")
         print("\ncomparing misc results")
         for X in metal_list:
