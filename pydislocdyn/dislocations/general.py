@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 16, 2025
+# Date: Nov. 3, 2017 - Apr. 23, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,7 +12,7 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff, \
-    fntsettings, plt ## =matplotlib.pyplot
+    fntsettings, mpl, plt ## =matplotlib.pyplot
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from .steadystate import StrohGeometry
@@ -29,6 +29,9 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     phi_msh, r_msh = np.meshgrid(phi,r)
     x_msh = r_msh*np.cos(phi_msh)
     y_msh = r_msh*np.sin(phi_msh)
+    if showplt and mpl.rcParams['text.usetex']:
+        # print("Warning: turning off matplotlib LaTeX backend in order to show the plot")
+        plt.rcParams.update({"text.usetex": False})
     plt.figure(figsize=figsize)
     plt.axis(axis)
     plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize,family=fntsettings['family'])
@@ -51,8 +54,9 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
         if 'linewidths' not in kwargs: kwargs['linewidths'] = 0.7
         plt.contour(x_msh,y_msh,uij,**kwargs)
     cbar.ax.tick_params(labelsize=fntsize)
-    if showplt: plt.show()
     if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
+    if showplt:
+        plt.show()
     plt.close()
 
 class Dislocation(StrohGeometry,metal_props):
