@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 23, 2025
+# Date: Nov. 3, 2017 - Apr. 24, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -11,6 +11,7 @@ import numpy as np
 import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
+import pandas as pd
 from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff, \
     fntsettings, mpl, plt ## =matplotlib.pyplot
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
@@ -197,10 +198,11 @@ class Dislocation(StrohGeometry,metal_props):
                         print(f'Warning: {self.name}.computevcrit_edge() (resp. scipy.optimize.root()) failed, debug info: {rv2limit_sol=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
         return self.vcrit_edge
 
-    def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True):
+    def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True,return_all=False):
         '''Compute the lowest critical (or limiting) velocities for all dislocation character angles within list 'theta'. If theta is omitted, we fall back to attribute .theta (default).
         The list of results will be stored in method .vcrit_all, i.e. .vcrit_all[0]=theta and .vcrit_all[1] contains the corresponding lowest limiting velocities.
         Additionally, .vcrit_all[3] contains the highest critical velocities and .vcrit_all[2] contains the intermediate critical velocities.
+        If option 'return_all' is set to True, a pandas.DataFrame of all 3 branches is returned instead of .vcrit_all[1].
         Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit_barnett.'''
         if theta is None:
             theta=self.theta
@@ -231,7 +233,12 @@ class Dislocation(StrohGeometry,metal_props):
                 self.vcrit_edge = self.vcrit_all[1,indices[1]]
                 if len(indices) == 3:
                     self.vcrit_edge = min(self.vcrit_edge,self.vcrit_all[1,indices[2]])
-        return self.vcrit_all[1]
+        out = self.vcrit_all[1]
+        if return_all:
+            out = pd.DataFrame(self.vcrit_all[1:],columns=self.vcrit_all[0])
+            out.columns.name = 'theta'
+            out.index.name = 'branch'
+        return out
     
     def findvcrit_smallest(self,xatol=1e-2):
         '''Computes the smallest critical velocity, which subsequently is stored as attribute .vcrit_smallest and the full result of scipy.minimize_scalar is returned
