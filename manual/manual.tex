@@ -41,7 +41,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{January 23, 2025}
+\date{April 27, 2025}
 
 \begin{document}
 \maketitle
@@ -268,7 +268,7 @@ Boolean keyword \verb|isotropify| finally allows to initialize an isotropic inst
 
 Once initialized, many calculations are available via the classes methods such as:
 \begin{itemize}
-\item \verb|.compute_Lame()| to calculate the isotropic averages of the SOECs
+\item \verb|.compute_Lame()| to calculate isotropic averages of the single crystal elastic constants
 
 \item \verb|.computesound(v)| to calculate the sound speeds for a wave propagating in direction v
 
@@ -301,22 +301,22 @@ The result is stored in attribute \verb|.uk|.
 \item \verb|.alignuk()| rotates .uk (the result of \verb|.computeuk()|) into coordinates aligned with the dislocation line and slip plane normal and stores the result in \verb|.uk_aligned|; \verb|.computerot()| (or \verb|alignC2()|) must be called first.
 
 \item \verb|.computeuij_acc_screw(a,beta)| calculates the dislocation displacement gradient field of a screw dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane.
-The result is stored in \verb|.uij_acc_screw_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal\footnote{
-Note: this method and attribute were renamed  .computeuij\_acc() $\to$ .computeuij\_acc\_screw() and .uij\_acc\_aligned $\to$ .uij\_acc\_screw\_aligned in PyDislocDyn 1.2.7.}.
+The result is stored in \verb|.uij_acc_screw_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal.
+%\footnote{Note: this method and attribute were renamed  .computeuij\_acc() $\to$ .computeuij\_acc\_screw() and .uij\_acc\_aligned $\to$ .uij\_acc\_screw\_aligned in PyDislocDyn 1.2.7.}.
 
 \item \verb|.computeuij_acc_edge(a,beta)| likewise calculates the dislocation displacement gradient field of an edge dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane.
 The result is stored in \verb|.uij_acc_edge_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal.
 
 \item Method \verb|.plotdisloc()| generates a color-mesh plot of one component (choose with keyword \verb|`component’|) of the dislocation displacement gradient field of one character angle (choose with keyword \verb|`character’|) and saves it as a pdf file.
 If velocity \verb|beta| is set, the dislocation field is computed on the fly (and other arguments of this function are passed along to the \verb|.computeuij()| method).
-Setting \verb|showplt=True| will display the plot inline in addition to saving a pdf;
-this option requires that the user first set \verb|`%matplotlib inline’|, as the default matplotlib back-end set by PyDislocDyn is \verb|`Agg'| (in order to facilitate running in a remote terminal session).
+Setting \verb|showplt=True| will display the plot inline (within an ipython or jupyter session) in addition to saving a pdf;
+this option requires that the user first set \verb|`%matplotlib inline’|, as the default matplotlib back-end set by PyDislocDyn is \verb|`Agg'| (in order to facilitate running in a remote terminal session), or \verb|`pgf'| if LaTeX is detected.
 
 \item \verb|.computeEtot()| will calculate the elastic strain self energy of the dislocation from the previously calculated displacement gradient field for all character angles and stores the result in attribute \verb|.Etot|
 
 \item \verb|.computeLT()| will calculate the line tension from \verb|.Etot| for all character angles and stores its result in \verb|.LT|.
 Warning: this calculation requires a high resolution in character angle, \verb|Ntheta>=100| is recommended.
-Furthermore, since numerical differentiation is involved, the array \verb|.LT| will be shorter than the array \verb|.Etot| by two entries, i.e. in order to get results for pure screw and edge, \verb|theta| must contain one additional angle past each end of the interval.
+Furthermore, since numerical differentiation is involved, the array \verb|.LT| will be shorter than the array \verb|.Etot| by two entries, i.e. in order to get results for pure screw and edge, \verb|theta| must contain one additional angle past each end of the interval, e.g. by setting the option \verb|include_extra=True| when calling \verb|readinputfile(...)|.
 \end{itemize}
 
 
@@ -355,6 +355,7 @@ In particular this includes the following objects:
 	\item \verb|Voigt| and \verb|UnVoigt| to convert tensors between Voigt notation and Cartesian coordinates.
 	\item \verb|elasticC2| and \verb|elasticC3| to generate the tensors (i.e. the multidimensional numpy arrays) of second and third order elastic constants in Cartesian coordinates (default) or in Voigt notation (set \verb|voigt=True|).
 	\item \verb|elasticS2| and \verb|elasticS3| to calculate the second and third order compliance tensors from the elastic (or stiffness) tensors.
+	\item \verb|convert_SOECiso| and \verb|convert_TOECiso| to convert between different common sets of isotropic elastic constants at second (bulk, shear, and Young's modulus, Poisson's ratio, Lam\'e constants) and third (Standard rep., Murnaghan, and Tupin/Bernstein constants) order.
 	\item the \verb|strain_poly| class as described above in Section \ref{sec:strain_poly}.
    \item helper functions \verb|writeinputfile| and \verb|writeallinputfiles|  to write data defined in the python dictionaries of sub-module \verb|metaldata| to PyDislocDyn input files.
    \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
