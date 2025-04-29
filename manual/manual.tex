@@ -1,19 +1,28 @@
-\documentclass[11pt,letterpaper,oneside,pdftex]{article}
+\documentclass[11pt,letterpaper,oneside]{article}
+\usepackage{iftex}
+\iftutex
+% (Xe|Lua)LaTeX
+\usepackage{fontsetup}
+\usepackage{latexsym}
+\setmainfont[Scale=0.93]{TeX Gyre Schola}
+\setmathfont[Scale=0.93]{TeX Gyre Schola Math}
+\else
 \pdfoutput=1
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{fouriernc}
+\usepackage{amssymb}
+\fi
 
 \usepackage{amsmath}
-\usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage[bindingoffset=0.0cm,width=16.20cm, height=22.0cm]{geometry}
 
 \newcommand{\id}{\mathbb{1}}
 \usepackage[margin=1cm,font=small]{caption}
 
-\usepackage[pdftex,hyperref,svgnames]{xcolor}
-\usepackage[pdftex,bookmarksnumbered=true,breaklinks=true,linktoc=all,%
+\usepackage[svgnames]{xcolor}
+\usepackage[bookmarksnumbered=true,breaklinks=true,linktoc=all,%
 colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref}
 %%%
 \makeatletter
@@ -41,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{April 27, 2025}
+\date{April 29, 2025}
 
 \begin{document}
 \maketitle
@@ -88,22 +97,22 @@ The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was sup
 As of PyDislocDyn 1.3.1, required modules include Numpy $\ge1.19$, Scipy $\ge1.9$, Sympy $\ge1.9$, Matplotlib $\ge3.3$, Pandas $\ge1.3$ (including its optional dependency Jinja2), and mpmath (recommended optional dependency of mpmath: gmpy).
 \item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
 Numba $\ge0.53$ (a just-in-time compiler for Python), Joblib $\ge1.1$ (for parallelization), and a Fortran compiler supported by numpy.f2py to compile the optional Fortran subroutines.
-%To compile the optional Fortran subroutines, run \verb|`python -m numpy.f2py -c subroutines.f90 -m subroutines’|.\\
+%To compile the optional Fortran subroutines, run `\verb|python -m numpy.f2py -c subroutines.f90 -m subroutines|'.\\
 %Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS with Python $\leq3.11$ compile with:
-%\\\verb|`python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines'|;\\
+%\\`\verb|python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines|';\\
 %or with Python $\geq3.12$:
-%\\\verb|`python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines'|.
+%\\`\verb|python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines|'.
 \\
 Note: building the latter with Numpy $\le1.26$ requires Setuptools $<70$, whereas building with Numpy $\ge2.0$ / Python $\ge3.12$ requires Meson (see the Numpy documentation for details).\\
 To compile the optional Fortran subroutines of PyDislocDyn $\ge1.3.0$, simply run\\
- \verb|python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()'|\\
+ \verb|python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()|'\\
 % (PyDislocDyn 1.3.0 or higher).
 % The Fortran submodule will then be available as submodule \verb|pydislocdyn.subroutines| the next time pydislocdyn is imported.
 See the readme file for additional information on installing PyDislocDyn and compiling its submodule.
 
 OpenMP is also supported by the Fortran submodule, and the number of threads used by the subroutines is controlled by environment variable \verb|OMP_NUM_THREADS|.
 Unless set by the user prior to running Python in the terminal, PyDislocDyn will attempt to choose an optimal value.
-Furthermore, PyDislocDyn’s joblib parallelization will automatically adjust its ‘Ncores’ variable to avoid over-committing.
+Furthermore, PyDislocDyn's joblib parallelization will automatically adjust its `Ncores' variable to avoid over-committing.
 %, i.e. if openmp uses all cores in the subroutines, joblib will spawn only one (higher level) python thread.
 %Best results are achieved when \verb|OMP_NUM_THREADS| is close to \verb|Ncores| while \verb|OMP_NUM_THREADS*Ncores|=the number of all available (virtual) cpu cores; the value for Ncores is set automatically by the python code, so the user just needs to set \verb|OMP_NUM_THREADS| prior to running python in the terminal.
 \end{itemize}
@@ -112,36 +121,36 @@ Furthermore, PyDislocDyn’s joblib parallelization will automatically adjust it
 \section{Running the code}
 
 PyDislocDyn $\ge$1.2.x reads its material data from input files, though PyDislocDyn also includes a selection of predefined material data to run simulations immediately.
-The latter are assembled in dictionaries within \verb|`metal_data.py'|, see Refs. \cite{Hertzberg:2012,Kaye:2004,CRCHandbook,Wasserbaech:1990,Seeger:1960,Graham:1968,Smith:1966,Kiewel:1996,Samsonov:1968,Epstein:1965,Lowrie:1967,Thomas:1968,Hiki:1966,Leese:1968,Voronov:1978,Alers:1960,Saunders:1986,Powell:1984,Naimon:1971,Riley:1973,Swartz:1972,Rao:1973,Swartz:1970,Singh:1992,Barrera:1993,Jiles:1981,Yogurtcu:1985,Srinivasan:1973a,Rao:1980,Vekilov:2016,Suzuki:1971}.
+The latter are assembled in dictionaries within `\verb|metal_data.py|', see Refs. \cite{Hertzberg:2012,Kaye:2004,CRCHandbook,Wasserbaech:1990,Seeger:1960,Graham:1968,Smith:1966,Kiewel:1996,Samsonov:1968,Epstein:1965,Lowrie:1967,Thomas:1968,Hiki:1966,Leese:1968,Voronov:1978,Alers:1960,Saunders:1986,Powell:1984,Naimon:1971,Riley:1973,Swartz:1972,Rao:1973,Swartz:1970,Singh:1992,Barrera:1993,Jiles:1981,Yogurtcu:1985,Srinivasan:1973a,Rao:1980,Vekilov:2016,Suzuki:1971}.
 
 \subsection{Using the front-end scripts}
 \label{sec:frontends}
 
 There are four front-end scripts included in PyDislocDyn which all can process one or multiple input files.
-They are located together with all sub-modules in folder \verb|`pydislocdyn'|.
-All four front-end scripts can optionally be run without input files in which case data from \verb|`metal_data.py’| will be used.
+They are located together with all sub-modules in folder `\verb|pydislocdyn|'.
+All four front-end scripts can optionally be run without input files in which case data from `\verb|metal_data.py|' will be used.
 By passing keyword arguments, an according subset of shipped metals are considered for the calculations.
-(See the dictionary keys within \verb|`metal_data.py’| for valid keywords.)
+(See the dictionary keys within `\verb|metal_data.py|' for valid keywords.)
 
-As a byproduct, sample input files are generated and saved to subfolder \verb|`temp_pydislocdyn’|.
-These input files can also be generated by the user directly via the functions \verb|`writeinputfile()’| or \verb|`writeallinputfiles()'| defined in \verb|`metal_data.py’|.
+As a byproduct, sample input files are generated and saved to subfolder `\verb|temp_pydislocdyn|'.
+These input files can also be generated by the user directly via the functions `\verb|writeinputfile()|' or `\verb|writeallinputfiles()|' defined in `\verb|metal_data.py|'.
 
 
 \subsubsection{polycrystal\_averaging.py}
 
-Calling \verb|`python pydislocdyn/polycrystal_averaging.py inputfile1 inputfile2 ...’| will compute average elastic constants (second and if applicable third order) using Voigt, Reuss, Hill, and (for cubic only) the Kr{\"o}ner method, see \cite{Blaschke:2017Poly} and references therein for details.
+By calling `\verb|python pydislocdyn/polycrystal_averaging.py inputfile1 inputfile2 ...|' we calculate average elastic constants (second and if applicable third order) using Voigt, Reuss, Hill, and (for cubic only) the Kr{\"o}ner method, see \cite{Blaschke:2017Poly} and references therein for details.
 Results are written to a text file,
-\verb|`averaged_elastic_constants.txt’|.
+`\verb|averaged_elastic_constants.txt|'.
 Since pydislocdyn ($\ge$1.2.9) is a `regular package' in python, all front-end scripts can also be run via python's -m option, e.g. in the present case:\\
-\verb|`python -m pydislocdyn.polycrystal_averaging inputfile1 inputfile2 ...’|.
+`\verb|python -m pydislocdyn.polycrystal_averaging inputfile1 inputfile2 ...|'.
 
 
 
 \subsubsection{linetension\_calcs.py}
 
-Calling \verb|`python pydislocdyn/linetension_calcs.py inputfile1 inputfile2 ...’| will compute the line tension of the dislocations / slip systems defined in the input files as a function of velocity ‘beta’ (normalized by the average transverse sound speed or by one derived from Lam\'e constant \verb|mu| read from the input file if present) and dislocation character angle ‘theta’, see \cite{Blaschke:2017lten} for details on the method.
+By calling `\verb|python pydislocdyn/linetension_calcs.py inputfile1 inputfile2 ...|' we calculate the line tension of the dislocations / slip systems defined in the input files as a function of velocity `beta' (normalized by the average transverse sound speed or by one derived from Lam\'e constant \verb|mu| read from the input file if present) and dislocation character angle `theta', see \cite{Blaschke:2017lten} for details on the method.
 The default resolution of \verb|Nbeta=500| and \verb|Ntheta=600| can be changed by passing options on the command line, e.g.:
-\\\verb|`--Nbeta=100 --Ntheta=100’|.\\
+\\`\verb|--Nbeta=100 --Ntheta=100|'.\\
 Option \verb|--Nbeta=0| can be abused to skip line tension calculations and to just generate the plots using results from a previous run. 
 Additional command line options include:
 the resolution of the discretized polar angle \verb|--Nphi|,
@@ -149,18 +158,18 @@ an option to skip generating the plots via \verb|--skip_plots|,
 an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
 and more; run \verb|linetension_calcs --help| for a list of all supported command line options and their expected data types.
 \\
-Results are saved as compressed text files with naming scheme \verb|`LT_metalname.dat.xz’| and results from a previous run will first be moved to \verb|`LT_metalname.dat.bak.xz’|.
-These result files can be conveniently read into a pandas.DataFrame by using function \verb|`read_2dresults’| which can be imported from \verb|`pydislocdyn’|.
+Results are saved as compressed text files with naming scheme `\verb|LT_metalname.dat.xz|' and results from a previous run will first be moved to `\verb|LT_metalname.dat.bak.xz|'.
+These result files can be conveniently read into a pandas.DataFrame by using function `\verb|read_2dresults|' which can be imported from `\verb|pydislocdyn|'.
 Additionally, a number of plots are generated and saved as pdf files.
 
 
 
 \subsubsection{dragcoeff\_iso.py}
 
-Calling \verb|`python pydislocdyn/dragcoeff_iso.py inputfile1 inputfile2 ...’| will compute the drag coefficient of the dislocations defined in the input files in the isotropic limit as a function of (normalized) velocity \verb|`beta’| and as a function of resolved shear stress in units of mPa\,s, see \cite{Blaschke:BpaperRpt,Blaschke:2019Bpap,Blaschke:2019a} for details on the method.
+By calling `\verb|python pydislocdyn/dragcoeff_iso.py inputfile1 inputfile2 ...|' we calculate the drag coefficient of the dislocations defined in the input files in the isotropic limit as a function of (normalized) velocity `\verb|beta|' and as a function of resolved shear stress in units of mPa\,s, see \cite{Blaschke:BpaperRpt,Blaschke:2019Bpap,Blaschke:2019a} for details on the method.
 If the input file defines an anisotropic crystal, the code will first compute the averaged isotropic elastic constants to be used in the calculation.
-Note that there exists no accurate averaging scheme for third order elastic constants, so measured isotropic values should always be preferred, or better yet: compute the drag coefficient in the semi-isotropic approach using  \verb|`dragcoeff_semi_iso.py’|.
-Results are written to text files \verb|`drag_metalname.dat’|, and additionally a number of plots are generated and saved as pdf files.
+Note that there exists no accurate averaging scheme for third order elastic constants, so measured isotropic values should always be preferred, or better yet: compute the drag coefficient in the semi-isotropic approach using  `\verb|dragcoeff_semi_iso.py|'.
+Results are written to text files `\verb|drag_metalname.dat|', and additionally a number of plots are generated and saved as pdf files.
 
 Supported command line options (to change defaults, all optional) include:
 the resolution of the normalized velocities \verb|--Nbeta|,
@@ -175,9 +184,9 @@ Option \verb|--Ncores=0| can be abused to skip drag coefficient calculations and
 
 \subsubsection{dragcoeff\_semi\_iso.py}
 
-Calling \verb|`python pydislocdyn/dragcoeff_semi_iso.py inputfile1 inputfile2 ...’| will compute the drag coefficient in units of mPa\,s of the dislocations defined in the input files as a function of (normalized) velocity \verb|`beta’| and dislocation character angle \verb|`theta’| as well as resolved shear stress, see \cite{Blaschke:2018anis,Blaschke:2019fits,Blaschke:2021impact} for details on the semi-isotropic approximation to dislocation drag.
+Calling `\verb|python pydislocdyn/dragcoeff_semi_iso.py inputfile1 inputfile2 ...|' will calculate the drag coefficient in units of mPa\,s of the dislocations defined in the input files as a function of (normalized) velocity `\verb|beta|' and dislocation character angle `\verb|theta|' as well as resolved shear stress, see \cite{Blaschke:2018anis,Blaschke:2019fits,Blaschke:2021impact} for details on the semi-isotropic approximation to dislocation drag.
 The default resolution of \verb|Nbeta=99| and \verb|Ntheta=21| can be changed by passing options on the command line, e.g.:
-\verb|`--Nbeta=50 --Ntheta=11’|.\\
+`\verb|--Nbeta=50 --Ntheta=11|'.\\
 Additional command line options include:
 the resolution of various discretized variables, \verb|--Nphi|, \verb|--Nphi1|, \verb|--Nq|, \verb|--Nq1|, \verb|--NphiX|, \verb|--Nt| (just the base value as variable t is adaptively refined),
 an option to skip generating the plots via \verb|--skip_plots|,
@@ -186,11 +195,11 @@ additional options to be passed on to subroutine \verb|dragcoeff_iso| via \verb|
 and more; run \verb|dragcoeff_semi_iso --help| for a list of all supported command line options and their expected data types.
 Option \verb|--Ncores=0| can be abused to skip drag coefficient calculations and to just generate the plots using results from a previous run.
 
-By default, the lowest dislocation limiting velocity is computed on the fly for every character angle and drag coefficient calculations will be skipped beyond these velocities (on a per character angle basis, see \verb|`inf’| entries in the resulting \verb|`drag_anis_metalname.dat.xz’| files).
-This behavior is controlled by Boolean option \verb|`--skiptransonic’|.
+By default, the lowest dislocation limiting velocity is computed on the fly for every character angle and drag coefficient calculations will be skipped beyond these velocities (on a per character angle basis, see `\verb|inf|' entries in the resulting `\verb|drag_anis_metalname.dat.xz|' files).
+This behavior is controlled by Boolean option `\verb|--skiptransonic|'.
 Additionally, a number of plots are generated and saved as pdf files.
-Drag coefficient results (as functions of velocity) are written to files with naming scheme \verb|`drag_anis_metalname.dat.xz’|;
-these can be conveniently read into a pandas dataframe by using function \verb|`read_2dresults’| which can be imported from \verb|`pydislocdyn’|.
+Drag coefficient results (as functions of velocity) are written to files with naming scheme `\verb|drag_anis_metalname.dat.xz|';
+these can be conveniently read into a pandas dataframe by using function `\verb|read_2dresults|' which can be imported from `\verb|pydislocdyn|'.
 
 
 
@@ -202,7 +211,7 @@ Input files are text files assigning values to keywords known to PyDislocDyn.
 All entries adhere to the format
 \\\verb|keyword = value|\\
 where all numerical values must be set in SI units.
-Comments are allowed and start with \verb|`#'|.
+Comments are allowed and start with `\verb|#|'.
 Required keywords include:
 \begin{itemize}
 \item \verb|sym|: defines the crystal symmetry, recognized values are \verb|iso|, \verb|fcc|, \verb|bcc|, \verb|cubic| (for cubic I), \verb|hcp|, \verb|tetr| (for tetragonal I), \verb|trig| (for trigonal I), \verb|tetr2| (for tetragonal II), \verb|orth| (for orthorhombic), \verb|mono| (for monoclinic), and \verb|tric| (for triclinic), see \cite{Brugger:1965} for an overview over these crystal systems.
@@ -249,7 +258,7 @@ The order is ascending, i.e. c111 comes before c112 etc.; see \cite{Brugger:1965
 \label{sec:Dislocation}
 
 To work with an instance of PyDislocDyn's main class, the \verb|Dislocation| class, it is recommended to import the following:
-\\\verb|`from pydislocdyn import readinputfile’|\\
+\\`\verb|from pydislocdyn import readinputfile|'\\
 and then to use that function to initialize an instance of the Dislocation class using an input file.
 By default, only pure screw and pure edge dislocations are initialized; to initialize more than 2 character angles, set option \verb|Ntheta| accordingly when calling \verb|readinputfile(...)|.
 
@@ -292,7 +301,7 @@ The result is stored in attribute \verb|.uij|.
 Argument \verb|beta| is the normalized velocity (e.g. \verb|v/ct| by default, where \verb|ct| is the averaged transverse sound speed).
 The result is stored in attribute \verb|.uk|.
 
-\item \verb|.alignC2()| computes the tensor of SOEC in coordinates aligned with the dislocation line and slip plane normal; it’s result, ‘.C2aligned’, contains an array of SOEC tensors whose entries correspond to the character angles.
+\item \verb|.alignC2()| computes the tensor of SOEC in coordinates aligned with the dislocation line and slip plane normal; it's result, `.C2aligned', contains an array of SOEC tensors whose entries correspond to the character angles.
 
 \item \verb|.computerot()| is automatically called by \verb|.alignC2()| and calculates the rotation matrices for all character angles necessary to align coordinates with the dislocation line and slip plane normal
 
@@ -307,10 +316,10 @@ The result is stored in \verb|.uij_acc_screw_aligned| and, as the name suggests,
 \item \verb|.computeuij_acc_edge(a,beta)| likewise calculates the dislocation displacement gradient field of an edge dislocation accelerating from rest at rate \verb|a| at the time where its normalized velocity matches \verb|beta|, provided the plane perpendicular to the dislocation line is a reflection plane.
 The result is stored in \verb|.uij_acc_edge_aligned| and, as the name suggests, is calculated in coordinates aligned with the dislocation line and slip plane normal.
 
-\item Method \verb|.plotdisloc()| generates a color-mesh plot of one component (choose with keyword \verb|`component’|) of the dislocation displacement gradient field of one character angle (choose with keyword \verb|`character’|) and saves it as a pdf file.
+\item Method \verb|.plotdisloc()| generates a color-mesh plot of one component (choose with keyword `\verb|component|') of the dislocation displacement gradient field of one character angle (choose with keyword `\verb|character|') and saves it as a pdf file.
 If velocity \verb|beta| is set, the dislocation field is computed on the fly (and other arguments of this function are passed along to the \verb|.computeuij()| method).
 Setting \verb|showplt=True| will display the plot inline (within an ipython or jupyter session) in addition to saving a pdf;
-this option requires that the user first set \verb|`%matplotlib inline’|, as the default matplotlib back-end set by PyDislocDyn is \verb|`Agg'| (in order to facilitate running in a remote terminal session), or \verb|`pgf'| if LaTeX is detected.
+this option requires that the user first set `\verb|%matplotlib inline|', as the default matplotlib back-end set by PyDislocDyn is `\verb|Agg|' (in order to facilitate running in a remote terminal session), or `\verb|pgf|' if LaTeX is detected.
 
 \item \verb|.computeEtot()| will calculate the elastic strain self energy of the dislocation from the previously calculated displacement gradient field for all character angles and stores the result in attribute \verb|.Etot|
 
@@ -328,7 +337,7 @@ It lets the user who is not interested in dislocations work with elastic constan
 Instances of this class can be populated using the same input file format discussed above in section \ref{sec:inputfiles}, though keywords relating to dislocations (i.e. \verb|b|, \verb|n0|, \verb|Millerb|, \verb|Millern0|, \verb|burgers|) can be omitted.
 In order to read an input file to initialize an instance of the \verb|metal_props| class, import the following
 \footnote{In PyDislocDyn 1.3.0 the module part of `polycrystal\_averaging.py' was split off and the function to initialize the `metal\_props' class from an input file was moved to crystals.py.}:
-\\\verb|`from pydislocdyn.crystals import readinputfile'|
+\\`\verb|from pydislocdyn.crystals import readinputfile|'
 
 
 \subsubsection{The `strain\_poly' class}
@@ -337,7 +346,7 @@ In order to read an input file to initialize an instance of the \verb|metal_prop
 The \verb|strain_poly| class can be used to determine which type of infinitesimal strain deformation is sensitive to which elastic constants and is thus helpful in preparing simulations using third party software to calculate elastic constants.
 In particular, it can calculate the polynomial following from a Taylor expansion in $y$ as a function of (symbolic) elastic constants, where $y$ parameterizes the deformation, see e.g. \cite{Gu:2019,Blaschke:2021temperature} and references therein for details.
 To use this class, run
-\\\verb|`from pydislocdyn import strain_poly'|\\
+\\`\verb|from pydislocdyn import strain_poly|'\\
 Two arguments are required to initialize an instance:
 The sympy symbol parametrizing the deformation, \verb|y| (defaults to \verb|sympy.symbols('y')|), and a keyword selecting the crystal system, \verb|sym| (defaults to \verb|cubic|, all values known to the \verb|Dislocation| class are allowed also here).
 Method \verb|.generate_poly(epsilon,order=3)| calculates a Taylor expansion to the requested order in \verb|y| whose coefficients are (sympy symbols of) the elastic constants; \verb|epsilon| is the infinitesimal strain in Voigt notation (i.e. a list with 6 entries) which must depend on symbol \verb|y|.
@@ -349,13 +358,13 @@ Both methods support the optional Boolean keyword \verb|preserve_volume| (defaul
 
 \subsection{Using the modules}
 
-The most common classes and functions can be accessed directly by importing the main package: \verb|`pydislocdyn'|.
+The most common classes and functions can be accessed directly by importing the main package: `\verb|pydislocdyn|'.
 In particular this includes the following objects:
 \begin{itemize}
 	\item \verb|Voigt| and \verb|UnVoigt| to convert tensors between Voigt notation and Cartesian coordinates.
 	\item \verb|elasticC2| and \verb|elasticC3| to generate the tensors (i.e. the multidimensional numpy arrays) of second and third order elastic constants in Cartesian coordinates (default) or in Voigt notation (set \verb|voigt=True|).
 	\item \verb|elasticS2| and \verb|elasticS3| to calculate the second and third order compliance tensors from the elastic (or stiffness) tensors.
-	\item \verb|convert_SOECiso| and \verb|convert_TOECiso| to convert between different common sets of isotropic elastic constants at second (bulk, shear, and Young's modulus, Poisson's ratio, Lam\'e constants) and third (Standard rep., Murnaghan, and Tupin/Bernstein constants) order.
+	\item \verb|convert_SOECiso| and \verb|convert_TOECiso| to convert between common sets of isotropic elastic constants at second (bulk, shear, and Young's modulus, Poisson's ratio, Lam\'e constants) and third (Standard rep., Murnaghan, and Tupin/Bernstein constants) order.
 	\item the \verb|strain_poly| class as described above in Section \ref{sec:strain_poly}.
    \item helper functions \verb|writeinputfile| and \verb|writeallinputfiles|  to write data defined in the python dictionaries of sub-module \verb|metaldata| to PyDislocDyn input files.
    \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
@@ -371,7 +380,7 @@ Additional functions are available within the sub-modules:
 	\item \verb|pydislocdyn.elasticconstants| with functions related to elastic constants,
 	\item \verb|pydislocdyn.metaldata| which contains a number of python dictionaries of material data included in PyDislocDyn (see \verb|pydislocdyn.metaldata.all_metals|, which is a set of keywords for metals included in this sub-module),
 	\item \verb|pydislocdyn.utilities| contains various functions and definitions used by other parts of the package,
-	\item \verb|pydislocdyn.crystals| contains the \verb|metal_props| class (one of two parents of the \verb|Dislocation| class) and a function to populate an instance from an input file,
+	\item \verb|pydislocdyn.crystals| contains the \verb|metal_props| class (which is one of two parents of the \verb|Dislocation| class) and a function to populate an instance from an input file,
 	\item \verb|pydislocdyn.dislocations| contains the \verb|StrohGeometry| class (one of two parents of the \verb|Dislocation| class),  the \verb|Dislocation| class and various subroutines.
 	\item \verb|pydislocdyn.phononwind| which contains function \verb|phonondrag| to calculate the drag coefficient $B$ as mentioned in the list above, as well as its subroutines,
 	\item \verb|pydislocdyn.subroutines|, if it is compiled using \verb|numpy.f2py| and a Fortran compiler, provides some faster alternatives to a subset of functions defined in \verb|pydislocdyn.phononwind| and \verb|pydislocdyn.dislocations|; the code will use them automatically if they are available (as indicated by the Boolean variable \verb|pydislocdyn.usefortran|).
