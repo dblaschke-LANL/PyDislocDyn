@@ -71,7 +71,7 @@ try:
         usefortran = True
         if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
     else:
-        print("Error: the subroutines module is outdated, please re-compile with f2py or by calling pydislocdy.utilities.compilefortranmodule() and reloading pydislocdyn")
+        print("Error: the subroutines module is outdated, please re-compile by calling pydislocdy.utilities.compilefortranmodule() and reloading pydislocdyn")
         ompthreads = 0
 except ImportError:
     ompthreads = 0
@@ -96,13 +96,13 @@ def compilefortranmodule(buildopts=''):
     compilerflags = '' ## when in doubt, build without OpenMP support
     if sys.version_info[:2]<=(3,11):
         import setuptools
-        if setuptools.__version__ < '70':
+        if setuptools.__version__ < '70' and np.__version__<'2.0':
             if shutil.which('gfortran'):
                 compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
         elif np.__version__>='1.26':
             compilerflags = '--dep=openmp --backend=meson' # requires meson to be installed
         else:
-            raise Exception("I need either (setuptools <= 69) or (numpy 1.26 and meson) to compile.")
+            raise Exception("I need either (setuptools <= 69) or (numpy>=1.26 and meson) to compile.")
     elif sys.version_info[:2]>=(3,12):
         compilerflags = '--dep=openmp' # requires f2py with new meson backend (default in numpy>=2.0 and python>=3.12)
     if buildopts != '':
@@ -129,8 +129,7 @@ def printthreadinfo(Ncores,ompthreads=ompthreads):
     if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
-        print("call pydislocdyn.utilities.compilefortranmodule() or run 'python -m numpy.f2py -c subroutines.f90 -m subroutines'")
-        print("to compile this module (OpenMP is also supported with appropriate compiler flags), then reload pydislocdyn")
+        print("call pydislocdyn.utilities.compilefortranmodule() to compile this module, then reload pydislocdyn")
 
 def str2bool(arg):
     '''converts a string to bool'''
