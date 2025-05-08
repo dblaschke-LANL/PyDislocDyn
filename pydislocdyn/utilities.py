@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Dec. 18, 2024
+# Date: Nov. 5, 2017 - May 8, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -93,17 +93,29 @@ def compilefortranmodule(buildopts=''):
     '''Compiles the Fortran subroutines if a Fortran compiler is available.
        Keyword 'buildopts' may be used to pass additional options to f2py.'''
     cwd = os.getcwd()
-    if sys.version_info[:2]<=(3,11) and shutil.which('gfortran'):
-        compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
+    compilerflags = '' ## when in doubt, build without OpenMP support
+    if sys.version_info[:2]<=(3,11):
+        import setuptools
+        if setuptools.__version__ < '70':
+            if shutil.which('gfortran'):
+                compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
+        elif np.__version__>='1.26':
+            compilerflags = '--dep=openmp --backend=meson' # requires meson to be installed
+        else:
+            raise Exception("I need either (setuptools <= 69) or (numpy 1.26 and meson) to compile.")
     elif sys.version_info[:2]>=(3,12):
         compilerflags = '--dep=openmp' # requires f2py with new meson backend (default in numpy>=2.0 and python>=3.12)
-    else:
-        compilerflags = '' ## when in doubt, build without OpenMP support
     if buildopts != '':
         compilerflags += f" {buildopts}"
     os.chdir(os.path.dirname(__file__))
-    os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
+    error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
     os.chdir(cwd)
+    if error != 0:
+        print(f"\nERROR: compilefortranmodule() failed using {compilerflags=}")
+        print("make sure a Fortran compiler that is supported by numpy.f2py is installed")
+        if '--dep' in compilerflags:
+            print("as well as meson;")
+            print("additional options (if necessary), such as e.g. '--build-dir', may be passed via my 'buildopts' keyword.")
 
 def printthreadinfo(Ncores,ompthreads=ompthreads):
     '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
