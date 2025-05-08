@@ -43,12 +43,9 @@ The LANL development team asks that any forks or derivative works include approp
 * [numba](https://numba.pydata.org/) >=0.53 (for speedup via just-in-time compilation of some subroutines),</br>
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
 * a Fortran 90 compiler
-to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
-run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use </br>
-(or add appropriate options to build with OpenMP support, e.g. with gfortran and Python <=3.11: 'python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90 -m subroutines'; </br>
-with Python >=3.12: 'python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines').</br>
-Note: building with numpy <=1.26 requires setuptools<70; building with numpy >=2.0 requires meson.</br>
-A helper function, pydislocdyn.utilities.compilefortranmodule(), has been included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
+to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
+A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
+</br>Note: building with numpy <1.26 requires setuptools<70; building with numpy >=2.0 requires meson.</br>
 * a recent version of LaTeX to build the manual (LA-UR-22-28074), pdf available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
 
 ## Installation
