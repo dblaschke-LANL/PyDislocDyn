@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 16, 2025
+# Date: Nov. 7, 2017 - June 9, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -255,38 +255,47 @@ class metal_props:
                 S3 = elasticS3(S2,C3)
             else: S3 = None
             aver.voigt_average(C2,C3)
-            aver.reuss_average(S2,S3)
-            HillAverage = aver.hill_average()
+            if scheme != 'voigt':
+                aver.reuss_average(S2,S3)
+                HillAverage = aver.hill_average()
         if self.sym=='iso':
             self.lam=self.C2[0,1]
             self.mu=self.C2[3,3]
             self.Murl, self.Murm, self.Murn = tuple(convert_TOECiso(c123=self.C3[0,1,2],c144=self.C3[0,3,3],c456=self.C3[3,4,5]))[:3]
         elif scheme=='voigt':
-            self.lam = round(float(aver.voigt[lam]),roundto)
-            self.mu = round(float(aver.voigt[mu]),roundto)
+            self.lam = aver.voigt[lam]
+            self.mu = aver.voigt[mu]
         elif scheme=='reuss':
-            self.lam = round(float(aver.reuss[lam]),roundto)
-            self.mu = round(float(aver.reuss[mu]),roundto)
+            self.lam = aver.reuss[lam]
+            self.mu = aver.reuss[mu]
         elif self.sym in ('fcc', 'bcc', 'cubic') and scheme!='hill':
             ImprovedAv = aver.improved_average(C2,C3)
-            self.lam = round(float(ImprovedAv[lam]),roundto)
-            self.mu = round(float(ImprovedAv[mu]),roundto)
+            self.lam = ImprovedAv[lam]
+            self.mu = ImprovedAv[mu]
         else:
             ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
-            self.lam = round(float(HillAverage[lam]),roundto)
-            self.mu = round(float(HillAverage[mu]),roundto)
+            self.lam = HillAverage[lam]
+            self.mu = HillAverage[mu]
+        if self.sym!='iso' and roundto is not None and not C2.dtype==object:
+            self.lam = round(float(self.lam),roundto)
+            self.mu = round(float(self.mu),roundto)
         if include_TOEC and self.sym != 'iso':
-            self.Murl = round(float(HillAverage[Murl]),roundto)
-            self.Murm = round(float(HillAverage[Murm]),roundto)
-            self.Murn = round(float(HillAverage[Murn]),roundto)
             if scheme=='voigt':
-                self.Murl = round(float(aver.voigt[Murl]),roundto)
-                self.Murm = round(float(aver.voigt[Murm]),roundto)
-                self.Murn = round(float(aver.voigt[Murn]),roundto)
-            if scheme=='reuss':
-                self.Murl = round(float(aver.reuss[Murl]),roundto)
-                self.Murm = round(float(aver.reuss[Murm]),roundto)
-                self.Murn = round(float(aver.reuss[Murn]),roundto)
+                self.Murl = aver.voigt[Murl]
+                self.Murm = aver.voigt[Murm]
+                self.Murn = aver.voigt[Murn]
+            elif scheme=='reuss':
+                self.Murl = aver.reuss[Murl]
+                self.Murm = aver.reuss[Murm]
+                self.Murn = aver.reuss[Murn]
+            else:
+                self.Murl = HillAverage[Murl]
+                self.Murm = HillAverage[Murm]
+                self.Murn = HillAverage[Murn]
+            if roundto is not None and not C2.dtype==object:
+                self.Murl = round(float(self.Murl),roundto)
+                self.Murm = round(float(self.Murm),roundto)
+                self.Murn = round(float(self.Murn),roundto)
         self.bulk,self.young,self.poisson = tuple(convert_SOECiso(c12=self.lam,c44=self.mu))[-3:]
         out = {"lambda":self.lam, "mu":self.mu, "bulk":self.bulk, "young":self.young, "poisson":self.poisson}
         if include_TOEC:
