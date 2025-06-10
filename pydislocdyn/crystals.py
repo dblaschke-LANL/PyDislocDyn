@@ -131,7 +131,7 @@ class IsoAverages(IsoInvariants):
         ### Amat is (x_i x_j x_k x_l + y_i y_j y_k y_l + z_i z_j z_k z_l) where x,y,z are the unit vectors along the crystal axes
         ### one may easily check that in Voigt notation this construction leads to the diagonal matrix below
         Amat = np.diag([1,1,1,0,0,0])
-        Hmat = Voigt(elasticC2(c12=Sh,c44=Sh+1/2)) -5*Sh*Amat
+        Hmat = Voigt(elasticC2(c12=Sh,c44=Sh+1/sp.S(2))) -5*Sh*Amat
         Hm = np.dot(Hmat,np.diag([1,1,1,2,2,2]))
         C2hat = UnVoigt(np.array(sp.factor(sp.expand(sp.Matrix(np.dot(Hm,np.dot(Voigt(C2),Hm.T)))).subs(Sh**2,0)).subs(Sh,hfactor/2)))
         ###
@@ -444,11 +444,15 @@ class metal_props:
         aver.voigt_average(C2)
         S2 = elasticS2(C2)
         aver.reuss_average(S2)
-        muV = float(aver.voigt[mu])
-        muR = float(aver.reuss[mu])
-        bulkV = float(aver.voigt[lam]) + 2*muV/3
-        bulkR = float(aver.reuss[lam]) + 2*muR/3
-        return np.round(np.sqrt((np.log(bulkV/bulkR))**2 + 5*(np.log(muV/muR))**2),12)
+        muV = aver.voigt[mu]
+        muR = aver.reuss[mu]
+        bulkV = aver.voigt[lam] + 2*muV/3
+        bulkR = aver.reuss[lam] + 2*muR/3
+        if C2.dtype==object:
+            out = sp.sqrt((sp.log(bulkV/bulkR))**2 + 5*(sp.log(muV/muR))**2)
+        else:
+            out = float(np.round(np.sqrt((np.log(float(bulkV/bulkR)))**2 + 5*(np.log(float(muV/muR)))**2),12))
+        return out
     
     def Miller_to_Cart(self,v,normalize=True,reziprocal=False):
         '''Converts vector v from Miller indices to Cartesian coordinates (very small numbers are rounded to 0). If normalize=True, a unit vector is returned.
