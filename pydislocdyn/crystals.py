@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 9, 2025
+# Date: Nov. 7, 2017 - June 10, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -137,9 +137,15 @@ class IsoAverages(IsoInvariants):
         ###
         tmplam = solve(self.invI1-sp.factor(invI1(C2hat)),lam,dict=True)[0][lam]
         tmpeqn = sp.factor(hdenominator*(self.invI2-sp.factor(invI2(C2hat))).subs(lam,tmplam))
-        tmpmu = np.array(solve(tmpeqn,mu),dtype=complex)
-        tmpmu = np.real(tmpmu[tmpmu>0])[0]
-        tmplam = tmplam.subs(mu,tmpmu)
+        if C2.dtype==object:
+            tmpmu = solve(tmpeqn,mu)
+            print("WARNING: Kroener polynomial of improved averaging scheme for mu has 3 solutions;\
+                  without numbers I do not know which one is positive and real. Returning all solutions for mu\
+                  and returning the other elastic constants in terms of mu.")
+        else:
+            tmpmu = np.array(solve(tmpeqn,mu),dtype=complex)
+            tmpmu = np.real(tmpmu[tmpmu>0])[0]
+            tmplam = tmplam.subs(mu,tmpmu)
         out = {lam:tmplam, mu:tmpmu}
         
         if C3 is not None:
@@ -147,7 +153,11 @@ class IsoAverages(IsoInvariants):
             for i in range(6):
                 C3hat[i] = np.array(((sp.expand(sp.Matrix(C3hat[i])).subs(Sh**2,0)).subs(Sh**3,0)).subs(Sh,hfactor/2))
             C3hat = UnVoigt(C3hat)
-            out.update(solve([(self.invI3-invI3(C3hat)).subs(out),(self.invI4-invI4(C3hat)).subs(out),(self.invI5-invI5(C3hat)).subs(out)],[self.l,self.m,self.n],dict=True)[0])
+            if C2.dtype==object:
+                out2 = {lam:tmplam, mu:mu}
+                out.update(solve([(self.invI3-invI3(C3hat)).subs(out2),(self.invI4-invI4(C3hat)).subs(out2),(self.invI5-invI5(C3hat)).subs(out2)],[self.l,self.m,self.n],dict=True)[0])
+            else:
+                out.update(solve([(self.invI3-invI3(C3hat)).subs(out),(self.invI4-invI4(C3hat)).subs(out),(self.invI5-invI5(C3hat)).subs(out)],[self.l,self.m,self.n],dict=True)[0])
         
         self.improved = out
         return out
@@ -289,6 +299,10 @@ class metal_props:
                 self.Murl = aver.reuss[Murl]
                 self.Murm = aver.reuss[Murm]
                 self.Murn = aver.reuss[Murn]
+            elif scheme=='blaschke':
+                self.Murl = ImprovedAv[Murl]
+                self.Murm = ImprovedAv[Murm]
+                self.Murn = ImprovedAv[Murn]
             else:
                 self.Murl = HillAverage[Murl]
                 self.Murm = HillAverage[Murm]
@@ -297,7 +311,10 @@ class metal_props:
                 self.Murl = round(float(self.Murl),roundto)
                 self.Murm = round(float(self.Murm),roundto)
                 self.Murn = round(float(self.Murn),roundto)
-        self.bulk,self.young,self.poisson = tuple(convert_SOECiso(c12=self.lam,c44=self.mu))[-3:]
+        if C2.dtype==object and self.sym in ['cubic', 'fcc', 'bcc'] and scheme not in ['voigt','reuss','hill']:
+            self.bulk,self.young,self.poisson = tuple(convert_SOECiso(c12=self.lam,c44=sp.symbols('mu')))[-3:]
+        else:
+            self.bulk,self.young,self.poisson = tuple(convert_SOECiso(c12=self.lam,c44=self.mu))[-3:]
         out = {"lambda":self.lam, "mu":self.mu, "bulk":self.bulk, "young":self.young, "poisson":self.poisson}
         if include_TOEC:
             nu1,nu2,nu3,c111,c112,c123,c144,c166,c456 = tuple(convert_TOECiso(l=self.Murl,m=self.Murm,n=self.Murn))[-9:]
@@ -306,7 +323,8 @@ class metal_props:
             out |= {"c111":c111, "c112":c112, "c123":c123, "c144":c144, "c166":c166, "c456":c456}
         if simplify and self.sym!='iso' and C2.dtype==object:
             for key,val in out.items():
-                out[key] = sp.simplify(val)
+                if not isinstance(out[key], list):
+                    out[key] = sp.simplify(val)
         return pd.Series(out)
     
     def init_sound(self):
