@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 19, 2024
+# Date: Nov. 7, 2017 - June 10, 2025
 '''If run as a script, this file will compute polycrystal averages of second and third order elastic constants, either for
    all metals predefined in metal_data.py, or for those input files passed as arguments to the script; results are written
    to a text file 'averaged_elastic_constants.tex'.'''
@@ -21,29 +21,32 @@ from pydislocdyn.crystals import readinputfile, IsoAverages, lam, mu, Murl, Murm
 
 metal = sorted(list(data.all_metals.intersection(data.CRC_c11.keys()))) ## generate a list of those metals for which we have sufficient data
     
-def dict_to_pandas(dictionary):
+def dict_to_pandas(dictionary,usekeys=False):
     '''converts a dictionary containing polycrystalline averages to a pandas DataFrame'''
     if len(dictionary)==1:
         dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
     out = pd.DataFrame(dictionary,dtype=float).T
     if len(dictionary)==1: out.drop('dummy')
-    if len(out.columns) == 2:
+    if not usekeys and len(out.columns) == 2:
         out.columns = pd.Index([r'$\lambda$',r'$\mu$'])
-    else:
+    elif not usekeys:
         out.columns = pd.Index([r'$\lambda$',r'$\mu$','$l$','$m$','$n$'])
     return out
 
-def writelatex(data,caption="",soec_only=False,dropna=False):
+def writelatex(data,caption="",soec_only=False,dropna=False,precision=1):
     '''converts a pandas DataFrame containing polycrystalline averages to a LaTeX table'''
     out = data
     if soec_only:
         out = out.iloc[:,:2]
     if dropna:
         out.dropna(inplace=True)
-    out = out.style.format(precision=1)
+    out = out.style.format(precision=precision)
     if not soec_only:
         out = out.format('{:.0f}',subset=['$l$','$m$','$n$'])
-    return out.to_latex(caption=caption).replace(r'{}','').replace(r'{$','$').replace(r'$}','$').replace(r'$ \\',r'$ \\ \hline') ## pandas 1.3 puts curly brackets on column names, pandas >=1.4 does not
+    out = out.to_latex(caption=caption)
+    # pandas 1.3 puts curly brackets on column names, pandas >=1.4 does not:
+    out = out.replace('{log-Eucl. index} & {Zener}','log-Eucl. index & Zener')
+    return out.replace(r'{}','').replace(r'{$','$').replace(r'$}','$').replace(r'$ \\',r'$ \\ \hline')
 
 if __name__ == '__main__':
     Y={}
@@ -93,6 +96,7 @@ if __name__ == '__main__':
     ReussAverage = {}
     HillAverage = {}
     ImprovedAv = {}
+    Anisotropy = {}
     
     aver = IsoAverages(lam,mu,Murl,Murm,Murn) ### initialize isotropic quantities first
     print(f"Computing Voigt and Reuss averages for SOEC of {len(metal)} metals and for TOEC of {len(metal_toec)} metals ...")
@@ -116,11 +120,13 @@ if __name__ == '__main__':
         VoigtAverage[X] = aver.voigt_average(C2[X],C3[X])
         ReussAverage[X] = aver.reuss_average(S2[X],S3[X])
         HillAverage[X] = aver.hill_average()
+        Anisotropy[X] = {'log-Eucl. index':Y[X].anisotropy_index()}
     
     print(f"Computing improved averages for SOEC of {len(metal_cubic)} cubic metals and for TOEC of {len(metal_toec_cubic)} cubic metals ...")
     
     for X in metal_cubic:
         ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
+        Anisotropy[X] |= {'Zener':Y[X].Zener}
     
     ##### write results to files (as LaTeX tables):
     Averages = {}
@@ -132,4 +138,6 @@ if __name__ == '__main__':
                 averfile.write("\n\n")
                 if len(metal_toec)>0:
                     averfile.write(writelatex(Averages[title],dropna=True)+"\n\n")
+        Anisotropy = dict_to_pandas(Anisotropy,usekeys=True).fillna('N/A')
+        averfile.write(writelatex(Anisotropy,soec_only=True,precision=4,caption="Measures of anisotropy:")+"\n\n")
     print("done.")
