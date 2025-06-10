@@ -231,7 +231,7 @@ class metal_props:
         '''initializes the tensor of third order elastic constants'''
         self.C3=elasticC3(c111=self.c111,c112=self.c112,c113=self.c113,c123=self.c123,c133=self.c133,c144=self.c144,c155=self.c155,c166=self.c166,c222=self.c222,c333=self.c333,c344=self.c344,c366=self.c366,c456=self.c456,cijk=self.cijk,voigt=True)
     
-    def compute_Lame(self, roundto=-8, include_TOEC=False, scheme='auto'):
+    def compute_Lame(self, roundto=-8, include_TOEC=False, scheme='auto',simplify=True):
         '''Computes the Lame constants by averaging over the second order elastic constants.
            If option include_TOEC=True, Hill averages for the Murnaghan constants are calculated as well,
            but the user should be aware that the latter are not reliable as there is no good averaging scheme for TOECs.
@@ -241,7 +241,8 @@ class metal_props:
            determined from the averaged Lame constants, i.e. bulk and Young moduli as well as Poisson's ratio.
            Computed results are stored as class attributes and additionally we return the results as a pandas.Series;
            the latter includes additional representations of the TOEC (if include_TOEC) such as the Toupin/Bernstein
-           constants nui and the standard repr. of cijk.'''
+           constants nui and the standard repr. of cijk. Keyword "simplify" is only used if the single crystal
+           elastic constants are sympy symbols, in which case it controls whether the results will be simplified.'''
         C2 = UnVoigt(self.C2)
         if include_TOEC:
             C3 = UnVoigt(self.C3)
@@ -303,12 +304,19 @@ class metal_props:
             out |= {"l":self.Murl, "m":self.Murm, "n":self.Murn}
             out |= {"nu1":nu1, "nu2":nu2, "nu3":nu3}
             out |= {"c111":c111, "c112":c112, "c123":c123, "c144":c144, "c166":c166, "c456":c456}
+        if simplify and self.sym!='iso' and C2.dtype==object:
+            for key,val in out.items():
+                out[key] = sp.simplify(val)
         return pd.Series(out)
     
     def init_sound(self):
         '''Computes the effective sound speeds of a polycrystal from its averaged Lame constants.'''
-        self.ct = np.sqrt(self.mu/self.rho)
-        self.cl = np.sqrt((self.lam+2*self.mu)/self.rho)
+        if self.C2.dtype==object:
+            self.ct = sp.sqrt(self.mu/self.rho)
+            self.cl = sp.sqrt((self.lam+2*self.mu)/self.rho)
+        else:
+            self.ct = np.sqrt(self.mu/self.rho)
+            self.cl = np.sqrt((self.lam+2*self.mu)/self.rho)
         self.ct_over_cl = self.ct/self.cl
         
     def init_qBZ(self):

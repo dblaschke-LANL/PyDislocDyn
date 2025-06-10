@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 16, 2025
+# Date: Nov. 7, 2017 - June 9, 2025
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -299,7 +299,6 @@ def CheckReflectionSymmetry(elasticC2,strict=False):
 def elasticS2(elasticC2,voigt=False):
     '''Generates the tensor of second order elastic compliances using a second order elastic constants tensor, elasticC2, as input data.
     Input may be in Voigt or in Cartesian notation, output notation is controlled by Boolean option 'voigt' (default=False, i.e. Cartesian).'''
-    sprimetos = np.diag([1,1,1,0.5,0.5,0.5])
     if len(elasticC2)==3:
         C2=Voigt(elasticC2)
     else:
@@ -307,8 +306,10 @@ def elasticS2(elasticC2,voigt=False):
     if elasticC2.dtype.kind == 'O':
         ### need to convert to sympy matrix in order to call sympy's symbolic matrix inversion
         result = np.array(sp.simplify(sp.Matrix(C2).inv()))
+        sprimetos = np.diag([1,1,1,1/sp.S(2),1/sp.S(2),1/sp.S(2)])
     else:
         result = np.linalg.inv(np.asarray(C2, dtype=float))
+        sprimetos = np.diag([1,1,1,0.5,0.5,0.5])
     S2 = np.dot(sprimetos,np.dot(result,sprimetos))
     if not voigt:
         S2 = UnVoigt(S2)
