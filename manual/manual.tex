@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{April 29, 2025}
+\date{June 11, 2025}
 
 \begin{document}
 \maketitle
@@ -318,8 +318,9 @@ The result is stored in \verb|.uij_acc_edge_aligned| and, as the name suggests, 
 
 \item Method \verb|.plotdisloc()| generates a color-mesh plot of one component (choose with keyword `\verb|component|') of the dislocation displacement gradient field of one character angle (choose with keyword `\verb|character|') and saves it as a pdf file.
 If velocity \verb|beta| is set, the dislocation field is computed on the fly (and other arguments of this function are passed along to the \verb|.computeuij()| method).
-Setting \verb|showplt=True| will display the plot inline (within an ipython or jupyter session) in addition to saving a pdf;
-this option requires that the user first set `\verb|%matplotlib inline|', as the default matplotlib back-end set by PyDislocDyn is `\verb|Agg|' (in order to facilitate running in a remote terminal session), or `\verb|pgf|' if LaTeX is detected.
+Setting \verb|showplt=True| will display the plot inline (e.g. within a jupyter session) in addition to saving a pdf;
+%this option requires that the user first set `\verb|%matplotlib inline|'.
+note that if PyDislocDyn is not run within a jupyter (or similar) notebook, it will load the `\verb|pgf|' backend of matplotlib if  LaTeX is detected and `\verb|Agg|'  otherwise (to allow running in a remote shell).
 
 \item \verb|.computeEtot()| will calculate the elastic strain self energy of the dislocation from the previously calculated displacement gradient field for all character angles and stores the result in attribute \verb|.Etot|
 

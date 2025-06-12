@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 8, 2025
+# Date: Nov. 5, 2017 - June11, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -16,10 +16,11 @@ from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
 ##################
 import matplotlib as mpl
-mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
+if 'ipykernel' not in sys.modules:
+    mpl.use('Agg', force=False) # don't need X-window, allow running in a remote terminal session
 import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
-if shutil.which('latex'):
+if shutil.which('latex') and 'ipykernel' not in sys.modules:
     mpl.use("pgf")
     texpreamble = "\n".join([
           r"\usepackage[utf8x]{inputenc}",
