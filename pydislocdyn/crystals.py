@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 10, 2025
+# Date: Nov. 7, 2017 - June 13, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -14,7 +14,8 @@ from sympy.solvers import solve
 from scipy import optimize
 import pandas as pd
 ##
-from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt, convert_SOECiso, convert_TOECiso
+from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt, \
+    convert_SOECiso, convert_TOECiso, strain_poly
 from .utilities import str_to_array, loadinputfile
 
 ### compute various contractions/invariants of elastic constant/compliance tensors:
@@ -223,8 +224,31 @@ class metal_props:
             self.c11=self.c111=self.c112=self.c166=None
             
     def __repr__(self):
-        return f" name:\t {self.name}\n sym:\t {self.sym}\n T:\t {self.T}\n ac:\t {self.ac}\n bc:\t {self.bc}\n cc:\t {self.cc}\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
-            
+        out = f" name:\t {self.name}\n sym:\t {self.sym}\n T:\t {self.T}\n ac:\t {self.ac}\n bc:\t {self.bc}\n cc:\t {self.cc}\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}"
+        if isinstance(self.rho, sp.Expr) or isinstance(self.ct, sp.Expr) or isinstance(self.cl, sp.Expr):
+            out += "\n\t using sympy symbols"
+        else:
+            out += f"\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
+        return out
+    
+    def init_symbols(self):
+        '''populates material density self.rho and elastic constants with sympy symbols'''
+        poly = strain_poly(sym=self.sym)
+        self.rho = sp.symbols(r'\rho',positive=True)
+        self.C2 = poly.C2
+        if self.sym=='tetr':
+            self.c66 = poly.C2[5,5]
+        if self.sym in ('hcp','tetr'):
+            self.c13 = poly.C2[0,2]
+            self.c33 = poly.C2[2,2]
+        if self.sym in ('fcc','bcc','cubic','hcp','tetr'):
+            self.c11 = poly.C2[0,0]
+        if self.sym in ('iso','fcc','bcc','cubic','hcp','tetr'):
+            self.c12 = poly.C2[0,1]
+            self.c44 = poly.C2[3,3]
+            self.init_C2()
+        self.C3 = poly.C3
+
     def init_C2(self):
         '''initializes the tensor of second order elastic constants'''
         if self.sym=='iso' and self.c12==0 and self.poisson is not None:
