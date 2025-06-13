@@ -235,7 +235,6 @@ class metal_props:
         '''populates material density self.rho and elastic constants with sympy symbols'''
         poly = strain_poly(sym=self.sym)
         self.rho = sp.symbols(r'\rho',positive=True)
-        self.C2 = poly.C2
         if self.sym=='tetr':
             self.c66 = poly.C2[5,5]
         if self.sym in ('hcp','tetr'):
@@ -246,7 +245,10 @@ class metal_props:
         if self.sym in ('iso','fcc','bcc','cubic','hcp','tetr'):
             self.c12 = poly.C2[0,1]
             self.c44 = poly.C2[3,3]
-            self.init_C2()
+        else:
+            self.cij = poly.cij
+            self.cijk = poly.cijk
+        self.init_C2()
         self.C3 = poly.C3
 
     def init_C2(self):

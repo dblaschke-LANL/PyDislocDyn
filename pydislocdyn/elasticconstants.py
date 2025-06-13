@@ -363,24 +363,27 @@ class strain_poly:
             self.C2 = elasticC2(c11=C11,c12=C12,c44=C44, c13=C13, c33=C33, c66=C66,voigt=True)
             self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c166=C166,c456=C456,c113=C113,c133=C133,c155=C155,c333=C333,c344=C344, c366=C366,voigt=True)
         elif sym=='trig':
-            self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C14,C33,C44',real=True),voigt=True)
-            self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C114,C123,C124,C133,C134,C144,C155,C222,C333,C344,C444',real=True),voigt=True)
+            self.cij = sp.symbols('C11,C12,C13,C14,C33,C44',real=True)
+            self.cijk = sp.symbols('C111,C112,C113,C114,C123,C124,C133,C134,C144,C155,C222,C333,C344,C444',real=True)
         elif sym=='tetr2':
-            self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C16,C33,C44,C66',real=True),voigt=True)
-            self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C116,C123,C133,C136,C144,C145,C155,C166,C333,C344,C366,C446,C456',real=True),voigt=True)
+            self.cij = sp.symbols('C11,C12,C13,C16,C33,C44,C66',real=True)
+            self.cijk = sp.symbols('C111,C112,C113,C116,C123,C133,C136,C144,C145,C155,C166,C333,C344,C366,C446,C456',real=True)
         elif sym=='orth':
-            self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C22,C23,C33,C44,C55,C66',real=True),voigt=True)
-            self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C122,C123,C133,C144,C155,C166,C222,C223,C233,C244,C255,C266,C333,C344,C355,C366,C456',real=True),voigt=True)
+            self.cij = sp.symbols('C11,C12,C13,C22,C23,C33,C44,C55,C66',real=True)
+            self.cijk = sp.symbols('C111,C112,C113,C122,C123,C133,C144,C155,C166,C222,C223,C233,C244,C255,C266,C333,C344,C355,C366,C456',real=True)
         elif self.sym=='mono':
-            self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C15,C22,C23,C25,C33,C35,C44,C46,C55,C66',real=True),voigt=True)
-            self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C115,C122,C123,C125,C133,C135,C144,C146,C155,C166,C222,C223,C225,C233,C235,C244,C246,C255,C266,\
-                                                C333,C335,C344,C346,C355,C366,C445,C456,C555,C566',real=True),voigt=True)
+            self.cij = sp.symbols('C11,C12,C13,C15,C22,C23,C25,C33,C35,C44,C46,C55,C66',real=True)
+            self.cijk = sp.symbols('C111,C112,C113,C115,C122,C123,C125,C133,C135,C144,C146,C155,C166,C222,C223,C225,C233,C235,C244,C246,\
+                                   C255,C266,C333,C335,C344,C346,C355,C366,C445,C456,C555,C566',real=True)
         elif self.sym=='tric':
-            self.C2 = elasticC2(cij=sp.symbols('C11,C12,C13,C14,C15,C16,C22,C23,C24,C25,C26,C33,C34,C35,C36,C44,C45,C46,C55,C56,C66',real=True),voigt=True)
-            self.C3 = elasticC3(cijk=sp.symbols('C111,C112,C113,C114,C115,C116,C122,C123,C124,C125,C126,C133,C134,C135,C136,C144,C145,C146,C155,C156,C166,C222,C223,C224,C225,C226,C233,C234,C235,C236,C244,\
-                                                C245,C246,C255,C256,C266,C333,C334,C335,C336,C344,C345,C346,C355,C356,C366,C444,C445,C446,C455,C456,C466,C555,C556,C566,C666',real=True),voigt=True)
+            self.cij = sp.symbols('C11,C12,C13,C14,C15,C16,C22,C23,C24,C25,C26,C33,C34,C35,C36,C44,C45,C46,C55,C56,C66',real=True)
+            self.cijk = sp.symbols('C111,C112,C113,C114,C115,C116,C122,C123,C124,C125,C126,C133,C134,C135,C136,C144,C145,C146,C155,C156,C166,C222,C223,C224,C225,C226,C233,C234,C235,\
+                                   C236,C244,C245,C246,C255,C256,C266,C333,C334,C335,C336,C344,C345,C346,C355,C356,C366,C444,C445,C446,C455,C456,C466,C555,C556,C566,C666',real=True)
         else:
             raise ValueError(f"sym={self.sym} not implemented")
+        if sym in ('tetr2', 'trig', 'orth', 'mono', 'tric'):
+            self.C2 = elasticC2(cij=self.cij,voigt=True)
+            self.C3 = elasticC3(cijk=self.cijk,voigt=True)
         self.alpha=delta
         self.strain=np.zeros((3,3))
         self.poly=0
