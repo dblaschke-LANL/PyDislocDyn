@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 13, 2025
+# Date: Nov. 7, 2017 - June 19, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -483,7 +483,8 @@ class metal_props:
     def Miller_to_Cart(self,v,normalize=True,reziprocal=False):
         '''Converts vector v from Miller indices to Cartesian coordinates (very small numbers are rounded to 0). If normalize=True, a unit vector is returned.
         See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
-        By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.'''
+        By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.
+        Warning: all lattice constants are assumed a=b=c=1 unless explicitly set by the user.'''
         v = np.asarray(v).astype(dtype=float)
         if self.ac is None or self.ac==0:
             a=1
@@ -494,6 +495,11 @@ class metal_props:
         if self.cc is None or self.cc==0:
             c=a
         else:c=self.cc
+        if isinstance(a+b+c, sp.Expr):
+            alphac = int(round(self.alphac*180/np.pi))
+            betac = int(round(self.betac*180/np.pi))
+            gammac = int(round(self.gammac*180/np.pi))
+            return Miller_to_Cart(v,lattice=((a,b,c),(alphac,betac,gammac)),normalize=normalize,reziprocal=reziprocal)
         d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)
         T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],
                       [0,b*np.sin(self.gammac),d],
@@ -624,3 +630,54 @@ def readinputfile(fname,init=True):
     if init:
         out.init_all()
     return out
+
+def Miller_to_Cart(v,lattice=None,normalize=True,reziprocal=False):
+    '''Converts vector v from Miller indices to Cartesian coordinates. If normalize=True, a unit vector is returned.
+    See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
+    By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.
+    Keyword "lattice", if set, must have the format ((a,b,c),(alpha,beta,gamma)), where a,b,c are lattice vector lengths
+    and alpha,beta,gamma, are angles in units of degrees (not radians).
+    Warning: all lattice constants are assumed a=b=c=1 and normal to each other (cubic symmetry) unless explicitly
+    set by the user.'''
+    v = list(v)
+    sym = None
+    if lattice is None:
+        a=b=c=1
+        alphac=betac=gammac=sp.pi/sp.S(2)
+        sym = 'cubic'
+    else:
+        a,b,c = lattice[0]
+        alphac,betac,gammac = lattice[1]
+        alphac *= sp.pi/sp.S(180)
+        betac *= sp.pi/sp.S(180)
+        gammac *= sp.pi/sp.S(180)
+    d = c*(sp.cos(alphac)-sp.cos(gammac)*sp.cos(betac))/sp.sin(gammac)
+    T = [sp.Matrix([a,b*sp.cos(gammac),c*sp.cos(betac)]),
+         sp.Matrix([0,b*sp.sin(gammac),d]),
+         sp.Matrix([0,0,sp.sqrt((c*sp.sin(betac))**2-d**2)])]
+    # TT = [sp.Matrix([a,0,0]),
+    #      sp.Matrix([b*sp.cos(gammac),b*sp.sin(gammac),0]),
+    #      sp.Matrix([c*sp.cos(betac),d,sp.sqrt((c*sp.sin(betac))**2-d**2)])]
+    hcpsum = v[0]+v[1]+v[2]
+    checkhcp = (len(v)==4 and ((not isinstance(hcpsum, sp.Expr) or len(hcpsum.free_symbols)==0) and abs(v[0]+v[1]+v[2])<1e-12))
+    if reziprocal:
+        ## real space basis vectors a_i = T[i]
+        V = (T[0].cross(T[1])).T
+        V = V.dot(T[2])
+        R = [T[1].cross(T[2])/V, T[2].cross(T[0])/V, T[0].cross(T[1])/V]
+        if checkhcp:
+            v = [v[0]+v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+        out = sp.Matrix([list(Ri) for Ri in R])
+        out = out @ sp.Matrix(v)
+    else:
+        if checkhcp:
+            v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+        out = sp.Matrix([list(Ti) for Ti in T]) @ sp.Matrix(v)
+    if normalize:
+        if sym=='cubic':
+            out = sp.Matrix(v) # minimize rounding errors
+        norm = out.T @ out
+        if len(norm)==1:
+            norm = norm[0]
+        out = out/sp.sqrt(norm)
+    return [sp.simplify(outi) for outi in out]

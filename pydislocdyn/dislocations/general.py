@@ -258,7 +258,7 @@ class Dislocation(StrohGeometry,metal_props):
         if self.sym=='iso' or indices[0] is not None:
             vcrit_screw = self.computevcrit_screw()
             if vcrit_screw is not None:
-                vcrit_screw = roundcoeff(sp.simplify(vcrit_screw))
+                vcrit_screw = sp.simplify(roundcoeff(sp.simplify(vcrit_screw)))
             else:
                 print("WARNING: not implemented for screw dislocations in this slip system")
         if self.sym=='iso' or indices[1] is not None:
@@ -285,7 +285,7 @@ class Dislocation(StrohGeometry,metal_props):
             elif self.sym in ('fcc') and abs(self.t[indices[1]] @ [1,1,0])<1e-12:
                 vcrit_edge = self.computesound([1,1,0])
                 if vcrit_edge is not None:
-                    vcrit_edge = roundcoeff(sp.simplify(sp.Matrix(vcrit_edge)))
+                    vcrit_edge = sp.simplify(roundcoeff(sp.simplify(sp.Matrix(vcrit_edge))))
             else:
                 print("WARNING: not implemented for edge dislocations in this slip system")
         if len(self.theta)>len(indices) and self.sym!='iso':

@@ -1,12 +1,13 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 30, 2024
+# Date: Nov. 3, 2017 - June 19, 2025
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
 #################################
 import numpy as np
+import sympy as sp
 from ..utilities import usefortran, jit, trapz, cumtrapz, delta, rotaround, artan, elbrak
 if usefortran:
     from ..utilities import fsub
@@ -25,31 +26,14 @@ class StrohGeometry:
         self.phi = np.linspace(0,2*np.pi,Nphi)
         self.r = None
         self.b = np.asarray(b)
-        bsq = np.dot(self.b,self.b)
-        if bsq>1e-12 and abs(bsq-1)>1e-12:
-            self.b = self.b/np.sqrt(bsq)
         self.n0 = np.asarray(n0)
-        nsq = np.dot(self.n0,self.n0)
-        if nsq>1e-12 and abs(nsq-1)>1e-12:
-            self.n0 = self.n0/np.sqrt(nsq)
         self.t = np.zeros((Ntheta,3))
         self.m0 = np.zeros((Ntheta,3))
         self.Cv = np.zeros((3,3,3,3,Ntheta))
         self.M = np.zeros((3,Ntheta,Nphi))
         self.N = np.zeros((3,Ntheta,Nphi))
         self.Sb = self.Bb = self.NN = None ## only used for debugging
-        
-        self.t = np.outer(np.cos(self.theta),self.b) + np.outer(np.sin(self.theta),np.cross(self.b,self.n0))
-        self.m0 = np.cross(self.n0,self.t)
-        
-        for i in range(3):
-            self.M[i] = np.outer(self.m0[:,i],np.cos(self.phi)) + np.outer(np.repeat(self.n0[i],Ntheta),np.sin(self.phi))
-            self.N[i] = np.outer(np.repeat(self.n0[i],Ntheta),np.cos(self.phi)) - np.outer(self.m0[:,i],np.sin(self.phi))
-            for j in range(3):
-                for k in range(3):
-                    for l in range(3):
-                        self.Cv[i,j,k,l] = self.m0[:,i]*delta[j,k]*self.m0[:,l]
-        
+
         self.beta = 0
         self.C2_aligned=None
         self.C2norm = np.zeros((3,3,3,3)) # normalized
@@ -63,6 +47,33 @@ class StrohGeometry:
         self.rot = np.zeros((Ntheta,3,3))
         self.Etot = np.zeros((Ntheta))
         self.LT = 0
+        
+        bsq = np.dot(self.b,self.b)
+        nsq = np.dot(self.n0,self.n0)
+        if isinstance(bsq, sp.Expr) or isinstance(bsq, sp.Expr):
+            self.b = self.b/sp.sqrt(bsq)
+            self.n0 = self.n0/sp.sqrt(nsq)
+            self.t = np.empty(self.t.shape,dtype=object)
+            self.m0 = np.empty(self.t.shape,dtype=object)
+            for i,th in enumerate(self.theta*sp.pi/np.pi):
+                self.t[i] = sp.matrix2numpy(sp.simplify(sp.Matrix(self.b*sp.cos(th)) + sp.Matrix(self.b*sp.sin(th)).cross(sp.Matrix(self.n0)))).reshape((3))
+                self.m0[i] = sp.matrix2numpy(sp.simplify(sp.Matrix(self.n0).cross(sp.Matrix(self.t[i])))).reshape((3))
+            return -1 ## skip the rest: would need numbers, not sympy symbols
+        if bsq>1e-12 and abs(bsq-1)>1e-12:
+            self.b = self.b/np.sqrt(bsq)
+        if nsq>1e-12 and abs(nsq-1)>1e-12:
+            self.n0 = self.n0/np.sqrt(nsq)
+        
+        self.t = np.outer(np.cos(self.theta),self.b) + np.outer(np.sin(self.theta),np.cross(self.b,self.n0))
+        self.m0 = np.cross(self.n0,self.t)
+        
+        for i in range(3):
+            self.M[i] = np.outer(self.m0[:,i],np.cos(self.phi)) + np.outer(np.repeat(self.n0[i],Ntheta),np.sin(self.phi))
+            self.N[i] = np.outer(np.repeat(self.n0[i],Ntheta),np.cos(self.phi)) - np.outer(self.m0[:,i],np.sin(self.phi))
+            for j in range(3):
+                for k in range(3):
+                    for l in range(3):
+                        self.Cv[i,j,k,l] = self.m0[:,i]*delta[j,k]*self.m0[:,l]
         
     def __repr__(self):
         return f" b:\t {self.b}\n n0:\t {self.n0}\n beta:\t {self.beta}\n Ntheta:\t {self.Ntheta}"
