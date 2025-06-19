@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 13, 2025
+# Date: Nov. 7, 2017 - June 18, 2025
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -286,6 +286,8 @@ def CheckReflectionSymmetry(elasticC2,strict=False):
         C2=Voigt(elasticC2)
     else:
         C2=elasticC2
+    if C2.dtype==object:
+        return _CheckReflectionSymmetry_object(C2)
     test = np.abs(C2/C2[3,3])
     testsum = test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4]
     if strict:
@@ -294,6 +296,12 @@ def CheckReflectionSymmetry(elasticC2,strict=False):
     if testsum < 1e-12:
         out = True
     return out
+
+def _CheckReflectionSymmetry_object(C2):
+    '''this subroutine of CheckReflectionSymmetry() checks the weaker condition for symbolic expressions; see CheckReflectionSymmetry? for details.'''
+    testsum = roundcoeff(C2[0,3]+C2[1,3]+C2[0,4]+C2[1,4]+C2[5,3]+C2[5,4])
+    replace = testsum.free_symbols
+    return bool(len(replace)== 0 and testsum < 1e-12)
 
 ##### generate tensors of elastic compliances
 def elasticS2(elasticC2,voigt=False):

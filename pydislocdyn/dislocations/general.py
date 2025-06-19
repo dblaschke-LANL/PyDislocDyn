@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 25, 2025
+# Date: Nov. 3, 2017 - June 18, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -153,11 +153,15 @@ class Dislocation(StrohGeometry,metal_props):
         if self.C2_aligned is None:
             self.alignC2()
         self.C2_aligned_screw = self.C2_aligned[self.findedgescrewindices()[0]]
+        if self.C2_aligned_screw.dtype==object:
+            sqrt = sp.sqrt
+        else:
+            sqrt = np.sqrt
         A = self.C2_aligned_screw[4,4]
         B = 2*self.C2_aligned_screw[3,4]
         C = self.C2_aligned_screw[3,3]
         if CheckReflectionSymmetry(self.C2_aligned_screw):
-            self.vcrit_screw = np.sqrt((A-B**2/(4*C))/self.rho)
+            self.vcrit_screw = sqrt((A-B**2/(4*C))/self.rho)
         return self.vcrit_screw
     
     def computevcrit_edge(self):
@@ -177,6 +181,7 @@ class Dislocation(StrohGeometry,metal_props):
                 if ((c11*c22-c12**2-2*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66)<0:
                     ## analytic solution to Re(lambda=0) in eq. (39) (with sp.solve); sqrt below is real because of if statement above:
                     minval = (2*np.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)
+                    # print(self.name,"q is negative",np.sqrt(minval/self.rho),np.sqrt(np.array([c66,c11])/self.rho))
                     self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
             else:
                 c16 = self.C2_aligned_edge[0,5]
@@ -206,6 +211,8 @@ class Dislocation(StrohGeometry,metal_props):
         Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit_barnett.'''
         if theta is None:
             theta=self.theta
+            if self.C2.dtype==object:
+                return self._computevcrit_object()
         indices = self.findedgescrewindices(theta)
         self.vcrit_all = np.empty((4,len(theta)))
         self.vcrit_all[0] = theta
@@ -239,6 +246,56 @@ class Dislocation(StrohGeometry,metal_props):
             out.columns.name = 'theta'
             out.index.name = 'branch'
         return out
+    
+    def _computevcrit_object(self):
+        '''this subroutine of self.computevcrit() implements limiting velocities for pure edge and screw dislocations for 
+           symbolic expressions in the elastic constants. Naturally, we only implement a (subset of) simple cases and 
+           return "None" accompanied with a "not implemented" warning otherwise.'''
+        self.alignC2()
+        indices = self.findedgescrewindices(self.theta)
+        vcrit_screw = None
+        vcrit_edge = None
+        if self.sym=='iso' or indices[0] is not None:
+            vcrit_screw = self.computevcrit_screw()
+            if vcrit_screw is not None:
+                vcrit_screw = roundcoeff(sp.simplify(vcrit_screw))
+            else:
+                print("WARNING: not implemented for screw dislocations in this slip system")
+        elif indices[0] is not None:
+            if self.sym in ('fcc','bcc','cubic') and abs(self.t[indices[1]] @ [1,1,0])<1e-12:
+                vcrit_edge = self.computesound([1,1,0])
+            else:
+                print("WARNING: not implemented for screw dislocations in this slip system")
+        if self.sym=='iso' or indices[1] is not None:
+            self.C2_aligned_edge = self.C2_aligned[self.findedgescrewindices()[1]]
+            if CheckReflectionSymmetry(self.C2_aligned_edge):
+                c11=self.C2_aligned_edge[0,0]
+                c22=self.C2_aligned_edge[1,1]
+                c66=self.C2_aligned_edge[5,5]
+                c12=self.C2_aligned_edge[0,1]
+                testsum = self.C2_aligned_edge[0,5]+self.C2_aligned_edge[1,5] ## check for additional symmetry requirements
+                if (not isinstance(testsum, sp.Expr) or len(testsum.free_symbols)==0) and testsum < 1e-12:
+                    cii = sp.Min(c66,c11)
+                    vcrit_edge_1 = [roundcoeff(sp.simplify(sp.sqrt(c66/self.rho))),roundcoeff(sp.simplify(sp.sqrt(c11/self.rho)))]
+                    q = roundcoeff(sp.simplify(((c11*c22-c12**2-2*c12*c66) - (c22+c66)*cii)/(c22*c66)))
+                    minval = roundcoeff(sp.simplify((2*sp.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - \
+                          (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)))
+                    vcrit_edge_2 = roundcoeff(sp.simplify(sp.sqrt(minval/self.rho))) # if q<0 and vcrit_edge_2 < min(vcrit_edge_1)
+                    if (not isinstance(vcrit_edge_2, sp.Expr) or len(vcrit_edge_2.free_symbols)==0) and abs(vcrit_edge_2)<1e-12:
+                        vcrit_edge = sp.Matrix(vcrit_edge_1)
+                    else:
+                        vcrit_edge = sp.Matrix([sp.Piecewise((sp.Min(*vcrit_edge_1),q>0),(vcrit_edge_2,q<0)),sp.Max(*vcrit_edge_1)])
+                else:
+                    print("WARNING: not implemented for edge dislocations with (weaker) reflection symmetry")
+            elif self.sym in ('fcc') and abs(self.t[indices[1]] @ [1,1,0])<1e-12:
+                vcrit_edge = self.computesound([1,1,0])
+                if vcrit_edge is not None:
+                    vcrit_edge = roundcoeff(sp.simplify(sp.Matrix(vcrit_edge)))
+            else:
+                print("WARNING: not implemented for edge dislocations in this slip system")
+        if len(self.theta)>len(indices) and self.sym!='iso':
+            print("WARNING: not implemented for mixed dislocations")
+        return pd.Series([vcrit_screw,vcrit_edge],index=["screw","edge"])
     
     def findvcrit_smallest(self,xatol=1e-2):
         '''Computes the smallest critical velocity, which subsequently is stored as attribute .vcrit_smallest and the full result of scipy.minimize_scalar is returned
