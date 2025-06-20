@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 17, 2025
+# Date: Mar. 6, 2023 - June 20, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -22,7 +22,7 @@ dir_path = os.path.join(dir_path,'pydislocdyn')
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, ISO_l, c111
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
 from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, \
-    readinputfile, convert_SOECiso, convert_TOECiso
+    readinputfile, convert_SOECiso, convert_TOECiso, Dislocation, roundcoeff
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
 if Ncores>1:
@@ -111,7 +111,7 @@ def round_list(lst,ndigits=2):
     return lst
 
 if __name__ == '__main__':
-    tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc']
+    tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc', 'obj']
     cwd = os.getcwd()
     if len(sys.argv) > 1:
         oldglobals = globals().copy()
@@ -455,5 +455,62 @@ if __name__ == '__main__':
             fname = f"deformations_results_{sym}.txt"
             if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
                 if not verbose: print(f"{fname} differs")
+                success=False
+        printtestresult(success)
+    ############### TEST obj ###############################################
+    if runtests in ['all', 'obj']:
+        success = True
+        if not skip_calcs:
+            print("running test 'obj' (unit tests for some sympy calculations within PyDislocDyn) ...")
+            # isotropic
+            iso = Dislocation(b=[1,0,0],n0=[0,1,0])
+            iso.init_symbols()
+            iso.vcrit=iso.computevcrit()
+            iso.sound =iso.computesound([1,0,0])
+            iso.compute_Lame()
+            iso.init_sound()
+            if not iso.rho*iso.vcrit['screw']**2-iso.c44==0 or \
+                not sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))==sp.Matrix([0,0]) or \
+                not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
+                  print("isotropic tests failed")
+                  success=False
+            # fcc
+            fcc = Dislocation(b=[1,1,0],n0=[-1,1,-1],sym='fcc')
+            fcc.init_symbols()
+            fcc.vcrit=fcc.computevcrit()
+            fcc.sound =fcc.computesound([1,1,0])
+            fcc.compute_Lame(scheme='voigt')
+            fcc.init_all()
+            if not fcc.bulk-(fcc.c11+2*fcc.c12)/3==0 or \
+                not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
+                not sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])==sp.Matrix([0,0,0]):
+                    print("fcc tests failed")
+                    success=False
+            # hcp (basal)
+            hcp = Dislocation(b=[-2,1,1,0],n0=[0, 0, 0, 1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
+            hcp.init_symbols()
+            hcp.vcrit = hcp.computevcrit()
+            c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
+            cp = (c11-c12)/2
+            if not roundcoeff(hcp.rho*hcp.vcrit['screw']**2-cp,10)==0:
+                print("hcp - basal tests failed")
+                success=False
+            # hcp (prismatic)
+            hcp = Dislocation(b=[-2,1,1,0],n0=[-1, 0, 1, 0],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
+            hcp.init_symbols()
+            hcp.vcrit = hcp.computevcrit()
+            c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
+            cp = (c11-c12)/2
+            if not roundcoeff(sp.simplify(hcp.rho*(hcp.vcrit['edge'][0]**2+hcp.vcrit['screw']**2)-cp-c44),10)==0:
+                print("hcp - prismatic tests failed")
+                success=False
+            # hcp (pyrmidal)
+            hcp = Dislocation(b=[-2,1,1,0],n0=[-1,0,1,1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
+            hcp.init_symbols()
+            hcp.vcrit = hcp.computevcrit()
+            c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
+            cp = (c11-c12)/2
+            if not sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp)))==0:
+                print("hcp-pyramidal tests failed")
                 success=False
         printtestresult(success)
