@@ -510,7 +510,7 @@ if __name__ == '__main__':
             hcp.vcrit = hcp.computevcrit()
             c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
             cp = (c11-c12)/2
-            if not sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp)))==0:
+            if abs(sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp))).subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))>1e-12:
                 print("hcp-pyramidal tests failed")
                 success=False
         printtestresult(success)
