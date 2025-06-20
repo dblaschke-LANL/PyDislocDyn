@@ -63,6 +63,8 @@ class StrohGeometry:
             self.b = self.b/np.sqrt(bsq)
         if nsq>1e-12 and abs(nsq-1)>1e-12:
             self.n0 = self.n0/np.sqrt(nsq)
+        if np.abs(self.b @ self.n0)>1e-12:
+            print(f"WARNING: the Burgers vector is not normal to the slip plane normal for Dislocation {self.name}: \n{self.b @ self.n0=:.6f} != 0")
         
         self.t = np.outer(np.cos(self.theta),self.b) + np.outer(np.sin(self.theta),np.cross(self.b,self.n0))
         self.m0 = np.cross(self.n0,self.t)

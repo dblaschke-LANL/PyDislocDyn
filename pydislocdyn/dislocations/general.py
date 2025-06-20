@@ -71,6 +71,11 @@ class Dislocation(StrohGeometry,metal_props):
         if lat_alpha is not None: self.alphac=lat_alpha
         if lat_beta is not None: self.betac=lat_beta
         if lat_gamma is not None: self.gammac=lat_gamma
+        if len(b)>3:
+            if sym=='hcp':
+                Miller=True
+            else:
+                print(f"Warning: got four Miller indices for b, but {sym=}, expected hcp")
         if Miller:
             self.Millerb = b
             b = self.Miller_to_Cart(self.Millerb)
@@ -84,6 +89,11 @@ class Dislocation(StrohGeometry,metal_props):
         self.vcrit_all = None
         self.Rayleigh = None
         self.vRF = None
+        if sym=='iso' and (lat_b is not None or lat_c is not None):
+            print(f"Warning: {sym=}; intended?")
+        ## premature to warn here, readinoutfile() uses populate_from_dict() to set these
+        # if (lat_b is None and lat_c is None and lat_alpha is None and lat_beta is None and lat_gamma is None) and sym not in ('iso','fcc','bcc','cubic'):
+        #     print(f"Warning: {sym=}, but lattice vectors and angles imply cubic; forgot to set lat_... keywords?")
     
     def alignC2(self):
         '''Calls self.computerot() and then computes the rotated SOEC tensor C2_aligned in coordinates aligned with the slip plane for each character angle.'''
