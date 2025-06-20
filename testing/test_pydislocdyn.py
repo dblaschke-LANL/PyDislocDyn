@@ -458,59 +458,58 @@ if __name__ == '__main__':
                 success=False
         printtestresult(success)
     ############### TEST obj ###############################################
-    if runtests in ['all', 'obj']:
+    if runtests in ['all', 'obj'] and not skip_calcs:
         success = True
-        if not skip_calcs:
-            print("running test 'obj' (unit tests for some sympy calculations within PyDislocDyn) ...")
-            # isotropic
-            iso = Dislocation(b=[1,0,0],n0=[0,1,0])
-            iso.init_symbols()
-            iso.vcrit=iso.computevcrit()
-            iso.sound =iso.computesound([1,0,0])
-            iso.compute_Lame()
-            iso.init_sound()
-            if not iso.rho*iso.vcrit['screw']**2-iso.c44==0 or \
-                not sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))==sp.Matrix([0,0]) or \
-                not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
-                  print("isotropic tests failed")
-                  success=False
-            # fcc
-            fcc = Dislocation(b=[1,1,0],n0=[-1,1,-1],sym='fcc')
-            fcc.init_symbols()
-            fcc.vcrit=fcc.computevcrit()
-            fcc.sound =fcc.computesound([1,1,0])
-            fcc.compute_Lame(scheme='voigt')
-            fcc.init_all()
-            if not fcc.bulk-(fcc.c11+2*fcc.c12)/3==0 or \
-                not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
-                not sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])==sp.Matrix([0,0,0]):
-                    print("fcc tests failed")
-                    success=False
-            # hcp (basal)
-            hcp = Dislocation(b=[-2,1,1,0],n0=[0, 0, 0, 1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
-            hcp.init_symbols()
-            hcp.vcrit = hcp.computevcrit()
-            c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
-            cp = (c11-c12)/2
-            if not roundcoeff(hcp.rho*hcp.vcrit['screw']**2-cp,10)==0:
-                print("hcp - basal tests failed")
+        print("running test 'obj' (unit tests for some sympy calculations within PyDislocDyn) ...")
+        # isotropic
+        iso = Dislocation(b=[1,0,0],n0=[0,1,0])
+        iso.init_symbols()
+        iso.vcrit=iso.computevcrit()
+        iso.sound =iso.computesound([1,0,0])
+        iso.compute_Lame()
+        iso.init_sound()
+        if not iso.rho*iso.vcrit['screw']**2-iso.c44==0 or \
+            not sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))==sp.Matrix([0,0]) or \
+            not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
+              print("isotropic tests failed")
+              success=False
+        # fcc
+        fcc = Dislocation(b=[1,1,0],n0=[-1,1,-1],sym='fcc')
+        fcc.init_symbols()
+        fcc.vcrit=fcc.computevcrit()
+        fcc.sound =fcc.computesound([1,1,0])
+        fcc.compute_Lame(scheme='voigt')
+        fcc.init_all()
+        if not fcc.bulk-(fcc.c11+2*fcc.c12)/3==0 or \
+            not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
+            not sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])==sp.Matrix([0,0,0]):
+                print("fcc tests failed")
                 success=False
-            # hcp (prismatic)
-            hcp = Dislocation(b=[-2,1,1,0],n0=[-1, 0, 1, 0],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
-            hcp.init_symbols()
-            hcp.vcrit = hcp.computevcrit()
-            c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
-            cp = (c11-c12)/2
-            if not roundcoeff(sp.simplify(hcp.rho*(hcp.vcrit['edge'][0]**2+hcp.vcrit['screw']**2)-cp-c44),10)==0:
-                print("hcp - prismatic tests failed")
-                success=False
-            # hcp (pyrmidal)
-            hcp = Dislocation(b=[-2,1,1,0],n0=[-1,0,1,1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
-            hcp.init_symbols()
-            hcp.vcrit = hcp.computevcrit()
-            c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
-            cp = (c11-c12)/2
-            if abs(sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp))).subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))>1e-12:
-                print("hcp-pyramidal tests failed")
-                success=False
+        # hcp (basal)
+        hcp = Dislocation(b=[-2,1,1,0],n0=[0, 0, 0, 1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
+        hcp.init_symbols()
+        hcp.vcrit = hcp.computevcrit()
+        c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
+        cp = (c11-c12)/2
+        if not roundcoeff(hcp.rho*hcp.vcrit['screw']**2-cp,10)==0:
+            print("hcp - basal tests failed")
+            success=False
+        # hcp (prismatic)
+        hcp = Dislocation(b=[-2,1,1,0],n0=[-1, 0, 1, 0],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
+        hcp.init_symbols()
+        hcp.vcrit = hcp.computevcrit()
+        c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
+        cp = (c11-c12)/2
+        if not roundcoeff(sp.simplify(hcp.rho*(hcp.vcrit['edge'][0]**2+hcp.vcrit['screw']**2)-cp-c44),10)==0:
+            print("hcp - prismatic tests failed")
+            success=False
+        # hcp (pyrmidal)
+        hcp = Dislocation(b=[-2,1,1,0],n0=[-1,0,1,1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
+        hcp.init_symbols()
+        hcp.vcrit = hcp.computevcrit()
+        c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
+        cp = (c11-c12)/2
+        if abs(sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp))).subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))>1e-12:
+            print("hcp-pyramidal tests failed")
+            success=False
         printtestresult(success)
