@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 19, 2025
+# Date: Nov. 3, 2017 - June 20, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -255,12 +255,13 @@ class Dislocation(StrohGeometry,metal_props):
         indices = self.findedgescrewindices(self.theta)
         vcrit_screw = None
         vcrit_edge = None
+        notimpl = "WARNING: not implemented for"
         if self.sym=='iso' or indices[0] is not None:
             vcrit_screw = self.computevcrit_screw()
             if vcrit_screw is not None:
                 vcrit_screw = sp.simplify(roundcoeff(sp.simplify(vcrit_screw)))
             else:
-                print("WARNING: not implemented for screw dislocations in this slip system")
+                print(f"{notimpl} screw dislocations in this slip system")
         if self.sym=='iso' or indices[1] is not None:
             self.C2_aligned_edge = self.C2_aligned[self.findedgescrewindices()[1]]
             if CheckReflectionSymmetry(self.C2_aligned_edge):
@@ -271,25 +272,25 @@ class Dislocation(StrohGeometry,metal_props):
                 testsum = self.C2_aligned_edge[0,5]+self.C2_aligned_edge[1,5] ## check for additional symmetry requirements
                 if (not isinstance(testsum, sp.Expr) or len(testsum.free_symbols)==0) and testsum < 1e-12:
                     cii = sp.Min(c66,c11)
-                    vcrit_edge_1 = [roundcoeff(sp.simplify(sp.sqrt(c66/self.rho))),roundcoeff(sp.simplify(sp.sqrt(c11/self.rho)))]
-                    q = roundcoeff(sp.simplify(((c11*c22-c12**2-2*c12*c66) - (c22+c66)*cii)/(c22*c66)))
-                    minval = roundcoeff(sp.simplify((2*sp.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - \
-                          (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)))
-                    vcrit_edge_2 = roundcoeff(sp.simplify(sp.sqrt(minval/self.rho))) # if q<0 and vcrit_edge_2 < min(vcrit_edge_1)
+                    vcrit_edge_1 = [sp.simplify(roundcoeff(sp.simplify(sp.sqrt(c66/self.rho)))),sp.simplify(roundcoeff(sp.simplify(sp.sqrt(c11/self.rho))))]
+                    q = sp.simplify(roundcoeff(sp.simplify(((c11*c22-c12**2-2*c12*c66) - (c22+c66)*cii)/(c22*c66))))
+                    minval = sp.simplify(roundcoeff(sp.simplify((2*sp.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - \
+                          (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2))))
+                    vcrit_edge_2 = sp.simplify(roundcoeff(sp.simplify(sp.sqrt(minval/self.rho)))) # if q<0 and vcrit_edge_2 < min(vcrit_edge_1)
                     if (not isinstance(vcrit_edge_2, sp.Expr) or len(vcrit_edge_2.free_symbols)==0) and abs(vcrit_edge_2)<1e-12:
                         vcrit_edge = sp.Matrix(vcrit_edge_1)
                     else:
                         vcrit_edge = sp.Matrix([sp.Piecewise((sp.Min(*vcrit_edge_1),q>0),(vcrit_edge_2,q<0)),sp.Max(*vcrit_edge_1)])
                 else:
-                    print("WARNING: not implemented for edge dislocations with (weaker) reflection symmetry")
+                    print(f"{notimpl} edge dislocations with (weaker) reflection symmetry")
             elif self.sym in ('fcc') and abs(self.t[indices[1]] @ [1,1,0])<1e-12:
                 vcrit_edge = self.computesound([1,1,0])
                 if vcrit_edge is not None:
                     vcrit_edge = sp.simplify(roundcoeff(sp.simplify(sp.Matrix(vcrit_edge))))
             else:
-                print("WARNING: not implemented for edge dislocations in this slip system")
+                print(f"{notimpl} edge dislocations in this slip system")
         if len(self.theta)>len(indices) and self.sym!='iso':
-            print("WARNING: not implemented for mixed dislocations")
+            print(f"{notimpl} mixed dislocations")
         return pd.Series([vcrit_screw,vcrit_edge],index=["screw","edge"])
     
     def findvcrit_smallest(self,xatol=1e-2):
