@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 19, 2025
+# Date: Nov. 7, 2017 - June 21, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -485,7 +485,6 @@ class metal_props:
         See Luscher et al., Modelling Simul. Mater. Sci. Eng. 22 (2014) 075008 for details on the method.
         By default, this function expects real space Miller indices, set reziprocal=True for reziprocal space.
         Warning: all lattice constants are assumed a=b=c=1 unless explicitly set by the user.'''
-        v = np.asarray(v).astype(dtype=float)
         if self.ac is None or self.ac==0:
             a=1
         else: a=self.ac
@@ -496,10 +495,12 @@ class metal_props:
             c=a
         else:c=self.cc
         if isinstance(a+b+c, sp.Expr):
+            v = np.asarray(v)
             alphac = int(round(self.alphac*180/np.pi))
             betac = int(round(self.betac*180/np.pi))
             gammac = int(round(self.gammac*180/np.pi))
             return Miller_to_Cart(v,lattice=((a,b,c),(alphac,betac,gammac)),normalize=normalize,reziprocal=reziprocal)
+        v = np.asarray(v).astype(dtype=float)
         d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)
         T = np.array([[a,b*np.cos(self.gammac),c*np.cos(self.betac)],
                       [0,b*np.sin(self.gammac),d],
