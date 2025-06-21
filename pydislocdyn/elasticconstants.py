@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 18, 2025
+# Date: Nov. 7, 2017 - June 21, 2025
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -298,8 +298,9 @@ def CheckReflectionSymmetry(elasticC2,strict=False):
     return out
 
 def _CheckReflectionSymmetry_object(C2):
-    '''this subroutine of CheckReflectionSymmetry() checks the weaker condition for symbolic expressions; see CheckReflectionSymmetry? for details.'''
-    testsum = roundcoeff(C2[0,3]+C2[1,3]+C2[0,4]+C2[1,4]+C2[5,3]+C2[5,4])
+    '''this subroutine of CheckReflectionSymmetry() checks the weaker condition for symbolic expressions; see CheckReflectionSymmetry? for details.
+       Warning: this may fail (i.e. give false negatives) for very long expressions. If unsure, try the same matrix with numbers instead of symbols.'''
+    testsum = sp.simplify(roundcoeff(sp.simplify(C2[0,3]+C2[1,3]+C2[0,4]+C2[1,4]+C2[5,3]+C2[5,4])))
     replace = testsum.free_symbols
     return bool(len(replace)== 0 and testsum < 1e-12)
 

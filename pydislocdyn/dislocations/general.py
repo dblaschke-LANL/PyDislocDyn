@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 20, 2025
+# Date: Nov. 3, 2017 - June 21, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -269,7 +269,7 @@ class Dislocation(StrohGeometry,metal_props):
         if self.sym=='iso' or indices[0] is not None:
             vcrit_screw = self.computevcrit_screw()
             if vcrit_screw is not None:
-                vcrit_screw = sp.simplify(roundcoeff(sp.simplify(vcrit_screw)))
+                vcrit_screw = sp.sqrt(sp.simplify(roundcoeff(sp.simplify(vcrit_screw**2))))
             else:
                 print(f"{notimpl} screw dislocations in this slip system")
         if self.sym=='iso' or indices[1] is not None:
