@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 30, 2024
+# Date: Nov. 3, 2017 - June 26, 2025
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
 #################################
 import numpy as np
@@ -95,25 +95,25 @@ THLPG_c12 = {'Ag':90.7e9, 'Al':60.41e9, 'Au':163.8e9, 'Cu':119.9e9, 'Fe':140e9, 
 THLPG_c44 = {'Ag':45.4e9, 'Al':28.34e9, 'Au':41.5e9, 'Cu':75.6e9, 'Fe':116e9, 'Mo':108.7e9, 'Nb':28.4e9, 'Ni':123.5e9}
 ## TOEC (in Pa) at room temperature from Thomas 1968 (Al), Saunders & Yogurtcu 1986 (Cd), Yogurtcu, Saunders, Riedi 1985 (Co), Hiki & Granato 1966 (Ag, Au, Cu), Jiles & Palmer 1981 (Er), Powell & Skove 1984 (Fe), Naimon 1971 (Mg),
 ## Voronov et al. 1978 (Mo), Graham, Nadler, & Chang 1968 (Nb), Riley & Skove 1973 (Ni), Swartz, Chua, & Elbaum 1972 (Sn),  Ramji Rao & Menon 1973 (Ti), Swartz & Elbaum 1970 (Zn), and Singh, Rathore & Agrawal 1992 (Sc, Zr),
-## Srinivasan & Girirajan 1973 (K), Ramji Rao & Ramanan 1980 (Be), Vekilov, Krasilnikov, Lugovskoy, & Lozovik 2016 (W), Suzuki 1971 (Pb)
-## TOEC data for Be, Pb, Sc, Zr, and W are from ab initio calculations, all others were measured, see resp. references above
+## Srinivasan & Girirajan 1973 (K), Ramji Rao & Ramanan 1980 (Be), Vekilov, Krasilnikov, Lugovskoy, & Lozovik 2016 (W), Suzuki 1971 (Pb), Krasilnikov, Vekilov & Mosyagin 2012 (Ta)
+## TOEC data for Be, Pb, Sc, Ta, Zr, and W are from ab initio calculations at 0 or low pressure, all others were measured, see resp. references above
 c111 = {'Ag':-843e9, 'Al':-1076e9, 'Au':-1729e9, 'Be':-2190e9, 'Cd':-2060e9, 'Co':-6710e9, 'Cu':-1271e9, 'Er':-384e9, 'Fe':-2720e9, 'K':-38.5e9, 'Mg':-663e9,
-        'Mo':-3557e9, 'Nb':-2564e9, 'Ni':-2040e9, 'Pb':-547e9, 'Pd':-17.54e11, 'Pt':-24.21e11, 'Sc':-7.430e11, 'Sn':-410e9, 'Ti':-1358e9, 'W':-5230e9, 'Zn':-1760e9, 'Zr':-767.4e9}
+        'Mo':-3557e9, 'Nb':-2564e9, 'Ni':-2040e9, 'Pb':-547e9, 'Pd':-17.54e11, 'Pt':-24.21e11, 'Sc':-7.430e11, 'Sn':-410e9, 'Ta':-2445e9, 'Ti':-1358e9, 'W':-5230e9, 'Zn':-1760e9, 'Zr':-767.4e9}
 c112 = {'Ag':-529e9, 'Al':-315e9, 'Au':-922e9, 'Be':-650e9, 'Cd':-114e9, 'Co':-1454e9, 'Cu':-814e9, 'Er':-340e9, 'Fe':-608e9, 'K':-11.1e9, 'Mg':-178e9,
-        'Mo':-1333e9, 'Nb':-1140e9, 'Ni':-1030e9, 'Pb':-316e9, 'Pd':-11.22e11, 'Pt':-16.14e11, 'Sc':-3.89e11, 'Sn':-583e9, 'Ti':-1105e9, 'W':-932.3e9, 'Zn':-440e9, 'Zr':-697e9}
+        'Mo':-1333e9, 'Nb':-1140e9, 'Ni':-1030e9, 'Pb':-316e9, 'Pd':-11.22e11, 'Pt':-16.14e11, 'Sc':-3.89e11, 'Sn':-583e9, 'Ta':-703e9, 'Ti':-1105e9, 'W':-932.3e9, 'Zn':-440e9, 'Zr':-697e9}
 c113 = {'Be':-530e9, 'Cd':-197e9, 'Co':-766e9, 'Er':-30e9, 'Mg':30e9, 'Sc':-0.320e11, 'Sn':-467e9, 'Ti':17e9, 'Zn':-270e9, 'Zr':-95.9e9}
 c123 = {'Ag':189e9, 'Al':36e9, 'Au':-233e9, 'Be':10e9, 'Cd':-110e9, 'Co':-429e9, 'Cu':-50e9, 'Er':711e9, 'Fe':-578e9, 'K':-12.7e9, 'Mg':-76e9,
-        'Mo':-617e9, 'Nb':-467e9, 'Ni':-210e9, 'Pb':72e9, 'Pd':-0.35e11, 'Pt':-0.58e11, 'Sc':-0.526e11, 'Sn':128e9, 'Ti':-162e9, 'W':-742.1e9, 'Zn':-210e9, 'Zr':37.2e9}
+        'Mo':-617e9, 'Nb':-467e9, 'Ni':-210e9, 'Pb':72e9, 'Pd':-0.35e11, 'Pt':-0.58e11, 'Sc':-0.526e11, 'Sn':128e9, 'Ta':-30.3e9, 'Ti':-162e9, 'W':-742.1e9, 'Zn':-210e9, 'Zr':37.2e9}
 c133 = {'Be':-780e9, 'Cd':-268e9, 'Co':-511e9, 'Er':-300e9, 'Mg':-86e9, 'Sc':-0.261e11, 'Sn':-186e9, 'Ti':-383e9, 'Zn':-350e9, 'Zr':-270.6e9}
 c144 = {'Ag':56e9, 'Al':-23e9, 'Au':-13e9, 'Be':-110e9, 'Cd':227e9, 'Co':133e9, 'Cu':-3e9, 'Er':-80e9, 'Fe':-836e9, 'K':-13.2e9, 'Mg':-30e9,
-        'Mo':-269e9, 'Nb':-343e9, 'Ni':-140e9, 'Pb':41e9, 'Pd':1.05e11, 'Pt':1.73e11, 'Sc':-0.526e11, 'Sn':-162e9, 'Ti':-263e9, 'W':-786.4e9, 'Zn':-10e9, 'Zr':37.2e9}
+        'Mo':-269e9, 'Nb':-343e9, 'Ni':-140e9, 'Pb':41e9, 'Pd':1.05e11, 'Pt':1.73e11, 'Sc':-0.526e11, 'Sn':-162e9, 'Ta':-437.9e9, 'Ti':-263e9, 'W':-786.4e9, 'Zn':-10e9, 'Zr':37.2e9}
 c155 = {'Be':-490e9, 'Cd':-332e9, 'Co':-1486e9, 'Er':9.5e9, 'Mg':-58e9, 'Sc':-2.61e11, 'Sn':-177e9, 'Ti':117e9, 'Zn':250e9, 'Zr':-270.6e9}
-c166 = {'Ag':-637e9, 'Al':-340e9, 'Au':-648e9, 'Cu':-780e9, 'Fe':-530e9, 'K':-9.4e9, 'Mo':-893e9, 'Nb':-167.7e9, 'Ni':-920e9, 'Pb':-323e9, 'Pd':-9.82e11, 'Pt':-13.83e11, 'Sn':-191e9, 'W':-924.6e9}
+c166 = {'Ag':-637e9, 'Al':-340e9, 'Au':-648e9, 'Cu':-780e9, 'Fe':-530e9, 'K':-9.4e9, 'Mo':-893e9, 'Nb':-167.7e9, 'Ni':-920e9, 'Pb':-323e9, 'Pd':-9.82e11, 'Pt':-13.83e11, 'Sn':-191e9, 'Ta':-320.6e9, 'W':-924.6e9}
 c222 = {'Be':-2440e9, 'Cd':-2020e9, 'Co':-5788e9, 'Er':-95e9, 'Mg':-864e9, 'Sc':-13.69e11, 'Ti':-2306e9, 'Zn':-2410e9, 'Zr':-1450e9}
 c333 = {'Be':-2590e9, 'Cd':-516e9, 'Co':-6347e9, 'Er':-150e9, 'Mg':-726e9, 'Sc':-12.26e11, 'Sn':-1427e9, 'Ti':-1617e9, 'Zn':-720e9, 'Zr':-2154e9}
 c344 = {'Be':-780e9, 'Cd':-171e9, 'Co':-210e9, 'Er':-220e9, 'Mg':-193e9, 'Sc':-2.41e11, 'Sn':-212e9, 'Ti':-383e9, 'Zn':-440e9, 'Zr':-270.6e9}
 c366 = {'Sn':-78e9}
-c456 = {'Ag':83e9, 'Al':-30e9, 'Au':-12e9, 'Cu':-95e9, 'Fe':-720e9, 'K':-12.0e9, 'Mo':-555e9, 'Nb':136.6e9, 'Ni':-70e9, 'Pb':61e9, 'Pd':1.75e11, 'Pt':2.88e11, 'Sn':-52e9, 'W':-934.7e9}
+c456 = {'Ag':83e9, 'Al':-30e9, 'Au':-12e9, 'Cu':-95e9, 'Fe':-720e9, 'K':-12.0e9, 'Mo':-555e9, 'Nb':136.6e9, 'Ni':-70e9, 'Pb':61e9, 'Pd':1.75e11, 'Pt':2.88e11, 'Sn':-52e9, 'Ta':-179.1e9, 'W':-934.7e9}
 
 ### set to "None" non-independent elastic constants (and compute the Zener anisotropy ratio for cubic metals)
 for X in cubic_metals.intersection(CRC_c11.keys()):
