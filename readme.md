@@ -46,6 +46,7 @@ The LANL development team asks that any forks or derivative works include approp
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
 </br>Note: building with numpy <1.26 requires setuptools<70; building with numpy >=2.0 requires meson.</br>
+* [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074), pdf available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
 
 ## Installation
