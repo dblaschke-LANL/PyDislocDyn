@@ -2,12 +2,31 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 3, 2017 - June 26, 2025
-'''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.'''
+'''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
+
+References for the data included in these dictionaries (see the manual and its bibliography for further details):
+Dictionaries containing effective isotropic elastic constants for polycrystals start with "ISO_" in their names.
+Effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012, from Kaye & Laby online (https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/),
+from the CRC handbook (hbcp.chemnetbase.com), from Smith, Stern, Stephens 1966 (Mo), and from G.V. Samsonov, Handbook of the Physiochemical Properties of the Elements 1968 (Be, Co, Pd, Sc, Zr).
+Effective isotropic TOEC (in Pa) at room temperature for polycrystals in Murnaghan notation: Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb);
+in standard notation taken from Smith, Stern, Stephens 1966 (Mg, Mo, W) and Kiewel, Fritsche, Reinert 1996 (Ag, Au, Ni, Co, Zn, Sn).
+(We convert all sets to the other notation so that they are available in all dictionaries on isotropic TOEC.)
+
+Various quantities at room temperature are from the CRC handbook (hbcp.chemnetbase.com), 98th--104th ed. ("Crystal Structure Parameters of the Elements" for a, "Thermal and Physical Properties of Metals" for alpha_a, T_m, and rho,
+and "Elastic Constants for Single Crystals" for cii and rho_sc (single crystal), except Sc from Singh, Rathore & Agrawal 1992).
+Errata: c12['Cu'] is corrected using the original reference, Epstein & Carlson 1965; c44['W'] is corrected using the original reference, Lowrie & Gonas 1967.
+The dictionaries containing single crystal SOEC from the CRC handbook start with "CRC_" in their names.
+An alternative set of single crystal SOEC (in Pa) at room temperature for selected cubic crystals is given by dictionaries starting with "THLPG_" in their names.
+The latter are from Thomas 1968 (Al), Hiki & Granato 1966 (Ag, Au, Cu), Leese & Lord 1968 (Fe), Voronov et al. 1978 (Mo), Graham, Nadler, & Chang 1968 (Nb) and Alers, Neighbours, & Sato 1960 (Ni)
+
+TOEC (in Pa) at room temperature from Thomas 1968 (Al), Saunders & Yogurtcu 1986 (Cd), Yogurtcu, Saunders, Riedi 1985 (Co), Hiki & Granato 1966 (Ag, Au, Cu), Jiles & Palmer 1981 (Er), Powell & Skove 1984 (Fe), Naimon 1971 (Mg),
+Voronov et al. 1978 (Mo), Graham, Nadler, & Chang 1968 (Nb), Riley & Skove 1973 (Ni), Swartz, Chua, & Elbaum 1972 (Sn),  Ramji Rao & Menon 1973 (Ti), Swartz & Elbaum 1970 (Zn), and Singh, Rathore & Agrawal 1992 (Sc, Zr),
+Srinivasan & Girirajan 1973 (K), Ramji Rao & Ramanan 1980 (Be), Vekilov, Krasilnikov, Lugovskoy, & Lozovik 2016 (W), Suzuki 1971 (Pb), Krasilnikov, Vekilov & Mosyagin 2012 (Ta)
+TOEC data for Be, Pb, Sc, Ta, Zr, and W are from ab initio calculations at 0 or low pressure, all others were measured, see resp. references above.
+'''
 #################################
 import numpy as np
 
-## effective isotropic SOEC (in Pa) at room temperature for polycrystals taken from Hertzberg 2012, from Kaye & Laby online (https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/),
-##  from the CRC handbook (hbcp.chemnetbase.com), from Smith, Stern, Stephens 1966 (Mo), and from G.V. Samsonov, Handbook of the Physiochemical Properties of the Elements 1968 (Be, Co, Pd, Sc, Zr)
 ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Be':132e9, 'Cd':19.2e9, 'Co':74.8e9, 'Cr':115.4e9, 'Cu':48.3e9, 'Er':28.3e9, 'Fe':81.6e9, 'Mg':17.3e9, 'Mo':124e9,
            'Nb':37.5e9, 'Ni':76.0e9, 'Pb':5.59e9, 'Pd':43.7e9, 'Pt':61.0e9, 'Sc':29.4e9, 'Sn':18.4e9, 'Ta':69.2e9, 'Ti':43.8e9, 'V':46.7e9, 'W':160.6e9, 'Zn':43.4e9, 'Zr':36.0e9}
 ISO_nu = {'Ag':0.367, 'Al':0.345, 'Au':0.440, 'Be':0.032, 'Co':0.310, 'Cd':0.300, 'Cr':0.210, 'Cu':0.343, 'Fe':0.293, 'Mg':0.291, 'Nb':0.397,
@@ -30,11 +49,10 @@ for X, Y in ISO_nu.items():
     ISO_young[X] = round(2*ISO_c44[X]*(1+Y),-8)
 ISO_poisson = ISO_nu
 
-## effective isotropic TOEC (in Pa) at room temperature for polycrystals Reddy 1976 (Al), Seeger & Buck 1960 (Cu, Fe), and Graham, Nadler, & Chang 1968 (Nb)
 ISO_l = {'Al':-143e9, 'Cu':-160e9, 'Fe':-170e9, 'Nb':-610e9}
 ISO_m = {'Al':-297e9, 'Cu':-620e9, 'Fe':-770e9, 'Nb':-220e9}
 ISO_n = {'Al':-345e9, 'Cu':-1590e9, 'Fe':-1520e9, 'Nb':300e9}
-## taken from Smith, Stern, Stephens 1966 (Mg, Mo, W) and Kiewel, Fritsche, Reinert 1996 (Ag, Au, Ni, Co, Zn, Sn)
+
 ISO_c123 = {'Ag':-12e9, 'Au':-411e9, 'Co':-1090e9, 'Mg':-65.4e9, 'Mo':194e9, 'Ni':-185e9, 'Sn':-5e9, 'W':-429e9, 'Zn':-180e9}
 ISO_c144 = {'Ag':-160e9, 'Au':-169e9, 'Co':70e9, 'Mg':-57.4e9, 'Mo':-398e9, 'Ni':-466e9, 'Sn':-167e9, 'W':-258e9, 'Zn':-66e9}
 ISO_c456 = {'Ag':-86e9, 'Au':-127e9, 'Co':-618e9, 'Mg':-42.1e9, 'Mo':-227e9, 'Ni':0e9, 'Sn':11e9, 'W':-267e9, 'Zn':-89e9}
@@ -55,8 +73,6 @@ for X, Y in ISO_l.items():
     ISO_c111[X] = ISO_c112[X] + 4*ISO_c166[X]
 ###
 
-## numbers at room temperature from the CRC handbook (hbcp.chemnetbase.com), 98th--104th ed. ("Crystal Structure Parameters of the Elements" for a, "Thermal and Physical Properties of Metals" for alpha_a, T_m, and rho,
-## and "Elastic Constants for Single Crystals" for cii and rho_sc (single crystal), except Sc from Singh, Rathore & Agrawal 1992)
 CRC_c11 = {'Ag':123.99e9, 'Al':106.75e9, 'Au':192.44e9, 'Be':292.3e9, 'Cd':114.50e9, 'Co':307.1e9, 'Cr':339.8e9, 'Cu':168.3e9, 'Er':86.34e9, 'In':44.50e9, 'Ni':248.1e9, 'Fe':226e9, 'K':3.7e9, 'Mg':59.50e9,
            'Mo':463.7e9, 'Nb':246.5e9, 'Pb':49.66e9, 'Pd':2.2710e11, 'Pt':346.7e9, 'Sc':0.993e11, 'Sn':75.29e9, 'Ta':260.2e9, 'Ti':162.40e9, 'V':2.287e11, 'W':522.39e9, 'Zn':163.68e9, 'Zr':143.4e9}
 CRC_c12 = {'Ag':93.67e9, 'Al':60.41e9, 'Au':162.98e9, 'Be':26.7e9, 'Cd':39.50e9, 'Co':165.0e9, 'Cr':58.6e9, 'Cu':121.2e9, 'Er':30.50e9, 'In':39.50e9, 'Ni':154.9e9, 'Fe':140e9, 'K':3.14e9, 'Mg':26.12e9,
@@ -66,7 +82,7 @@ CRC_c44 = {'Ag':46.12e9, 'Al':28.34e9, 'Au':42.0e9, 'Be':162.5e9, 'Cd':19.85e9, 
 CRC_c13 = {'Be':14.0e9, 'Cd':39.90e9, 'Co':102.7e9, 'Er':22.70e9, 'In':40.50e9, 'Mg':21.805e9, 'Sc':0.294e11, 'Sn':44.00e9, 'Ti':69.00e9, 'Zn':53.00e9, 'Zr':65.3e9}
 CRC_c33 = {'Be':336.4e9, 'Cd':50.85e9, 'Co':358.1e9, 'Er':85.54e9, 'In':44.40e9, 'Mg':61.55e9, 'Sc':1.069e11, 'Sn':95.52e9, 'Ti':180.70e9, 'Zn':63.47e9, 'Zr':164.8e9}
 CRC_c66 = {'In':12.20e9, 'Sn':23.36e9}
-## errata: c12['Cu'] is corrected using the original reference, Epstein & Carlson 1965; c44['W'] is corrected using the original reference, Lowrie & Gonas 1967
+
 CRC_ZenerA = {} ## Zener anisotropy for cubic metals, determined from their SOECs
 
 CRC_a = {'Ag':4.0857e-10, 'Al':4.0496e-10, 'Au':4.0782e-10, 'Be':2.2859e-10, 'Cd':2.9793e-10, 'Co':2.5071e-10, 'Cr':2.8848e-10, 'Cu':3.6146e-10, 'Er':3.5592e-10, 'In':3.253e-10, 'Ni':3.5240e-10, 'Fe':2.8665e-10, 'K':5.321e-10, 'Mg':3.2094e-10,
@@ -89,14 +105,10 @@ tetr_metals = {'In', 'Sn'}
 cubic_metals = fcc_metals | bcc_metals
 all_metals = cubic_metals | hcp_metals | tetr_metals
 
-## SOEC (in Pa) at room temperature from Thomas 1968 (Al), Hiki & Granato 1966 (Ag, Au, Cu), Leese & Lord 1968 (Fe), Voronov et al. 1978 (Mo), Graham, Nadler, & Chang 1968 (Nb) and Alers, Neighbours, & Sato 1960 (Ni)
 THLPG_c11 = {'Ag':122.2e9, 'Al':106.75e9, 'Au':192.9e9, 'Cu':166.1e9, 'Fe':226e9, 'Mo':461.7e9, 'Nb':246.5e9, 'Ni':250.8e9}
 THLPG_c12 = {'Ag':90.7e9, 'Al':60.41e9, 'Au':163.8e9, 'Cu':119.9e9, 'Fe':140e9, 'Mo':164.7e9, 'Nb':133.3e9, 'Ni':150e9}
 THLPG_c44 = {'Ag':45.4e9, 'Al':28.34e9, 'Au':41.5e9, 'Cu':75.6e9, 'Fe':116e9, 'Mo':108.7e9, 'Nb':28.4e9, 'Ni':123.5e9}
-## TOEC (in Pa) at room temperature from Thomas 1968 (Al), Saunders & Yogurtcu 1986 (Cd), Yogurtcu, Saunders, Riedi 1985 (Co), Hiki & Granato 1966 (Ag, Au, Cu), Jiles & Palmer 1981 (Er), Powell & Skove 1984 (Fe), Naimon 1971 (Mg),
-## Voronov et al. 1978 (Mo), Graham, Nadler, & Chang 1968 (Nb), Riley & Skove 1973 (Ni), Swartz, Chua, & Elbaum 1972 (Sn),  Ramji Rao & Menon 1973 (Ti), Swartz & Elbaum 1970 (Zn), and Singh, Rathore & Agrawal 1992 (Sc, Zr),
-## Srinivasan & Girirajan 1973 (K), Ramji Rao & Ramanan 1980 (Be), Vekilov, Krasilnikov, Lugovskoy, & Lozovik 2016 (W), Suzuki 1971 (Pb), Krasilnikov, Vekilov & Mosyagin 2012 (Ta)
-## TOEC data for Be, Pb, Sc, Ta, Zr, and W are from ab initio calculations at 0 or low pressure, all others were measured, see resp. references above
+
 c111 = {'Ag':-843e9, 'Al':-1076e9, 'Au':-1729e9, 'Be':-2190e9, 'Cd':-2060e9, 'Co':-6710e9, 'Cu':-1271e9, 'Er':-384e9, 'Fe':-2720e9, 'K':-38.5e9, 'Mg':-663e9,
         'Mo':-3557e9, 'Nb':-2564e9, 'Ni':-2040e9, 'Pb':-547e9, 'Pd':-17.54e11, 'Pt':-24.21e11, 'Sc':-7.430e11, 'Sn':-410e9, 'Ta':-2445e9, 'Ti':-1358e9, 'W':-5230e9, 'Zn':-1760e9, 'Zr':-767.4e9}
 c112 = {'Ag':-529e9, 'Al':-315e9, 'Au':-922e9, 'Be':-650e9, 'Cd':-114e9, 'Co':-1454e9, 'Cu':-814e9, 'Er':-340e9, 'Fe':-608e9, 'K':-11.1e9, 'Mg':-178e9,
