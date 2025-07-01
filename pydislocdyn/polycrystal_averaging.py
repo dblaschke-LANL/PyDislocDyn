@@ -2,10 +2,12 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 10, 2025
-'''If run as a script, this file will compute polycrystal averages of second and third order elastic constants, either for
-   all metals predefined in metal_data.py, or for those input files passed as arguments to the script; results are written
-   to a text file 'averaged_elastic_constants.tex'.'''
+# Date: Nov. 7, 2017 - June 30, 2025
+'''This script will compute polycrystal averages of second and third order elastic constants;
+   it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
+   will be taken into account unless the user passes input files (or keywords for some of 
+   the predefined metals - see pydislocdyn.metal_data.all_metals) as arguments to the script; 
+   results are written to a text file 'averaged_elastic_constants.tex'.'''
 #################################
 import sys
 import os
@@ -54,6 +56,9 @@ if __name__ == '__main__':
     metal_kws = metal.copy()
     if len(sys.argv) > 1:
         args = sys.argv[1:]
+        if '--help' in args:
+            print(f"{__doc__}")
+            sys.exit()
         try:
             inputdata = [readinputfile(i) for i in args]
             Y = {i.name:i for i in inputdata}

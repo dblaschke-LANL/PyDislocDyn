@@ -2,10 +2,33 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 24, 2024
+# Date: Nov. 3, 2017 - June 30, 2025
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
-   The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
-   metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
+The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
+metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
+   
+Additional options (can be set on the commandline with syntax --keyword=value):
+   --scale_by_mu - choose which shear modulus to use for rescaling to dimensionless quantities;
+                   allowed values are: 'crude', 'aver', and 'exp' (default)
+                   choose 'crude' for mu = (c11-c12+2c44)/4,
+                   'aver' for mu=Hill average  (resp. improved average for cubic), 
+                   and 'exp' for experimental mu supplemented by 'aver' where data are missing
+                   (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided 
+                    in that file will be used and an average is only computed if mu is missing)
+   --skip_plots - default=False, set to True to skip generating line tension plots from the results
+   
+The following options are for choosing the resolution of discretized parameters.
+theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
+and phi is an integration angle used in the integral method for computing dislocations:
+   --Ntheta (default:600)
+   --Nbeta (default: 500) - set to 0 to bypass line tension calculations
+   --Nphi (default: 1000)
+   --Ntheta2 (default: 21) - number of character angles for which to calculate critical velocities (set to None or 0 to bypass entirely)
+   
+Choose among predefined slip systems when using metal_data.py (see that file for details):
+   --bccslip - allowed values: '110', '112', '123', 'all' (for all three, default)
+   --hcpslip - allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three,default)
+'''
 #################################
 import sys
 import os
@@ -24,22 +47,14 @@ from pydislocdyn.dislocations import Dislocation, readinputfile
 if Ncores>1:
     from joblib import Parallel, delayed
 
-## choose which shear modulus to use for rescaling to dimensionless quantities
-## allowed values are: 'crude', 'aver', and 'exp'
-## choose 'crude' for mu = (c11-c12+2c44)/4, 'aver' for mu=Hill average  (resp. improved average for cubic), and 'exp' for experimental mu supplemented by 'aver' where data are missing
-## (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided in that file will be used and an average is only computed if mu is missing)
 scale_by_mu = 'exp'
-skip_plots=False ## set to True to skip generating line tension plots from the results
-### choose resolution of discretized parameters: theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
-### and phi is an integration angle used in the integral method for computing dislocations
+skip_plots=False
 Ntheta = 600
-Ntheta2 = 21 ## number of character angles for which to calculate critical velocities (set to None or 0 to bypass entirely)
-Nbeta = 500 ## set to 0 to bypass line tension calculations
+Ntheta2 = 21
+Nbeta = 500 
 Nphi = 1000
-## choose among predefined slip systems when using metal_data.py (see that file for details)
-bccslip = 'all' ## allowed values: '110', '112', '123', 'all' (for all three)
-hcpslip = 'all' ## allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three)
-##### the following options can be set on the commandline with syntax --keyword=value:
+bccslip = 'all' 
+hcpslip = 'all'
 OPTIONS = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str}
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
@@ -49,7 +64,7 @@ if __name__ == '__main__':
     metal_list = []
     use_metaldata=True
     if len(sys.argv) > 1:
-        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
     printthreadinfo(Ncores,ompthreads)
     ### set range & step sizes after parsing the commandline for options
     dtheta = np.pi/(Ntheta-2)

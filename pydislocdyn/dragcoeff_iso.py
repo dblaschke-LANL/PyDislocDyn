@@ -2,11 +2,29 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 17, 2025
+# Date: Nov. 5, 2017 - June 30, 2025
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
-   metals that are predefined in metal_data.py, falling back to all available if no argument is passed.'''
+   metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
+
+Additional options (can be set on the commandline with syntax --keyword=value):
+   --skip_plots - default=False, set to True to skip generating plots from the results
+   --use_exp_Lame - default=True, if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default) 
+                                  or analytical averages of SOEC and TOEC (use_exp_Lame = False)
+
+Choose various resolutions and other parameters:
+    --Ntheta (default:2) - number of angles between Burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
+    --Nbeta (default:99) - number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
+    --minb (default:0.01)
+    --maxb (default:0.99)
+    
+    --modes - phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 
+                                  'mix'=TL+LT, 'all'=sum of all four = default)
+    --Nphi - resolution of polar angle in Fourier space; keep this an even number for higher accuracy (because we integrate over 
+                pi-periodic expressions in some places and phi ranges from 0 to 2pi)
+    --phononwind_opts - pass additional options to the phononwind subroutine (formatted as a dictionary)
+'''
 #################################
 import sys
 import os
@@ -23,32 +41,26 @@ from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, sh
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
 
-### choose various resolutions and other parameters:
-Ntheta = 2 # number of angles between burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
-Nbeta = 99 # number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
+Ntheta = 2
+Nbeta = 99
 minb = 0.01
 maxb = 0.99
-## phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four):
 modes = 'all'
-# modes = 'TT'
-skip_plots=False ## set to True to skip generating plots from the results
-use_exp_Lame= True # if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default) or analytical averages of SOEC and TOEC (use_exp_Lame = False)
+skip_plots=False
+use_exp_Lame= True
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
 increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
 beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature
-#####
-# in Fourier space:
-Nphi = 50 # keep this (and other Nphi below) an even number for higher accuracy (because we integrate over pi-periodic expressions in some places and phi ranges from 0 to 2pi)
-## the following options can be set on the commandline with syntax --keyword=value:
-phononwind_opts = {} ## pass additional options to dragcoeff_iso() of phononwind.py
+Nphi = 50
+phononwind_opts = {} ## 
 
 #########
 if __name__ == '__main__':
     Y={}
     use_metaldata=True
     if len(sys.argv) > 1:
-        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals())
+        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
         phononwind_opts.update(kwargs)
     phononwind_opts['modes']=modes
     printthreadinfo(Ncores,ompthreads)
