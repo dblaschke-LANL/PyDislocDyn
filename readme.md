@@ -76,11 +76,12 @@ Note: the compiled Fortran module has to be deleted manually upon uninstalling (
 
 * *pydislocdyn*</br>
 Defines functions to generate tensors of elastic constants and compliances,
-functions and classes to compute dislocation displacement gradient fields, self energy, and line tension,
+functions and classes to compute dislocation displacement gradient fields, limiting velocities, self energy, line tension, and other properties,
 as well as functions to compute the drag coefficient from phonon wind.
 One of its submodules (pydislocdyn.metaldata) contains
 dictionaries storing input data taken from the references listed in that file, the most important ones being the ['CRC Handbook of Chemistry and Physics'](http://hbcp.chemnetbase.com); as well as ['Kaye and Laby Online'](https://web.archive.org/web/20190506031327/http://www.kayelaby.npl.co.uk/).
 In particular, this submodule contains elastic constants, densities, lattice constants, and thermal expansion coefficients at room temperature for various metals necessary to run the programs listed above.
+For details, see the included manual.
 
 ### Python programs / examples (using the module above)
 
@@ -99,4 +100,5 @@ See LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)),
 * *dragcoeff_semi_iso.py*</br>
 Computes the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation, where only the phonon spectrum is isotropic and everything else (i.e. the dislocation field and the elastic constants) respect the crystal symmetry. See [J. Phys. Chem. Solids 124 (2019) 24&ndash;35](https://doi.org/10.1016/j.jpcs.2018.08.032) ([arxiv.org/abs/1804.01586](https://arxiv.org/abs/1804.01586)) for details on the method.
 
-
+* *pydislocdyn_examples.ipynb*</br>
+Presents some simple examples of how PyDislocDyn can be used as a module. 
