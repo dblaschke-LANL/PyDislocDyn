@@ -17,7 +17,7 @@ from .crystals import IsoAverages, metal_props, Miller_to_Cart
 from .dislocations import StrohGeometry, Dislocation, plotuij, readinputfile
 from .phononwind import elasticA3, phonondrag, B_of_sigma
 
-__version__ = '1.3.2'
+__version__ = '1.3.2+dev'
 
 if usefortran:
     from .utilities import fsub as subroutines
