@@ -395,13 +395,13 @@ class metal_props:
                  - np.cos(self.gammac)**2 + 2*np.cos(self.alphac)*np.cos(self.betac)*np.cos(self.gammac))
         self.qBZ = (6*pi**2/self.Vc)**third
     
-    def init_all(self,kwargs={}):
+    def init_all(self,**kwargs):
         '''call all other initializing functions for the data currently available;
-           optional kwargs are passed on to the .compute_Lame() method (which is only called if self.mu=None)'''
+           optional kwargs are passed on to the .compute_Lame() method'''
         self.init_C2()
         if self.c123!=0 or self.cijk is not None:
             self.init_C3()
-        if self.mu is None:
+        if self.mu is None or len(kwargs)>0:
             self.compute_Lame(**kwargs)
         else:
             self.bulk=self.lam + 2*self.mu/3
