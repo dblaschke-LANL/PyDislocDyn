@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 21, 2025
+# Date: Nov. 7, 2017 - July 25, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -224,11 +224,11 @@ class metal_props:
             self.c11=self.c111=self.c112=self.c166=None
             
     def __repr__(self):
-        out = f" name:\t {self.name}\n sym:\t {self.sym}\n T:\t {self.T}\n ac:\t {self.ac}\n bc:\t {self.bc}\n cc:\t {self.cc}\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}"
-        if isinstance(self.rho, sp.Expr) or isinstance(self.ct, sp.Expr) or isinstance(self.cl, sp.Expr):
-            out += "\n\t using sympy symbols"
+        out = f" name:\t {self.name}\n sym:\t {self.sym}\n T:\t {self.T}\n ac:\t {self.ac}\n bc:\t {self.bc}\n cc:\t {self.cc}"
+        if isinstance(self.rho, sp.Expr) or isinstance(self.ct, sp.Expr) or isinstance(self.cl, sp.Expr) or isinstance(self.Vc, sp.Expr):
+            out += f"\n rho:\t {self.rho}\n\t using sympy symbols"
         else:
-            out += f"\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
+            out += f"\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
         return out
     
     def init_symbols(self):
@@ -366,16 +366,26 @@ class metal_props:
     def init_qBZ(self):
         '''computes the radius of the first Brillouin zone for a sphere of equal volume as the unit cell
            after determining the latter'''
+        if isinstance(self.ac, sp.Expr):
+            sqrt = sp.sqrt
+            two = sp.S(2)
+            pi = sp.pi
+            third = 1/sp.S(3)
+        else:
+            sqrt = np.sqrt
+            two = 2
+            pi = np.pi
+            third = 1/3
         if self.sym in ('iso', 'fcc', 'bcc', 'cubic'):
             self.Vc = self.ac**3
         elif self.sym=='hcp':
-            self.Vc = self.ac*self.ac*self.cc*(3/2)*np.sqrt(3) ## 3*sin(pi/3)
+            self.Vc = self.ac*self.ac*self.cc*(3/two)*sqrt(3) ## 3*sin(pi/3)
         elif self.sym in ('tetr','tetr2'):
             self.Vc = self.ac*self.ac*self.cc
         elif self.sym=='orth': ## orthorhombic
             self.Vc = self.ac*self.bc*self.cc
         elif self.sym=='trig' and self.Vc<=0: ## trigonal I
-            self.Vc = self.ac*self.ac*self.cc*np.sqrt(3)/2
+            self.Vc = self.ac*self.ac*self.cc*sqrt(3)/two
             if abs(self.alphac-self.betac)<1e-15 and abs(self.alphac-self.gammac)<1e-15:
                 self.Vc = self.ac*self.ac*self.cc*np.sqrt(1-3*np.cos(self.alphac)**2+2*np.cos(self.alphac)**3)
         elif self.Vc<=0 and self.sym=='mono':
@@ -383,15 +393,16 @@ class metal_props:
         elif self.Vc<=0 and self.sym=='tric':
             self.Vc = self.ac*self.bc*self.cc*np.sqrt(1 - np.cos(self.alphac)**2 - np.cos(self.betac)**2\
                  - np.cos(self.gammac)**2 + 2*np.cos(self.alphac)*np.cos(self.betac)*np.cos(self.gammac))
-        self.qBZ = (6*np.pi**2/self.Vc)**(1/3)
+        self.qBZ = (6*pi**2/self.Vc)**third
     
-    def init_all(self):
-        '''call all other initializing functions for the data currently available'''
+    def init_all(self,kwargs={}):
+        '''call all other initializing functions for the data currently available;
+           optional kwargs are passed on to the .compute_Lame() method (which is only called if self.mu=None)'''
         self.init_C2()
         if self.c123!=0 or self.cijk is not None:
             self.init_C3()
         if self.mu is None:
-            self.compute_Lame()
+            self.compute_Lame(**kwargs)
         else:
             self.bulk=self.lam + 2*self.mu/3
         self.init_sound()
