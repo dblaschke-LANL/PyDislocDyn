@@ -1,7 +1,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 21, 2025
+# Date: Nov. 7, 2017 - July 25, 2025
 '''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
@@ -55,7 +55,10 @@ def convert_SOECiso(lam=None, mu=None,c12=None,c44=None,bulk=None,young=None,poi
     elif young is not None:
         if c12 is not None:
             p = (3*c12-young)/4
-            c44 = np.sqrt(p**2+young*c12/2) - p
+            if isinstance(p, sp.Expr):
+                c44 = sp.sqrt(p**2+young*c12/2) - p
+            else:
+                c44 = np.sqrt(p**2+young*c12/2) - p
             bulk = c12 + 2*c44/3
             poisson = young/(2*c44) - 1
         elif bulk is not None:
