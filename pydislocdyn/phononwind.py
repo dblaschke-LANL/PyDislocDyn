@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Jan. 17, 2025
+# Date: Nov. 5, 2017 - Aug. 20, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -315,7 +315,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     if Debye_series and r0cut is not None:
         print("Warning: r0cut is set, therefore ignoring 'Debye_series=True'.")
         
-    if np.asarray(Nchunks).any() is None:
+    if Nchunks is None:
         Nchks = 1
         Nt_total = None
     else:
@@ -337,7 +337,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         return out
     
     def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
-        if np.asarray(skip_theta).any() is None:
+        if skip_theta is None:
             dijtmp = dij
             A3tmp = A3
         elif A3[0,0,0,0,0,0].shape == ():
@@ -430,7 +430,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         else:
             BLT = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=[cl,ct], beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='LT')
     
-    if np.asarray(skip_theta).any() is None:
+    if skip_theta is None:
         out = BTT + BLL + BTL + BLT
     else:
         out = skip_theta_val*np.ones((Ntheta))
@@ -546,7 +546,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     ### subintervals always end on exactly one point which is shared across neighboring chunks (we can then easily refine only certain chunks), i.e. initial Nt for total range must be divisible by #chunks,
     ### i.e. Nt_total = 1 + #chunks*(Nt-1) where Nt is number of points in each chunk of initial run (we're sharing boundary points!), hence Nt_initial = (Nt_total -1)/#chunks + 1 and Nt_total = (int((Nt_userchoice)/#chunks) + 1) * #chunks + 1 (so that Nt_total>=Nt_userchoice)
     ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we divide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
-    if np.asarray(chunks).any() is None:
+    if chunks is None:
         Nt_total = None
         kthchk = 0
         Nchunks = 1
