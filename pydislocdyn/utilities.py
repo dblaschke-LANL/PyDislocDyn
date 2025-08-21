@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 15, 2025
+# Date: Nov. 5, 2017 - Aug. 21, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -68,7 +68,7 @@ try:
             ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import pydislocdyn.subroutines as fsub
-    if fsub.version()>=20231205:
+    if fsub.version()>=20250821:
         usefortran = True
         if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
     else:

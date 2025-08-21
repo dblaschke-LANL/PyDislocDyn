@@ -175,7 +175,7 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
 
     if usefortran:
         ### use fortran implementation:
-        result = np.moveaxis(fsub.parathesum(tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv.T,delta1,delta2,mag,A3,phi1[:-1],dphi1,lenph,lent,lenph1-1,lentph),0,4)
+        out = fsub.parathesum(tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv.T,delta1,delta2,mag,A3,phi1[:-1],dphi1,lenph,lent,lenph1-1,lentph)
         lenph1 = 1 ## ensure we bypass the python loop below
 
     ### else use jit-compiled python implementation:
@@ -190,12 +190,10 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
         A3qt2 = dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph)
         part1 = dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph)
         part2 = dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dp1,lentph)
-        result = dragcoeff_iso_computepoly_foldpart12(result,part1,part2,lentph)
+        out = np.moveaxis(dragcoeff_iso_computepoly_foldpart12(result,part1,part2,lentph),4,0)
                                 
-    if np.sum(delta1 - delta2)==0:
-        out = np.reshape(result,(3,3,3,3,lent,lenph))
-    else:
-        out = np.reshape(-result,(3,3,3,3,lent,lenph)) ## for mixed modes we need an additional minus because we write (delta-qq) above and where delta=0 we would actually need +qq
+    if longitudinal in ("1","2"):
+        out = -out ## for mixed modes we need an additional minus because we write (delta-qq) above and where delta=0 we would actually need +qq
     return out
 
 if usefortran:
@@ -662,9 +660,9 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
         poly = dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitud)
         for th in range(Ntheta):
             if usefortran:
-                Bmix[th] = fsub.dragintegrand(prefactor1.T,np.moveaxis(dij[:,:,th],2,0),np.moveaxis(poly,5,0)).T
+                Bmix[th] = fsub.dragintegrand(prefactor1,np.moveaxis(dij[:,:,th],2,0),poly)
             else:
-                Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
+                Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],np.reshape(np.moveaxis(poly,0,4),(3,3,3,3,len(qtilde),len(phi))))
             if isinstance(cs, list):
                 Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi,updatet,kthchk,Nchunks)
             else:
@@ -676,9 +674,9 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
         for th in range(Ntheta):
             poly = dragcoeff_iso_computepoly(A3[th], phi, qvec, qtilde, t, phi1, longitud)
             if usefortran:
-                Bmix[th] = fsub.dragintegrand(prefactor1.T,np.moveaxis(dij[:,:,th],2,0),np.moveaxis(poly,5,0)).T
+                Bmix[th] = fsub.dragintegrand(prefactor1,np.moveaxis(dij[:,:,th],2,0),poly)
             else:
-                Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
+                Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],np.reshape(np.moveaxis(poly,0,4),(3,3,3,3,len(qtilde),len(phi))))
             if isinstance(cs, list):
                 Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi,updatet,kthchk,Nchunks)
             else:
