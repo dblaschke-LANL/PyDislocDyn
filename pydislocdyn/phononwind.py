@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 20, 2025
+# Date: Nov. 5, 2017 - Aug. 21, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -17,11 +17,11 @@ import ast
 import numpy as np
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit, minimize_scalar, root
+import pandas as pd
 from pydislocdyn.utilities import Ncores, jit, usefortran, delta, hbar, kB, str2bool, OPTIONS, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
-import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
 if usefortran:
@@ -315,19 +315,15 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     if Debye_series and r0cut is not None:
         print("Warning: r0cut is set, therefore ignoring 'Debye_series=True'.")
         
-    if Nchunks is None:
-        Nchks = 1
-        Nt_total = None
-    else:
-        Nchks = Nchunks
-        ## make sure Nt_total-1 is divisible by 2*Nchunks, and that Nt_current is odd and >=5 (i.e. increase user provided Nt as necessary)
-        Nt_k = int(abs(Nt - 1 - 4*Nchunks)/(2*Nchunks))
-        Nt_total = 4*Nchunks + 2*Nt_k*Nchunks + 1
-        if Nt_total < Nt:
-            Nt_total += 2*Nchunks ## ensure we never reduce resolution
+    Nchks = Nchunks
+    ## make sure Nt_total-1 is divisible by 2*Nchunks, and that Nt_current is odd and >=5 (i.e. increase user provided Nt as necessary)
+    Nt_k = int(abs(Nt - 1 - 4*Nchunks)/(2*Nchunks))
+    Nt_total = 4*Nchunks + 2*Nt_k*Nchunks + 1
+    if Nt_total < Nt:
+        Nt_total += 2*Nchunks ## ensure we never reduce resolution
     
-    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt_total=None, Nchunks=Nchunks, mode='??'):
-        if Nchunks is None:
+    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt_total=Nt, Nchunks=Nchunks, mode='??'):
+        if Nchunks==1:
             out = adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt=Nt, mode=mode)
         else:
             out = 0
@@ -336,7 +332,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                 out += adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=(Nchunks,kth), Nt=Nt_current, mode=mode)
         return out
     
-    def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=None, Nt=Nt, mode='??'):
+    def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=(1,0), Nt=Nt, mode='??'):
         if skip_theta is None:
             dijtmp = dij
             A3tmp = A3
@@ -353,7 +349,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         out_old = dragcoeff_iso_onemode(*args,Nt=Ntauto_old, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, r0cut=r0cut, chunks=chunks)
         Ntauto = Ntauto_old-1 ## number of points to add (i.e. total is 2*Ntauto_old-1)
         ## refine previous result
-        out = out_old/2 + dragcoeff_iso_onemode(*args, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, update='t', r0cut=r0cut, chunks=chunks)/2
+        out = out_old/2 + dragcoeff_iso_onemode(*args, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, updatet=True, r0cut=r0cut, chunks=chunks)/2
         ## determine if target accuracy was achieved
         err_mask = out!=0
         out_error_all = np.abs(np.abs(out)-np.abs(out_old))[err_mask]
@@ -370,12 +366,12 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             Ntauto_old = Ntauto+Ntauto_old ## total number of points so far
             Ntauto = 2*Ntauto ## number of points to add
             if A3tmp[0,0,0,0,0,0].shape == ():
-                out = out_old/2 + dragcoeff_iso_onemode(*args, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, update='t', r0cut=r0cut, chunks=chunks)/2
+                out = out_old/2 + dragcoeff_iso_onemode(*args, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, updatet=True, r0cut=r0cut, chunks=chunks)/2
             else:
                 ## refine only needed angles theta if A3 is theta dependent to save computation time
                 theta_mask = out_error_all/out_norm>=target_accuracy
                 theta_refine = (theta_ind[err_mask])[theta_mask]
-                out_newpoints = dragcoeff_iso_onemode((dijtmp[:,:,err_mask])[:,:,theta_mask], (A3tmp[err_mask])[theta_mask], qBZ, cs, beta, burgers, T, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, update='t', r0cut=r0cut, chunks=chunks)
+                out_newpoints = dragcoeff_iso_onemode((dijtmp[:,:,err_mask])[:,:,theta_mask], (A3tmp[err_mask])[theta_mask], qBZ, cs, beta, burgers, T, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, updatet=True, r0cut=r0cut, chunks=chunks)
                 for th, thi in enumerate(theta_refine):
                     out[thi] = out_old[thi]/2 + out_newpoints[th]/2
             err_mask = out!=0
@@ -403,28 +399,28 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         BLT = np.zeros((Ntheta))
     
     if modes in ('all', 'TT'):
-        if maxrec is None: ## bypass adaptive grid if requested by user
+        if maxrec<0: ## bypass adaptive grid if requested by user
             Ntauto = int((1+beta)*Nt) ## we know we need more points at higher beta, so already start from higher value
             BTT = dragcoeff_iso_onemode(dij=dij, A3=A3, qBZ=qBZ, cs=ct, beta=beta, burgers=burgers, T=T, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut)
         else:
             BTT = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=ct, beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='TT')
         
     if modes in ('all', 'LL'):
-        if maxrec is None:
+        if maxrec<0:
             Ntauto = int((1+beta/2)*Nt)
             BLL = dragcoeff_iso_onemode(dij=dij, A3=A3, qBZ=qBZ, cs=cl, beta=beta, burgers=burgers, T=T, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta*ct/cl, r0cut=r0cut)
         else:
             BLL = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=cl, beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta*ct/cl, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='LL')
         
     if modes in ('all', 'mix', 'TL'):
-        if maxrec is None:
+        if maxrec<0:
             Ntauto = int((1+beta/2)*Nt)
             BTL = dragcoeff_iso_onemode(dij=dij, A3=A3, qBZ=qBZ, cs=[ct,cl], beta=beta, burgers=burgers, T=T, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut)
         else:
             BTL = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=[ct,cl], beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='TL')
         
     if modes in ('all', 'mix', 'LT'):
-        if maxrec is None:
+        if maxrec<0:
             Ntauto = int((1+beta)*Nt)
             BLT = dragcoeff_iso_onemode(dij=dij, A3=A3, qBZ=qBZ, cs=[cl,ct], beta=beta, burgers=burgers, T=T, Nt=Ntauto, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut)
         else:
@@ -528,7 +524,7 @@ def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
     
     return distri
 
-def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, Nphi1=50, Debye_series=False, beta_long=False, update=None, chunks=None, r0cut=None):
+def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, Nphi1=50, Debye_series=False, beta_long=False, updatet=False, chunks=(1,0), r0cut=None):
     '''Subroutine of dragcoeff_iso(): Computes one of the four modes (TT, LL, TL, LT where T=transverse, L=longitudinal) contributing to the drag coefficient from phonon wind for an isotropic crystal.
        Required inputs are the dislocation displacement gradient (times magnitude q and rescaled by the Burgers vector) dij in Fourier space,
        being a 3x3xNthetaxNphi array where theta is the angle parametrizing the dislocation type and phi is the polar angle in Fourier space. Additionally, the array of shifted 3rd order elastic constants A3 in units of the shear modulus mu,
@@ -546,15 +542,8 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     ### subintervals always end on exactly one point which is shared across neighboring chunks (we can then easily refine only certain chunks), i.e. initial Nt for total range must be divisible by #chunks,
     ### i.e. Nt_total = 1 + #chunks*(Nt-1) where Nt is number of points in each chunk of initial run (we're sharing boundary points!), hence Nt_initial = (Nt_total -1)/#chunks + 1 and Nt_total = (int((Nt_userchoice)/#chunks) + 1) * #chunks + 1 (so that Nt_total>=Nt_userchoice)
     ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we divide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
-    if chunks is None:
-        Nt_total = None
-        kthchk = 0
-        Nchunks = 1
-    else:
-        Nchunks, kthchk = chunks
-        Nt_total = 1 + Nchunks*(Nt-1)
-    
-    updatet=bool(update=='t')
+    Nchunks, kthchk = chunks
+    Nt_total = 1 + Nchunks*(Nt-1)
     ### initialize arrays
     Nphi = len(dij[0,0,0])
     phi = np.linspace(0,2*np.pi,Nphi)
@@ -576,7 +565,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             beta1=beta2*c2/c1
             beta_L=beta1
             qt_min = abs(c1/c2-1)/(1+beta2)
-            if Nt_total is None:
+            if Nt_total==Nt:
                 if updatet:
                     dt = 1/(2*Nt)
                     qtilde = np.linspace(qt_min+dt,qt_max-dt,Nt)
@@ -597,7 +586,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             else:
                 beta1=beta_L
                 beta2=beta_L
-            if Nt_total is None:
+            if Nt_total==Nt:
                 if updatet:
                     dt = 1/(2*Nt)
                     qtilde = np.linspace(dt,qt_max-dt,Nt)
@@ -617,7 +606,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             beta2=beta1*c1/c2
             beta_L=beta2
             qt_min = abs(1-c1/c2)/(1+beta2)
-            if Nt_total is None:
+            if Nt_total==Nt:
                 if updatet:
                     dt = 1/(2*Nt)
                     qtilde = np.linspace(qt_min+dt,qt_max-dt,Nt)
@@ -641,7 +630,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             beta1=beta
         else:
             beta1=beta_L
-        if Nt_total is None:
+        if Nt_total==Nt:
             # if updatet and Nt % 2 == 0:
             ## always need the range [dt,1-dt] for any refinement (i.e. endpoints are present only in the initial run), no matter if even or not
             if updatet:
