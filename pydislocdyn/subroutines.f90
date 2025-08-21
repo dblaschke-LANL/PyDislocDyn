@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Dec. 5, 2023
+! Date: July 23, 2018 - Aug. 21, 2025
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20231205
+  versionnumber=20250821
 end subroutine version
 
 module parameters
@@ -14,6 +14,7 @@ implicit none
 integer,parameter :: sel = selected_real_kind(10)
 real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
 real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
+real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
 real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 ! pi squared
 end module parameters
 
@@ -148,30 +149,34 @@ end subroutine thesum
 
 !!**********************************************************************
 
-subroutine dragintegrand(output,prefactor,dij,poly,lent,lenph)
+subroutine dragintegrand(output,prefactor,dij,flatpoly,lent,lenph)
 ! this is a subroutine of dragcoeff_iso() in phononwind.py
 implicit none
 
 integer,parameter :: sel = selected_real_kind(6)
-integer :: i, k, kk, n, nn
+integer :: i, j, ij, k, kk, n, nn
 integer, intent(in) :: lent, lenph
-real(kind=sel), intent(in), dimension(lenph,lent) :: prefactor
+real(kind=sel), intent(in), dimension(lent,lenph) :: prefactor
 real(kind=sel), intent(in), dimension(lenph,3,3) :: dij
-real(kind=sel), intent(in), dimension(lenph,3,3,3,3,lent) :: poly
-real(kind=sel), intent(out), dimension(lenph,lent) :: output
+real(kind=sel), intent(in), dimension(lent*lenph,3,3,3,3) :: flatpoly
+real(kind=sel), intent(out), dimension(lent,lenph) :: output
 
 output(:,:) = 0.0
 
-do i = 1,lent
-   do nn=1,3
-      do n=1,3
-         do kk=1,3
-            do k=1,3
-               output(:,i) = output(:,i) - dij(:,k,kk)*dij(:,n,nn)*poly(:,k,kk,n,nn,i)
-            end do
-         end do
+
+do nn=1,3
+  do n=1,3
+    do kk=1,3
+      do k=1,3
+        do j = 1,lenph
+          do i = 1,lent
+            ij = (i-1)*lenph+j
+            output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
+          end do
+        end do
       end do
-   end do
+    end do
+  end do 
 end do
 
 output(:,:) = prefactor(:,:)*output(:,:)
@@ -416,6 +421,27 @@ SUBROUTINE inv(A,invA)
   
   RETURN
 END SUBROUTINE inv
+
+!!**********************************************************************
+
+SUBROUTINE linspace(start,finish,num,output)
+! fortran implementation of np.linspace() for real numbers
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  real(kind=sel), intent(in) :: start, finish
+  integer, intent(in) :: num
+  real(kind=sel), intent(out), dimension(num) :: output
+!--------- local vars --------------------------------------------------
+  integer :: i
+  real(kind=sel) :: step
+  
+  step = (finish - start) / (num-1.d0)
+  output = (/(start + (i-1)*step, i=1,num)/)
+  
+  return
+END SUBROUTINE linspace
 
 !!**********************************************************************
 
