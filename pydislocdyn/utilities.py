@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 30, 2025
+# Date: Nov. 5, 2017 - Aug. 15, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -117,6 +117,7 @@ def compilefortranmodule(buildopts=''):
         if '--dep' in compilerflags:
             print("as well as meson;")
             print("additional options (if necessary), such as e.g. '--build-dir', may be passed via my 'buildopts' keyword.")
+    return error
 
 def printthreadinfo(Ncores,ompthreads=ompthreads):
     '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
