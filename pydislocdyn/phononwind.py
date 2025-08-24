@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 21, 2025
+# Date: Nov. 5, 2017 - Aug. 23, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -210,7 +210,7 @@ else:
 
 ## r0cut implements a soft core cutoff following Alshits 1979, i.e. multiplying the dislocation field by (1-exp(r/r0)) which leads to 1/sqrt(1-q**2/r0**2) in Fourier space
 ## warning: only correct for an isotropic dislocation field, and note that shape of the cutoff is beta-dependent the way it is introduced (circle only at beta=0)! (TODO: generalize)
-def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde, T, r0cut=None):
+def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde, T, r0cut=None, Debye_series=False):
     '''Subroutine of dragcoeff_iso().'''
     lent = len(qtilde) ## qtilde is a either Nt x Nphi dimensional array or just an Nt dimensional one (for the mixed phonon cases)
     lenq1 = len(q1)
@@ -260,7 +260,20 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
         ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
         prefac = (1000*np.pi*hbar*qBZ*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5))*(np.outer(np.ones((lent)),csphi/(np.ones((lenphi))-(beta*csphi)**2))/qtilde)
         OneMinBtqcosph1 = np.outer(np.ones((lent)),np.ones((lenphi)))-beta*qtilde*np.outer(np.ones((lent)),csphi)
-    if r0cut is None:
+    if Debye_series and r0cut is None:
+        hbarcsqBZ_TkB = hbar*c1qBZ/(T*kB)
+        qtilde_csphi = np.outer(qtilde,csphi)
+        prefac *= (kB*T*qBZ**4/(2*c1qBZ*hbar))
+        if c1>c2:
+            qlimitratio = np.minimum(np.ones((lent,lenphi)),ct_over_cl/OneMinBtqcosph1)
+            prefac *= qlimitratio**4
+            hbarcsqBZ_TkB *= qlimitratio
+        distri = prefac*(-(beta1/2)*qtilde_csphi/OneMinBtqcosph1 \
+                          +(hbarcsqBZ_TkB**2/36)*(beta1*qtilde_csphi) \
+                          -(hbarcsqBZ_TkB**4/(30*4*24))*(1-(OneMinBtqcosph1)**3) \
+                          +(hbarcsqBZ_TkB**6/(42*5*720))*(1-(OneMinBtqcosph1)**5)  )
+        return distri
+    elif r0cut is None:
         distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)
     else:
         if isinstance(cs, list):
@@ -312,6 +325,8 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         
     if Debye_series and r0cut is not None:
         print("Warning: r0cut is set, therefore ignoring 'Debye_series=True'.")
+    elif Debye_series and T<250:
+        print(f"Warning: using the high temperature expansion of the Debye functions at temperature {T=}; result will be inaccurate. Recommend running with 'Debye_series=False'.")
         
     Nchks = Nchunks
     ## make sure Nt_total-1 is divisible by 2*Nchunks, and that Nt_current is odd and >=5 (i.e. increase user provided Nt as necessary)
@@ -622,7 +637,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
         t = np.outer((qtilde+(1-c1**2/c2**2)/qtilde)/2,np.ones((len(phi)))) + np.outer(np.ones((len(qtilde))),(c1*beta2/c2)*np.abs(np.cos(phi))) - np.outer(qtilde/2,(beta2*np.cos(phi))**2)
         ### when integrating t later, need to slice such that -1<=t<=1 is ensured;
         ### also notice that this restricts the range of qtilde, i.e.: abs(1-c1/c2)/(1+beta2) <= qtilde <= (1+c1/c2)/(1-beta2) for all c1, c2; hence the definitions above for qt_min and qt_max
-        prefactor1 = dragcoeff_iso_computeprefactor(qBZ, cs, [beta, beta_L], burgers, q1, phi, qtilde, T, r0cut=r0cut)
+        prefactor1 = dragcoeff_iso_computeprefactor(qBZ, cs, [beta, beta_L], burgers, q1, phi, qtilde, T, r0cut=r0cut, Debye_series=Debye_series)
     else:
         if beta_long is False:
             beta1=beta
