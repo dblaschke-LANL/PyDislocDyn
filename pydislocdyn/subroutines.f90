@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Aug. 21, 2025
+! Date: July 23, 2018 - Aug. 23, 2025
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20250821
+  versionnumber=20250823
 end subroutine version
 
 module parameters
@@ -655,3 +655,331 @@ SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,N
   
   RETURN
 END SUBROUTINE integrateqtildephi
+
+!!**********************************************************************
+
+SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
+! this is a subroutine of dragcoeff_iso() in phononwind.py (TT and LL modes)
+!-----------------------------------------------------------------------
+  use parameters
+  IMPLICIT NONE
+  integer,parameter :: selsm = selected_real_kind(6)
+!-----------------------------------------------------------------------
+  integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
+  real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:) :: A3
+  real(kind=sel), intent(in) :: qBZ, ct, cl, beta, burgers, Temp, r0cut
+  logical, intent(in) :: updatet, debye
+  integer, intent(in), dimension(2) :: chunks
+  real(kind=sel), intent(in), dimension(lenph,3,3,lentheta) :: dij
+  real(kind=sel), intent(out), dimension(lentheta) :: dragb
+!----------- local vars ------------------------------------------------
+  real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), t(lent), q1h4(lenq1-1), betafactor(lent)
+  real(kind=sel) :: qvec(lenph,3), csphi(lenph), distri(lent,lenph,lenq1-1)
+  real(kind=sel) :: qtilde(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph)
+  real(kind=sel) :: dt, tmin, tmax, prefac1, ctovcl, cqBZ, hbarcsqBZ_TkB
+  real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
+  real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta(3,3)
+  real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+  integer :: Nchunks, kthchk, Nt_total, i, j, k, th
+  
+  Nchunks = chunks(1)
+  kthchk = chunks(2)
+  Nt_total = 1 + Nchunks*(lent-1)
+  call linspace(0.d0,2.d0*pi,lenph,phi)
+  call linspace(0.d0,2.d0*pi,lenph1,phi1)
+  call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
+  qvec(:,1) = cos(phi)
+  qvec(:,2) = sin(phi)
+  qvec(:,3) = 0.d0
+  csphi = abs(cos(phi))
+  q1h4 = (qBZ*q1)**4
+  ! if mode=LL, multiply by ct/cl in many places and keep delta=0, if mode=TT (i.e. cl=0) then delta-identity
+  delta = 0.d0
+  if (cl>0) then
+    ctovcl = ct/cl
+    cqBZ = cl*qBZ
+  else
+    ctovcl = 1.d0
+    cqBZ = ct*qBZ
+    do i=1,3
+      delta(i,i) = 1.d0
+    enddo
+  endif
+  prefac1 = (1.d3*pi*hbar*qBZ*burgers**2*ctovcl**3/(2*beta*(2*pi)**5))
+  dphi1 = phi1(2:lenph1) - phi1(1:lenph1-1)
+  ph1 = phi1(1:lenph1-1)
+  
+  if (Nchunks > 1) then
+    tmin = (1.d0*kthchk)/Nchunks
+    tmax = (1.d0+kthchk)/Nchunks
+    if (updatet) then
+      dt = (tmax-tmin)/(2.d0*lent)
+      call linspace(tmin+dt,tmax-dt,lent,t)
+    else
+      call linspace(tmin,tmax,lent,t)
+    endif
+  else
+    if (updatet) then
+      dt = 1.d0/(2.d0*lent)
+      call linspace(dt,1.d0-dt,lent,t)
+    else
+      call linspace(0.d0,1.d0,lent,t)
+    endif
+  endif
+  
+  do i=1,lenph
+    qtilde(:,i) = 2.d0*(t-beta*ctovcl*csphi(i))/(1.d0-(beta*ctovcl*cos(phi(i)))**2) + tiny(1.)
+    prefac(:,i) = prefac1*csphi(i)/(1.d0-(beta*ctovcl*csphi(i))**2)/qtilde(:,i)
+    OneMinBtqcosph1(:,i) = 1.d0 - beta*ctovcl*qtilde(:,i)*csphi(i)
+  enddo
+  
+  ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
+  if (debye) then
+    do j=1,lenph1
+      betafactor = OneMinBtqcosph1(:,j)
+      hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
+      prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta*ctovcl/2.d0)*qtilde(:,j)*csphi(j)/betafactor &
+              +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
+              -(hbarcsqBZ_TkB**4/(30.d0*4.d0*24.d0))*(1.d0-(betafactor)**3) &
+              +(hbarcsqBZ_TkB**6/(42.d0*5.d0*720.d0))*(1.d0-(betafactor)**5))
+    enddo
+  else
+    call dragcoeff_iso_phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
+    ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
+    distri(:,:,1) = 2.d0*distri(:,:,1)
+    ! include cutoff if r0cut>0:
+    if (r0cut>0.d0) then
+      do i=1,(lenq1-1)
+        do j=1,lenph1
+          distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
+        enddo
+      enddo
+    endif
+    prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
+    ! integrate over last axis (q1), speedup by looping over last variable instead of calling subroutine trapz
+    do i=1,lenq1-2
+      prefac = prefac + 0.5d0*(distri(:,:,i+1)+distri(:,:,i))*(q1(i+1)-q1(i))
+    enddo
+  endif
+  prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
+  !!!
+  do i=1,lenph
+    do j=1,lent
+      do k=1,3
+        qv((j-1)*lenph+i,k) = qtilde(j,i)*qvec(i,k)
+      enddo !k
+      k = (j-1)*lenph+i
+      mag(k) = 1.d0 + qtilde(j,i)**2 - 2.d0*t(j)*qtilde(j,i)
+      sqrtt(k) = sqrt(1.d0-t(j)**2)
+      tcosphi(k) = t(j)*cos(phi(i))
+      sqrtsinphi(k) = sqrtt(k)*sin(phi(i))
+      tsinphi(k) = t(j)*sin(phi(i))
+      sqrtcosphi(k) = sqrtt(k)*cos(phi(i))
+    enddo !j
+  enddo !i
+  !!!
+  if (size(A3,7)==1) then
+    ! no need to call bottleneck parathesum() more than once in the isotropic limit
+    a3sm = A3(:,:,:,:,:,:,1)
+    call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta,delta,mag,a3sm, &
+                      ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
+    do th=1,lentheta
+      dijc = dij(:,:,:,th)
+      call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
+      Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
+      call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
+    enddo
+  else
+    do th=1,lentheta
+      dijc = dij(:,:,:,th)
+      a3sm = A3(:,:,:,:,:,:,th)
+      call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta,delta,mag,a3sm, &
+                      ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
+      call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
+      Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
+      call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
+    enddo !th
+  endif
+  
+  RETURN
+END SUBROUTINE phononwind_xx
+
+!!**********************************************************************
+
+SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
+! this is a subroutine of dragcoeff_iso() in phononwind.py (mixed modes)
+!-----------------------------------------------------------------------
+  use parameters
+  IMPLICIT NONE
+  integer,parameter :: selsm = selected_real_kind(6)
+!-----------------------------------------------------------------------
+  integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
+  real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:) :: A3
+  real(kind=sel), intent(in) :: qBZ, cx, cy, beta, burgers, Temp, r0cut
+  logical, intent(in) :: updatet, debye
+  integer, intent(in), dimension(2) :: chunks
+  real(kind=sel), intent(in), dimension(lenph,3,3,lentheta) :: dij
+  real(kind=sel), intent(out), dimension(lentheta) :: dragb
+!----------- local vars ------------------------------------------------
+  real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), qtilde(lent), q1h4(lenq1-1), betafactor(lent)
+  real(kind=sel) :: qvec(lenph,3), csphi(lenph), distri(lent,lenph,lenq1-1), q1limit(lent,lenph), qlimitratio(lent)
+  real(kind=sel) :: t(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph)
+  real(kind=sel) :: dt, subqtmin, subqtmax, prefac1, ctovcl, cqBZ, beta1, beta2, qt_min, qt_max, hbarcsqBZ_TkB
+  real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
+  real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta1(3,3), delta2(3,3)
+  real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+  integer :: Nchunks, kthchk, Nt_total, i, j, k, th
+  
+  Nchunks = chunks(1)
+  kthchk = chunks(2)
+  Nt_total = 1 + Nchunks*(lent-1)
+  call linspace(0.d0,2.d0*pi,lenph,phi)
+  call linspace(0.d0,2.d0*pi,lenph1,phi1)
+  call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
+  qvec(:,1) = cos(phi)
+  qvec(:,2) = sin(phi)
+  qvec(:,3) = 0.d0
+  csphi = abs(cos(phi))
+  q1h4 = (qBZ*q1)**4
+  delta1 = 0.d0
+  delta2 = 0.d0
+  cqBZ = cx*qBZ ! energy-cons delta fct. relating omega_2 to omega_1-Omega_q eliminated c2, beta from phonon-distri
+  qt_max = 1+cx/cy
+  if (cx>cy) then
+    ctovcl = cy/cx
+    beta1 = beta*ctovcl
+    beta2 = beta
+    do i=1,3
+      delta2(i,i) = 1.d0
+    enddo
+  else
+    ctovcl = cx/cy
+    beta1 = beta
+    beta2 = beta*ctovcl
+    do i=1,3
+      delta1(i,i) = 1.d0
+    enddo
+  endif
+  qt_min = abs(1-cx/cy)/(1+beta2)
+  prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4*beta1*(2*pi)**5))
+  dphi1 = phi1(2:lenph1) - phi1(1:lenph1-1)
+  ph1 = phi1(1:lenph1-1)
+  
+  if (Nchunks > 1) then
+    subqtmin = qt_min + (qt_max-qt_min)*kthchk/Nchunks
+    subqtmax = qt_min + (qt_max-qt_min)*(1.d0+kthchk)/Nchunks
+    if (updatet) then
+      dt = (subqtmax-subqtmin)/(2.d0*lent)
+      call linspace(subqtmin+dt,subqtmax-dt,lent,qtilde)
+    else
+      call linspace(subqtmin,subqtmax,lent,qtilde)
+    endif
+  else
+    if (updatet) then
+      dt = 1.d0/(2.d0*lent)
+      call linspace(qt_min+dt,qt_max-dt,lent,qtilde)
+    else
+      call linspace(qt_min,qt_max,lent,qtilde)
+    endif
+  endif
+  
+  do i=1,lenph
+    t(:,i) = (qtilde+(1.d0-cx**2/cy**2)/qtilde)/2.d0 + (cx*beta2/cy)*csphi(i) - qtilde*(beta2*csphi(i))**2/2.d0
+    prefac(:,i) = prefac1*csphi(i)/qtilde
+    OneMinBtqcosph1(:,i) = 1.d0 - beta1*qtilde*csphi(i)
+  enddo
+  
+  ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
+  ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
+  if (debye) then
+    hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
+    do j=1,lenph1
+      betafactor = OneMinBtqcosph1(:,j)
+      if (cx>cy) then
+        qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
+        prefac(:,j) = prefac(:,j)*qlimitratio**2*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*( &
+              -(beta1/2.d0)*qtilde*csphi(j)/betafactor &
+              +(qlimitratio*hbarcsqBZ_TkB/36.d0)*(beta1*qtilde*csphi(j)) &
+              -(qlimitratio**2*hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
+              +(qlimitratio**3*hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
+      else
+        prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta1/2.d0)*qtilde*csphi(j)/betafactor &
+              +(hbarcsqBZ_TkB/36.d0)*(beta1*qtilde*csphi(j)) &
+              -(hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
+              +(hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
+      endif
+    enddo
+  else
+    call dragcoeff_iso_phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
+    ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
+    distri(:,:,1) = 2.d0*distri(:,:,1)
+    distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
+    ! include cutoff if r0cut>0:
+    if (r0cut>0.d0) then
+      do i=1,(lenq1-1)
+        do j=1,lenph1
+          distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
+        enddo
+      enddo
+    endif
+    ! if cx>cy, we need to limit the integration range of q1<=(cy/cx)/(1-beta1*qtilde*csphi) in addition to q1<=1
+    if (cx>cy) then
+      q1limit = ctovcl/OneMinBtqcosph1
+      do i=1,(lenq1-1)
+        do j=1,lenph1
+          do k=1,lent
+            if (q1(i)>q1limit(k,j)) then
+              distri(k,j,i) = 0.d0
+            endif
+          enddo !k
+        enddo !j
+      enddo !i
+    endif
+    prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
+    ! integrate over last axis (q1), speedup by looping over last variable instead of calling subroutine trapz
+    do i=1,lenq1-2
+      prefac = prefac + 0.5d0*(distri(:,:,i+1)+distri(:,:,i))*(q1(i+1)-q1(i))
+    enddo
+  endif
+  prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
+  !!!
+  do i=1,lenph
+    do j=1,lent
+      do k=1,3
+        qv((j-1)*lenph+i,k) = qtilde(j)*qvec(i,k)
+      enddo !k
+      k = (j-1)*lenph+i
+      mag(k) = 1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j)
+      sqrtt(k) = sqrt(abs(1.d0-t(j,i)**2))
+      tcosphi(k) = t(j,i)*cos(phi(i))
+      sqrtsinphi(k) = sqrtt(k)*sin(phi(i))
+      tsinphi(k) = t(j,i)*sin(phi(i))
+      sqrtcosphi(k) = sqrtt(k)*cos(phi(i))
+    enddo !j
+  enddo !i
+  !!!
+  if (size(A3,7)==1) then
+    ! no need to call bottleneck parathesum() more than once in the isotropic limit
+    a3sm = A3(:,:,:,:,:,:,1)
+    call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,a3sm, &
+                      ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
+    do th=1,lentheta
+      dijc = dij(:,:,:,th)
+      call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
+      Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
+      call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
+    enddo
+  else
+    do th=1,lentheta
+      dijc = dij(:,:,:,th)
+      a3sm = A3(:,:,:,:,:,:,th)
+      call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,a3sm, &
+                      ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
+      call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
+      Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
+      call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
+    enddo !th
+  endif
+  
+  RETURN
+END SUBROUTINE phononwind_xy
