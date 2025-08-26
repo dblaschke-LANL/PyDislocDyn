@@ -1,7 +1,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 23, 2025
+# Date: Nov. 5, 2017 - Aug. 26, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -313,20 +313,21 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
        The keyword 'modes' determines which phonon contributions should be included in the computation.
        Allowed values are: 'all' (default), 'TT' (only transverse phonons), 'LL' (only longitudinal), 'mix' (only the two mixed modes), 'LT' (incoming transverse, outgoing longitudinal phonon), and 'TL' (incoming longitudinal outgoing transverse phonon).
        Optionally, the default values for the resolution of integration variables t, q1, and phi1 may be changed. Note that Nt is automatically increased with larger beta depending on the computed phonon mode.
-       The parameter 'Debye_series' may be set to True in order to use the 4 terms of the series representation of the Debye functions instead of computing the Debye integral over the phonon spectrum numerically.
+       The parameter 'Debye_series' may be set to True in order to use the first 4 terms of the series representation of the Debye functions instead of computing the Debye integral over the phonon spectrum numerically.
        Note, however, that the series representation converges only for high enough temperature.
        Optional variable skip_theta = None (default) may be set in order to bypass the calculation for certain angles theta and instead set those entries to some predefined value=skip_theta_val, i.e. skip_theta must be a boolean mask of len(theta) where False=bypass.'''
     
     Ntheta = len(dij[0,0])
     theta_ind = np.arange((Ntheta)) # generate array of theta-indices for later use
     modes_allowed = ['all', 'TT', 'LL', 'LT', 'TL', 'mix'] ## define allowed keywords for modes
+    debye_convergence = hbar*cl*qBZ/(np.pi*kB) # warn if T < half the convergence limit for the longitudinal modes
     if beta <0 or beta>1:
         raise ValueError(f"{beta=}, but must be between 0 and 1.")
         
     if Debye_series and r0cut is not None:
         print("Warning: r0cut is set, therefore ignoring 'Debye_series=True'.")
-    elif Debye_series and T<250:
-        print(f"Warning: using the high temperature expansion of the Debye functions at temperature {T=}; result will be inaccurate. Recommend running with 'Debye_series=False'.")
+    elif Debye_series and T<debye_convergence:
+        print(f"Warning: using the high temperature expansion of the Debye functions at temperature {T=}K; result will be inaccurate. Recommend running with 'Debye_series=False'.")
         
     Nchks = Nchunks
     ## make sure Nt_total-1 is divisible by 2*Nchunks, and that Nt_current is odd and >=5 (i.e. increase user provided Nt as necessary)
