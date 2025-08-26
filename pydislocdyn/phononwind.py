@@ -1,4 +1,4 @@
-# Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
+#!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 5, 2017 - Aug. 26, 2025
@@ -7,7 +7,7 @@
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
        dragcoeff_iso ....... computes the drag coefficient assuming an isotropic phonon spectrum.
        phonondrag ........ a high-level wrapper around dragcoeff_iso that takes an instance of the
-                           Dislocation class (defined in linetension_calcs.py) as its first argument.
+                           Dislocation class as its first argument.
                            Users most likely will want to use this function instead of dragcoeff_iso().
       B_of_sigma.......derives drag coefficient B(stress) from B(velocity) by using a fitting funcion
                        for the latter (which is a required input, see mkfit_Bv)
@@ -488,53 +488,53 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     return out
 
 def integratetphi(B,beta,t,phi,updatet,kthchk):
-     '''Subroutine of dragcoeff_iso().'''
-     limit = beta*np.abs(np.cos(phi))
-     # qtlimit = 1/(beta*np.abs(np.cos(phi))) ## mask not needed for this, as it is always automatically fulfilled in the present coordinates and with the limit above
-     Bt = np.zeros((len(phi)))
-     for p in range(len(phi)):
-         Btmp = B[:,p]
-         tmask = t>limit[p]
-         t1 = t[tmask]
-         Btmp = Btmp[tmask]
-         ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
-         ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
-         ## also, on updatet runs, we are missing dt/2 intervals on both ends of a chunk since we're computing intermediate points;
-         ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
-         ## this amounts to doubling the endpoints and letting trapz take care of the rest
-         if len(Btmp!=0):
-             if updatet:
-                 Btmp[0] = 2*Btmp[0]
-                 Btmp[-1] = 2*Btmp[-1]
-             elif kthchk==0:
-                 Btmp[0] = 2*Btmp[0]
-         Bt[p] = trapezoid(Btmp, x=t1)
-     return trapezoid(Bt, x=phi)
+    '''Subroutine of dragcoeff_iso().'''
+    limit = beta*np.abs(np.cos(phi))
+    # qtlimit = 1/(beta*np.abs(np.cos(phi))) ## mask not needed for this, as it is always automatically fulfilled in the present coordinates and with the limit above
+    Bt = np.zeros((len(phi)))
+    for p in range(len(phi)):
+        Btmp = B[:,p]
+        tmask = t>limit[p]
+        t1 = t[tmask]
+        Btmp = Btmp[tmask]
+        ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
+        ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
+        ## also, on updatet runs, we are missing dt/2 intervals on both ends of a chunk since we're computing intermediate points;
+        ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
+        ## this amounts to doubling the endpoints and letting trapz take care of the rest
+        if len(Btmp!=0):
+            if updatet:
+                Btmp[0] = 2*Btmp[0]
+                Btmp[-1] = 2*Btmp[-1]
+            elif kthchk==0:
+                Btmp[0] = 2*Btmp[0]
+        Bt[p] = trapezoid(Btmp, x=t1)
+    return trapezoid(Bt, x=phi)
 
 def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
-     '''Subroutine of dragcoeff_iso().'''
-     Bt = np.zeros((len(phi)))
-     ## energy conservation tells us w1-Wq>0, and hence qtilde<c1/v*cosphi=1/beta1*cosphi;
-     qtlimit = 1/(beta1*np.abs(np.cos(phi)))
-     for p in range(len(phi)):
-         tmask = abs(t[:,p])<1
-         qt = qtilde[tmask]
-         Btmp = B[:,p]
-         Btmp = Btmp[tmask]
-         qtmask = qt<qtlimit[p]
-         qt = qt[qtmask]
-         Btmp = Btmp[qtmask]
-         ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
-         ## also: if we're refining, we are missing dt/2 intervals on both ends of a chunk on updatet runs since we're computing intermediate points;
-         ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
-         ## this amounts to doubling the endpoints and letting trapz take care of the rest
-         if len(Btmp)!=0:
-             if updatet or kthchk==0:
-                 Btmp[0] = 2*Btmp[0]
-             if updatet or kthchk==(Nchunks-1):
-                 Btmp[-1] = 2*Btmp[-1]
-         Bt[p] = trapezoid(Btmp, x=qt)
-     return trapezoid(Bt, x=phi)
+    '''Subroutine of dragcoeff_iso().'''
+    Bt = np.zeros((len(phi)))
+    ## energy conservation tells us w1-Wq>0, and hence qtilde<c1/v*cosphi=1/beta1*cosphi;
+    qtlimit = 1/(beta1*np.abs(np.cos(phi)))
+    for p in range(len(phi)):
+        tmask = abs(t[:,p])<1
+        qt = qtilde[tmask]
+        Btmp = B[:,p]
+        Btmp = Btmp[tmask]
+        qtmask = qt<qtlimit[p]
+        qt = qt[qtmask]
+        Btmp = Btmp[qtmask]
+        ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
+        ## also: if we're refining, we are missing dt/2 intervals on both ends of a chunk on updatet runs since we're computing intermediate points;
+        ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
+        ## this amounts to doubling the endpoints and letting trapz take care of the rest
+        if len(Btmp)!=0:
+            if updatet or kthchk==0:
+                Btmp[0] = 2*Btmp[0]
+            if updatet or kthchk==(Nchunks-1):
+                Btmp[-1] = 2*Btmp[-1]
+        Bt[p] = trapezoid(Btmp, x=qt)
+    return trapezoid(Bt, x=phi)
 
 def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
     '''Subroutine of dragcoeff_iso_onemode(): approximation in the high temperature limit.'''

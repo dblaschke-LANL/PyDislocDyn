@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 7, 2017 - July 25, 2025
-'''This module contains functions to generate elastic constant and compliance tensors, as well as class to help with calculating ECs.
+'''This module contains functions to generate elastic constant and compliance tensors,
+   as well as a class to help with calculating elastic constants.
    In particular, it contains the following functions:
        elasticC2(), elasticC3(),
        elasticS2(), elasticS3(),

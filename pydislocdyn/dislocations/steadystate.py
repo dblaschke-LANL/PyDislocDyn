@@ -4,7 +4,7 @@
 # Date: Nov. 3, 2017 - June 20, 2025
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
-   which inherits from the StrohGeometry class defined here and the metal_props class defined in polycrystal_averaging.py. '''
+   which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
 #################################
 import numpy as np
 import sympy as sp

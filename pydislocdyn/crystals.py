@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Nov. 7, 2017 - July 25, 2025
