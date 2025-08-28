@@ -444,7 +444,12 @@ class metal_props:
                   - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
             a = Q - P**2/3
             d = (2*P**3-9*Q*P+27*R)/27
-            gamma = np.arccos(-0.5*d/np.sqrt(-a**3/27))
+            cosgamma = -0.5*d/np.sqrt(-a**3/27)
+            if cosgamma>1 and abs(cosgamma-1)<1e-8:
+                cosgamma = 1
+            elif cosgamma<-1 and abs(cosgamma-1)<1e-8:
+                cosgamma = -1
+            gamma = np.arccos(cosgamma)
             tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
             return np.abs(np.sqrt(tmpout*norm))
         for i in range(3):
