@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 25, 2025
+# Date: Nov. 7, 2017 - Aug. 28, 2025
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -409,33 +409,54 @@ class metal_props:
         
     def computesound(self,v,Miller=False,reziprocal=False):
         '''Computes the sound speeds of the crystal propagating in the direction of unit vector v.'''
-        bt2 = sp.symbols('bt2')
         if Miller or len(v)==4:
             v = self.Miller_to_Cart(v,reziprocal=reziprocal)
-        elif self.C2.dtype == np.dtype('O'): ## force purely analytical calculation if C2 contains non-floats
+        if self.C2.dtype == np.dtype('O'): ## force purely analytical calculation if C2 contains non-floats
             v = np.asarray(v,dtype=object)
             v = v/sp.sqrt(np.dot(v, v))
         else:
-            v = np.asarray(v)
-            v = v/np.sqrt(np.dot(v, v))
+            return np.sort(self._computesound_fast(v))
+        bt2 = sp.symbols('bt2')
         c44 = self.C2[3,3]
         thematrix = np.dot(v, np.dot(UnVoigt(self.C2/c44), v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
         thedet = sp.det(sp.Matrix(thematrix))
         solution = sp.solve(thedet,bt2)
         for i, si in enumerate(solution):
             si = si*c44/self.rho
-            if si.free_symbols == set():
-                solution[i] = np.sqrt(float(sp.re(si)))
-            else:
-                solution[i] = sp.sqrt(si)
+            solution[i] = sp.sqrt(si)
         return solution
+
+    def _computesound_fast(self,v):
+        '''Computes the sound speeds of the crystal propagating in the direction of unit vector v (Cartesian coordinates).
+           This is the (internal) faster purely numeric implementation; for the more general fct, use self.computesound().
+           The present numerical method is derived from Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5 for the special 
+           case of z=v and psi=0.'''
+        norm=(self.C2[3,3]/self.rho)
+        C2 = UnVoigt(self.C2/self.C2[3,3])
+        out = np.zeros((3))
+        v = np.asarray(v)
+        v = v/np.sqrt(v @ v)
+        def findvel(i):
+            MM = np.dot(v,np.dot(C2,v))
+            P = -np.trace(MM)
+            Q = 0.5*(P**2-np.trace((MM @ MM)))
+            R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
+                  - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
+            a = Q - P**2/3
+            d = (2*P**3-9*Q*P+27*R)/27
+            gamma = np.arccos(-0.5*d/np.sqrt(-a**3/27))
+            tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
+            return np.abs(np.sqrt(tmpout*norm))
+        for i in range(3):
+            out[i] = findvel(i)
+        return out
     
-    def find_wavespeed(self,which='l',verbose=False,accuracy=1e-4,maxfun=1000):
+    def find_wavespeed(self,which='l',verbose=False,accuracy=1e-4,maxiter=1000):
         '''For keyword which in ["l","h","hs"], this method determines the [lowest, highest, or highest (quasi-)shear] wave speed
            in the crystal. We use scipy's optimize.direct() algorithm to search over all directions in the crystal (2 angles).
-           Keywords accuracy and maxfun are passed to optimize.direct, where f_min_rtol=accuracy=len_tol and  vol_tol=accuracy**2.
-           See the docs of optimize.direct() for further information on those parameters (which we reduce here to speed up
-           the calculation).'''
+           Keywords accuracy and maxiter are passed to optimize.direct(), where maxfun=2*maxiter, f_min_rtol=accuracy=len_tol,
+           and  vol_tol=accuracy**2. See the docs of optimize.direct() for further information on those parameters (some of which
+           we reduce here to speed up the calculation).'''
         if which=='l':
             if self.sym=='iso':
                 return self.ct
@@ -457,9 +478,9 @@ class metal_props:
             raise ValueError("keyword which must be one of ['l','h','hs']")
         def f(x):
             v = [np.sin(x[0])*np.cos(x[1]),np.sin(x[0])*np.sin(x[1]),np.cos(x[0])]
-            return select(self.computesound(v))
+            return select(self._computesound_fast(v))
         bounds = [(0,2*np.pi),(0,2*np.pi)]
-        result = optimize.direct(f,bounds,f_min_rtol=accuracy,maxfun=maxfun,vol_tol=accuracy**2,len_tol=accuracy)
+        result = optimize.direct(f,bounds,f_min_rtol=accuracy,maxiter=maxiter,maxfun=2*maxiter,vol_tol=accuracy**2,len_tol=accuracy)
         if not result.success or verbose:
             print(result)
             x = result.x
@@ -666,9 +687,6 @@ def Miller_to_Cart(v,lattice=None,normalize=True,reziprocal=False):
     T = [sp.Matrix([a,b*sp.cos(gammac),c*sp.cos(betac)]),
          sp.Matrix([0,b*sp.sin(gammac),d]),
          sp.Matrix([0,0,sp.sqrt((c*sp.sin(betac))**2-d**2)])]
-    # TT = [sp.Matrix([a,0,0]),
-    #      sp.Matrix([b*sp.cos(gammac),b*sp.sin(gammac),0]),
-    #      sp.Matrix([c*sp.cos(betac),d,sp.sqrt((c*sp.sin(betac))**2-d**2)])]
     hcpsum = v[0]+v[1]+v[2]
     checkhcp = (len(v)==4 and ((not isinstance(hcpsum, sp.Expr) or len(hcpsum.free_symbols)==0) and abs(v[0]+v[1]+v[2])<1e-12))
     if reziprocal:
