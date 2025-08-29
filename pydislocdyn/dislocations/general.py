@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 25, 2025
+# Date: Nov. 3, 2017 - Aug. 29, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -142,17 +142,15 @@ class Dislocation(StrohGeometry,metal_props):
                 tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
                 return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
             for i in range(3):
-                ## default minimizer sometimes yields nan, but bounded method doesn't always find the smallest value, so run both:
+                ## neither default minimizer nor bounded method always find the smallest value, so run both:
                 with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                    minresult1 = optimize.minimize_scalar(findvlim,bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results despite rounding errors in some cases
-                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i)
-                if verbose and not (minresult1.success and minresult2.success):
-                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult1}\n{minresult2}\n\n")
+                    minresult = optimize.minimize_scalar(findvlim,args=i)
+                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results
+                if verbose and not (minresult.success and minresult2.success):
+                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult}\n{minresult2}\n\n")
                 ## always take the smaller result, ignore nan:
-                choose = np.nanargmin(np.array([minresult1.fun,minresult2.fun]))
-                if choose == 0:
-                    minresult = minresult1
-                else: minresult = minresult2
+                if minresult2.fun < minresult.fun or np.isnan(minresult.fun):
+                    minresult = minresult2
                 out[0,th,i] = minresult.fun
                 out[1,th,i] = minresult.x
         if setvcrit: self.vcrit_barnett = out
