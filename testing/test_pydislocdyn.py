@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - June 20, 2025
+# Date: Mar. 6, 2023 - Aug. 29, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -19,7 +19,8 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 dir_path = os.path.join(dir_path,'pydislocdyn')
 
-from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, ISO_l, c111
+from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
+    ISO_l, c111, all_metals
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
 from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, \
     readinputfile, convert_SOECiso, convert_TOECiso, Dislocation, roundcoeff
@@ -153,9 +154,8 @@ if __name__ == '__main__':
             metals_iso += i+' '
         metals_iso = metals_iso.strip()
     if metals == 'all':
-        from dragcoeff_semi_iso import metal as metals_temp
         metals = ''
-        for i in metals_temp:
+        for i in all_metals:
             metals += i+' '
         metals = metals.strip()
     metal_list = []
