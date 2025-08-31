@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Aug. 29, 2025
+# Date: Mar. 6, 2023 - Aug. 30, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -155,6 +155,8 @@ if __name__ == '__main__':
         metals_iso = metals_iso.strip()
     if metals == 'all':
         metals = ''
+        if runtests in ['all', 'drag']:
+            from pydislocdyn.dragcoeff_semi_iso import metal as all_metals
         for i in all_metals:
             metals += i+' '
         metals = metals.strip()
@@ -414,9 +416,9 @@ if __name__ == '__main__':
                         print(f"anisotropy unit test failed for {X}: {Y[X].AL=}, {Y[X].AL_Z=}")
                         success = False
                 if X in fcc_metals: # could include bcc here, but don't spend too much time on this test
-                    Y[X].clowest1 = Y[X].find_wavespeed(accuracy=1e-2)
+                    Y[X].clowest1 = round(Y[X].find_wavespeed(accuracy=1e-2)) # due to reduced accuracy, only expect correct to 1 m/s
                     Y[X].clowest2 = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
-                    if not (np.isclose(Y[X].clowest1, Y[X].clowest2) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
+                    if not (np.isclose(Y[X].clowest1, round(Y[X].clowest2)) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
                         print(f"find lowest sound speed unit test failed for {X}: {Y[X].clowest1=}, {Y[X].clowest2=}, {Y[X].vcrit_smallest=}")
                         success = False
                 testC = (12.3e9,4.5e9,6e9)
