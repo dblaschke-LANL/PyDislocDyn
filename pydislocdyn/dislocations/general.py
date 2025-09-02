@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 29, 2025
+# Date: Nov. 3, 2017 - Sept. 2, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -349,10 +349,10 @@ class Dislocation(StrohGeometry,metal_props):
                 return Rayleighcond(integrate.trapezoid(B,x=self.phi,axis=0)/(4*np.pi**2))
             bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
             result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
-            # if result.fun>=1e-3: print(f"{bounds}\n{result}")  ## if this failed, try enlarging the search interval slightly above vcrit (there was some numerical uncertainty there too):
-            if result.success and result.fun>=1e-3: result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=(0.5*bounds[1],1.25*bounds[1]),options={'xatol':1e-12})
-            if result.fun>=1e-3 or not result.success: print(f"Failed: Rayleigh not found in [{bounds[0]},{1.25*bounds[1]}]\n",result)
-            if result.success and result.fun<1e-3: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
+            # if result.fun>1e-3: print(f"{self.name},{bounds}\n{result}") # usually a sign of Nphi being too small, result nonetheless close enough usually
+            if result.fun>2e-2 or not result.success: 
+                print(f"Failed: Rayleigh not found in {bounds}. Try with larger Nphi in Dislocation class? (current value: Nphi={len(self.phi)})\n")
+            else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
         self.Rayleigh = Rayleigh
         return Rayleigh
     
