@@ -6,6 +6,7 @@ tags:
   - dislocation drag
   - crystal properties
   - line defect properties
+report_number: "LA-UR-25-28917"
 authors:
   - name: Daniel N. Blaschke
     email: dblaschke@lanl.gov
