@@ -37,7 +37,7 @@ Features and improvements:
  - testsuite: more unit tests added
  - improve logic in `compilefortranmodule()`: better handling of different versions/combinations of python, numpy, setuptools, 
    etc., and print helpful error messages when we do fail
- - added a jupyer notebook showing a few examples of how to use PyDislocDyn as a module
+ - added a jupyter notebook showing a few examples of how to use PyDislocDyn as a module
  - moved a number of comments in the python code into (sub-)module docstrings as well as `--help` messages of front-end scripts for easy access
 
 Fix:
@@ -108,7 +108,7 @@ Fix:
 
 Other:
 
- - drop Python 3.8 support (now require Python 3.9 or higher, this has implications for mininum required versions of other dependencies)
+ - drop Python 3.8 support (now require Python 3.9 or higher, this has implications for minimum required versions of other dependencies)
 
 ## 1.2.9 (2024-02-29)
 
@@ -216,7 +216,7 @@ Features and improvements:
     * make `alignC2()` method work when `C2` contains sympy symbols
     * infer `.burgers` (length) attribute if omitted (from vector `.b`)
  - add `.plotdisloc()` method to the Dislocation class
- - new, much faster impementation of `computevcrit()`
+ - new, much faster implementation of `computevcrit()`
  - new defaults: remove hardcoded vcrit values and compute on the fly instead
  - dictionaries: add more isotropic data
  - tweak plots and skip unnecessary ones
@@ -358,7 +358,7 @@ Features and improvements:
    thereby simplifying the future implementation of additional slip systems
  - new options to return the dislocation displacement field (instead of its gradient)
    and/or to include the radius explicitly in the array
- - new options to bypass plotting and/or calculations (in which case only previous resuts are loaded)
+ - new options to bypass plotting and/or calculations (in which case only previous results are loaded)
  - determine Young's modulus in dictionaries
  - refactored / optimized some code: 2 new classes (`Strohgeometry` and `IsoInvariants`) and speedup
 
