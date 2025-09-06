@@ -64,7 +64,7 @@ Features and improvements:
 Fix:
 
  - work around a segfault in python 3.13
- - acc. edge disloc.: work around some numerical edge cases
+ - accelerating edge dislocations: work around some numerical edge cases
  - bugfix for edge cases of B(sigma) at high stress
 
 Other:
@@ -80,7 +80,7 @@ Fix:
  - add dependency Jinja2 to .toml file
  - correct typos in docs
  - fix for sympy 1.13
- - phononwind calcs: be less noisy with warnings near limiting vel.
+ - phononwind calculations: be less noisy with warnings near limiting velocities
 
 
 ## 1.3.0 (2024-07-09)
@@ -145,11 +145,11 @@ Other:
 Features and improvements:
 
  - generalized `find_vRF()` to cover more cases
- - acc. screw disloc.: implemented the supersonic regime
+ - accelerating screw dislocations: implemented the supersonic regime
  - generalize `.vcrit_all` attribute of `Dislocation` class
  - `vcrit_*` keywords are no longer supported in input files (was broken)
  - `write_vcrit` option removed from `linetension_calcs`, `.computevcrit()` is fast enough to be used on the fly
- - vcrit.dat and vcrit-plots now show the true limiting velocities(instead of the poles of det(nn)) and polar angle phi is therefore no longer included)
+ - vcrit.dat and vcrit-plots now show the true limiting velocities (instead of the poles of `det(nn)`) and polar angle phi is therefore no longer included)
  - new fct: `writeallinputfiles()` to conveniently convert all dictionary entries into sample input files
  - new function `CheckReflectionSymmetry()` (now used by other parts of the code to check for special cases)
  - `find_vRF`: speed up some edge cases
@@ -180,18 +180,18 @@ Features and improvements:
  - support fractions for Miller indices in input files
  - additional data in dictionaries
  - include metal names in phononwind warnings
- - fct. `writeinputfile()` can now access all data included in the dictionaries to write sample input files (increased flexibility through new options)
- - refactor: use temp. input files via `writeinputfile()` to avoid duplicate code
+ - function `writeinputfile()` can now access all data included in the dictionaries to write sample input files (increased flexibility through new options)
+ - refactor: use temporary input files via `writeinputfile()` to avoid duplicate code
  - new method `find_vRF()` implemented in Dislocation class to find 'radiation-free' dislocation velocities (requires sympy 1.6 or higher)
  - calculating accelerating edge dislocation fields implemented
- - `.computesound()`: facilitate optional analytic calc.
+ - `.computesound()`: facilitate optional analytic calculations
  - updated the manual
 
 Fix:
 
  - avoid 1/0 and don't complain about `arccos(x)=nan` while optimizing
  - print parallelization info after parsing options (not before)
- - fix `plotdisloc()` for acc. sol. (regression) and some other small bugs
+ - fix `plotdisloc()` for accelerating dislocations (regression) and some other small bugs
  - fix reading Boolean options from the commandline
  - minimize rounding errors in `Miller_to_Cart()`
  - improve results of `computevcrit_barnett()` in some edge cases
@@ -208,7 +208,7 @@ Other:
 Features and improvements:
 
  - support additional cmndline options
- - new fct. `plotuij()` and refactored `plotdisloc()` for increased flexibility
+ - new function `plotuij()` and refactored `plotdisloc()` for increased flexibility
  - make the `Dislocation` class easier to use directly (without the `readinputfile()` routine):
     * new defaults for `theta` and `Nphi`
     * allow setting lattice constants and angles when initializing (optional,
@@ -244,13 +244,13 @@ Other:
 
  - new requirements: pandas, python >=3.8 (implies newer versions are required of some other modules)
  - removed some duplicate / obsolete code
- - changed some defaults: v>vcrit calcs. are now skipped by default
+ - changed some defaults: v>vcrit calculations are now skipped by default
 
 ## 1.2.4 (2021-09-13)
 
 Features and improvements:
 
- - new fct. to compute the Rayleigh wave speed implemented
+ - new function to compute the Rayleigh wave speed implemented
  - new `strain_poly class` (to determine which type of deformation is sensitive to which elastic constants)
  - support input files also in the isotropic limit (previously only anisotropic)
  - small speedup via more fortran subroutines (optional)
@@ -258,7 +258,7 @@ Features and improvements:
 
 Fix:
 
- - make certain isotropic cases work in `computevcrit_stroh()` fct.
+ - make certain isotropic cases work in `computevcrit_stroh()` function
  - cleaner/more consistent init of `metal_props` class
  - fixed a joblib related regression and a few other small issues
 
@@ -288,7 +288,7 @@ Features and improvements:
 
  - accelerating screw dislocation displacement gradient field was implemented
  - some code refactoring: new `Dislocation` class and new `readinputfile()` function
- - new (optional) plot of disloc. field
+ - new (optional) plot of dislocation field
  - add OpenMP support in optional fortran subroutines
 
 Fix:
@@ -340,9 +340,9 @@ Fix:
 Features and improvements:
 
  - improved accuracy of phonon wind calculations via (partially) adaptive grid for numerical integration
- - new plots: B as a fct of stress
- - new options for choosing (and computing on the fly) the normalization used for linetension and beta in phonon wind calcs.
- - LT: new output format, decoupled plots from calcs
+ - new plots: B as a function of stress
+ - new options for choosing (and computing on the fly) the normalization used for linetension and beta in phonon wind calculations
+ - linetension: new output format, decoupled plots from calculations
  - speedup via more fortran subroutines (optional) and rewrite of some python subroutines (elasticC2,3)
  
 Fix:
@@ -374,7 +374,7 @@ Features:
 
  - output additional nice plots
  - determine Zener ratios in dictionaries
- - phonon wind calcs.: implement optional dislocation core cutoff
+ - phonon wind calculations: implement optional dislocation core cutoff
  
 Fix:
 
@@ -390,7 +390,7 @@ Other:
 Features:
 
  - speedup phonon wind calculations (new optional Fortran subroutines via f2py)
- - phonon wind calcs.: accept commandline arguments
+ - phonon wind calculations: accept commandline arguments
  - add more metals to dictionaries
  - support more slip systems: hcp-prismatic and pyramidal
 
