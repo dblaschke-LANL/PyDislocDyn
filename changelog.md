@@ -5,7 +5,7 @@
 Features and improvements:
 
  - phonon wind: implement `Debye_series` option also for mixed modes, and warn if the temperature is too low to warrant the high temperature series expansion
- - speedup phononwind calcs (if fortran subroutines are used)
+ - speedup phononwind calculations (if fortran subroutines are used)
  - speedup `find_wavespeed()` method
 
 Fix:
@@ -18,7 +18,7 @@ Fix:
 
 Other:
 
- - changed: use option `maxrec=-1` instead of `None` to bypass adaptive grid in phonon wind calcs
+ - changed: use option `maxrec=-1` instead of `None` to bypass adaptive grid in phonon wind calculations
  - updated docs
 
 ## 1.3.2 (2025-06-30)
@@ -29,7 +29,7 @@ Features and improvements:
    in this regard, the new `.init_symbols()` method was added to the Dislocation class for convenience
  - in some cases, issue helpful warnings when initializing the Dislocation class
  - more flexibility in averaging elastic constants within the Dislocation class via new option '`scheme`' in `compute_Lame()` method
- - new fcts, `convert_SOECiso()` and `convert_TOECiso()`, to convert between isotropic elastic constants added
+ - new functions, `convert_SOECiso()` and `convert_TOECiso()`, to convert between isotropic elastic constants added
  - new option in `.computevcrit()` to control output
  - new option in `.readinputfile()` allows adding two character angles beyond the interval (needed for derivatives at the end points)
  - `polycrystal_averaging`: include anisotropy measures in output
@@ -150,7 +150,7 @@ Features and improvements:
  - `vcrit_*` keywords are no longer supported in input files (was broken)
  - `write_vcrit` option removed from `linetension_calcs`, `.computevcrit()` is fast enough to be used on the fly
  - vcrit.dat and vcrit-plots now show the true limiting velocities (instead of the poles of `det(nn)`) and polar angle phi is therefore no longer included)
- - new fct: `writeallinputfiles()` to conveniently convert all dictionary entries into sample input files
+ - new function: `writeallinputfiles()` to conveniently convert all dictionary entries into sample input files
  - new function `CheckReflectionSymmetry()` (now used by other parts of the code to check for special cases)
  - `find_vRF`: speed up some edge cases
  - added a testsuite for regression testing (requires pandas 1.1 or higher)
@@ -174,7 +174,7 @@ Other:
 Features and improvements:
 
  - new commandline option `--help`
- - fortran subroutines: add comments, new subroutine and module for params
+ - fortran subroutines: add comments, new subroutine and module for parameters
  - small speedup through code optimization
  - automatically adjust `OMP_NUM_THREADS` for openmp builds of the subroutines module unless set by the user
  - support fractions for Miller indices in input files
@@ -196,8 +196,8 @@ Fix:
  - minimize rounding errors in `Miller_to_Cart()`
  - improve results of `computevcrit_barnett()` in some edge cases
  - make frontend scripts executable
- - work around a sympy 1.11 bug and ensure compatibility also with scipy 2.0
- - ensure compatibility with new versions of scipy
+ - work around a sympy 1.11 bug
+ - future-proof for new versions of scipy
  
 Other:
 
@@ -207,7 +207,7 @@ Other:
 
 Features and improvements:
 
- - support additional cmndline options
+ - support additional commandline options
  - new function `plotuij()` and refactored `plotdisloc()` for increased flexibility
  - make the `Dislocation` class easier to use directly (without the `readinputfile()` routine):
     * new defaults for `theta` and `Nphi`
@@ -221,7 +221,7 @@ Features and improvements:
  - dictionaries: add more isotropic data
  - tweak plots and skip unnecessary ones
  - automatically compute unit cell volumes Vc in all cases
- - add support for tetragonal II, allow setting Vc manually for 'trig'
+ - add support for tetragonal II crystals (`sym=tetr2`), allow setting Vc manually for `sym=trig`
  - include a code manual (finally!)
 
 Fix:
@@ -274,7 +274,7 @@ Features and improvements:
  - automated critical/limiting velocity calculations via new `computevcrit()` function (needs sympy 1.5 or higher)
  - new option to bypass calculations for v>vcrit
  - add bulk/Young's modulus and Poisson's ratio to `Dislocation` class attributes
- - new option '`symmetric`' in `readinputfile()` fct.
+ - new option '`symmetric`' in `readinputfile()` function
  - speedup calculating the accelerating screw dislocation field
  - some small code optimizations and changed some colors in plots
 
