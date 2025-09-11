@@ -7,6 +7,7 @@ Features and improvements:
  - phonon wind: implement `Debye_series` option also for mixed modes, and warn if the temperature is too low to warrant the high temperature series expansion
  - speedup phononwind calculations (if fortran subroutines are used)
  - speedup `find_wavespeed()` method
+ - phonon drag: new commandline option 'allplots' to generate additional plots of B(sigma) that are suppressed by default
 
 Fix:
 

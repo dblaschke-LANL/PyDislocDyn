@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 26, 2025
+# Date: Nov. 5, 2017 - Sept. 10, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -919,4 +919,4 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
 
 ## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
 OPTIONS = OPTIONS | {"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool,
-                     "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval}
+                     "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval, "allplots":str2bool}
