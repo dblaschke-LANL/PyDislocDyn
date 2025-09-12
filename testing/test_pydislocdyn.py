@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Aug. 30, 2025
+# Date: Mar. 6, 2023 - Sept. 12, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -55,11 +55,15 @@ scale_by_mu = 'exp'
 ## misc only options:
 P=0 ## pressure in strain_poly test
 volpres=False ## set to True to compute volume preserving version of the strains
+fastapprox=True ## set to False to include terms that are (close to) zero in acc_screw disloc. field
+vRF_resolution=50
+vRF_fast=True
 
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool,
            "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
 OPTIONS |= OPTIONS_LT | OPTIONS_drag
 OPTIONS.pop('Ntheta2') ## using Ntheta in this script instead
+OPTIONS |= {"fastapprox":str2bool, "vRF_resolution":int, "vRF_fast":str2bool}
 
 def printtestresult(success):
     '''print passed/failed message depending on Boolean input'''
@@ -304,11 +308,34 @@ if __name__ == '__main__':
             for X in metal_acc_screw:
                 acc_screw[X] = readinputfile(os.path.join("temp_pydislocdyn",X),Nphi=50)
                 acc_screw[X].computevcrit()
-                acc_screw[X].plotdisloc(0.9*acc_screw[X].vcrit_screw/acc_screw[X].ct,a=1e14,fastapprox=True)
+                vel=0.9*acc_screw[X].vcrit_screw
+                if verbose:
+                    print(f"{X}: testing for constant acceleration")
+                acc_screw[X].plotdisloc(vel/acc_screw[X].ct,a=1e14,fastapprox=fastapprox)
                 uij_acc_screw[X] = pd.DataFrame(acc_screw[X].uij_acc_screw_aligned[2,0],index=acc_screw[X].r,columns=acc_screw[X].phi/np.pi)
                 uij_acc_screw[X].index.name="r[burgers]"
                 uij_acc_screw[X].columns.name="phi[pi]"
                 uij_acc_screw[X].to_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv.xz"),compression='xz')
+                ## another dynamic solution:
+                ## assume l(t) = adot*t**3/6 ## (i.e. acceleration starts at 0 and increases at rate adot from t>0)
+                adot = 6.2e25 ## time-derivative of acceleration, acc is initially zero at time t=0
+                def eta(x):
+                    return np.sign(x)*np.cbrt(6*abs(x)/adot)
+                def etapr(x):
+                    return eta(x)/(3*x)
+                time = np.sqrt(2*vel/adot) ## vel=adot*t**2/2, time=t(vel)
+                distance = adot*time**3/6 ## distance covered by the core at time 'time'
+                acc = adot*time ## current acceleration at time 'time'
+                if verbose:
+                    print("testing fully dynamic solution: assume acceleration starts at 0 and increases at rate a-dot from t>0.")
+                    print(f"time to reach {vel=:.2f}m/s with a-dot={adot:.2e}m/s^3: t(v)={time:.2e}s")
+                    print(f"current acceleration at time t(v) is: a(t(v))={acc:.2e}m/s^2")
+                    print(f"dislocation moved distance d={distance:.2e}m when it reached velocity v\n")
+                acc_screw[X].plotdisloc(a=None,eta_kw=eta,etapr_kw=etapr,t=time,shift=distance,beta=vel/acc_screw[X].ct,fastapprox=fastapprox)
+                uij_acc_screw[X] = pd.DataFrame(acc_screw[X].uij_acc_screw_aligned[2,0],index=acc_screw[X].r,columns=acc_screw[X].phi/np.pi)
+                uij_acc_screw[X].index.name="r[burgers]"
+                uij_acc_screw[X].columns.name="phi[pi]"
+                uij_acc_screw[X].to_csv(os.path.join(cwd,f"uij_acc_screw_alt_{X}.csv.xz"),compression='xz')
             print(f"calculating accelerating edge dislocation fields for {metal_acc_edge}")
             for X in metal_acc_edge:
                 acc_edge[X] = readinputfile(os.path.join("temp_pydislocdyn",X),Nphi=25)
@@ -321,15 +348,16 @@ if __name__ == '__main__':
         else: print("skipping test 'acc' as requested")
         print("\ncomparing acc results")
         for X in metal_acc_screw:
-            fending = ".csv.xz"
-            if not os.path.isfile(os.path.join(old,f"uij_acc_screw_{X}{fending}")):
-                fending = ".csv" # support reading old uncompressed files
-            f1 = pd.read_csv(os.path.join(old,f"uij_acc_screw_{X}{fending}"),index_col=0)
-            f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv.xz"),index_col=0)
-            if not (result:=isclose(f1,f2)):
-                print(f"uij_acc_screw_{X}.csv.xz differs")
-                success=False
-                if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
+            for fname in ("uij_acc_screw_", "uij_acc_screw_alt_"):
+                fending = ".csv.xz"
+                if not os.path.isfile(os.path.join(old,f"{fname}{X}{fending}")):
+                    fending = ".csv" # support reading old uncompressed files
+                f1 = pd.read_csv(os.path.join(old,f"{fname}{X}{fending}"),index_col=0)
+                f2 = pd.read_csv(os.path.join(cwd,f"{fname}{X}.csv.xz"),index_col=0)
+                if not (result:=isclose(f1,f2)):
+                    print(f"{fname}{X}.csv.xz differs")
+                    success=False
+                    if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         for X in metal_acc_edge:
             f1 = pd.read_csv(os.path.join(old,f"uij_acc_edge_{X}{fending}"),index_col=0)
             f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
@@ -356,7 +384,7 @@ if __name__ == '__main__':
                 Y[X].computevcrit()
                 Y[X].findvcrit_smallest()
                 Y[X].findRayleigh()
-                Y[X].find_vRF()
+                Y[X].find_vRF(fast=vRF_fast,resolution=vRF_resolution)
                 with open(X+"props.txt", "w", encoding="utf8") as logfile:
                     np.set_printoptions(precision=2,suppress=True)
                     logfile.write(repr(Y[X]))
