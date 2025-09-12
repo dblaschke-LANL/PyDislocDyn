@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 23, 2025
+# Date: Nov. 5, 2017 - Sept. 12, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -360,7 +360,6 @@ else:
             outar[i+1] = tmp
         return outar.T
 
-#############################################################################
 
 if usefortran:
     ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
@@ -406,3 +405,45 @@ else:
                         for p in range(3):
                             AB[ph,l,o] += A[ph,k]*elC[k,l,o,p]*B[ph,p]
         return AB
+
+def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
+    '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
+    the color-encoded values are dimensionless displacement gradients.
+    Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for
+    radius (in units of Burgers vector) and polar angle; note that the plot will be converted to Cartesian coordinates.
+    Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
+    which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to pyplot.axis(), the size of
+    the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).
+    Additional options may be passed on to pyplot.contour via **kwargs (ignored if showcontour=False).'''
+    phi_msh, r_msh = np.meshgrid(phi,r)
+    x_msh = r_msh*np.cos(phi_msh)
+    y_msh = r_msh*np.sin(phi_msh)
+    if showplt and mpl.rcParams['text.usetex']:
+        # print("Warning: turning off matplotlib LaTeX backend in order to show the plot")
+        plt.rcParams.update({"text.usetex": False})
+    plt.figure(figsize=figsize)
+    plt.axis(axis)
+    plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize,family=fntsettings['family'])
+    plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize,family=fntsettings['family'])
+    plt.xlabel(r'$x[b]$',fontsize=fntsize,family=fntsettings['family'])
+    plt.ylabel(r'$y[b]$',fontsize=fntsize,family=fntsettings['family'])
+    if title is not None: plt.title(title,fontsize=fntsize,family=fntsettings['family'],loc='left')
+    if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
+    if uij.shape != (len(r),len(phi)):
+        uij = np.outer(1/r,uij)
+    colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap=cmap, shading='gouraud')
+    colmsh.set_rasterized(True)
+    cbar = plt.colorbar()
+    if not isinstance(showcontour,bool):
+        kwargs['levels'] = showcontour
+        showcontour = True
+    if showcontour:
+        if 'levels' not in kwargs: kwargs['levels'] = np.linspace(-1,1,6)
+        if 'colors' not in kwargs: kwargs['colors'] = 'white'
+        if 'linewidths' not in kwargs: kwargs['linewidths'] = 0.7
+        plt.contour(x_msh,y_msh,uij,**kwargs)
+    cbar.ax.tick_params(labelsize=fntsize)
+    if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
+    if showplt:
+        plt.show()
+    plt.close()
