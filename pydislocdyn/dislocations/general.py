@@ -735,15 +735,11 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
     return out
 
 @jit(nopython=True)
-def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
+def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,xcomp):
     '''subroutine of computeuij_acc_screw'''
     Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-    if eta_kw is None:
-        eta = np.sqrt(2*xpr/a)
-        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
-    else:
-        eta = eta_kw(xpr)
-        etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+    eta = np.sqrt(2*xpr/a)
+    etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
     stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)))
@@ -758,7 +754,25 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
         integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
     return integrand
 
-# @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
+def accscrew_xyintegrand_dyn(x,y,t,xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
+    '''subroutine of computeuij_acc_screw'''
+    Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
+    eta = eta_kw(xpr)
+    etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+    tau = t - eta
+    tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)))
+    tau2 = t - etatilde
+    tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+    if xcomp:
+        integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
+        integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
+    else:
+        integrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
+        integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
+    return integrand
+
 def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
@@ -803,10 +817,14 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
             R[ri,ph] = np.sqrt(x**2 - x*y*B/C + y**2/Ct)
             X[ri,ph] = x
             Y[ri,ph] = y
-            if not fastapprox: ## allow bypassing
+            if not fastapprox and eta_kw is None: ## allow bypassing
                 for ti in range(2):
-                    uxz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
-                    uyz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uxz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+            elif not fastapprox: ## allow bypassing
+                for ti in range(2):
+                    uxz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand_dyn(x,y,tv[ti],xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand_dyn(x,y,tv[ti],xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
     ##
     if eta_kw is None:
         eta = np.sign(X)*np.sqrt(2*np.abs(X)/a)
