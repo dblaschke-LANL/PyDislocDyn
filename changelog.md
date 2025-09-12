@@ -8,12 +8,13 @@ Features and improvements:
  - speedup phononwind calculations (if fortran subroutines are used)
  - speedup `find_wavespeed()` method
  - phonon drag: new commandline option 'allplots' to generate additional plots of B(sigma) that are suppressed by default
+ - testsuite: add a new test and options for more control over some tests
 
 Fix:
 
  - fix a `__repr__` string for symbolic `.Vc` and improve related init methods for symbolic lattice constants
  - fix an edge case of `convert_SOECiso()` for symbolic calculations
- - fix a numpy 2 related bug
+ - fix a numpy 2 and a numba related bug
  - testsuite: fix and improve behavior of commandline option `--metals=all`
  - `findRayleigh()`: fix for edge cases
 
