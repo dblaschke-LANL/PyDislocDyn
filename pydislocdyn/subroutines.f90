@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Aug. 23, 2025
+! Date: July 23, 2018 - Sept. 14, 2025
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20250823
+  versionnumber=20250914
 end subroutine version
 
 module parameters
@@ -284,6 +284,91 @@ SUBROUTINE cumtrapz(f,x,n,intf)
   
   RETURN
 END SUBROUTINE cumtrapz
+
+!!**********************************************************************
+
+SUBROUTINE fourieruij_sincos(sincos,ra,rb,phix,q,ph,phixres,nq,phres)
+! subroutine for one of the inputs of fourieruij_nocut()
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: phixres,nq,phres
+  REAL(KIND=sel), INTENT(IN) :: ra, rb, phix(phixres), q(nq), ph(phres)
+  REAL(KIND=sel), INTENT(OUT) :: sincos(phixres,phres)
+  integer i,j
+  real(kind=sel) :: cosphimph
+  
+  do j=1,phres
+    do i=1,phixres
+      cosphimph = cos(phix(i)-ph(j))
+      sincos(i,j) = sum(cos(q*ra*cosphimph)-cos(q*rb*cosphimph))/cosphimph/nq
+    end do
+  end do
+  
+  RETURN
+END SUBROUTINE fourieruij_sincos
+
+!!**********************************************************************
+
+SUBROUTINE fourieruij_nocut(fourieruij,uij,phix,sincos,ntheta,phres,phixres)
+! Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  INTEGER, INTENT(IN) :: ntheta,phixres,phres
+  REAL(KIND=sel), INTENT(IN) :: uij(phixres,3,3,ntheta), sincos(phixres,phres), phix(phixres)
+  REAL(KIND=sel), INTENT(OUT) :: fourieruij(3,3,ntheta,phres)
+  integer i,j,th,ph
+  
+  do ph=1,phres
+    do th=1,ntheta
+      do j=1,3
+        do i=1,3
+          call trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres,fourieruij(i,j,th,ph))
+        end do
+      end do
+    end do
+  end do
+  
+  RETURN
+END SUBROUTINE fourieruij_nocut
+
+!!**********************************************************************
+
+SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
+! subroutine of computeuij_acc_screw
+!-----------------------------------------------------------------------
+  IMPLICIT NONE
+  integer,parameter :: sel = selected_real_kind(10)
+!-----------------------------------------------------------------------
+  logical, intent(in) :: xcomp
+  REAL(KIND=sel), INTENT(IN) :: x,y,t,xpr,a,b,c,ct,abc,ca
+  REAL(KIND=sel), INTENT(OUT) :: integrand
+  real(kind=sel) :: rpr, eta, etatilde, tau, tau2, tau_min_R, tau_min_R2, stepfct, stepfct2
+  
+  rpr = sqrt((x-xpr)**2 - (x-xpr)*y*b/c + y**2/ct)
+  eta = sqrt(2.d0*xpr/a)
+  etatilde = sign(1.0d0,x)*sqrt(2.d0*abs(x)/a)*0.5d0*(1.d0+xpr/x)
+  tau = t - eta
+  tau_min_R = sqrt(abs(tau**2*abc/ct - rpr**2/(ct*ca**2)))
+  stepfct = 0.5d0*(sign(1.d0,(t - eta - rpr/(ca*sqrt(abc))))+1.d0)
+  tau2 = t - etatilde
+  tau_min_R2 = sqrt(abs(tau2**2*abc/ct - rpr**2/(ct*ca**2)))
+  stepfct2 =0.5d0*(sign(1.d0,(t - etatilde - rpr/(ca*sqrt(abc))))+1.d0)
+  if (xcomp) then
+    integrand = stepfct*((x-xpr-y*b/(2*c))*y/rpr**4)*(tau_min_R + tau**2*(abc/ct)/tau_min_R) &
+                - (stepfct2*((x-xpr-y*b/(2*c))*y/rpr**4)*(tau_min_R2 + tau2**2*(abc/ct)/tau_min_R2)) !! subtract pole
+  else
+    integrand = stepfct*(1.d0/rpr**4)*((tau**2*y**2*abc/ct**2 - (x-xpr)*y*(b/(2.d0*c))*rpr**2/(ct*ca**2))/tau_min_R &
+                   - (x-xpr)**2*(tau_min_R)) &
+                - (stepfct2*(1.d0/rpr**4)*((tau2**2*y**2*abc/ct**2 - (x-xpr)*y*(b/(2*c))*rpr**2/(ct*ca**2))/tau_min_R2 &
+                   - (x-xpr)**2*tau_min_R2))
+  endif
+  
+  RETURN
+END SUBROUTINE accscrew_xyintegrand
 
 !!**********************************************************************
 

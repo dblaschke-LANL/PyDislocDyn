@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 20, 2025
+# Date: Nov. 3, 2017 - Sept. 13, 2025
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
@@ -410,67 +410,32 @@ def fourieruij_iso(beta,ct_over_cl, theta, phi):
     return uij
 
 @jit(nopython=True)
-def fourieruij_sincos(r,phiX,q,ph):
+def fourieruij_sincos(ra,rb,phiX,q,ph):
     '''Subroutine for fourieruij() that computes q*sin(r*q*cos(phiX-ph)) integrated over r, resulting in an array of shape (len(q),len(phiX)*len(ph)).
-       All input parameters must be 1-dim. arrays, although only the cutoffs r[0] and r[-1] are used since the integration over r is done analytically.'''
+       The latter is then averaged over q (assuming the cutoffs in r were chosen such that any q-dependence became negligible).
+       All input parameters must be 1-dim. arrays, except for the cutoffs ra and rb (the integration over r is done analytically, so only need the endpoints).'''
     phres = len(ph)
     qres = len(q)
     phiXres = len(phiX)
     cosphimph = np.reshape(np.cos(np.outer(np.ones((phres)),phiX)-np.outer(ph,np.ones((phiXres)))),(phres*phiXres))
-    out = np.zeros((qres,phres*phiXres))
+    out = np.zeros((phres*phiXres))
     for iq in range(qres):
-        out[iq] = (np.cos(q[iq]*r[0]*cosphimph)-np.cos(q[iq]*r[-1]*cosphimph))/cosphimph
-        
+        out += (np.cos(q[iq]*ra*cosphimph)-np.cos(q[iq]*rb*cosphimph))/cosphimph/qres
+   
     return out
 
-### Fourier transform of uij for fixed velocity beta (i.e. uij is an array of shape (3,3,len(theta),len(phi)))
 @jit(nopython=True)
-def fourieruij(uij,r,phiX,q,ph,sincos=None):
-    '''Takes uij multiplied by r over the Burgers vector (which then is only phi dependent), and returns uijs Fourier transform multiplied q which then only depends on q through the cutoffs q*r[0] and q*r[-1].
-       r, phi are the magnitude and angle in x-space, although of the former only the cutoffs r[0] and r[-1] are used since the integration over r is done analytically. q, ph are the magnitude and angle in Fourier space.
-       If sincos=None, sincos is computed from fourieruij_sincos(). Optionally, however, it may be given as input explicitly.'''
-    phres = len(ph)
-    qres = len(q)
-    phiXres = len(phiX)
-    Ntheta = len(uij[0,0])
-    ### computing just the non-vanishing purely imaginary part allows us to do everything with real numbers which is faster
-    result = np.zeros((3,3,Ntheta,qres,phres))
-    ph_ones = np.ones((phres))
-    uij_array = np.zeros((3,3,phres*phiXres))
-    if np.asarray(sincos).all() is None:
-        sincos = fourieruij_sincos(r,phiX,q,ph)
-    
-    for th in range(Ntheta):
-        integrand = np.zeros((3,3,qres,phres*phiXres))
-        for i in range(3):
-            for j in range(3):
-                uij_array[i,j] = np.reshape(np.outer(ph_ones,uij[i,j,th]),(phres*phiXres))
-                for iq in range(qres):
-                    np.multiply(uij_array[i,j], sincos[iq], integrand[i,j,iq])
-    
-        result[:,:,th] = trapz(np.reshape(integrand,(3,3,qres,phres,phiXres)),x=phiX)
-                
-    return result
-
-@jit(nopython=True)
-def fourieruij_nocut(uij,phiX,ph,regul=500,sincos=None):
+def fourieruij_nocut(uij,phiX,sincos,phres):
     '''Takes uij multiplied by r over the Burgers vector (which then is only phi dependent), and returns uijs Fourier transform multiplied q which then only depends on q through the cutoffs q*r[0] and q*r[-1].
        This function, however, assumes these cutoffs are removed, i.e. taken to 0 and infinity, respectively. Hence, the result is q-independent and as such a smaller array of shape (3,3,len(theta),len(ph)) is returned,
        where ph is the angle in Fourier space.
-       The expression q*sin(r*q*cos(phiX-ph)) is analytically integrated over r using the given regulator 'regul' resulting in (1-cos(regul*cos(phiX-ph)))/cos(regul*cos(phiX-ph)).
-       regul is necessary in order to avoid division by (close to) zero from 1/cos(phiX-ph).
-       Alternatively, the user may give an alternative form of this input via the 'sincos' variable, such as the output of fourieruij_sincos() averaged over q (assuming the cutoffs in r were chosen such that any q-dependence became negligible).'''
-    phres = len(ph)
+       The expression q*sin(r*q*cos(phiX-ph)) analytically integrated over r needs to be passed via the 'sincos' input variable (see fourieruij_sincos()).'''
     phiXres = len(phiX)
     ph2res = phres*phiXres
     Ntheta = len(uij[0,0])
     result = np.zeros((3,3,Ntheta,phres))
     ph_ones = np.ones((phres))
     uij_array = np.zeros((3,3,ph2res))
-    if np.asarray(sincos).all() is None:
-        cosphimph = np.reshape(np.cos(np.outer(np.ones((phres)),phiX)-np.outer(ph,np.ones((phiXres)))),(ph2res))
-        sincos = (1-np.cos(regul*cosphimph))/cosphimph
-    
     integrand = np.empty((3,3,ph2res))
     for th in range(Ntheta):
         for i in range(3):

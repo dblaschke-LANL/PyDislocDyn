@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 12, 2025
+# Date: Nov. 3, 2017 - Sept. 14, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,7 +12,7 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 import pandas as pd
-from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff, plotuij
+from ..utilities import usefortran, jit, rotaround, elbrak1d, roundcoeff, plotuij
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from .steadystate import StrohGeometry
@@ -347,8 +347,7 @@ class Dislocation(StrohGeometry,metal_props):
         else:
             self.rho = rho
         if phi is None: phi=self.phi
-        test = np.abs(self.C2_aligned[scrind]/self.C2_aligned[scrind,3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
+        if not CheckReflectionSymmetry(self.C2_aligned[scrind]):
             raise ValueError("not implemented - slip plane is not a reflection plane")
         ## change sign to match Stroh convention of steady state counter part:
         self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,**kwargs)
@@ -386,8 +385,7 @@ class Dislocation(StrohGeometry,metal_props):
         else:
             self.rho = rho
         if phi is None: phi=self.phi
-        test = np.abs(self.C2_aligned[edgeind]/self.C2_aligned[edgeind,3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
+        if not CheckReflectionSymmetry(self.C2_aligned[edgeind]):
             raise ValueError("not implemented - slip plane is not a reflection plane")
         self.uij_acc_edge_aligned = computeuij_acc_edge(a,beta,burgers,C2_aligned[edgeind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,beta_normalization=beta_normalization,**kwargs)
         ## workaround while static part is not yet implemented:
@@ -601,7 +599,7 @@ class Dislocation(StrohGeometry,metal_props):
                 print(f"Failed: could not find a solution for vRF of {self.name}")
         return self.vRF
     
-    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,skipcalc=False,showplt=False,savefig=True,**kwargs):
+    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=True,Nr=250,nogradient=False,skipcalc=False,showplt=False,savefig=True,**kwargs):
         '''Calculates and generates a plot of the requested component of the dislocation displacement gradient; plotting is done by the function plotuij().
            Optional arguments are: the normalized velocity 'beta'=v/self.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
            'character' is either 'edge', 'screw' (default), or an index of self.theta, and 'component' is
@@ -734,25 +732,28 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.C2norm = UnVoigt(out.C2/out.mu)
     return out
 
-@jit(nopython=True)
-def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,xcomp):
-    '''subroutine of computeuij_acc_screw'''
-    Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-    eta = np.sqrt(2*xpr/a)
-    etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
-    tau = t - eta
-    tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)))
-    tau2 = t - etatilde
-    tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
-    if xcomp:
-        integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
-        integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
-    else:
-        integrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
-        integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
-    return integrand
+if usefortran:
+    from ..subroutines import accscrew_xyintegrand
+else:
+    @jit(nopython=True)
+    def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,xcomp):
+        '''subroutine of computeuij_acc_screw'''
+        Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
+        eta = np.sqrt(2*xpr/a)
+        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
+        tau = t - eta
+        tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+        stepfct = (np.sign((t - eta - Rpr/(cA*np.sqrt(ABC))))+1)/2
+        tau2 = t - etatilde
+        tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
+        stepfct2 = (np.sign((t - etatilde - Rpr/(cA*np.sqrt(ABC))))+1)/2
+        if xcomp:
+            integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
+            integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
+        else:
+            integrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
+            integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
+        return integrand
 
 def accscrew_xyintegrand_dyn(x,y,t,xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     '''subroutine of computeuij_acc_screw'''
@@ -761,10 +762,10 @@ def accscrew_xyintegrand_dyn(x,y,t,xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)))
+    stepfct = np.heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)),0.5)
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+    stepfct2 = np.heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)),0.5)
     if xcomp:
         integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
         integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
@@ -835,12 +836,13 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
         etapr = etapr_kw(X)
         tau = t-(eta-etapr*X)
     denom = tau*(tau-2*etapr*(X-Y*B/(2*C))) + (etapr*R)**2 - Y**2/(Ct*cA**2)
-    heaviadd = heaviside(tau - R/(cA*np.sqrt(ABC)))
+    heaviadd = np.heaviside(tau - R/(cA*np.sqrt(ABC)),0.5)
     rootadd = np.sqrt(np.abs(tau**2*ABC/Ct-R**2/(Ct*cA**2)))
     ## supersonic part:
     p0 = (X-Y*B/(2*C))/(R*cA*np.sqrt(1-B**2/(4*A*C)))
     with np.errstate(invalid='ignore'): ## don't need to know about nan from sqrt(-...) as these will always occur in the subsonic regime (and filtered with np.nan_to_num)
-        deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*heaviside(p0/etapr-1)*np.nan_to_num(deltadistri(tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(1/(cA**2*Ct)-etapr**2*ABC/Ct),epsilon=epsilon))
+        deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*np.heaviside(p0/etapr-1,0.5) \
+                     *np.nan_to_num(np.exp(-((tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(1/(cA**2*Ct)-etapr**2*ABC/Ct))/epsilon)**2)/(epsilon*np.sqrt(np.pi)))
     uxz_supersonic = deltaterms*np.sign(Y)*etapr
     uyz_supersonic = deltaterms*(np.sqrt(1/(cA*Ct)-etapr**2*ABC/Ct)-np.sign(Y)*B*etapr/(2*C))
     ##

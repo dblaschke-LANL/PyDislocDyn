@@ -21,6 +21,8 @@ Fix:
 Other:
 
  - changed: use option `maxrec=-1` instead of `None` to bypass adaptive grid in phonon wind calculations
+ - the Fortran subroutines have been completed as a (faster) replacement of numba.jit-compiled functions:
+   Therefore, numba.jit is no longer used if the Fortran subroutines are compiled (and Numba is only used as a fall-back method)
  - updated docs
 
 ## 1.3.2 (2025-06-30)

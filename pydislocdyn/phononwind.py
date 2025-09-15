@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 10, 2025
+# Date: Nov. 5, 2017 - Sept. 13, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -26,6 +26,7 @@ if Ncores>1:
     from joblib import Parallel, delayed
 if usefortran:
     import pydislocdyn.subroutines as fsub
+    fourieruij_sincos = fsub.fourieruij_sincos
 
 @jit(nopython=True)
 def phonon(T,omega,q):
@@ -34,18 +35,24 @@ def phonon(T,omega,q):
     scale = hbar*omega/(kB*T)
     return 1/(np.exp(scale*q)-1)
 
-@jit(nopython=True)
-def elasticA3(C2, C3):
-    '''Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons. Required inputs are the tensors of SOEC and TOEC.'''
-    A3 = C3.copy()
-    for i in range(3):
-        for ii in range(3):
-            for j in range(3):
-                for jj in range(3):
-                    for k in range(3):
-                        for kk in range(3):
-                            A3[i,ii,j,jj,k,kk] += C2[i,ii,jj,kk]*delta[j,k] + C2[j,jj,ii,kk]*delta[i,k] + C2[ii,jj,k,kk]*delta[i,j]
-    return A3
+if usefortran:
+    def elasticA3(C2, C3):
+        '''Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons. Required inputs are the tensors of SOEC and TOEC.'''
+        A3 = fsub.elastica3(C2,C3)
+        return A3
+else:
+    @jit(nopython=True)
+    def elasticA3(C2, C3):
+        '''Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons. Required inputs are the tensors of SOEC and TOEC.'''
+        A3 = C3.copy()
+        for i in range(3):
+            for ii in range(3):
+                for j in range(3):
+                    for jj in range(3):
+                        for k in range(3):
+                            for kk in range(3):
+                                A3[i,ii,j,jj,k,kk] += C2[i,ii,jj,kk]*delta[j,k] + C2[j,jj,ii,kk]*delta[i,k] + C2[ii,jj,k,kk]*delta[i,j]
+        return A3
 
 ### this fct. needs dij for a fixed angle theta (no array in theta space)!
 @jit(nopython=True)
@@ -724,7 +731,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
         phiX = disloc.phi
         r = np.array([rmin*np.pi,rmax*np.pi])
         q = np.linspace(0,1,Nq)
-        sincos_noq = np.average(fourieruij_sincos(r,phiX,q,phi)[3:-4],axis=0)
+        sincos_noq = fourieruij_sincos(r[0],r[-1],phiX,q[3:-4],phi)
         A3rotated = np.zeros((disloc.Ntheta,3,3,3,3,3,3))
         disloc.computerot()
         rotmat = np.round(disloc.rot,15)
@@ -746,7 +753,11 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
         if disloc.sym != 'iso' or forceanis:
             disloc.computeuij(beta=bt)
             disloc.alignuij()
-            dij = fourieruij_nocut(disloc.uij_aligned,phiX,phi,regul=500,sincos=sincos_noq)
+            if usefortran:
+                uij = np.moveaxis(disloc.uij_aligned,-1,0)
+                dij = fsub.fourieruij_nocut(uij,phiX,sincos=sincos_noq,ntheta=disloc.Ntheta,phres=Nphi)
+            else:
+                dij = fourieruij_nocut(disloc.uij_aligned,phiX,sincos=sincos_noq,phres=Nphi)
         else:
             dij = fourieruij_iso(bt, disloc.ct_over_cl, disloc.theta, phi)
         if not skiptransonic:

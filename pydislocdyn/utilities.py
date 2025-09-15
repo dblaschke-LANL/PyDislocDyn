@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 12, 2025
+# Date: Nov. 5, 2017 - Sept. 14, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -68,7 +68,7 @@ try:
             ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import pydislocdyn.subroutines as fsub
-    if fsub.version()>=20250823:
+    if fsub.version()>=20250914:
         usefortran = True
         if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
     else:
@@ -121,17 +121,17 @@ def compilefortranmodule(buildopts=''):
 
 def printthreadinfo(Ncores,ompthreads=ompthreads):
     '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
-       or both are currently employed; also warn if imports of numba and/or subroutines failed.'''
+       or both are currently employed; also warn if import of subroutines failed.'''
     if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
         print(f"using joblib parallelization with {Ncores} cores")
     elif Ncores > 1:
         print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {ompthreads} threads")
     elif ompthreads > 0:
         print(f"using OpenMP parallelization with {ompthreads} threads")
-    if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
         print("call pydislocdyn.utilities.compilefortranmodule() to compile this module, then reload pydislocdyn")
+        if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba' either, execution will be very slow\n")
 
 def str2bool(arg):
     '''converts a string to bool'''
@@ -289,18 +289,7 @@ def compare_df(f1,f2):
 ################################################
 hbar = 1.0545718e-34
 kB = 1.38064852e-23
-
 delta = np.diag((1,1,1))
-
-@jit(nopython=True)
-def heaviside(x):
-    '''step function with convention heaviside(0)=1/2'''
-    return (np.sign(x)+1)/2
-
-@jit(nopython=True)
-def deltadistri(x,epsilon=2e-16):
-    '''approximates the delta function as exp(-(x/epsilon)^2)/epsilon*sqrt(pi)'''
-    return np.exp(-(x/epsilon)**2)/(epsilon*np.sqrt(np.pi))
 
 def artan(x,y):
     '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
