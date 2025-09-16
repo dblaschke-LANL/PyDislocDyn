@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 14, 2025
+# Date: Nov. 5, 2017 - Sept. 15, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -12,7 +12,6 @@ import time
 import multiprocessing
 from fractions import Fraction
 import numpy as np
-from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
 ##################
 import matplotlib as mpl
@@ -319,81 +318,6 @@ def rotaround(v,s,c):
     vx[2,1] = -v[0]
     out = delta +s*vx + np.dot(vx,vx)*(1-c)
     return out
-
-if nonumba:
-    trapz = trapezoid
-    cumtrapz = cumulative_trapezoid
-else:
-    @jit(nopython=True)
-    def trapz(y,x):
-        '''integrate over the last axis using the trapezoidal rule (i.e. equivalent to numpy.trapz(y,x,axis=-1))'''
-        theshape = y.shape
-        n = theshape[-1]
-        f = y.T
-        outar = np.zeros(theshape).T
-        for i in range(n-1):
-            outar[i] = (0.5*(f[i+1]+f[i])*(x[i+1]-x[i]))
-        return np.sum(outar.T,axis=-1)
-    
-    @jit(nopython=True)
-    def cumtrapz(y,x,initial=0):
-        '''Cumulatively integrate over the last axis using the trapezoidal rule (i.e. equivalent to scipy.integrate.cumtrapz(y,x,axis=-1,initial=0),
-           but faster due to the use of the numba.jit compiler).'''
-        theshape = y.shape
-        n = theshape[-1]
-        f = y.T
-        outar = np.zeros(theshape).T
-        tmp = np.zeros(theshape[:-1]).T
-        for i in range(n-1):
-            tmp += (0.5*(f[i+1]+f[i])*(x[i+1]-x[i]))
-            outar[i+1] = tmp
-        return outar.T
-
-
-if usefortran:
-    ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
-    def elbrak(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
-        return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
-    
-    def elbrak1d(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
-        return fsub.elbrak1d(A,B,elC)
-else:
-    @jit(nopython=True)
-    def elbrak(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
-        Ntheta = len(A[0,:,0])
-        Nphi = len(A[0,0])
-        tmp = np.zeros((Nphi))
-        AB = np.zeros((3,3,Ntheta,Nphi))
-        for th in range(Ntheta):
-            for l in range(3):
-                for o in range(3):
-                    for k in range(3):
-                        for p in range(3):
-                            # AB[l,o,th] += A[k,th]*elC[k,l,o,p,th]*B[p,th]
-                            #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
-                            np.add(AB[l,o,th], np.multiply(np.multiply(A[k,th], elC[k,l,o,p,th],tmp), B[p,th],tmp), AB[l,o,th])
-        
-        return AB
-    
-    @jit(nopython=True)
-    def elbrak1d(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
-        Nphi = len(A)
-        AB = np.zeros((Nphi,3,3))
-        for ph in range(Nphi):
-            for l in range(3):
-                for o in range(3):
-                    for k in range(3):
-                        for p in range(3):
-                            AB[ph,l,o] += A[ph,k]*elC[k,l,o,p]*B[ph,p]
-        return AB
 
 def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
     '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and

@@ -38,14 +38,14 @@ The LANL development team asks that any forks or derivative works include approp
 * [pandas](https://pandas.pydata.org/) >=1.3 (and Jinja2)</br>
 * [mpmath](https://mpmath.org/) (recommended optional dependency of mpmath: gmpy)
 
-### Optional:
+### Optional (but recommended):
 
-* [numba](https://numba.pydata.org/) >=0.53 (for speedup via just-in-time compilation of some subroutines),</br>
-* [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
 * a Fortran 90 compiler
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
 </br>Note: building with numpy <1.26 requires setuptools<70; building with numpy >=2.0 requires meson.</br>
+* [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
+* [numba](https://numba.pydata.org/) >=0.53 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074), pdf available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
 

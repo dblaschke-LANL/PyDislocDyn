@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 14, 2025
+# Date: Nov. 3, 2017 - Sept. 15, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,10 +12,15 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 import pandas as pd
-from ..utilities import usefortran, jit, rotaround, elbrak1d, roundcoeff, plotuij
+from ..utilities import usefortran, rotaround, roundcoeff, plotuij
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
-from .steadystate import StrohGeometry
+from .steadystate import StrohGeometry, elbrak1d
+
+if usefortran:
+    from ..subroutines import accscrew_xyintegrand
+else:
+    from .numba_subroutines import accscrew_xyintegrand
 
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
@@ -731,29 +736,6 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.init_all()
         out.C2norm = UnVoigt(out.C2/out.mu)
     return out
-
-if usefortran:
-    from ..subroutines import accscrew_xyintegrand
-else:
-    @jit(nopython=True)
-    def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,xcomp):
-        '''subroutine of computeuij_acc_screw'''
-        Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-        eta = np.sqrt(2*xpr/a)
-        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
-        tau = t - eta
-        tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-        stepfct = (np.sign((t - eta - Rpr/(cA*np.sqrt(ABC))))+1)/2
-        tau2 = t - etatilde
-        tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-        stepfct2 = (np.sign((t - etatilde - Rpr/(cA*np.sqrt(ABC))))+1)/2
-        if xcomp:
-            integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
-            integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
-        else:
-            integrand = stepfct*(1/Rpr**4)*((tau**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R - (x-xpr)**2*(tau_min_R))
-            integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
-        return integrand
 
 def accscrew_xyintegrand_dyn(x,y,t,xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     '''subroutine of computeuij_acc_screw'''
