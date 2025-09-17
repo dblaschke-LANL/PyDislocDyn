@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 16, 2025
+# Date: Nov. 5, 2017 - Sept. 17, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -44,7 +44,9 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
        The parameter 'Debye_series' may be set to True in order to use the first 4 terms of the series representation of the Debye functions instead of computing the Debye integral over the phonon spectrum numerically.
        Note, however, that the series representation converges only for high enough temperature.
        Optional variable skip_theta = None (default) may be set in order to bypass the calculation for certain angles theta and instead set those entries to some predefined value=skip_theta_val,
-       i.e. skip_theta must be a boolean mask of len(theta) where False=bypass.'''
+       i.e. skip_theta must be a boolean mask of len(theta) where False=bypass.
+       If option r0cut>0 (turned off by default), a soft dislocation core cutoff is included following Alshits 1979, i.e. multiplying the dislocation field by (1-exp(r/r0)) which leads to 1/sqrt(1-q**2/r0**2) in Fourier space
+       Note: this cutoff is intended only for an isotropic dislocation field at low gliding velocity, as the shape of the cutoff is beta-dependent the way it is introduced (i.e. a circle only at beta=0).''' ##(TODO: generalize)
     Ntheta = len(dij[0,0])
     theta_ind = np.arange((Ntheta)) # generate array of theta-indices for later use
     modes_allowed = ['all', 'TT', 'LL', 'LT', 'TL', 'mix'] ## define allowed keywords for modes
