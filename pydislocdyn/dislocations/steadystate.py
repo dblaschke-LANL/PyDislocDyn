@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 15, 2025
+# Date: Nov. 3, 2017 - Sept. 22, 2025
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
@@ -33,8 +33,26 @@ if usefortran:
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
         return fsub.elbrak1d(A,B,elC)
+    
+    def computeuk(beta, C2, Cv, b, M, N, phi, r):
+        '''Compute the dislocation displacement field uk according to the integral method.'''
+        return np.moveaxis(fsub.computeuk(beta, C2, Cv, b, np.moveaxis(M,-1,0), np.moveaxis(N,-1,0), phi, r),0,-1)
+        
+    def computeuij(beta, C2, Cv, b, M, N, phi, r=None, debug=False):
+        '''Compute the dislocation displacement gradient field uij according to the integral method. If vector r is omitted, return only the angular dependence.'''
+        if debug:
+            return nsub.computeuij(beta, C2, Cv, b, M, N, phi, r=r, debug=debug)
+        out = np.moveaxis(fsub.computeuij(beta, C2, Cv, b, np.moveaxis(M,-1,0), np.moveaxis(N,-1,0), phi),0,-1)
+        if r is not None:
+            Ntheta = len(M[0,:,0])
+            out = np.moveaxis(np.reshape(np.outer(1/r,out),(len(r),3,3,Ntheta,len(phi))),0,-2)
+        return out
 else:
-    from pydislocdyn.dislocations.numba_subroutines import fourieruij_sincos, fourieruij_nocut, computeEtot, elbrak, elbrak1d
+    from pydislocdyn.dislocations.numba_subroutines import fourieruij_sincos, fourieruij_nocut, computeEtot, elbrak, elbrak1d, computeuij
+    def computeuk(beta, C2, Cv, b, M, N, phi, r):
+        '''Compute the dislocation displacement field uk according to the integral method. This wrapper will call computeuij() with keyword nogradient=True;
+           see the docs of that function for further details.'''
+        return computeuij(beta, C2, Cv, b, M, N, phi, r=r, nogradient=True)
 
 class StrohGeometry:
     '''This class computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals using the integral version of the Stroh method.
@@ -135,12 +153,7 @@ class StrohGeometry:
             self.C2norm = C2
         if r is not None:
             self.r = r
-        if usefortran and not debug:
-            self.uij = np.moveaxis(fsub.computeuij(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi),0,-1)
-            if r is not None:
-                self.uij = np.moveaxis(np.reshape(np.outer(1/r,self.uij),(len(r),3,3,self.Ntheta,len(self.phi))),0,-2)
-        else:
-            self.uij = nsub.computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, debug=debug)
+        self.uij = computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, debug=debug)
         if abs(beta)<1e-15:
             self.uij_static = self.uij.copy()
         if debug:
@@ -165,10 +178,7 @@ class StrohGeometry:
             r = self.r
         if r is None:
             raise ValueError("I need an array for r.")
-        if usefortran:
-            self.uk = np.moveaxis(fsub.computeuk(beta, C2, self.Cv, self.b, np.moveaxis(self.M,-1,0), np.moveaxis(self.N,-1,0), self.phi, r),0,-1)
-        else:
-            self.uk = nsub.computeuij(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r=r, nogradient=True)
+        self.uk = computeuk(beta, C2, self.Cv, self.b, self.M, self.N, self.phi, r)
         
     def computerot(self,y=[0,1,0],z=[0,0,1]):
         '''Computes a rotation matrix that will align slip plane normal n0 with unit vector y, and line sense t with unit vector z.
