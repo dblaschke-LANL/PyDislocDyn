@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 15, 2025
+# Date: Nov. 3, 2017 - Oct. 2, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,7 +12,7 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 import pandas as pd
-from ..utilities import usefortran, rotaround, roundcoeff, plotuij
+from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from .steadystate import StrohGeometry, elbrak1d
@@ -466,12 +466,12 @@ class Dislocation(StrohGeometry,metal_props):
             def L2_of_beta2(beta2,comp=1):
                 '''Finds eigenvector L in the 2nd transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
                 def f(x):
-                    return float(np.abs(fct(x,beta2)))
+                    return np.abs(fct(x,beta2))
                 p1 = None
                 for x0 in [0.5,1,1.5]:
                     psol = optimize.root(f,x0)
                     if psol.success:
-                        p1 = abs(float(psol.x))
+                        p1 = abs(float(psol.x[0]))
                         break
                 if p1 is not None:
                     C2Mp = C2M.subs({rv2:beta2,p:p1})
@@ -498,7 +498,7 @@ class Dislocation(StrohGeometry,metal_props):
                 '''Finds L1+L2 in the 1st transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
                 @np.vectorize
                 def f(x):
-                    return float(np.abs(fct(x,beta2)))
+                    return np.abs(fct(x,beta2))
                 p1 = None
                 p2 = None
                 psol = optimize.root(f,np.array([0.9,1.5]))
@@ -543,7 +543,7 @@ class Dislocation(StrohGeometry,metal_props):
                     L1plusL2 = np.array((L1+factor*L2).evalf(),dtype=complex)
                     if burg is not None:
                         L1plusL2 = rot @ L1plusL2
-                    out = float(np.abs((L1plusL2)[1]) + abs((L1plusL2).imag[0]*(L1plusL2).real[2] - (L1plusL2).imag[2]*(L1plusL2).real[0]))
+                    out = convertfloat(np.abs((L1plusL2)[1]) + abs((L1plusL2).imag[0]*(L1plusL2).real[2] - (L1plusL2).imag[2]*(L1plusL2).real[0]))
                 return out
             def checkprops(vRF):
                 '''checks properties (such as boundary conditions) for the solution-candidate vRF'''

@@ -14,7 +14,7 @@ Fix:
 
  - fix a `__repr__` string for symbolic `.Vc` and improve related init methods for symbolic lattice constants
  - fix an edge case of `convert_SOECiso()` for symbolic calculations
- - fix a numpy 2 and a numba related bug
+ - fix a numpy 2 and a numba related bug, prepare for near-future numpy deprecations
  - testsuite: fix and improve behavior of commandline option `--metals=all`
  - `findRayleigh()`: fix for edge cases
 

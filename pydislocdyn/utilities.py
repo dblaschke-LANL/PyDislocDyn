@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 15, 2025
+# Date: Nov. 5, 2017 - Oct. 2, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -141,6 +141,12 @@ def str2bool(arg):
     else:
         raise ValueError(f"cannot convert {arg} to bool")
     return out
+
+def convertfloat(arg):
+    '''Return float(arg) if arg is a number or a length-1 numpy array, return an error otherwise.'''
+    if isinstance(arg, np.ndarray) and len(arg)==1:
+        return float(arg[0])
+    return float(arg)
 
 def guesstype(arg):
     '''takes a string and tries to convert to int, float, bool, falling back to a string'''

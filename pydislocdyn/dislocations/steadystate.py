@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 22, 2025
+# Date: Nov. 3, 2017 - Oct. 2, 2025
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
@@ -131,13 +131,13 @@ class StrohGeometry:
         scrind = np.where(np.abs(theta)<1e-12)[0]
         out = [None,None]
         if len(scrind) == 1:
-            out[0] = int(scrind)
+            out[0] = int(scrind[0])
         edgind = np.where(np.abs(theta-np.pi/2)<1e-12)[0]
         if len(edgind) == 1:
-            out[1] = int(edgind)
+            out[1] = int(edgind[0])
         negedgind = np.where(np.abs(theta+np.pi/2)<1e-12)[0]
         if len(negedgind) == 1:
-            out.append(int(negedgind))
+            out.append(int(negedgind[0]))
         return out
         
     def computeuij(self, beta, C2=None, r=None, debug=False):

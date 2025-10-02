@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 17, 2025
+# Date: Nov. 5, 2017 - Sept. 26, 2025
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -21,8 +21,6 @@ from pydislocdyn.utilities import Ncores, usefortran, hbar, kB, str2bool, OPTION
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
-if Ncores>1:
-    from joblib import Parallel, delayed
 if usefortran:
     from pydislocdyn.subroutines import elastica3, phononwind_xx, phononwind_xy
     def elasticA3(C2, C3):
@@ -31,7 +29,9 @@ if usefortran:
         return A3
 else:
     from pydislocdyn._phononwind_numba import elasticA3, phononwind_xx, phononwind_xy
-               
+if Ncores>1:
+    from joblib import Parallel, delayed
+
 ### rho x ct^2  = c44, and B is divided by rho^2*ct^4 = c44^2;
 ### it is therefore convenient to divide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
 def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, Nq1=400, Nphi1=50, Debye_series=False, target_accuracy=5e-3, maxrec=6, accurate_to_digit=1e-5, Nchunks=20, skip_theta=None, skip_theta_val=np.inf, r0cut=-1, name='drag'):
