@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.3 (wip)
+## 1.3.3 (2025-10-06)
 
 Features and improvements:
 
