@@ -10,7 +10,26 @@ import os
 import shutil
 import glob
 import time
+import math
 import multiprocessing
+Ncpus = multiprocessing.cpu_count()
+def _ompthreads_auto():
+    '''finds a optimal value for openmp parallelization of the fortran subroutines, i.e. OMP_NUM_THREADS'''
+    ompthrds = int(math.sqrt(Ncpus))
+    while Ncpus/ompthrds != round(Ncpus/ompthrds):
+        ompthrds -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
+    return ompthrds
+if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
+    ompthreads = _ompthreads_auto()
+    os.environ["OMP_NUM_THREADS"] = str(ompthreads)
+    try:
+        from threadpoolctl import threadpool_limits
+        threadpool_limits(ompthreads)
+    except ImportError:
+        pass
+else:
+    ompthreads = int(os.environ.get("OMP_NUM_THREADS"))
+
 from fractions import Fraction
 import numpy as np
 import sympy as sp
@@ -47,7 +66,6 @@ fntsettings = {'family':'serif', 'fontsize':11}
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import pandas as pd
-Ncpus = multiprocessing.cpu_count()
 nonumba=False
 usefortran = False
 try:
@@ -61,17 +79,6 @@ except ImportError:
             return partial(jit, forceobj=forceobj,nopython=nopython)
         return func
 try:
-    ompthreads = None
-    if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
-        ompthreads = int(np.sqrt(Ncpus))
-        while Ncpus/ompthreads != round(Ncpus/ompthreads):
-            ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
-        os.environ["OMP_NUM_THREADS"] = str(ompthreads)
-        try:
-            from threadpoolctl import threadpool_limits
-            threadpool_limits(ompthreads)
-        except ImportError:
-            pass
     import pydislocdyn.subroutines as fsub
     if fsub.version()>=20250914:
         usefortran = True
