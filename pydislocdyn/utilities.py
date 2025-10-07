@@ -8,6 +8,7 @@
 import sys
 import os
 import shutil
+import glob
 import time
 import multiprocessing
 from fractions import Fraction
@@ -94,9 +95,10 @@ dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 
-def compilefortranmodule(buildopts=''):
+def compilefortranmodule(buildopts='',clean=False):
     '''Compiles the Fortran subroutines if a Fortran compiler is available.
-       Keyword 'buildopts' may be used to pass additional options to f2py.'''
+       Keyword 'buildopts' may be used to pass additional options to f2py.
+       To delete files created by this function, set "clean"=True.'''
     cwd = os.getcwd()
     compilerflags = '' ## when in doubt, build without OpenMP support
     if sys.version_info[:2]<=(3,11):
@@ -113,14 +115,28 @@ def compilefortranmodule(buildopts=''):
     if buildopts != '':
         compilerflags += f" {buildopts}"
     os.chdir(os.path.dirname(__file__))
+    if clean:
+        to_delete = ["subroutines.cpython*","fmoderror_py*.txt"]
+        user_input = input(f'Deleting {to_delete[0]} and {to_delete[1]}; proceed? [y/N] ')
+        if user_input.lower() in ('y', 'yes'):
+            for files in to_delete:
+                for f in glob.glob(files):
+                    os.remove(f)
+        os.chdir(cwd)
+        return 0
     error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
-    os.chdir(cwd)
+    fname  = f"fmoderror_py{sys.version_info[0]}.{sys.version_info[1]}.txt"
     if error != 0:
+        with open(fname,"w", encoding="utf8") as f1:
+            f1.write(f"{error}")
         print(f"\nERROR: compilefortranmodule() failed using {compilerflags=}")
         print("make sure a Fortran compiler that is supported by numpy.f2py is installed")
         if '--dep' in compilerflags:
             print("as well as meson;")
             print("additional options (if necessary), such as e.g. '--build-dir', may be passed via my 'buildopts' keyword.")
+    elif os.path.isfile(fname):
+        os.remove(fname)
+    os.chdir(cwd)
     return error
 
 def printthreadinfo(Ncores,ompthreads=ompthreads):
