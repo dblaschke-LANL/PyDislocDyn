@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 2, 2025
+# Date: Nov. 5, 2017 - Oct. 7, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -66,6 +66,11 @@ try:
         while Ncpus/ompthreads != round(Ncpus/ompthreads):
             ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
         os.environ["OMP_NUM_THREADS"] = str(ompthreads)
+        try:
+            from threadpoolctl import threadpool_limits
+            threadpool_limits(ompthreads)
+        except ImportError:
+            pass
     import pydislocdyn.subroutines as fsub
     if fsub.version()>=20250914:
         usefortran = True

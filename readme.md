@@ -45,6 +45,7 @@ to employ the alternative faster Fortran implementations of some subroutines via
 A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
 </br>Note: building with numpy <1.26 requires setuptools<70; building with numpy >=2.0 requires meson.</br>
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
+* [threadpoolctl](https://github.com/joblib/threadpoolctl) (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.53 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074), PDF of Jan. 2025 version available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
