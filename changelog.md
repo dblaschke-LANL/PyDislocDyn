@@ -1,5 +1,18 @@
 # Changelog
 
+## wip
+
+Features and improvements:
+
+ - automatically compile and reload the fortran submodule if it is missing or outdated upon importing pydislocdyn
+   (requires user confirmation)
+ - new option in pydislocdyn.utilities.compilefortranmodule(): set clean=True to delete all previously compiled module files and exit
+
+Fix:
+
+ - make auto-setting the number of openmp threads more robust: will use threadpoolctl if it is installed (new optional dependency)
+   
+
 ## 1.3.3 (2025-10-06)
 
 Features and improvements:

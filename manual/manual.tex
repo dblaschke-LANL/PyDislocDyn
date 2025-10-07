@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{September 17, 2025}
+\date{October 7, 2025}
 
 \begin{document}
 \maketitle
@@ -96,7 +96,8 @@ where it is distributed under the BSD-3 license, (Copyright, Triad National Secu
 The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, Python 3.6 up to version 1.2.4, and Python 3.8 up to version 1.2.9.}.
 As of PyDislocDyn 1.3.1, required modules include Numpy $\ge1.19$, Scipy $\ge1.9$, Sympy $\ge1.9$, Matplotlib $\ge3.3$, Pandas $\ge1.3$ (including its optional dependency Jinja2), and mpmath (recommended optional dependency of mpmath: gmpy).
 \item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
-a Fortran compiler supported by numpy.f2py to compile the optional Fortran subroutines, Joblib $\ge1.1$ (for parallelization), and 
+a Fortran compiler supported by numpy.f2py to compile the optional Fortran subroutines, Joblib $\ge1.1$ (for parallelization),
+threadpoolctl (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and Numpy to avoid over-committing if Joblib is used), and 
 Numba $\ge0.53$ (a just-in-time compiler for Python; the Fortran subroutines are faster and thus preferred however).
 %To compile the optional Fortran subroutines, run `\verb|python -m numpy.f2py -c subroutines.f90 -m subroutines|'.\\
 %Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS with Python $\leq3.11$ compile with:
@@ -112,7 +113,8 @@ To compile the subroutines of PyDislocDyn $\ge1.3.0$, simply run\\
 See the readme file for additional information on installing PyDislocDyn and compiling its subroutine module.
 
 OpenMP is also supported by the Fortran submodule, and the number of threads used by the subroutines is controlled by environment variable \verb|OMP_NUM_THREADS|.
-Unless set by the user prior to running Python in the terminal, PyDislocDyn will attempt to choose an optimal value.
+Unless set by the user prior to running Python in the terminal, PyDislocDyn will attempt to choose an optimal value\footnote{
+Note: this may fail if threadpoolctl is not installed and a recent version of numpy is imported before pydislocdyn.}.
 Furthermore, PyDislocDyn's joblib parallelization will automatically adjust its `Ncores' variable to avoid over-committing.
 %, i.e. if openmp uses all cores in the subroutines, joblib will spawn only one (higher level) python thread.
 %Best results are achieved when \verb|OMP_NUM_THREADS| is close to \verb|Ncores| while \verb|OMP_NUM_THREADS*Ncores|=the number of all available (virtual) cpu cores; the value for Ncores is set automatically by the python code, so the user just needs to set \verb|OMP_NUM_THREADS| prior to running python in the terminal.

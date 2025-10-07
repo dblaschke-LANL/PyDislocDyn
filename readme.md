@@ -68,8 +68,9 @@ If compilation was successful, the following command will print 'True':</br>
 python -c 'import pydislocdyn; print(pydislocdyn.usefortran)'
 
 * to uninstall PyDislocDyn, run</br>
+python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule(clean=True)'</br>
 pip uninstall pydislocdyn</br></br>
-Note: the compiled Fortran module has to be deleted manually upon uninstalling (and pip will let the user know its location)
+Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compiled Fortran module and if it is omitted, the compiled Fortran module has to be deleted manually upon uninstalling (and pip will let the user know its location).
 
 ## PyDislocDyn consists of:
 
