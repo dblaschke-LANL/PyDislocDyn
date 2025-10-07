@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Sept. 12, 2025
+# Date: Mar. 6, 2023 - Oct. 7, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -10,10 +10,6 @@ import os
 import sys
 import difflib
 import lzma
-import numpy as np
-import sympy as sp
-import pandas as pd
-
 dir_path = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
@@ -26,6 +22,9 @@ from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, wri
     readinputfile, convert_SOECiso, convert_TOECiso, Dislocation, roundcoeff
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
+import numpy as np ## import pydislocdyn first as it will set the openmp thread number
+import sympy as sp
+import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
 
