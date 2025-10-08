@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 30, 2025
+# Date: Nov. 3, 2017 - Oct. 8, 2025
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
@@ -40,7 +40,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, Ncores, parse_options, showoptions, read_2dresults, OPTIONS, \
+from pydislocdyn.utilities import printthreadinfo, Ncores, parse_options, showoptions, read_2dresults, OPTIONS, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     use_metaldata=True
     if len(sys.argv) > 1:
         args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
-    printthreadinfo(Ncores,ompthreads)
+    printthreadinfo(Ncores)
     ### set range & step sizes after parsing the commandline for options
     dtheta = np.pi/(Ntheta-2)
     theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)

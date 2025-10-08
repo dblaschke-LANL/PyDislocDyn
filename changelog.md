@@ -1,6 +1,6 @@
 # Changelog
 
-## wip
+## 1.3.4 (wip)
 
 Features and improvements:
 
@@ -11,7 +11,11 @@ Features and improvements:
 Fix:
 
  - make auto-setting the number of openmp threads more robust: will use threadpoolctl if it is installed (new optional dependency)
-   
+
+Other:
+
+ - ompthreads is now a function, not a constant; i.e. it will always show the current number of OpenMP threads (even if the user changed it with e.g. threadpoolctl)
+   if the Fortran subroutines are compiled with OpenMP support (and 0 otherwise)
 
 ## 1.3.3 (2025-10-06)
 

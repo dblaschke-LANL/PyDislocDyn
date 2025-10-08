@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 7, 2025
+# Date: Nov. 5, 2017 - Oct. 8, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -11,26 +11,25 @@ import shutil
 import glob
 import time
 import math
+from fractions import Fraction
 import multiprocessing
 Ncpus = multiprocessing.cpu_count()
 def _ompthreads_auto():
     '''finds a optimal value for openmp parallelization of the fortran subroutines, i.e. OMP_NUM_THREADS'''
     ompthrds = int(math.sqrt(Ncpus))
     while Ncpus/ompthrds != round(Ncpus/ompthrds):
-        ompthrds -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
+        ompthrds -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthrds*Ncores = Ncpus and ompthrds ~ Ncores
     return ompthrds
 if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
-    ompthreads = _ompthreads_auto()
-    os.environ["OMP_NUM_THREADS"] = str(ompthreads)
+    _ompthreads = _ompthreads_auto()
+    os.environ["OMP_NUM_THREADS"] = str(_ompthreads)
     try:
         from threadpoolctl import threadpool_limits
-        threadpool_limits(ompthreads)
+        threadpool_limits(_ompthreads)
     except ImportError:
         pass
-else:
-    ompthreads = int(os.environ.get("OMP_NUM_THREADS"))
+    del _ompthreads
 
-from fractions import Fraction
 import numpy as np
 import sympy as sp
 ##################
@@ -78,21 +77,23 @@ except ImportError:
         if func is None:
             return partial(jit, forceobj=forceobj,nopython=nopython)
         return func
+def ompthreads():
+    '''dummy fct that returns 0; only used if fortran subroutines are missing so that nothing else breaks'''
+    return 0
 try:
     import pydislocdyn.subroutines as fsub
     if fsub.version()>=20250914:
         usefortran = True
-        if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
+        ompthreads = fsub.ompinfo
     else:
         print("Error: the subroutines module is outdated, please re-compile by calling pydislocdy.utilities.compilefortranmodule() and reloading pydislocdyn")
-        ompthreads = 0
 except ImportError:
-    ompthreads = 0
+    pass
 
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
+    Ncores = max(1,int(Ncpus/max(2,ompthreads()))) ## don't overcommit, ompthreads()=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
@@ -146,15 +147,16 @@ def compilefortranmodule(buildopts='',clean=False):
     os.chdir(cwd)
     return error
 
-def printthreadinfo(Ncores,ompthreads=ompthreads):
-    '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
+def printthreadinfo(Ncores):
+    '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads())
        or both are currently employed; also warn if import of subroutines failed.'''
-    if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
+    _ompthreads = ompthreads()
+    if Ncores > 1 and _ompthreads == 0: # check if subroutines were compiled with OpenMP support
         print(f"using joblib parallelization with {Ncores} cores")
     elif Ncores > 1:
-        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {ompthreads} threads")
-    elif ompthreads > 0:
-        print(f"using OpenMP parallelization with {ompthreads} threads")
+        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {_ompthreads} threads")
+    elif _ompthreads > 0:
+        print(f"using OpenMP parallelization with {_ompthreads} threads")
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
         print("call pydislocdyn.utilities.compilefortranmodule() to compile this module, then reload pydislocdyn")
