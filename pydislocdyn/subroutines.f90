@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Sept. 14, 2025
+! Date: July 23, 2018 - Oct. 23, 2025
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20250914
+  versionnumber=20251023
 end subroutine version
 
 module parameters
@@ -791,8 +791,8 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
     enddo
   endif
   prefac1 = (1.d3*pi*hbar*qBZ*burgers**2*ctovcl**3/(2*beta*(2*pi)**5))
-  dphi1 = phi1(2:lenph1) - phi1(1:lenph1-1)
-  ph1 = phi1(1:lenph1-1)
+  dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
+  ph1 = real(phi1(1:lenph1-1), kind=selsm)
   
   if (Nchunks > 1) then
     tmin = (1.d0*kthchk)/Nchunks
@@ -851,33 +851,33 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
   do i=1,lenph
     do j=1,lent
       do k=1,3
-        qv((j-1)*lenph+i,k) = qtilde(j,i)*qvec(i,k)
+        qv((j-1)*lenph+i,k) = real(qtilde(j,i)*qvec(i,k), kind=selsm)
       enddo !k
       k = (j-1)*lenph+i
-      mag(k) = 1.d0 + qtilde(j,i)**2 - 2.d0*t(j)*qtilde(j,i)
-      sqrtt(k) = sqrt(1.d0-t(j)**2)
-      tcosphi(k) = t(j)*cos(phi(i))
-      sqrtsinphi(k) = sqrtt(k)*sin(phi(i))
-      tsinphi(k) = t(j)*sin(phi(i))
-      sqrtcosphi(k) = sqrtt(k)*cos(phi(i))
+      mag(k) = real(1.d0 + qtilde(j,i)**2 - 2.d0*t(j)*qtilde(j,i), kind=selsm)
+      sqrtt(k) = real(sqrt(1.d0-t(j)**2), kind=selsm)
+      tcosphi(k) = real(t(j)*cos(phi(i)), kind=selsm)
+      sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
+      tsinphi(k) = real(t(j)*sin(phi(i)), kind=selsm)
+      sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
     enddo !j
   enddo !i
   !!!
   if (size(A3,7)==1) then
     ! no need to call bottleneck parathesum() more than once in the isotropic limit
-    a3sm = A3(:,:,:,:,:,:,1)
+    a3sm = real(A3(:,:,:,:,:,:,1), kind=selsm)
     call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta,delta,mag,a3sm, &
                       ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
     do th=1,lentheta
-      dijc = dij(:,:,:,th)
+      dijc = real(dij(:,:,:,th), kind=selsm)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
       call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
     enddo
   else
     do th=1,lentheta
-      dijc = dij(:,:,:,th)
-      a3sm = A3(:,:,:,:,:,:,th)
+      dijc = real(dij(:,:,:,th), kind=selsm)
+      a3sm = real(A3(:,:,:,:,:,:,th), kind=selsm)
       call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta,delta,mag,a3sm, &
                       ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
@@ -947,8 +947,8 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
   endif
   qt_min = abs(1-cx/cy)/(1+beta2)
   prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4*beta1*(2*pi)**5))
-  dphi1 = phi1(2:lenph1) - phi1(1:lenph1-1)
-  ph1 = phi1(1:lenph1-1)
+  dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
+  ph1 = real(phi1(1:lenph1-1), kind=selsm)
   
   if (Nchunks > 1) then
     subqtmin = qt_min + (qt_max-qt_min)*kthchk/Nchunks
@@ -1031,33 +1031,33 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
   do i=1,lenph
     do j=1,lent
       do k=1,3
-        qv((j-1)*lenph+i,k) = qtilde(j)*qvec(i,k)
+        qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
       enddo !k
       k = (j-1)*lenph+i
-      mag(k) = 1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j)
-      sqrtt(k) = sqrt(abs(1.d0-t(j,i)**2))
-      tcosphi(k) = t(j,i)*cos(phi(i))
-      sqrtsinphi(k) = sqrtt(k)*sin(phi(i))
-      tsinphi(k) = t(j,i)*sin(phi(i))
-      sqrtcosphi(k) = sqrtt(k)*cos(phi(i))
+      mag(k) = real(1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j), kind=selsm)
+      sqrtt(k) = real(sqrt(abs(1.d0-t(j,i)**2)), kind=selsm)
+      tcosphi(k) = real(t(j,i)*cos(phi(i)), kind=selsm)
+      sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
+      tsinphi(k) = real(t(j,i)*sin(phi(i)), kind=selsm)
+      sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
     enddo !j
   enddo !i
   !!!
   if (size(A3,7)==1) then
     ! no need to call bottleneck parathesum() more than once in the isotropic limit
-    a3sm = A3(:,:,:,:,:,:,1)
+    a3sm = real(A3(:,:,:,:,:,:,1), kind=selsm)
     call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,a3sm, &
                       ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
     do th=1,lentheta
-      dijc = dij(:,:,:,th)
+      dijc = real(dij(:,:,:,th), kind=selsm)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
       call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
     enddo
   else
     do th=1,lentheta
-      dijc = dij(:,:,:,th)
-      a3sm = A3(:,:,:,:,:,:,th)
+      dijc = real(dij(:,:,:,th), kind=selsm)
+      a3sm = real(A3(:,:,:,:,:,:,th), kind=selsm)
       call parathesum(flatpoly,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,a3sm, &
                       ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
