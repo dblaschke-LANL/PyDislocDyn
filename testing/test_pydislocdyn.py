@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Oct. 7, 2025
+# Date: Mar. 6, 2023 - Oct. 24, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -319,8 +319,10 @@ if __name__ == '__main__':
                 ## assume l(t) = adot*t**3/6 ## (i.e. acceleration starts at 0 and increases at rate adot from t>0)
                 adot = 6.2e25 ## time-derivative of acceleration, acc is initially zero at time t=0
                 def eta(x):
+                    '''returns time as a function of position x for the special case of a constant acceleration rate adot.'''
                     return np.sign(x)*np.cbrt(6*abs(x)/adot)
                 def etapr(x):
+                    '''returns the derivative of eta(x) (units: one over velocity)'''
                     return eta(x)/(3*x)
                 time = np.sqrt(2*vel/adot) ## vel=adot*t**2/2, time=t(vel)
                 distance = adot*time**3/6 ## distance covered by the core at time 'time'
@@ -498,10 +500,10 @@ if __name__ == '__main__':
         iso.compute_Lame()
         iso.init_sound()
         if not iso.rho*iso.vcrit['screw']**2-iso.c44==0 or \
-            not sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))==sp.Matrix([0,0]) or \
-            not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
-              print("isotropic tests failed")
-              success=False
+           sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))!=sp.Matrix([0,0]) or \
+           not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
+            print("isotropic tests failed")
+            success=False
         # fcc
         fcc = Dislocation(b=[1,1,0],n0=[-1,1,-1],sym='fcc')
         fcc.init_symbols()
@@ -510,10 +512,10 @@ if __name__ == '__main__':
         fcc.compute_Lame(scheme='voigt')
         fcc.init_all()
         if not fcc.bulk-(fcc.c11+2*fcc.c12)/3==0 or \
-            not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
-            not sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])==sp.Matrix([0,0,0]):
-                print("fcc tests failed")
-                success=False
+           not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
+           sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])!=sp.Matrix([0,0,0]):
+            print("fcc tests failed")
+            success=False
         # hcp (basal)
         hcp = Dislocation(b=[-2,1,1,0],n0=[0, 0, 0, 1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
         hcp.init_symbols()
