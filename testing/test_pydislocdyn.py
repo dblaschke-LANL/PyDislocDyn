@@ -2,12 +2,14 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Oct. 24, 2025
+# Date: Mar. 6, 2023 - Oct. 28, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
 import os
 import sys
+import subprocess
+import glob
 import difflib
 import lzma
 dir_path = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)),os.pardir))
@@ -114,6 +116,18 @@ def round_list(lst,ndigits=2):
         return [round_list(i,ndigits) for i in lst]
     return lst
 
+def runscript(scriptname,args,logfname):
+    '''Run script "scriptname" as a subprocess passing a list of command line arguments "args" and saving its stdout to a file "logfname"'''
+    out = -1
+    with open(logfname, 'w', encoding="utf8") as logfile:
+        with subprocess.Popen([os.path.join(dir_path,scriptname)]+args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+            for line in subproc.stdout:
+                sys.stdout.write(line)
+                logfile.write(line)
+            subproc.wait()
+            out = subproc.returncode
+    return out
+
 if __name__ == '__main__':
     tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc', 'obj']
     cwd = os.getcwd()
@@ -179,7 +193,8 @@ if __name__ == '__main__':
         fname = 'averaged_elastic_constants.tex'
         if not skip_calcs:
             print("running test 'aver' ...")
-            os.system(os.path.join(dir_path,'polycrystal_averaging.py'))
+            if runscript('polycrystal_averaging.py',[],'poly.log')!=0:
+                success=False
         else: print("skipping test 'aver' as requested")
         print(f"checking {fname}:")
         if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
@@ -190,7 +205,9 @@ if __name__ == '__main__':
         success = True
         if not skip_calcs:
             print("running test 'dragiso' ...")
-            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f'{"".join(dragopts)} --{Nbeta=} --{Ncores=} --{use_exp_Lame=} --phononwind_opts="{phononwind_opts}" --{NT=} "{metals_iso}" | tee dragiso.log')
+            commandargs = dragopts + [f'--{Nbeta=}',f'--{Ncores=}',f'--{use_exp_Lame=}',f'--phononwind_opts={phononwind_opts}',f'--{NT=}',f'{metals_iso}']
+            if runscript("dragcoeff_iso.py",commandargs,'dragiso.log')!=0:
+                success=False
         else: print("skipping test 'dragiso' as requested")
         metals_iso = metals_iso.split()
         print(f"\ncomparing dragiso results for: {metals_iso}")
@@ -223,8 +240,9 @@ if __name__ == '__main__':
                 os.mkdir(drag_folder)
             print("running test 'drag' ...")
             os.chdir(os.path.join(cwd,drag_folder))
-            dragopts = f'{"".join(dragopts)} --{Ncores=} --{skiptransonic=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
-            os.system(os.path.join(dir_path,"dragcoeff_semi_iso.py")+dragopts+f" --{Ntheta=} --{Nbeta=} --{NT=} | tee dragsemi.log")
+            commandargs = dragopts + [f'--{Ncores=}',f'--{skiptransonic=}',f'--{use_exp_Lame=}',f'--{use_iso=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--phononwind_opts={phononwind_opts}',f'--{Ntheta=}',f'--{Nbeta=}',f'--{NT=}',f'{metals}']
+            if runscript("dragcoeff_semi_iso.py",commandargs,'dragsemi.log')!=0:
+                success=False
             os.chdir(cwd)
         else: print("skipping test 'drag' as requested")
         print(f"\ncomparing drag results for: {metal_list}")
@@ -263,10 +281,13 @@ if __name__ == '__main__':
                 os.mkdir(LT_folders[1])
             print("running test 'LT' ...")
             os.chdir(os.path.join(cwd,LT_folders[0]))
-            LTopts = f"{''.join(LTopts)} --Ntheta={Ntheta_LT} --Ntheta2={Ntheta} --Nbeta={Nbeta_LT} --{Nphi=} --{hcpslip=} --{bccslip=} --{scale_by_mu=} "
-            os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+f"'{metals}' | tee LT.log")
+            LTopts = LTopts + [f'--Ntheta={Ntheta_LT}',f'--Ntheta2={Ntheta}',f'--Nbeta={Nbeta_LT}',f'--{Nphi=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--{scale_by_mu=!s}']
+            if runscript("linetension_calcs.py",LTopts+[f'{metals}'],'LT.log')!=0:
+                success=False
             os.chdir(os.path.join(cwd,LT_folders[1]))
-            os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+os.path.join("..","temp_pydislocdyn","")+"* | tee LT.log")
+            filelist = sorted(glob.glob(os.path.join(os.pardir,"temp_pydislocdyn","*")))
+            if runscript("linetension_calcs.py",LTopts+filelist,'LT.log')!=0:
+                success=False
             os.chdir(cwd)
         else: print("skipping test 'LT' as requested")
         print(f"\ncomparing LT results for: {metal_list}")
