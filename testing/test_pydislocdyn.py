@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Oct. 28, 2025
+# Date: Mar. 6, 2023 - Oct. 29, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -120,7 +120,10 @@ def runscript(scriptname,args,logfname):
     '''Run script "scriptname" as a subprocess passing a list of command line arguments "args" and saving its stdout to a file "logfname"'''
     out = -1
     with open(logfname, 'w', encoding="utf8") as logfile:
-        with subprocess.Popen([os.path.join(dir_path,scriptname)]+args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+        command = [os.path.join(dir_path,scriptname)]
+        if sys.platform=='win32':
+            command = ["python",os.path.join(dir_path,scriptname)]
+        with subprocess.Popen(command+args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
             for line in subproc.stdout:
                 sys.stdout.write(line)
                 logfile.write(line)
