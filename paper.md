@@ -57,7 +57,9 @@ Dislocation density evolution, however, is beyond the scope of our present code,
 
 # Statement of need
 
-One of the main purposes of the open source code [PyDislocDyn](https://github.com/dblaschke-LANL/PyDislocDyn) is to provide a reference implementation of the first-principles theory of dislocation drag developed in [@Blaschke:2019Bpap;@Blaschke:2018anis].
+Large-scale simulations of how metals (and other crystals) deform, such as DDD simulations [@Gurrutxaga:2013;@Bertin:2015;@Cho:2015;@Kim:2020;@Akhondzadeh:2023;@Tak:2023;@Bertin:2024] and crystal plasticity simulations [@Lloyd:2014JMPS;@Luscher:2016;@Austin:2018;@Zuanetti:2021;@Ye:2023a;@Manukhina:2024], can increase their fidelity by including dislocation dynamics properties (drag coefficient, limiting velocities, etc.).
+PyDislocDyn can aid researchers in those endeavors.
+In particular, one of the main purposes of the open source code [PyDislocDyn](https://github.com/dblaschke-LANL/PyDislocDyn) is to provide a reference implementation of the first-principles theory of dislocation drag developed in [@Blaschke:2019Bpap;@Blaschke:2018anis].
 As one of the ingredients of phonon wind theory, the dislocation displacement gradient field in the continuum limit needs to be computed.
 PyDislocDyn makes use of the computationally efficient "integral method" for steady-state dislocations developed by Lothe and co-workers, which builds upon the earlier "sextic" formalism of Stroh and others.
 A review of this method can be found in the excellent article of Bacon et al. [@Bacon:1980] as well as the textbook of Hirth and Lothe [@Hirth:1982].
