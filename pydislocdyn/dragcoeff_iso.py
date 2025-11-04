@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 30, 2025
+# Date: Nov. 5, 2017 - Oct. 8, 2025
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -12,6 +12,7 @@ Additional options (can be set on the commandline with syntax --keyword=value):
    --skip_plots - default=False, set to True to skip generating plots from the results
    --use_exp_Lame - default=True, if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default) 
                                   or analytical averages of SOEC and TOEC (use_exp_Lame = False)
+   --allplots - default=False, set to True to show more B_of_sigma plots for each metal
 
 Choose various resolutions and other parameters:
     --Ntheta (default:2) - number of angles between Burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
@@ -36,7 +37,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
+from pydislocdyn.utilities import printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
@@ -46,8 +47,9 @@ Nbeta = 99
 minb = 0.01
 maxb = 0.99
 modes = 'all'
-skip_plots=False
-use_exp_Lame= True
+skip_plots = False
+use_exp_Lame = True
+allplots = False
 NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
 constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
 increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
@@ -63,7 +65,7 @@ if __name__ == '__main__':
         args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
         phononwind_opts.update(kwargs)
     phononwind_opts['modes']=modes
-    printthreadinfo(Ncores,ompthreads)
+    printthreadinfo(Ncores)
     ### set range & step sizes after parsing the command line for options
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)
@@ -305,7 +307,7 @@ if __name__ == '__main__':
             Xc = X+character
             if character=='screw' and modes == 'TT':
                 print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
-            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=False,B0fit='weighted',fit=fit)
+            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=allplots,B0fit='weighted',fit=fit)
         if len(metal)<5:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
             legendops={'loc':'best','ncol':1}

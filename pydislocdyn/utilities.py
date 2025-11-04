@@ -2,17 +2,35 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 21, 2025
+# Date: Nov. 5, 2017 - Oct. 8, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
 import os
 import shutil
+import glob
 import time
-import multiprocessing
+import math
 from fractions import Fraction
+import multiprocessing
+Ncpus = multiprocessing.cpu_count()
+def _ompthreads_auto():
+    '''finds a optimal value for openmp parallelization of the fortran subroutines, i.e. OMP_NUM_THREADS'''
+    ompthrds = int(math.sqrt(Ncpus))
+    while Ncpus/ompthrds != round(Ncpus/ompthrds):
+        ompthrds -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthrds*Ncores = Ncpus and ompthrds ~ Ncores
+    return ompthrds
+if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
+    _ompthreads = _ompthreads_auto()
+    os.environ["OMP_NUM_THREADS"] = str(_ompthreads)
+    try:
+        from threadpoolctl import threadpool_limits
+        threadpool_limits(_ompthreads)
+    except ImportError:
+        pass
+    del _ompthreads
+
 import numpy as np
-from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
 ##################
 import matplotlib as mpl
@@ -47,7 +65,6 @@ fntsettings = {'family':'serif', 'fontsize':11}
 from matplotlib.ticker import AutoMinorLocator
 ##################
 import pandas as pd
-Ncpus = multiprocessing.cpu_count()
 nonumba=False
 usefortran = False
 try:
@@ -60,27 +77,23 @@ except ImportError:
         if func is None:
             return partial(jit, forceobj=forceobj,nopython=nopython)
         return func
+def ompthreads():
+    '''dummy fct that returns 0; only used if fortran subroutines are missing so that nothing else breaks'''
+    return 0
 try:
-    ompthreads = None
-    if "OMP_NUM_THREADS" not in os.environ: ## allow user-override by setting this var. before running the python code
-        ompthreads = int(np.sqrt(Ncpus))
-        while Ncpus/ompthreads != round(Ncpus/ompthreads):
-            ompthreads -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthreads*Ncores = Ncpus and ompthreads ~ Ncores
-        os.environ["OMP_NUM_THREADS"] = str(ompthreads)
     import pydislocdyn.subroutines as fsub
-    if fsub.version()>=20250821:
+    if fsub.version()>=20250914:
         usefortran = True
-        if ompthreads is None: ompthreads = fsub.ompinfo() ## don't rely on ompinfo() after os.environ (does not work on every system)
+        ompthreads = fsub.ompinfo
     else:
         print("Error: the subroutines module is outdated, please re-compile by calling pydislocdy.utilities.compilefortranmodule() and reloading pydislocdyn")
-        ompthreads = 0
 except ImportError:
-    ompthreads = 0
+    pass
 
 try:
     from joblib import Parallel, delayed
     ## choose how many cpu-cores are used for the parallelized calculations (also allowed: -1 = all available, -2 = all but one, etc.):
-    Ncores = max(1,int(Ncpus/max(2,ompthreads))) ## don't overcommit, ompthreads=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
+    Ncores = max(1,int(Ncpus/max(2,ompthreads()))) ## don't overcommit, ompthreads()=# of threads used by OpenMP subroutines (or 0 if no OpenMP is used)
     ## use half of the available cpus (on systems with hyperthreading this corresponds to the number of physical cpu cores)
 except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
@@ -90,9 +103,10 @@ dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 
-def compilefortranmodule(buildopts=''):
+def compilefortranmodule(buildopts='',clean=False):
     '''Compiles the Fortran subroutines if a Fortran compiler is available.
-       Keyword 'buildopts' may be used to pass additional options to f2py.'''
+       Keyword 'buildopts' may be used to pass additional options to f2py.
+       To delete files created by this function, set "clean"=True.'''
     cwd = os.getcwd()
     compilerflags = '' ## when in doubt, build without OpenMP support
     if sys.version_info[:2]<=(3,11):
@@ -109,29 +123,44 @@ def compilefortranmodule(buildopts=''):
     if buildopts != '':
         compilerflags += f" {buildopts}"
     os.chdir(os.path.dirname(__file__))
+    if clean:
+        to_delete = ["subroutines.cpython*","fmoderror_py*.txt"]
+        user_input = input(f'Deleting {to_delete[0]} and {to_delete[1]}; proceed? [y/N] ')
+        if user_input.lower() in ('y', 'yes'):
+            for files in to_delete:
+                for f in glob.glob(files):
+                    os.remove(f)
+        os.chdir(cwd)
+        return 0
     error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
-    os.chdir(cwd)
+    fname  = f"fmoderror_py{sys.version_info[0]}.{sys.version_info[1]}.txt"
     if error != 0:
+        with open(fname,"w", encoding="utf8") as f1:
+            f1.write(f"{error}")
         print(f"\nERROR: compilefortranmodule() failed using {compilerflags=}")
         print("make sure a Fortran compiler that is supported by numpy.f2py is installed")
         if '--dep' in compilerflags:
             print("as well as meson;")
             print("additional options (if necessary), such as e.g. '--build-dir', may be passed via my 'buildopts' keyword.")
+    elif os.path.isfile(fname):
+        os.remove(fname)
+    os.chdir(cwd)
     return error
 
-def printthreadinfo(Ncores,ompthreads=ompthreads):
-    '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads)
-       or both are currently employed; also warn if imports of numba and/or subroutines failed.'''
-    if Ncores > 1 and ompthreads == 0: # check if subroutines were compiled with OpenMP support
+def printthreadinfo(Ncores):
+    '''print a message to screen informing whether joblib parallelization (Ncores) or OpenMP parallelization (ompthreads())
+       or both are currently employed; also warn if import of subroutines failed.'''
+    _ompthreads = ompthreads()
+    if Ncores > 1 and _ompthreads == 0: # check if subroutines were compiled with OpenMP support
         print(f"using joblib parallelization with {Ncores} cores")
     elif Ncores > 1:
-        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {ompthreads} threads")
-    elif ompthreads > 0:
-        print(f"using OpenMP parallelization with {ompthreads} threads")
-    if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba', execution will be slower\n")
+        print(f"Parallelization: joblib with {Ncores} cores and OpenMP with {_ompthreads} threads")
+    elif _ompthreads > 0:
+        print(f"using OpenMP parallelization with {_ompthreads} threads")
     if not usefortran:
         print("\nWARNING: module 'subroutines' not found, execution will be slower")
         print("call pydislocdyn.utilities.compilefortranmodule() to compile this module, then reload pydislocdyn")
+        if nonumba: print("\nWARNING: cannot find just-in-time compiler 'numba' either, execution will be very slow\n")
 
 def str2bool(arg):
     '''converts a string to bool'''
@@ -142,6 +171,12 @@ def str2bool(arg):
     else:
         raise ValueError(f"cannot convert {arg} to bool")
     return out
+
+def convertfloat(arg):
+    '''Return float(arg) if arg is a number or a length-1 numpy array, return an error otherwise.'''
+    if isinstance(arg, np.ndarray) and len(arg)==1:
+        return float(arg[0])
+    return float(arg)
 
 def guesstype(arg):
     '''takes a string and tries to convert to int, float, bool, falling back to a string'''
@@ -289,18 +324,7 @@ def compare_df(f1,f2):
 ################################################
 hbar = 1.0545718e-34
 kB = 1.38064852e-23
-
 delta = np.diag((1,1,1))
-
-@jit(nopython=True)
-def heaviside(x):
-    '''step function with convention heaviside(0)=1/2'''
-    return (np.sign(x)+1)/2
-
-@jit(nopython=True)
-def deltadistri(x,epsilon=2e-16):
-    '''approximates the delta function as exp(-(x/epsilon)^2)/epsilon*sqrt(pi)'''
-    return np.exp(-(x/epsilon)**2)/(epsilon*np.sqrt(np.pi))
 
 def artan(x,y):
     '''returns a variation of np.arctan2(x,y): since numpys implementation jumps to negative values in 3rd and 4th quadrant, shift those by 2pi so that atan(tan(phi))=phi for phi=[0,2pi]'''
@@ -331,78 +355,44 @@ def rotaround(v,s,c):
     out = delta +s*vx + np.dot(vx,vx)*(1-c)
     return out
 
-if nonumba:
-    trapz = trapezoid
-    cumtrapz = cumulative_trapezoid
-else:
-    @jit(nopython=True)
-    def trapz(y,x):
-        '''integrate over the last axis using the trapezoidal rule (i.e. equivalent to numpy.trapz(y,x,axis=-1))'''
-        theshape = y.shape
-        n = theshape[-1]
-        f = y.T
-        outar = np.zeros(theshape).T
-        for i in range(n-1):
-            outar[i] = (0.5*(f[i+1]+f[i])*(x[i+1]-x[i]))
-        return np.sum(outar.T,axis=-1)
-    
-    @jit(nopython=True)
-    def cumtrapz(y,x,initial=0):
-        '''Cumulatively integrate over the last axis using the trapezoidal rule (i.e. equivalent to scipy.integrate.cumtrapz(y,x,axis=-1,initial=0),
-           but faster due to the use of the numba.jit compiler).'''
-        theshape = y.shape
-        n = theshape[-1]
-        f = y.T
-        outar = np.zeros(theshape).T
-        tmp = np.zeros(theshape[:-1]).T
-        for i in range(n-1):
-            tmp += (0.5*(f[i+1]+f[i])*(x[i+1]-x[i]))
-            outar[i+1] = tmp
-        return outar.T
-
-#############################################################################
-
-if usefortran:
-    ## gives faster results even for jit-compiled computeuij while forceobj=True there (see below)
-    def elbrak(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
-        return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
-    
-    def elbrak1d(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
-        return fsub.elbrak1d(A,B,elC)
-else:
-    @jit(nopython=True)
-    def elbrak(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
-        Ntheta = len(A[0,:,0])
-        Nphi = len(A[0,0])
-        tmp = np.zeros((Nphi))
-        AB = np.zeros((3,3,Ntheta,Nphi))
-        for th in range(Ntheta):
-            for l in range(3):
-                for o in range(3):
-                    for k in range(3):
-                        for p in range(3):
-                            # AB[l,o,th] += A[k,th]*elC[k,l,o,p,th]*B[p,th]
-                            #### faster numba-jit code is generated if we write the above like this (equivalent in pure python):
-                            np.add(AB[l,o,th], np.multiply(np.multiply(A[k,th], elC[k,l,o,p,th],tmp), B[p,th],tmp), AB[l,o,th])
-        
-        return AB
-    
-    @jit(nopython=True)
-    def elbrak1d(A,B,elC):
-        '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
-           This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
-        Nphi = len(A)
-        AB = np.zeros((Nphi,3,3))
-        for ph in range(Nphi):
-            for l in range(3):
-                for o in range(3):
-                    for k in range(3):
-                        for p in range(3):
-                            AB[ph,l,o] += A[ph,k]*elC[k,l,o,p]*B[ph,p]
-        return AB
+def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
+    '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
+    the color-encoded values are dimensionless displacement gradients.
+    Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for
+    radius (in units of Burgers vector) and polar angle; note that the plot will be converted to Cartesian coordinates.
+    Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
+    which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to pyplot.axis(), the size of
+    the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).
+    Additional options may be passed on to pyplot.contour via **kwargs (ignored if showcontour=False).'''
+    phi_msh, r_msh = np.meshgrid(phi,r)
+    x_msh = r_msh*np.cos(phi_msh)
+    y_msh = r_msh*np.sin(phi_msh)
+    if showplt and mpl.rcParams['text.usetex']:
+        # print("Warning: turning off matplotlib LaTeX backend in order to show the plot")
+        plt.rcParams.update({"text.usetex": False})
+    plt.figure(figsize=figsize)
+    plt.axis(axis)
+    plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize,family=fntsettings['family'])
+    plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize,family=fntsettings['family'])
+    plt.xlabel(r'$x[b]$',fontsize=fntsize,family=fntsettings['family'])
+    plt.ylabel(r'$y[b]$',fontsize=fntsize,family=fntsettings['family'])
+    if title is not None: plt.title(title,fontsize=fntsize,family=fntsettings['family'],loc='left')
+    if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
+    if uij.shape != (len(r),len(phi)):
+        uij = np.outer(1/r,uij)
+    colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap=cmap, shading='gouraud')
+    colmsh.set_rasterized(True)
+    cbar = plt.colorbar()
+    if not isinstance(showcontour,bool):
+        kwargs['levels'] = showcontour
+        showcontour = True
+    if showcontour:
+        if 'levels' not in kwargs: kwargs['levels'] = np.linspace(-1,1,6)
+        if 'colors' not in kwargs: kwargs['colors'] = 'white'
+        if 'linewidths' not in kwargs: kwargs['linewidths'] = 0.7
+        plt.contour(x_msh,y_msh,uij,**kwargs)
+    cbar.ax.tick_params(labelsize=fntsize)
+    if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
+    if showplt:
+        plt.show()
+    plt.close()

@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - June 30, 2025
+# Date: Nov. 5, 2017 - Oct. 8, 2025
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -14,6 +14,7 @@ Additional options (can be set on the commandline with syntax --keyword=value):
                    isotropic phonon spectrum, and sound speeds missing values (such as Mo, Zr, or all if use_exp_Lame=False) 
                    are supplemented by Hill averages, or for cubic crystals the 'improved average' (see 'polycrystal_averaging.py')
    --use_iso - default=False, set to True to calculate using isotropic elastic constants from metal_data (no effect if input files are used)
+   --allplots - default=False, set to True to show more B_of_sigma plots for each metal
 
 Choose various resolutions and other parameters:
     --Ntheta (default:21) - number of dislocation character angles between 0 and pi/2 (minimum 2, 
@@ -55,7 +56,7 @@ from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS
 if Ncores>1:
     from joblib import Parallel, delayed
-Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads/2))) ## use this for parts of the code where openmp is not supported
+Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads()/2))) ## use this for parts of the code where openmp is not supported
 
 Ntheta = 21
 Nbeta = 99
@@ -65,6 +66,7 @@ modes = 'all'
 skip_plots=False
 use_exp_Lame=True
 use_iso=False
+allplots = False
 bccslip = '110'
 hcpslip = 'basal'
 skiptransonic = True
@@ -98,7 +100,7 @@ if __name__ == '__main__':
     phononwind_opts['modes']=modes
     if len(kwargs)>0:
         print(f"passing {phononwind_opts=}")
-    printthreadinfo(Ncores,ompthreads)
+    printthreadinfo(Ncores)
     ### set range & step sizes (array of character angles theta is generated for every material independently below)
     beta = np.linspace(minb,maxb,Nbeta)
     phi = np.linspace(0,2*np.pi,Nphi)
@@ -486,7 +488,7 @@ if __name__ == '__main__':
     mkfitplot(metal,"aver","averaged over $\\vartheta$",scale_plot)
     
     ### finally, also plot B as a function of stress using the fits computed above
-    def plotall_B_of_sigma(character,ploteach=False):
+    def plotall_B_of_sigma(character,ploteach=allplots):
         '''plot dislocation drag over stress'''
         B_of_sig = {}
         sigma = {}

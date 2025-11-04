@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 25, 2025
+# Date: Nov. 3, 2017 - Oct. 2, 2025
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,53 +12,15 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 import pandas as pd
-from ..utilities import jit, rotaround, heaviside, deltadistri, elbrak1d, roundcoeff, \
-    fntsettings, mpl, plt ## =matplotlib.pyplot
+from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
-from .steadystate import StrohGeometry
+from .steadystate import StrohGeometry, elbrak1d
 
-def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=11,axis=(-0.5,0.5,-0.5,0.5),figsize=(3.5,4.0),cmap=plt.cm.rainbow,showcontour=False,**kwargs):
-    '''Generates a heat map plot of a 2-dim. dislocation field, where the x and y axes are in units of Burgers vectors and
-    the color-encoded values are dimensionless displacement gradients.
-    Required parameters are the 2-dim. array for the displacement gradient field, uij, as well as arrays r and phi for
-    radius (in units of Burgers vector) and polar angle; note that the plot will be converted to Cartesian coordinates.
-    Options include, the colorbar limits "lim", whether or not to call plt.show(), an optional title for the plot,
-    which filename (if any) to save it as, the fontsize to be used, the plot range to be passed to pyplot.axis(), the size of
-    the figure, which colormap to use, and whether or not show contours (showcontour may also include a list of levels).
-    Additional options may be passed on to pyplot.contour via **kwargs (ignored if showcontour=False).'''
-    phi_msh, r_msh = np.meshgrid(phi,r)
-    x_msh = r_msh*np.cos(phi_msh)
-    y_msh = r_msh*np.sin(phi_msh)
-    if showplt and mpl.rcParams['text.usetex']:
-        # print("Warning: turning off matplotlib LaTeX backend in order to show the plot")
-        plt.rcParams.update({"text.usetex": False})
-    plt.figure(figsize=figsize)
-    plt.axis(axis)
-    plt.xticks(np.linspace(*axis[:2],5),fontsize=fntsize,family=fntsettings['family'])
-    plt.yticks(np.linspace(*axis[2:],5),fontsize=fntsize,family=fntsettings['family'])
-    plt.xlabel(r'$x[b]$',fontsize=fntsize,family=fntsettings['family'])
-    plt.ylabel(r'$y[b]$',fontsize=fntsize,family=fntsettings['family'])
-    if title is not None: plt.title(title,fontsize=fntsize,family=fntsettings['family'],loc='left')
-    if np.all(uij==0): raise ValueError('Dislocation field contains only zeros, forgot to calculate?')
-    if uij.shape != (len(r),len(phi)):
-        uij = np.outer(1/r,uij)
-    colmsh = plt.pcolormesh(x_msh, y_msh, uij, vmin=lim[0], vmax=lim[-1], cmap=cmap, shading='gouraud')
-    colmsh.set_rasterized(True)
-    cbar = plt.colorbar()
-    if not isinstance(showcontour,bool):
-        kwargs['levels'] = showcontour
-        showcontour = True
-    if showcontour:
-        if 'levels' not in kwargs: kwargs['levels'] = np.linspace(-1,1,6)
-        if 'colors' not in kwargs: kwargs['colors'] = 'white'
-        if 'linewidths' not in kwargs: kwargs['linewidths'] = 0.7
-        plt.contour(x_msh,y_msh,uij,**kwargs)
-    cbar.ax.tick_params(labelsize=fntsize)
-    if savefig is not False: plt.savefig(savefig,format='pdf',bbox_inches='tight',dpi=150)
-    if showplt:
-        plt.show()
-    plt.close()
+if usefortran:
+    from ..subroutines import accscrew_xyintegrand
+else:
+    from .numba_subroutines import accscrew_xyintegrand
 
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
@@ -142,17 +104,15 @@ class Dislocation(StrohGeometry,metal_props):
                 tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
                 return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
             for i in range(3):
-                ## default minimizer sometimes yields nan, but bounded method doesn't always find the smallest value, so run both:
+                ## neither default minimizer nor bounded method always find the smallest value, so run both:
                 with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                    minresult1 = optimize.minimize_scalar(findvlim,bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results despite rounding errors in some cases
-                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i)
-                if verbose and not (minresult1.success and minresult2.success):
-                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult1}\n{minresult2}\n\n")
+                    minresult = optimize.minimize_scalar(findvlim,args=i)
+                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results
+                if verbose and not (minresult.success and minresult2.success):
+                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult}\n{minresult2}\n\n")
                 ## always take the smaller result, ignore nan:
-                choose = np.nanargmin(np.array([minresult1.fun,minresult2.fun]))
-                if choose == 0:
-                    minresult = minresult1
-                else: minresult = minresult2
+                if minresult2.fun < minresult.fun or np.isnan(minresult.fun):
+                    minresult = minresult2
                 out[0,th,i] = minresult.fun
                 out[1,th,i] = minresult.x
         if setvcrit: self.vcrit_barnett = out
@@ -351,10 +311,10 @@ class Dislocation(StrohGeometry,metal_props):
                 return Rayleighcond(integrate.trapezoid(B,x=self.phi,axis=0)/(4*np.pi**2))
             bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
             result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
-            # if result.fun>=1e-3: print(f"{bounds}\n{result}")  ## if this failed, try enlarging the search interval slightly above vcrit (there was some numerical uncertainty there too):
-            if result.success and result.fun>=1e-3: result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=(0.5*bounds[1],1.25*bounds[1]),options={'xatol':1e-12})
-            if result.fun>=1e-3 or not result.success: print(f"Failed: Rayleigh not found in [{bounds[0]},{1.25*bounds[1]}]\n",result)
-            if result.success and result.fun<1e-3: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
+            # if result.fun>1e-3: print(f"{self.name},{bounds}\n{result}") # usually a sign of Nphi being too small, result nonetheless close enough usually
+            if result.fun>2e-2 or not result.success: 
+                print(f"Failed: Rayleigh not found in {bounds}. Try with larger Nphi in Dislocation class? (current value: Nphi={len(self.phi)})\n")
+            else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
         self.Rayleigh = Rayleigh
         return Rayleigh
     
@@ -392,8 +352,7 @@ class Dislocation(StrohGeometry,metal_props):
         else:
             self.rho = rho
         if phi is None: phi=self.phi
-        test = np.abs(self.C2_aligned[scrind]/self.C2_aligned[scrind,3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
+        if not CheckReflectionSymmetry(self.C2_aligned[scrind]):
             raise ValueError("not implemented - slip plane is not a reflection plane")
         ## change sign to match Stroh convention of steady state counter part:
         self.uij_acc_screw_aligned = -computeuij_acc_screw(a,beta,burgers,C2_aligned[scrind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,**kwargs)
@@ -431,8 +390,7 @@ class Dislocation(StrohGeometry,metal_props):
         else:
             self.rho = rho
         if phi is None: phi=self.phi
-        test = np.abs(self.C2_aligned[edgeind]/self.C2_aligned[edgeind,3,3]) ## check for symmetry requirements
-        if test[0,3]+test[1,3]+test[0,4]+test[1,4]+test[5,3]+test[5,4] > 1e-12:
+        if not CheckReflectionSymmetry(self.C2_aligned[edgeind]):
             raise ValueError("not implemented - slip plane is not a reflection plane")
         self.uij_acc_edge_aligned = computeuij_acc_edge(a,beta,burgers,C2_aligned[edgeind],rho,phi,r,eta_kw=eta_kw,etapr_kw=etapr_kw,t=t,shift=shift,beta_normalization=beta_normalization,**kwargs)
         ## workaround while static part is not yet implemented:
@@ -508,12 +466,12 @@ class Dislocation(StrohGeometry,metal_props):
             def L2_of_beta2(beta2,comp=1):
                 '''Finds eigenvector L in the 2nd transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
                 def f(x):
-                    return float(np.abs(fct(x,beta2)))
+                    return np.abs(fct(x,beta2))
                 p1 = None
                 for x0 in [0.5,1,1.5]:
                     psol = optimize.root(f,x0)
                     if psol.success:
-                        p1 = abs(float(psol.x))
+                        p1 = abs(float(psol.x[0]))
                         break
                 if p1 is not None:
                     C2Mp = C2M.subs({rv2:beta2,p:p1})
@@ -540,7 +498,7 @@ class Dislocation(StrohGeometry,metal_props):
                 '''Finds L1+L2 in the 1st transonic regime; this function needs as input beta2 = (rho/c44)*v^2'''
                 @np.vectorize
                 def f(x):
-                    return float(np.abs(fct(x,beta2)))
+                    return np.abs(fct(x,beta2))
                 p1 = None
                 p2 = None
                 psol = optimize.root(f,np.array([0.9,1.5]))
@@ -585,7 +543,7 @@ class Dislocation(StrohGeometry,metal_props):
                     L1plusL2 = np.array((L1+factor*L2).evalf(),dtype=complex)
                     if burg is not None:
                         L1plusL2 = rot @ L1plusL2
-                    out = float(np.abs((L1plusL2)[1]) + abs((L1plusL2).imag[0]*(L1plusL2).real[2] - (L1plusL2).imag[2]*(L1plusL2).real[0]))
+                    out = convertfloat(np.abs((L1plusL2)[1]) + abs((L1plusL2).imag[0]*(L1plusL2).real[2] - (L1plusL2).imag[2]*(L1plusL2).real[0]))
                 return out
             def checkprops(vRF):
                 '''checks properties (such as boundary conditions) for the solution-candidate vRF'''
@@ -646,7 +604,7 @@ class Dislocation(StrohGeometry,metal_props):
                 print(f"Failed: could not find a solution for vRF of {self.name}")
         return self.vRF
     
-    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=False,Nr=250,nogradient=False,skipcalc=False,showplt=False,savefig=True,**kwargs):
+    def plotdisloc(self,beta=None,character='screw',component=[2,0],a=None,eta_kw=None,etapr_kw=None,t=None,shift=None,fastapprox=True,Nr=250,nogradient=False,skipcalc=False,showplt=False,savefig=True,**kwargs):
         '''Calculates and generates a plot of the requested component of the dislocation displacement gradient; plotting is done by the function plotuij().
            Optional arguments are: the normalized velocity 'beta'=v/self.ct (defaults to self.beta, assuming one of the .computeuij() methods were called earlier).
            'character' is either 'edge', 'screw' (default), or an index of self.theta, and 'component' is
@@ -779,22 +737,17 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         out.C2norm = UnVoigt(out.C2/out.mu)
     return out
 
-@jit(nopython=True)
-def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
+def accscrew_xyintegrand_dyn(x,y,t,xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
     '''subroutine of computeuij_acc_screw'''
     Rpr = np.sqrt((x-xpr)**2 - (x-xpr)*y*B/C + y**2/Ct)
-    if eta_kw is None:
-        eta = np.sqrt(2*xpr/a)
-        etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
-    else:
-        eta = eta_kw(xpr)
-        etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
+    eta = eta_kw(xpr)
+    etatilde = eta_kw(x) + (xpr-x)*etapr_kw(x)
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct = heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)))
+    stepfct = np.heaviside(t - eta - Rpr/(cA*np.sqrt(ABC)),0.5)
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct2 = heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)))
+    stepfct2 = np.heaviside(t - etatilde - Rpr/(cA*np.sqrt(ABC)),0.5)
     if xcomp:
         integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
         integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
@@ -803,7 +756,6 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,xcomp):
         integrand -= stepfct2*(1/Rpr**4)*((tau2**2*y**2*ABC/Ct**2 - (x-xpr)*y*(B/(2*C))*Rpr**2/(Ct*cA**2))/tau_min_R2 - (x-xpr)**2*tau_min_R2)
     return integrand
 
-# @jit(nopython=True) ## cannot compile while using scipy.integrate.quad() inside this function
 def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_kw=None,t=None,shift=None,deltat=1e-3,fastapprox=False,beta_normalization=1,epsilon=2e-16):
     '''For now, only pure screw is implemented for slip systems with the required symmetry properties.
        a=acceleration, beta=v/c_A where v=a*t (i.e. time is represented in terms of the current normalized velocity beta as t=v/a = beta*c_A/a).
@@ -848,10 +800,14 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
             R[ri,ph] = np.sqrt(x**2 - x*y*B/C + y**2/Ct)
             X[ri,ph] = x
             Y[ri,ph] = y
-            if not fastapprox: ## allow bypassing
+            if not fastapprox and eta_kw is None: ## allow bypassing
                 for ti in range(2):
-                    uxz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
-                    uyz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,eta_kw,etapr_kw,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uxz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand(x,y,tv[ti],xpr,a,B,C,Ct,ABC,cA,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+            elif not fastapprox: ## allow bypassing
+                for ti in range(2):
+                    uxz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand_dyn(x,y,tv[ti],xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,True), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
+                    uyz[ri,ph,ti] = integrate.quad(lambda xpr: accscrew_xyintegrand_dyn(x,y,tv[ti],xpr,B,C,Ct,ABC,cA,eta_kw,etapr_kw,False), 0, np.inf, epsabs=quadepsabs, epsrel=quadepsrel, limit=quadlimit)[0]
     ##
     if eta_kw is None:
         eta = np.sign(X)*np.sqrt(2*np.abs(X)/a)
@@ -862,12 +818,13 @@ def computeuij_acc_screw(a,beta,burgers,C2_aligned,rho,phi,r,eta_kw=None,etapr_k
         etapr = etapr_kw(X)
         tau = t-(eta-etapr*X)
     denom = tau*(tau-2*etapr*(X-Y*B/(2*C))) + (etapr*R)**2 - Y**2/(Ct*cA**2)
-    heaviadd = heaviside(tau - R/(cA*np.sqrt(ABC)))
+    heaviadd = np.heaviside(tau - R/(cA*np.sqrt(ABC)),0.5)
     rootadd = np.sqrt(np.abs(tau**2*ABC/Ct-R**2/(Ct*cA**2)))
     ## supersonic part:
     p0 = (X-Y*B/(2*C))/(R*cA*np.sqrt(1-B**2/(4*A*C)))
     with np.errstate(invalid='ignore'): ## don't need to know about nan from sqrt(-...) as these will always occur in the subsonic regime (and filtered with np.nan_to_num)
-        deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*heaviside(p0/etapr-1)*np.nan_to_num(deltadistri(tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(1/(cA**2*Ct)-etapr**2*ABC/Ct),epsilon=epsilon))
+        deltaterms = (burgers/2)*np.sign(Y*B/(2*C)-X)*np.heaviside(p0/etapr-1,0.5) \
+                     *np.nan_to_num(np.exp(-((tau-(X-Y*B/(2*C))*etapr-np.abs(Y)*np.sqrt(1/(cA**2*Ct)-etapr**2*ABC/Ct))/epsilon)**2)/(epsilon*np.sqrt(np.pi)))
     uxz_supersonic = deltaterms*np.sign(Y)*etapr
     uyz_supersonic = deltaterms*(np.sqrt(1/(cA*Ct)-etapr**2*ABC/Ct)-np.sign(Y)*B*etapr/(2*C))
     ##

@@ -1,21 +1,48 @@
 # Changelog
 
-## 1.3.3 (wip)
+## 1.3.4 (wip)
+
+Features and improvements:
+
+ - automatically compile and reload the fortran submodule if it is missing or outdated upon importing pydislocdyn
+   (requires user confirmation)
+ - new option in pydislocdyn.utilities.compilefortranmodule(): set clean=True to delete all previously compiled module files and exit
+
+Fix:
+
+ - make auto-setting the number of openmp threads more robust: will use threadpoolctl if it is installed (new optional dependency)
+ - fix compiler warnings in the fortran subroutines
+ - make the test suite platform independent
+
+Other:
+
+ - ompthreads is now a function, not a constant; i.e. it will always show the current number of OpenMP threads (even if the user changed it with e.g. threadpoolctl)
+   if the Fortran subroutines are compiled with OpenMP support (and 0 otherwise)
+
+## 1.3.3 (2025-10-06)
 
 Features and improvements:
 
  - phonon wind: implement `Debye_series` option also for mixed modes, and warn if the temperature is too low to warrant the high temperature series expansion
- - speedup phononwind calcs (if fortran subroutines are used)
+ - speedup phononwind calculations (if fortran subroutines are used)
+ - speedup `find_wavespeed()` method
+ - phonon drag: new commandline option 'allplots' to generate additional plots of B(sigma) that are suppressed by default
+ - testsuite: add a new test and options for more control over some tests
 
 Fix:
 
  - fix a `__repr__` string for symbolic `.Vc` and improve related init methods for symbolic lattice constants
  - fix an edge case of `convert_SOECiso()` for symbolic calculations
- - fix a numpy 2 related bug
+ - fix a numpy 2 and a numba related bug, prepare for near-future numpy deprecations
+ - testsuite: fix and improve behavior of commandline option `--metals=all`
+ - `findRayleigh()`: fix for edge cases
 
 Other:
 
- - changed: use option `maxrec=-1` instead of `None` to bypass adaptive grid in phonon wind calcs
+ - changed: use option `maxrec=-1` instead of `None` to bypass adaptive grid in phonon wind calculations
+ - the Fortran subroutines have been completed as a (faster) replacement of numba.jit-compiled functions:
+   Therefore, numba.jit is no longer used if the Fortran subroutines are compiled (and Numba is only used as a fall-back method)
+ - part of the code has been refactored to better separate the two sets of subroutines
  - updated docs
 
 ## 1.3.2 (2025-06-30)
@@ -26,7 +53,7 @@ Features and improvements:
    in this regard, the new `.init_symbols()` method was added to the Dislocation class for convenience
  - in some cases, issue helpful warnings when initializing the Dislocation class
  - more flexibility in averaging elastic constants within the Dislocation class via new option '`scheme`' in `compute_Lame()` method
- - new fcts, `convert_SOECiso()` and `convert_TOECiso()`, to convert between isotropic elastic constants added
+ - new functions, `convert_SOECiso()` and `convert_TOECiso()`, to convert between isotropic elastic constants added
  - new option in `.computevcrit()` to control output
  - new option in `.readinputfile()` allows adding two character angles beyond the interval (needed for derivatives at the end points)
  - `polycrystal_averaging`: include anisotropy measures in output
@@ -34,7 +61,7 @@ Features and improvements:
  - testsuite: more unit tests added
  - improve logic in `compilefortranmodule()`: better handling of different versions/combinations of python, numpy, setuptools, 
    etc., and print helpful error messages when we do fail
- - added a jupyer notebook showing a few examples of how to use PyDislocDyn as a module
+ - added a jupyter notebook showing a few examples of how to use PyDislocDyn as a module
  - moved a number of comments in the python code into (sub-)module docstrings as well as `--help` messages of front-end scripts for easy access
 
 Fix:
@@ -61,7 +88,7 @@ Features and improvements:
 Fix:
 
  - work around a segfault in python 3.13
- - acc. edge disloc.: work around some numerical edge cases
+ - accelerating edge dislocations: work around some numerical edge cases
  - bugfix for edge cases of B(sigma) at high stress
 
 Other:
@@ -77,7 +104,7 @@ Fix:
  - add dependency Jinja2 to .toml file
  - correct typos in docs
  - fix for sympy 1.13
- - phononwind calcs: be less noisy with warnings near limiting vel.
+ - phononwind calculations: be less noisy with warnings near limiting velocities
 
 
 ## 1.3.0 (2024-07-09)
@@ -105,7 +132,7 @@ Fix:
 
 Other:
 
- - drop Python 3.8 support (now require Python 3.9 or higher, this has implications for mininum required versions of other dependencies)
+ - drop Python 3.8 support (now require Python 3.9 or higher, this has implications for minimum required versions of other dependencies)
 
 ## 1.2.9 (2024-02-29)
 
@@ -142,12 +169,12 @@ Other:
 Features and improvements:
 
  - generalized `find_vRF()` to cover more cases
- - acc. screw disloc.: implemented the supersonic regime
+ - accelerating screw dislocations: implemented the supersonic regime
  - generalize `.vcrit_all` attribute of `Dislocation` class
  - `vcrit_*` keywords are no longer supported in input files (was broken)
  - `write_vcrit` option removed from `linetension_calcs`, `.computevcrit()` is fast enough to be used on the fly
- - vcrit.dat and vcrit-plots now show the true limiting velocities(instead of the poles of det(nn)) and polar angle phi is therefore no longer included)
- - new fct: `writeallinputfiles()` to conveniently convert all dictionary entries into sample input files
+ - vcrit.dat and vcrit-plots now show the true limiting velocities (instead of the poles of `det(nn)`) and polar angle phi is therefore no longer included)
+ - new function: `writeallinputfiles()` to conveniently convert all dictionary entries into sample input files
  - new function `CheckReflectionSymmetry()` (now used by other parts of the code to check for special cases)
  - `find_vRF`: speed up some edge cases
  - added a testsuite for regression testing (requires pandas 1.1 or higher)
@@ -171,30 +198,30 @@ Other:
 Features and improvements:
 
  - new commandline option `--help`
- - fortran subroutines: add comments, new subroutine and module for params
+ - fortran subroutines: add comments, new subroutine and module for parameters
  - small speedup through code optimization
  - automatically adjust `OMP_NUM_THREADS` for openmp builds of the subroutines module unless set by the user
  - support fractions for Miller indices in input files
  - additional data in dictionaries
  - include metal names in phononwind warnings
- - fct. `writeinputfile()` can now access all data included in the dictionaries to write sample input files (increased flexibility through new options)
- - refactor: use temp. input files via `writeinputfile()` to avoid duplicate code
+ - function `writeinputfile()` can now access all data included in the dictionaries to write sample input files (increased flexibility through new options)
+ - refactor: use temporary input files via `writeinputfile()` to avoid duplicate code
  - new method `find_vRF()` implemented in Dislocation class to find 'radiation-free' dislocation velocities (requires sympy 1.6 or higher)
  - calculating accelerating edge dislocation fields implemented
- - `.computesound()`: facilitate optional analytic calc.
+ - `.computesound()`: facilitate optional analytic calculations
  - updated the manual
 
 Fix:
 
  - avoid 1/0 and don't complain about `arccos(x)=nan` while optimizing
  - print parallelization info after parsing options (not before)
- - fix `plotdisloc()` for acc. sol. (regression) and some other small bugs
+ - fix `plotdisloc()` for accelerating dislocations (regression) and some other small bugs
  - fix reading Boolean options from the commandline
  - minimize rounding errors in `Miller_to_Cart()`
  - improve results of `computevcrit_barnett()` in some edge cases
  - make frontend scripts executable
- - work around a sympy 1.11 bug and ensure compatibility also with scipy 2.0
- - ensure compatibility with new versions of scipy
+ - work around a sympy 1.11 bug
+ - future-proof for new versions of scipy
  
 Other:
 
@@ -204,8 +231,8 @@ Other:
 
 Features and improvements:
 
- - support additional cmndline options
- - new fct. `plotuij()` and refactored `plotdisloc()` for increased flexibility
+ - support additional commandline options
+ - new function `plotuij()` and refactored `plotdisloc()` for increased flexibility
  - make the `Dislocation` class easier to use directly (without the `readinputfile()` routine):
     * new defaults for `theta` and `Nphi`
     * allow setting lattice constants and angles when initializing (optional,
@@ -213,12 +240,12 @@ Features and improvements:
     * make `alignC2()` method work when `C2` contains sympy symbols
     * infer `.burgers` (length) attribute if omitted (from vector `.b`)
  - add `.plotdisloc()` method to the Dislocation class
- - new, much faster impementation of `computevcrit()`
+ - new, much faster implementation of `computevcrit()`
  - new defaults: remove hardcoded vcrit values and compute on the fly instead
  - dictionaries: add more isotropic data
  - tweak plots and skip unnecessary ones
  - automatically compute unit cell volumes Vc in all cases
- - add support for tetragonal II, allow setting Vc manually for 'trig'
+ - add support for tetragonal II crystals (`sym=tetr2`), allow setting Vc manually for `sym=trig`
  - include a code manual (finally!)
 
 Fix:
@@ -241,13 +268,13 @@ Other:
 
  - new requirements: pandas, python >=3.8 (implies newer versions are required of some other modules)
  - removed some duplicate / obsolete code
- - changed some defaults: v>vcrit calcs. are now skipped by default
+ - changed some defaults: v>vcrit calculations are now skipped by default
 
 ## 1.2.4 (2021-09-13)
 
 Features and improvements:
 
- - new fct. to compute the Rayleigh wave speed implemented
+ - new function to compute the Rayleigh wave speed implemented
  - new `strain_poly class` (to determine which type of deformation is sensitive to which elastic constants)
  - support input files also in the isotropic limit (previously only anisotropic)
  - small speedup via more fortran subroutines (optional)
@@ -255,7 +282,7 @@ Features and improvements:
 
 Fix:
 
- - make certain isotropic cases work in `computevcrit_stroh()` fct.
+ - make certain isotropic cases work in `computevcrit_stroh()` function
  - cleaner/more consistent init of `metal_props` class
  - fixed a joblib related regression and a few other small issues
 
@@ -271,7 +298,7 @@ Features and improvements:
  - automated critical/limiting velocity calculations via new `computevcrit()` function (needs sympy 1.5 or higher)
  - new option to bypass calculations for v>vcrit
  - add bulk/Young's modulus and Poisson's ratio to `Dislocation` class attributes
- - new option '`symmetric`' in `readinputfile()` fct.
+ - new option '`symmetric`' in `readinputfile()` function
  - speedup calculating the accelerating screw dislocation field
  - some small code optimizations and changed some colors in plots
 
@@ -285,7 +312,7 @@ Features and improvements:
 
  - accelerating screw dislocation displacement gradient field was implemented
  - some code refactoring: new `Dislocation` class and new `readinputfile()` function
- - new (optional) plot of disloc. field
+ - new (optional) plot of dislocation field
  - add OpenMP support in optional fortran subroutines
 
 Fix:
@@ -337,9 +364,9 @@ Fix:
 Features and improvements:
 
  - improved accuracy of phonon wind calculations via (partially) adaptive grid for numerical integration
- - new plots: B as a fct of stress
- - new options for choosing (and computing on the fly) the normalization used for linetension and beta in phonon wind calcs.
- - LT: new output format, decoupled plots from calcs
+ - new plots: B as a function of stress
+ - new options for choosing (and computing on the fly) the normalization used for linetension and beta in phonon wind calculations
+ - linetension: new output format, decoupled plots from calculations
  - speedup via more fortran subroutines (optional) and rewrite of some python subroutines (elasticC2,3)
  
 Fix:
@@ -355,7 +382,7 @@ Features and improvements:
    thereby simplifying the future implementation of additional slip systems
  - new options to return the dislocation displacement field (instead of its gradient)
    and/or to include the radius explicitly in the array
- - new options to bypass plotting and/or calculations (in which case only previous resuts are loaded)
+ - new options to bypass plotting and/or calculations (in which case only previous results are loaded)
  - determine Young's modulus in dictionaries
  - refactored / optimized some code: 2 new classes (`Strohgeometry` and `IsoInvariants`) and speedup
 
@@ -371,7 +398,7 @@ Features:
 
  - output additional nice plots
  - determine Zener ratios in dictionaries
- - phonon wind calcs.: implement optional dislocation core cutoff
+ - phonon wind calculations: implement optional dislocation core cutoff
  
 Fix:
 
@@ -387,7 +414,7 @@ Other:
 Features:
 
  - speedup phonon wind calculations (new optional Fortran subroutines via f2py)
- - phonon wind calcs.: accept commandline arguments
+ - phonon wind calculations: accept commandline arguments
  - add more metals to dictionaries
  - support more slip systems: hcp-prismatic and pyramidal
 

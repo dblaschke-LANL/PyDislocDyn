@@ -2,29 +2,31 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - June 20, 2025
+# Date: Mar. 6, 2023 - Oct. 29, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
 import os
 import sys
+import subprocess
+import glob
 import difflib
 import lzma
-import numpy as np
-import sympy as sp
-import pandas as pd
-
 dir_path = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)),os.pardir))
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 dir_path = os.path.join(dir_path,'pydislocdyn')
 
-from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, ISO_l, c111
+from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
+    ISO_l, c111, all_metals
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
 from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, \
     readinputfile, convert_SOECiso, convert_TOECiso, Dislocation, roundcoeff
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
+import numpy as np ## import pydislocdyn first as it will set the openmp thread number
+import sympy as sp
+import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
 
@@ -54,11 +56,15 @@ scale_by_mu = 'exp'
 ## misc only options:
 P=0 ## pressure in strain_poly test
 volpres=False ## set to True to compute volume preserving version of the strains
+fastapprox=True ## set to False to include terms that are (close to) zero in acc_screw disloc. field
+vRF_resolution=50
+vRF_fast=True
 
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool,
            "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
 OPTIONS |= OPTIONS_LT | OPTIONS_drag
 OPTIONS.pop('Ntheta2') ## using Ntheta in this script instead
+OPTIONS |= {"fastapprox":str2bool, "vRF_resolution":int, "vRF_fast":str2bool}
 
 def printtestresult(success):
     '''print passed/failed message depending on Boolean input'''
@@ -110,6 +116,21 @@ def round_list(lst,ndigits=2):
         return [round_list(i,ndigits) for i in lst]
     return lst
 
+def runscript(scriptname,args,logfname):
+    '''Run script "scriptname" as a subprocess passing a list of command line arguments "args" and saving its stdout to a file "logfname"'''
+    out = -1
+    with open(logfname, 'w', encoding="utf8") as logfile:
+        command = [os.path.join(dir_path,scriptname)]
+        if sys.platform=='win32':
+            command = ["python",os.path.join(dir_path,scriptname)]
+        with subprocess.Popen(command+args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+            for line in subproc.stdout:
+                sys.stdout.write(line)
+                logfile.write(line)
+            subproc.wait()
+            out = subproc.returncode
+    return out
+
 if __name__ == '__main__':
     tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc', 'obj']
     cwd = os.getcwd()
@@ -153,9 +174,10 @@ if __name__ == '__main__':
             metals_iso += i+' '
         metals_iso = metals_iso.strip()
     if metals == 'all':
-        from dragcoeff_semi_iso import metal as metals_temp
         metals = ''
-        for i in metals_temp:
+        if runtests in ['all', 'drag']:
+            from pydislocdyn.dragcoeff_semi_iso import metal as all_metals
+        for i in all_metals:
             metals += i+' '
         metals = metals.strip()
     metal_list = []
@@ -174,7 +196,8 @@ if __name__ == '__main__':
         fname = 'averaged_elastic_constants.tex'
         if not skip_calcs:
             print("running test 'aver' ...")
-            os.system(os.path.join(dir_path,'polycrystal_averaging.py'))
+            if runscript('polycrystal_averaging.py',[],'poly.log')!=0:
+                success=False
         else: print("skipping test 'aver' as requested")
         print(f"checking {fname}:")
         if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
@@ -185,7 +208,9 @@ if __name__ == '__main__':
         success = True
         if not skip_calcs:
             print("running test 'dragiso' ...")
-            os.system(os.path.join(dir_path,"dragcoeff_iso.py")+f'{"".join(dragopts)} --{Nbeta=} --{Ncores=} --{use_exp_Lame=} --phononwind_opts="{phononwind_opts}" --{NT=} "{metals_iso}" | tee dragiso.log')
+            commandargs = dragopts + [f'--{Nbeta=}',f'--{Ncores=}',f'--{use_exp_Lame=}',f'--phononwind_opts={phononwind_opts}',f'--{NT=}',f'{metals_iso}']
+            if runscript("dragcoeff_iso.py",commandargs,'dragiso.log')!=0:
+                success=False
         else: print("skipping test 'dragiso' as requested")
         metals_iso = metals_iso.split()
         print(f"\ncomparing dragiso results for: {metals_iso}")
@@ -218,8 +243,9 @@ if __name__ == '__main__':
                 os.mkdir(drag_folder)
             print("running test 'drag' ...")
             os.chdir(os.path.join(cwd,drag_folder))
-            dragopts = f'{"".join(dragopts)} --{Ncores=} --{skiptransonic=} --{use_exp_Lame=} --{use_iso=} --{hcpslip=} --{bccslip=} --phononwind_opts="{phononwind_opts}" "{metals}"'
-            os.system(os.path.join(dir_path,"dragcoeff_semi_iso.py")+dragopts+f" --{Ntheta=} --{Nbeta=} --{NT=} | tee dragsemi.log")
+            commandargs = dragopts + [f'--{Ncores=}',f'--{skiptransonic=}',f'--{use_exp_Lame=}',f'--{use_iso=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--phononwind_opts={phononwind_opts}',f'--{Ntheta=}',f'--{Nbeta=}',f'--{NT=}',f'{metals}']
+            if runscript("dragcoeff_semi_iso.py",commandargs,'dragsemi.log')!=0:
+                success=False
             os.chdir(cwd)
         else: print("skipping test 'drag' as requested")
         print(f"\ncomparing drag results for: {metal_list}")
@@ -258,10 +284,13 @@ if __name__ == '__main__':
                 os.mkdir(LT_folders[1])
             print("running test 'LT' ...")
             os.chdir(os.path.join(cwd,LT_folders[0]))
-            LTopts = f"{''.join(LTopts)} --Ntheta={Ntheta_LT} --Ntheta2={Ntheta} --Nbeta={Nbeta_LT} --{Nphi=} --{hcpslip=} --{bccslip=} --{scale_by_mu=} "
-            os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+f"'{metals}' | tee LT.log")
+            LTopts = LTopts + [f'--Ntheta={Ntheta_LT}',f'--Ntheta2={Ntheta}',f'--Nbeta={Nbeta_LT}',f'--{Nphi=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--{scale_by_mu=!s}']
+            if runscript("linetension_calcs.py",LTopts+[f'{metals}'],'LT.log')!=0:
+                success=False
             os.chdir(os.path.join(cwd,LT_folders[1]))
-            os.system(os.path.join(dir_path,"linetension_calcs.py")+LTopts+os.path.join("..","temp_pydislocdyn","")+"* | tee LT.log")
+            filelist = sorted(glob.glob(os.path.join(os.pardir,"temp_pydislocdyn","*")))
+            if runscript("linetension_calcs.py",LTopts+filelist,'LT.log')!=0:
+                success=False
             os.chdir(cwd)
         else: print("skipping test 'LT' as requested")
         print(f"\ncomparing LT results for: {metal_list}")
@@ -302,11 +331,36 @@ if __name__ == '__main__':
             for X in metal_acc_screw:
                 acc_screw[X] = readinputfile(os.path.join("temp_pydislocdyn",X),Nphi=50)
                 acc_screw[X].computevcrit()
-                acc_screw[X].plotdisloc(0.9*acc_screw[X].vcrit_screw/acc_screw[X].ct,a=1e14,fastapprox=True)
+                vel=0.9*acc_screw[X].vcrit_screw
+                if verbose:
+                    print(f"{X}: testing for constant acceleration")
+                acc_screw[X].plotdisloc(vel/acc_screw[X].ct,a=1e14,fastapprox=fastapprox)
                 uij_acc_screw[X] = pd.DataFrame(acc_screw[X].uij_acc_screw_aligned[2,0],index=acc_screw[X].r,columns=acc_screw[X].phi/np.pi)
                 uij_acc_screw[X].index.name="r[burgers]"
                 uij_acc_screw[X].columns.name="phi[pi]"
                 uij_acc_screw[X].to_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv.xz"),compression='xz')
+                ## another dynamic solution:
+                ## assume l(t) = adot*t**3/6 ## (i.e. acceleration starts at 0 and increases at rate adot from t>0)
+                adot = 6.2e25 ## time-derivative of acceleration, acc is initially zero at time t=0
+                def eta(x):
+                    '''returns time as a function of position x for the special case of a constant acceleration rate adot.'''
+                    return np.sign(x)*np.cbrt(6*abs(x)/adot)
+                def etapr(x):
+                    '''returns the derivative of eta(x) (units: one over velocity)'''
+                    return eta(x)/(3*x)
+                time = np.sqrt(2*vel/adot) ## vel=adot*t**2/2, time=t(vel)
+                distance = adot*time**3/6 ## distance covered by the core at time 'time'
+                acc = adot*time ## current acceleration at time 'time'
+                if verbose:
+                    print("testing fully dynamic solution: assume acceleration starts at 0 and increases at rate a-dot from t>0.")
+                    print(f"time to reach {vel=:.2f}m/s with a-dot={adot:.2e}m/s^3: t(v)={time:.2e}s")
+                    print(f"current acceleration at time t(v) is: a(t(v))={acc:.2e}m/s^2")
+                    print(f"dislocation moved distance d={distance:.2e}m when it reached velocity v\n")
+                acc_screw[X].plotdisloc(a=None,eta_kw=eta,etapr_kw=etapr,t=time,shift=distance,beta=vel/acc_screw[X].ct,fastapprox=fastapprox)
+                uij_acc_screw[X] = pd.DataFrame(acc_screw[X].uij_acc_screw_aligned[2,0],index=acc_screw[X].r,columns=acc_screw[X].phi/np.pi)
+                uij_acc_screw[X].index.name="r[burgers]"
+                uij_acc_screw[X].columns.name="phi[pi]"
+                uij_acc_screw[X].to_csv(os.path.join(cwd,f"uij_acc_screw_alt_{X}.csv.xz"),compression='xz')
             print(f"calculating accelerating edge dislocation fields for {metal_acc_edge}")
             for X in metal_acc_edge:
                 acc_edge[X] = readinputfile(os.path.join("temp_pydislocdyn",X),Nphi=25)
@@ -319,15 +373,16 @@ if __name__ == '__main__':
         else: print("skipping test 'acc' as requested")
         print("\ncomparing acc results")
         for X in metal_acc_screw:
-            fending = ".csv.xz"
-            if not os.path.isfile(os.path.join(old,f"uij_acc_screw_{X}{fending}")):
-                fending = ".csv" # support reading old uncompressed files
-            f1 = pd.read_csv(os.path.join(old,f"uij_acc_screw_{X}{fending}"),index_col=0)
-            f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_screw_{X}.csv.xz"),index_col=0)
-            if not (result:=isclose(f1,f2)):
-                print(f"uij_acc_screw_{X}.csv.xz differs")
-                success=False
-                if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
+            for fname in ("uij_acc_screw_", "uij_acc_screw_alt_"):
+                fending = ".csv.xz"
+                if not os.path.isfile(os.path.join(old,f"{fname}{X}{fending}")):
+                    fending = ".csv" # support reading old uncompressed files
+                f1 = pd.read_csv(os.path.join(old,f"{fname}{X}{fending}"),index_col=0)
+                f2 = pd.read_csv(os.path.join(cwd,f"{fname}{X}.csv.xz"),index_col=0)
+                if not (result:=isclose(f1,f2)):
+                    print(f"{fname}{X}.csv.xz differs")
+                    success=False
+                    if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
         for X in metal_acc_edge:
             f1 = pd.read_csv(os.path.join(old,f"uij_acc_edge_{X}{fending}"),index_col=0)
             f2 = pd.read_csv(os.path.join(cwd,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
@@ -354,7 +409,7 @@ if __name__ == '__main__':
                 Y[X].computevcrit()
                 Y[X].findvcrit_smallest()
                 Y[X].findRayleigh()
-                Y[X].find_vRF()
+                Y[X].find_vRF(fast=vRF_fast,resolution=vRF_resolution)
                 with open(X+"props.txt", "w", encoding="utf8") as logfile:
                     np.set_printoptions(precision=2,suppress=True)
                     logfile.write(repr(Y[X]))
@@ -414,9 +469,9 @@ if __name__ == '__main__':
                         print(f"anisotropy unit test failed for {X}: {Y[X].AL=}, {Y[X].AL_Z=}")
                         success = False
                 if X in fcc_metals: # could include bcc here, but don't spend too much time on this test
-                    Y[X].clowest1 = Y[X].find_wavespeed(accuracy=1e-2)
+                    Y[X].clowest1 = round(Y[X].find_wavespeed(accuracy=1e-2)) # due to reduced accuracy, only expect correct to 1 m/s
                     Y[X].clowest2 = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
-                    if not (np.isclose(Y[X].clowest1, Y[X].clowest2) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
+                    if not (np.isclose(Y[X].clowest1, round(Y[X].clowest2)) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
                         print(f"find lowest sound speed unit test failed for {X}: {Y[X].clowest1=}, {Y[X].clowest2=}, {Y[X].vcrit_smallest=}")
                         success = False
                 testC = (12.3e9,4.5e9,6e9)
@@ -469,10 +524,10 @@ if __name__ == '__main__':
         iso.compute_Lame()
         iso.init_sound()
         if not iso.rho*iso.vcrit['screw']**2-iso.c44==0 or \
-            not sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))==sp.Matrix([0,0]) or \
-            not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
-              print("isotropic tests failed")
-              success=False
+           sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))!=sp.Matrix([0,0]) or \
+           not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
+            print("isotropic tests failed")
+            success=False
         # fcc
         fcc = Dislocation(b=[1,1,0],n0=[-1,1,-1],sym='fcc')
         fcc.init_symbols()
@@ -481,10 +536,10 @@ if __name__ == '__main__':
         fcc.compute_Lame(scheme='voigt')
         fcc.init_all()
         if not fcc.bulk-(fcc.c11+2*fcc.c12)/3==0 or \
-            not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
-            not sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])==sp.Matrix([0,0,0]):
-                print("fcc tests failed")
-                success=False
+           not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
+           sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])!=sp.Matrix([0,0,0]):
+            print("fcc tests failed")
+            success=False
         # hcp (basal)
         hcp = Dislocation(b=[-2,1,1,0],n0=[0, 0, 0, 1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
         hcp.init_symbols()
