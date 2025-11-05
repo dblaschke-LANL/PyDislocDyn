@@ -17,7 +17,7 @@ affiliations:
  - name: Los Alamos National Laboratory, Los Alamos, NM, 87545, USA
    index: 1
    ror: 01e41cf67
-date: 14 August 2025
+date: 4 November 2025
 bibliography: joss_pydislocdyn.bib
 
 ---
