@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Oct. 29, 2025
+# Date: Mar. 6, 2023 - Nov. 5, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -30,7 +30,7 @@ import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
 
-runtests = 'all' ## allowed values: all, LT, drag, dragiso, aver
+runtests = 'all'
 skip_calcs = False
 verbose = False
 ## drag and dragiso options:
@@ -66,11 +66,14 @@ OPTIONS |= OPTIONS_LT | OPTIONS_drag
 OPTIONS.pop('Ntheta2') ## using Ntheta in this script instead
 OPTIONS |= {"fastapprox":str2bool, "vRF_resolution":int, "vRF_fast":str2bool}
 
-def printtestresult(success):
+def printtestresult(success,countfails=0):
     '''print passed/failed message depending on Boolean input'''
     if success:
         print("----------\nPASSED\n----------\n")
-    else: print("----------\nFAILED\n----------\n")
+    else:
+        print("----------\nFAILED\n----------\n")
+        countfails += 1
+    return countfails
 
 def readfile(fname):
     '''reads a text file (or xz compressed text file) and returns a list of its lines'''
@@ -134,6 +137,7 @@ def runscript(scriptname,args,logfname):
 if __name__ == '__main__':
     tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc', 'obj']
     cwd = os.getcwd()
+    no_failed_tests = 0
     if len(sys.argv) > 1:
         oldglobals = globals().copy()
         starthelpwith=(f"\nUsage: {sys.argv[0]} <options> <folder_to_compare_cwd_to>\n\n"
@@ -202,7 +206,7 @@ if __name__ == '__main__':
         print(f"checking {fname}:")
         if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
             success = False
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
     ############### TEST dragiso ##########################################
     if runtests in ['all', 'dragiso']:
         success = True
@@ -233,7 +237,7 @@ if __name__ == '__main__':
         if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
             if not verbose: print(f"{fname} differs")
             success=False
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
     ############### TEST drag #############################################
     if runtests in ['all', 'drag']:
         success = True
@@ -271,7 +275,7 @@ if __name__ == '__main__':
         if not diff(os.path.join(old,drag_folder,fname),os.path.join(cwd,drag_folder,fname),verbose=verbose):
             if not verbose: print(f"{drag_folder}/{fname} differs")
             success=False
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
     ############### TEST LT ###############################################
     if runtests in ['all', 'LT']:
         success = True
@@ -305,7 +309,7 @@ if __name__ == '__main__':
             if not diff(os.path.join(old,folder,fname),os.path.join(cwd,folder,fname),verbose=verbose):
                 if not verbose: print(f"{folder}/{fname} differs")
                 success=False
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
     ############### TEST acc  ###############################################
     if runtests in ['all', 'acc']:
         metal_acc_screw = []
@@ -390,7 +394,7 @@ if __name__ == '__main__':
                 print(f"uij_acc_edge_{X}.csv.xz differs")
                 success=False
                 if verbose and f1.shape==f2.shape: print(compare_df(f1,f2))
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
     ############### TEST misc ###############################################
     if runtests in ['all', 'misc']:
         success = True
@@ -511,7 +515,7 @@ if __name__ == '__main__':
             if not diff(os.path.join(old,fname),os.path.join(cwd,fname),verbose=verbose):
                 if not verbose: print(f"{fname} differs")
                 success=False
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
     ############### TEST obj ###############################################
     if runtests in ['all', 'obj'] and not skip_calcs:
         success = True
@@ -567,4 +571,6 @@ if __name__ == '__main__':
         if abs(sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp))).subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))>1e-12:
             print("hcp-pyramidal tests failed")
             success=False
-        printtestresult(success)
+        no_failed_tests = printtestresult(success,no_failed_tests)
+        
+    assert no_failed_tests==0, f"{no_failed_tests} tests failed"

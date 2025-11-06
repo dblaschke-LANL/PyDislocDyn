@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 8, 2025
+# Date: Nov. 5, 2017 - Nov. 5, 2025
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -16,6 +16,8 @@ import multiprocessing
 Ncpus = multiprocessing.cpu_count()
 def _ompthreads_auto():
     '''finds a optimal value for openmp parallelization of the fortran subroutines, i.e. OMP_NUM_THREADS'''
+    if Ncpus<=3:
+        return Ncpus
     ompthrds = int(math.sqrt(Ncpus))
     while Ncpus/ompthrds != round(Ncpus/ompthrds):
         ompthrds -= 1 ## choose an optimal value (assuming joblib is installed), such that ompthrds*Ncores = Ncpus and ompthrds ~ Ncores
