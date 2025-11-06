@@ -48,7 +48,11 @@ A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to 
 * [threadpoolctl](https://github.com/joblib/threadpoolctl) (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.53 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
-* a recent version of LaTeX to build the manual (LA-UR-22-28074), PDF of Jan. 2025 version available at [doi:10.2172/1880452](https://doi.org/10.2172/1880452)
+* a recent version of LaTeX to build the manual (LA-UR-22-28074)
+
+## Documentation
+
+A pdf-file of the manual (built from the LaTeX sources included in this repository) is provided on the [wiki](https://github.com/dblaschke-LANL/PyDislocDyn/wiki).
 
 ## Installation
 
@@ -104,3 +108,7 @@ Computes the drag coefficient of a moving dislocation from phonon wind in a semi
 
 * *pydislocdyn_examples.ipynb*</br>
 Presents some simple examples of how PyDislocDyn can be used as a module. 
+
+## Feedback
+Feedback, comments, or issues can be raised through [GitHub issues](https://github.com/dblaschke-LANL/PyDislocDyn/issues).
+If you would like to contribute, please see read the [CONTRIBUTING.md](CONTRIBUTING.md) file first.
