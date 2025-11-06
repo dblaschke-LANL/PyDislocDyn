@@ -104,3 +104,7 @@ Computes the drag coefficient of a moving dislocation from phonon wind in a semi
 
 * *pydislocdyn_examples.ipynb*</br>
 Presents some simple examples of how PyDislocDyn can be used as a module. 
+
+## Feedback
+Feedback, comments, or issues can be raised through [GitHub issues](https://github.com/dblaschke-LANL/PyDislocDyn/issues).
+If you would like to contribute, please see read the [CONTRIBUTING.md](CONTRIBUTING.md) file first.
