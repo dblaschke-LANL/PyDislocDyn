@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    - '**.py'
-    - '**.f90'
-    - '**.toml'
+    paths:
+      - '**.py'
+      - '**.f90'
+      - '**.toml'
 
 jobs:
   RunTests:
