@@ -1,6 +1,10 @@
 name: CI
 
-on: push
+on:
+  push:
+    - '**.py'
+    - '**.f90'
+    - '**.toml'
 
 jobs:
   RunTests:
