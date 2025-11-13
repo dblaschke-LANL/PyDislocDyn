@@ -18,7 +18,7 @@ Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([do
 Daniel N. Blaschke
 
 ## License
-PyDislocDyn is distributed according to the [license.txt](license.txt) file. All contributions made by employees of Los Alamos National Laboratory are governed by that license.
+PyDislocDyn is distributed according to the [LICENSE.md](LICENSE.md) file. All contributions made by employees of Los Alamos National Laboratory are governed by that license.
 
 C Number: C18073</br>
 doi: [10.11578/dc.20180619.15](https://doi.org/10.11578/dc.20180619.15)</br>

@@ -9,13 +9,13 @@ packages = ['pydislocdyn','pydislocdyn.dislocations']
 
 [project]
 name = "PyDislocDyn"
-version = "1.3.3+dev"
+version = "1.3.4"
 authors = [
   { name="Daniel N. Blaschke", email="40176390+dblaschke-LANL@users.noreply.github.com" },
 ]
 description = "PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with various crystal symmetries in the continuum limit."
 readme = {file = "readme.md", content-type = "text/markdown"}
-license = {file = "license.txt"}
+license = {file = "LICENSE.md"}
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
