@@ -47,4 +47,4 @@ from .crystals import IsoAverages, metal_props, Miller_to_Cart
 from .dislocations import StrohGeometry, Dislocation, readinputfile
 from .phononwind import elasticA3, phonondrag, B_of_sigma
 
-__version__ = '1.3.3+dev'
+__version__ = '1.3.4'
