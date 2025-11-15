@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Nov. 5, 2025
+# Date: Mar. 6, 2023 - Nov. 15, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -288,7 +288,7 @@ if __name__ == '__main__':
                 os.mkdir(LT_folders[1])
             print("running test 'LT' ...")
             os.chdir(os.path.join(cwd,LT_folders[0]))
-            LTopts = LTopts + [f'--Ntheta={Ntheta_LT}',f'--Ntheta2={Ntheta}',f'--Nbeta={Nbeta_LT}',f'--{Nphi=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--{scale_by_mu=!s}']
+            LTopts = LTopts + [f'--Ntheta={Ntheta_LT}',f'--Ntheta2={Ntheta}',f'--Nbeta={Nbeta_LT}',f'--{Ncores=}',f'--{Nphi=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--{scale_by_mu=!s}']
             if runscript("linetension_calcs.py",LTopts+[f'{metals}'],'LT.log')!=0:
                 success=False
             os.chdir(os.path.join(cwd,LT_folders[1]))
