@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.4 (wip)
+## 1.3.4 (2025-11-18)
 
 Features and improvements:
 
@@ -12,7 +12,7 @@ Fix:
 
  - make auto-setting the number of openmp threads more robust: will use threadpoolctl if it is installed (new optional dependency)
  - fix compiler warnings in the fortran subroutines
- - make the test suite platform independent
+ - make the test-suite platform-independent
 
 Other:
 
