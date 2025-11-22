@@ -30,12 +30,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
-          pip install numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja
-      - name: Run test suite
+          pip install numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest
+      - name: Run regression test suite
         run: yes 2>/dev/null | testing/test_pydislocdyn.py . --Ntheta=3 --Nbeta=5 --maxrec=1 --Nchunks=1 --verbose=true --runtests=all | tee test_output.log
         if: runner.os != 'Windows'
-      - name: Run test suite windows
+      - name: Run regression test suite windows
         run: echo 'N' | python testing/test_pydislocdyn.py --Ntheta=3 --Nbeta=5 --maxrec=0 --Nchunks=1 --bccslip=112 --hcpslip=prismatic --verbose=true --runtests=all .
+        if: runner.os == 'Windows'
+      - name: Run unit tests
+        run: yes 2>/dev/null | pytest testing/
+        if: runner.os != 'Windows'
+      - name: Run unit tests windows
+        run: echo 'N' | pytest testing/
         if: runner.os == 'Windows'
       - name: Upload main log file as artifact
         uses: actions/upload-artifact@v4

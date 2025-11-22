@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Nov. 15, 2025
+# Date: Mar. 6, 2023 - Nov. 22, 2025
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -20,8 +20,7 @@ dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
     ISO_l, c111, all_metals
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
-from pydislocdyn import read_2dresults, Ncores, Voigt, UnVoigt, strain_poly, writeallinputfiles, \
-    readinputfile, convert_SOECiso, convert_TOECiso, Dislocation, roundcoeff
+from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
 from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
@@ -136,7 +135,7 @@ def runscript(scriptname,args,logfname):
     return out
 
 if __name__ == '__main__':
-    tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc', 'obj']
+    tests_avail=['all', 'aver', 'dragiso', 'drag', 'LT', 'acc', 'misc']
     cwd =pathlib.Path.cwd()
     tmppydislocdyn = pathlib.Path("temp_pydislocdyn")
     no_failed_tests = 0
@@ -449,44 +448,6 @@ if __name__ == '__main__':
                 Parallel(n_jobs=Ncores)(delayed(maincomputations)(sym) for sym in crystalsyms)
             else:
                 [maincomputations(sym) for sym in crystalsyms]
-            print("running some unit tests ...")
-            for X in metal_list:
-                Y[X].sumofsounds = 0
-                for v in ([1,0,0],[0,1,0],[0,0,1]):
-                    sound = Y[X].computesound(v)
-                    if len(sound)==2:
-                        Y[X].sumofsounds += 2*min(sound)**2+max(sound)**2
-                    else:
-                        Y[X].sumofsounds += sum(np.array(sound)**2)
-                Y[X].C2tracerho = np.trace(np.trace(UnVoigt(Y[X].C2),axis1=1,axis2=2))/Y[X].rho
-                if not np.isclose(Y[X].C2tracerho,Y[X].sumofsounds): ## see Fitzgerald 1967 for details on this relation
-                    print(f"invariant sum of sound speeds unit test failed for {X}: {Y[X].C2tracerho=}, {Y[X].sumofsounds=}")
-                    success = False
-                if Y[X].Zener is not None:
-                    Y[X].AL = Y[X].anisotropy_index()
-                    Y[X].AL_Z = np.sqrt(5)*np.log((2+3*Y[X].Zener)*(3+2*Y[X].Zener)/(25*Y[X].Zener))
-                    if not np.isclose(Y[X].AL, Y[X].AL_Z):
-                        print(f"anisotropy unit test failed for {X}: {Y[X].AL=}, {Y[X].AL_Z=}")
-                        success = False
-                if X in fcc_metals: # could include bcc here, but don't spend too much time on this test
-                    Y[X].clowest1 = round(Y[X].find_wavespeed(accuracy=1e-2)) # due to reduced accuracy, only expect correct to 1 m/s
-                    Y[X].clowest2 = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
-                    if not (np.isclose(Y[X].clowest1, round(Y[X].clowest2)) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest)):
-                        print(f"find lowest sound speed unit test failed for {X}: {Y[X].clowest1=}, {Y[X].clowest2=}, {Y[X].vcrit_smallest=}")
-                        success = False
-                testC = (12.3e9,4.5e9,6e9)
-                a1 = convert_SOECiso(*testC[:2])
-                if not (np.allclose(a1,convert_SOECiso(bulk=a1['bulk'],c44=a1['c44'])) and np.allclose(a1,convert_SOECiso(lam=a1['c12'],bulk=a1['bulk'])) \
-                        and np.allclose(a1,convert_SOECiso(c12=a1['c12'],young=a1['young'])) and np.allclose(a1,convert_SOECiso(c12=a1['c12'],poisson=a1['poisson'])) \
-                        and np.allclose(a1,convert_SOECiso(bulk=a1['bulk'],young=a1['young'])) and np.allclose(a1,convert_SOECiso(bulk=a1['bulk'],poisson=a1['poisson'])) \
-                        and np.allclose(a1,convert_SOECiso(c44=a1['c44'],young=a1['young'])) and np.allclose(a1,convert_SOECiso(c44=a1['c44'],poisson=a1['poisson'])) \
-                        and np.allclose(a1,convert_SOECiso(poisson=a1['poisson'],young=a1['young']))):
-                    print("convert_SOECiso unit test failed")
-                    sucess = False
-                a2 = convert_TOECiso(*testC)
-                if not (np.allclose(a2,convert_TOECiso(l=a2['l'],m=a2['m'],n=a2['n'])) and np.allclose(a2,convert_TOECiso(nu1=a2['nu1'],nu2=a2['nu2'],nu3=a2['nu3']))):
-                    print("convert_TOECiso unit test failed")
-                    sucess = False
         else: print("skipping tests 'misc' as requested")
         print("\ncomparing misc results")
         for X in metal_list:
@@ -511,62 +472,6 @@ if __name__ == '__main__':
             if not diff(pathlib.Path(old,fname),pathlib.Path(cwd,fname),verbose=verbose):
                 if not verbose: print(f"{fname} differs")
                 success=False
-        no_failed_tests = printtestresult(success,no_failed_tests)
-    ############### TEST obj ###############################################
-    if runtests in ['all', 'obj'] and not skip_calcs:
-        success = True
-        print("running test 'obj' (unit tests for some sympy calculations within PyDislocDyn) ...")
-        # isotropic
-        iso = Dislocation(b=[1,0,0],n0=[0,1,0])
-        iso.init_symbols()
-        iso.vcrit=iso.computevcrit()
-        iso.sound =iso.computesound([1,0,0])
-        iso.compute_Lame()
-        iso.init_sound()
-        if not iso.rho*iso.vcrit['screw']**2-iso.c44==0 or \
-           sp.simplify(sp.Matrix(iso.sound)-sp.Matrix([iso.ct,iso.cl]))!=sp.Matrix([0,0]) or \
-           not np.prod(iso.vcrit['edge']*sp.sqrt(iso.rho))**2-iso.c44*iso.cl**2*iso.rho==0:
-            print("isotropic tests failed")
-            success=False
-        # fcc
-        fcc = Dislocation(b=[1,1,0],n0=[-1,1,-1],sym='fcc')
-        fcc.init_symbols()
-        fcc.vcrit=fcc.computevcrit()
-        fcc.sound =fcc.computesound([1,1,0])
-        fcc.compute_Lame(scheme='voigt')
-        fcc.init_all()
-        if not fcc.bulk-(fcc.c11+2*fcc.c12)/3==0 or \
-           not roundcoeff(sp.simplify(fcc.rho*fcc.vcrit['screw']**2 - 3*fcc.cp*fcc.c44/(fcc.c44+2*fcc.cp)),11)==0 or \
-           sp.simplify(sp.Matrix(fcc.sound)-fcc.vcrit['edge'])!=sp.Matrix([0,0,0]):
-            print("fcc tests failed")
-            success=False
-        # hcp (basal)
-        hcp = Dislocation(b=[-2,1,1,0],n0=[0, 0, 0, 1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
-        hcp.init_symbols()
-        hcp.vcrit = hcp.computevcrit()
-        c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
-        cp = (c11-c12)/2
-        if not roundcoeff(hcp.rho*hcp.vcrit['screw']**2-cp,10)==0:
-            print("hcp - basal tests failed")
-            success=False
-        # hcp (prismatic)
-        hcp = Dislocation(b=[-2,1,1,0],n0=[-1, 0, 1, 0],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
-        hcp.init_symbols()
-        hcp.vcrit = hcp.computevcrit()
-        c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
-        cp = (c11-c12)/2
-        if not roundcoeff(sp.simplify(hcp.rho*(hcp.vcrit['edge'][0]**2+hcp.vcrit['screw']**2)-cp-c44),10)==0:
-            print("hcp - prismatic tests failed")
-            success=False
-        # hcp (pyrmidal)
-        hcp = Dislocation(b=[-2,1,1,0],n0=[-1,0,1,1],lat_a=1,lat_c=sp.symbols('c0',positive=True),Miller=True,sym='hcp')
-        hcp.init_symbols()
-        hcp.vcrit = hcp.computevcrit()
-        c11,c12,c44,c0 = (hcp.c11,hcp.c12,hcp.c44,hcp.cc)
-        cp = (c11-c12)/2
-        if abs(sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp))).subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))>1e-12:
-            print("hcp-pyramidal tests failed")
-            success=False
         no_failed_tests = printtestresult(success,no_failed_tests)
         
     assert no_failed_tests==0, f"{no_failed_tests} tests failed"
