@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 8, 2025
+# Date: Nov. 5, 2017 - Oct. 30, 2025
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -29,10 +29,11 @@ Choose various resolutions and other parameters:
 #################################
 import sys
 import os
+import pathlib
 import copy
 import numpy as np
 from scipy.optimize import curve_fit
-dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
@@ -89,8 +90,7 @@ if __name__ == '__main__':
                     raise ValueError(f"One or more input files not found and {X} is not a valid keyword") from fnameerror
     
     if use_metaldata:
-        if not os.path.exists("temp_pydislocdyn"):
-            os.mkdir("temp_pydislocdyn")
+        pathlib.Path("temp_pydislocdyn").mkdir(exist_ok=True)
         os.chdir("temp_pydislocdyn")
         for X in metal:
             data.writeinputfile(X,X,iso=use_exp_Lame) # write temporary input files for requested X of metal_data
@@ -327,15 +327,14 @@ if __name__ == '__main__':
             fname = "Biso_of_sigma_all.pdf"
         sig_norm = np.linspace(0,3.6,500)
         ax.axis((0,sig_norm[-1],0.5,4))
-        if not os.path.exists("BofSig_iso"):
-            os.mkdir("BofSig_iso")
+        pathlib.Path("BofSig_iso").mkdir(exist_ok=True)
         for X in metal:
             Xc = X+character
             sig0 = Y[X].ct*B0[Xc]/Y[X].burgers
             ax.plot(sigma[Xc]/sig0,B_of_sig[Xc]/B0[Xc],label=fr"{X}, $B_0={1e6*B0[Xc]:.1f}\mu$Pas")
             Bsig = pd.Series(1e3*B_of_sig[Xc],index=1e-6*sigma[Xc],name=f"{Xc}, B [mPa s]")
             Bsig.index.name="resolved shear stress [MPa]"
-            Bsig.to_csv(os.path.join("BofSig_iso",f"B_of_sigma_{Xc}.csv.xz"),compression='xz',header=True)
+            Bsig.to_csv(pathlib.Path("BofSig_iso",f"B_of_sigma_{Xc}.csv.xz"),compression='xz',header=True)
         ax.plot(sig_norm,np.sqrt(1+sig_norm**2),':',color='black',label=r"$\sqrt{1+\left(\frac{\sigma b}{c_\mathrm{t}B_0}\right)^2}$")
         # ax.plot(sig_norm,0.25 + sig_norm,':',color='green',label="$0.25+\\frac{\sigma b}{c_\mathrm{t}B_0}$")
         plt.xticks(**fntsettings)

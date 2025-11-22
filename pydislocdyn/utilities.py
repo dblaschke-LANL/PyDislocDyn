@@ -8,6 +8,7 @@
 import sys
 import os
 import shutil
+import pathlib
 import glob
 import time
 import math
@@ -101,7 +102,7 @@ except ImportError:
     print("WARNING: module 'joblib' not found, will run on only one core\n")
     Ncores = Ncpus = 1 ## must be 1 without joblib
 
-dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 
@@ -109,7 +110,7 @@ def compilefortranmodule(buildopts='',clean=False):
     '''Compiles the Fortran subroutines if a Fortran compiler is available.
        Keyword 'buildopts' may be used to pass additional options to f2py.
        To delete files created by this function, set "clean"=True.'''
-    cwd = os.getcwd()
+    cwd =pathlib.Path.cwd()
     compilerflags = '' ## when in doubt, build without OpenMP support
     if sys.version_info[:2]<=(3,11):
         import setuptools
@@ -124,7 +125,7 @@ def compilefortranmodule(buildopts='',clean=False):
         compilerflags = '--dep=openmp' # requires f2py with new meson backend (default in numpy>=2.0 and python>=3.12)
     if buildopts != '':
         compilerflags += f" {buildopts}"
-    os.chdir(os.path.dirname(__file__))
+    os.chdir(pathlib.Path(__file__).parent)
     if clean:
         to_delete = ["subroutines.cpython*","fmoderror_py*.txt"]
         user_input = input(f'Deleting {to_delete[0]} and {to_delete[1]}; proceed? [y/N] ')
@@ -283,6 +284,7 @@ def str_to_array(arg,dtype=float):
     
 def read_2dresults(fname):
     '''Read results (such as line tension or drag coefficient) from file fname and return a Pandas DataFrame where index=beta (or [temperature,beta]) and columns=theta.'''
+    fname = str(fname)
     if os.access((newfn:=fname+'.xz'), os.R_OK):
         fname = newfn # new default
     elif os.access((newfn:=fname), os.R_OK):

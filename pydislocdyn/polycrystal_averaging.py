@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - June 30, 2025
+# Date: Nov. 7, 2017 - Oct. 30, 2025
 '''This script will compute polycrystal averages of second and third order elastic constants;
    it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
    will be taken into account unless the user passes input files (or keywords for some of 
@@ -11,9 +11,10 @@
 #################################
 import sys
 import os
+import pathlib
 import pandas as pd
 ## workaround for spyder's runfile() command when cwd is somewhere else:
-dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
@@ -73,8 +74,7 @@ if __name__ == '__main__':
                     raise ValueError(f"One or more input files not found and {X} is not a valid keyword") from fnameerror
     
     if use_metaldata:
-        if not os.path.exists("temp_pydislocdyn"):
-            os.mkdir("temp_pydislocdyn")
+        pathlib.Path("temp_pydislocdyn").mkdir(exist_ok=True)
         os.chdir("temp_pydislocdyn")
         for X in metal:
             ## change alt_soec=True to use SOEC numbers from Thomas:1968, Hiki:1966, Leese:1968, Powell:1984, and Graham:1968
