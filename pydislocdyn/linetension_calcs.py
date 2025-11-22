@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 8, 2025
+# Date: Nov. 3, 2017 - Oct. 30, 2025
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
@@ -32,10 +32,11 @@ Choose among predefined slip systems when using metal_data.py (see that file for
 #################################
 import sys
 import os
+import pathlib
 import shutil
 import lzma
 import numpy as np
-dir_path = os.path.realpath(os.path.join(os.path.dirname(__file__),os.pardir))
+dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
@@ -88,8 +89,7 @@ if __name__ == '__main__':
     bcc_metals = data.bcc_metals.copy()
     hcp_metals = data.hcp_metals.copy()
     if use_metaldata:
-        if not os.path.exists("temp_pydislocdyn"):
-            os.mkdir("temp_pydislocdyn")
+        pathlib.Path("temp_pydislocdyn").mkdir(exist_ok=True)
         os.chdir("temp_pydislocdyn")
         if scale_by_mu not in ('exp','crude','aver'):
             raise ValueError("option 'scale_by_mu must be one of 'exp','crude', or 'aver'.")
