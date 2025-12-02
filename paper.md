@@ -17,7 +17,7 @@ affiliations:
  - name: Los Alamos National Laboratory, Los Alamos, NM, 87545, USA
    index: 1
    ror: 01e41cf67
-date: 4 November 2025
+date: 2 December 2025
 bibliography: joss_pydislocdyn.bib
 
 ---
@@ -25,7 +25,7 @@ bibliography: joss_pydislocdyn.bib
 
 
 # Summary
-PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with various crystal symmetries in the continuum limit.
+PyDislocDyn is a suite of python programs designed to perform various calculations for dislocation dynamics in the continuum limit.
 In particular, one of its main purposes is to calculate dislocation drag from phonon wind.
 Additional features include the averaging of elastic constants for polycrystals, the calculation of the dislocation field including its limiting velocities, and the calculation of dislocation self-energy and line tension.
 
