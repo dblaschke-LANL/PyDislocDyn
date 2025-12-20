@@ -14,10 +14,10 @@ authors:
     equal-contrib: true
     affiliation: "1" # (Multiple affiliations must be quoted)
 affiliations:
- - name: Los Alamos National Laboratory, Los Alamos, NM, 87545, USA
+ - name: Los Alamos National Laboratory, Los Alamos, NM, 87545, United States of America
    index: 1
    ror: 01e41cf67
-date: 2 December 2025
+date: 20 December 2025
 bibliography: joss_pydislocdyn.bib
 
 ---
@@ -41,7 +41,7 @@ as well as discrete dislocation dynamics (DDD) simulations [@Gurrutxaga:2013;@Be
 
 Dislocation theory also predicts limiting velocities for dislocation glide where the elastic strain energy of the moving dislocation (and thereby also the drag coefficient from phonon wind) diverges [@Teutonico:1961;@Weertman:1962;@VanHull:1962;@Teutonico:1962;@Blaschke:2021vcrit].
 This prediction, however, has its roots in the simplifying assumption of a "perfect" dislocation, which neglects the fact that dislocations have a finite core size in a real crystal.
-Even in the continuum theory, these velocities can be overcome in principle when the dislocation core is taken into account in a regularising fashion, see [@Markenscoff:2008;@Pellegrini:2018;@Pellegrini:2020].
+Even in the continuum theory, these velocities can be overcome in principle when the dislocation core is taken into account in a regularizing fashion, see [@Markenscoff:2008;@Pellegrini:2018;@Pellegrini:2020].
 Thus within real crystals, the "limiting velocities" can be seen as dislocation velocities that are hard, but not necessarily impossible, to overcome.
 In fact, a number of molecular dynamics (MD) simulations of various cubic and hexagonal close-packed (hcp) metals (see e.g. [@Gumbsch:1999;@Olmsted:2005;@Tsuzuki:2008;@Oren:2017;@Peng:2019;@Dang:2022Mg;@Duong:2023a;@Jones:2025MSMSE] and references therein),
 as well as one experiment [@Katagiri:2023] on diamond, have predicted that dislocations can also glide at transonic or even supersonic speeds (i.e. above their highest limiting velocity).
