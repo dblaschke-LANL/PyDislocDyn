@@ -13,6 +13,8 @@ as well as parts of [Int. J. Plast. 131 (2020) 102750](https://doi.org/10.1016/j
 [Phys. Rev. B 108 (2023) 224102](https://doi.org/10.1103/PhysRevB.108.224102) ([arxiv.org/abs/2305.06980](https://arxiv.org/abs/2305.06980)).
 Additionally, it is able to reproduce the earlier results of LA-UR-16-24559 ([doi.org/10.2172/1434423](https://doi.org/10.2172/1434423)), [J. Appl. Phys. 122 (2017) 145110](https://doi.org/10.1063/1.4993443) ([arxiv.org/abs/1706.07132](https://arxiv.org/abs/1706.07132)), and [Phil. Mag. 98 (2018) 2397&ndash;2424](https://doi.org/10.1080/14786435.2018.1489152) ([arxiv.org/abs/1711.10555](https://arxiv.org/abs/1711.10555)).
 
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.09309/status.svg)](https://doi.org/10.21105/joss.09309)
+
 ## Author
 
 Daniel N. Blaschke
