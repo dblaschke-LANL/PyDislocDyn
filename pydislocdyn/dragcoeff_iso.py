@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 30, 2025
+# Date: Nov. 5, 2017 - Feb. 13, 2026
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -41,7 +41,7 @@ import pydislocdyn.metal_data as data
 from pydislocdyn.utilities import printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS
+from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS, init_drag_parser
 
 Ntheta = 2
 Nbeta = 99
@@ -58,13 +58,22 @@ beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or c
 Nphi = 50
 phononwind_opts = {} ## 
 
+parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
+parser.add_argument('-Ntheta','--Ntheta', type=int, default=2, help="""number of angles between Burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)""")
+
 #########
 if __name__ == '__main__':
+    # opts, args = parser.parse_known_args()
+    # if opts.Ncores is not None:
+    #     Ncores = opts.Ncores
     Y={}
     use_metaldata=True
     if len(sys.argv) > 1:
         args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
-        phononwind_opts.update(kwargs)
+        ## TODO: kwargs returned by parse_options contained keyword arguments from the commandline that are NOT in OPTIONS and
+        ## hence intepreted as additional keyword arguments to be passed on to phonondrag(); need to write a new function that
+        ## generates a dictionary for this purpose; some options are defined in OPTIONS, though (like 'modes', or maybe it's just this one?) and need to be added as well
+        phononwind_opts.update(kwargs) 
     phononwind_opts['modes']=modes
     printthreadinfo(Ncores)
     ### set range & step sizes after parsing the command line for options

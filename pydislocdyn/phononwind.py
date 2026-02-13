@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 26, 2025
+# Date: Nov. 5, 2017 - Feb. 13, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -17,7 +17,7 @@ import ast
 import numpy as np
 from scipy.optimize import curve_fit, minimize_scalar, root
 import pandas as pd
-from pydislocdyn.utilities import Ncores, usefortran, hbar, kB, str2bool, OPTIONS, \
+from pydislocdyn.utilities import Ncores, usefortran, hbar, kB, str2bool, OPTIONS, init_parser, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
@@ -434,6 +434,27 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         plt.savefig(fname,format='pdf',bbox_inches='tight')
         plt.close()
     return (B0,vcrit,sigma,B_of_sig)
+
+def init_drag_parser(**kwargs):
+    '''initializes an instance of an argparse.ArgumentParser() class with some default options, allowing additional arguments to be passed via **kwargs.'''
+    parser = init_parser(**kwargs)
+    parser.add_argument('-minb','--minb', type=float, default=0.01, help='smallest normalized gliding velocity (units of ct by default, see option -beta_reference)')
+    parser.add_argument('-maxb','--maxb', type=float, default=0.99, help='largest normalized gliding velocity (units of ct by default, see option -beta_reference)')
+    parser.add_argument('-Nbeta', '--Nbeta', type=int, default=99, help="""number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)""")
+    parser.add_argument('-modes','--modes', type=str, default='all', help="""phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T,
+                                  'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four)""")
+    parser.add_argument('-use_exp_Lame','--use_exp_Lame', type=str2bool, help='''if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default)
+                                   or analytical averages of SOEC and TOEC (use_exp_Lame = False)''')
+    parser.add_argument('-Nphi', '--Nphi', type=int, default=50, help="""resolution of polar angle in Fourier space; keep this an even number for higher accuracy (because we integrate over 
+                pi-periodic expressions in some places and phi ranges from 0 to 2pi)""")
+    parser.add_argument('-NT','--NT', type=int, default=1, help=""""EXPERIMENTAL FEATURE - number of temperatures between baseT and maxT
+                        (WARNING: implementation of temperature dependence is incomplete!)""")
+    parser.add_argument('-constantrho','--constantrho', type=str2bool, default=False, help='set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT')
+    parser.add_argument('-increaseTby','--increaseTby', type=float, default=300, help='so that maxT=baseT+increaseTby (units=Kelvin)')
+    parser.add_argument('-beta_reference','--beta_reference', default='base', type=str, help="""define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature""")
+    parser.add_argument('-phononwind_opts','--phononwind_opts', type=ast.literal_eval, default={}, help="""pass additional options to the phononwind subroutine (formatted as a dictionary)""")
+    parser.add_argument('-allplots','--allplots', action='store_true', help='set to show more B_of_sigma plots for each metal')
+    return parser
 
 ## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
 OPTIONS = OPTIONS | {"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool,

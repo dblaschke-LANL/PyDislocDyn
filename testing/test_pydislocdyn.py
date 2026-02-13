@@ -59,6 +59,8 @@ fastapprox=True ## set to False to include terms that are (close to) zero in acc
 vRF_resolution=50
 vRF_fast=True
 
+## TODO: port to argparse; need to know about all options - not clear if we can import from frontend scripts though ...
+## maybe keep parse_options and OPTIONS for this script only an djust port the package?
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool,
            "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
 OPTIONS |= OPTIONS_LT | OPTIONS_drag

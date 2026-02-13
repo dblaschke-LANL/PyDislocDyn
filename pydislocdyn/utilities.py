@@ -234,18 +234,7 @@ def init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",**kwargs):
     parser.add_argument('-Ncores','--Ncores', type=int, help='set the number of cores to use for joblib parallelization; will be auto-adjusted for optimal performance unless set by the user')
     parser.add_argument('-skip_plots','--skip_plots', action='store_true', help='as its name suggests, plots are skipped if this is set')
     # parser.add_argument('-Ntheta','--Ntheta', type=int, help='set the number of character angles; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ
-    # parser.add_argument('-Nbeta','--Nbeta', type=int, help='set the number of velocities to consider; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ between drag and LT calcs
-    # parser.add_argument('-Nphi', type=int, help='set the number of polar angles; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ between drag and LT calcs
     return parser
-
-# may not need this fct after all:
-# def strip_options(arglist):
-#     '''takes a list of strings and removes all entries starting with a dash'''
-#     out = arglist
-#     setoptions = [i for i in out if "-" in i and i[:1]=="-"]
-#     for i in setoptions:
-#         out.remove(i)
-#     return out
 
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
 def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n\n",includedoc=""):
@@ -253,9 +242,10 @@ def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsag
     These will then override default variables. This function also returns a copy of 'arglist' stripped of all
     option calls for further processing (e.g. opening input files that were passed etc.). If options are to be read
     from a file "fname" (with format key = value), use option --fromfile=fname; all options will be processed in
-    order of appearance even if an option appears more than once.'''
+    order of appearance even if an option appears more than once.
+    DEPRECATED - please consider using Python standard library 'argparse' instead.'''
     out = arglist
-    if '--help' in out:
+    if '--help' in out or out[0]=='-h':
         print(starthelpwith+includedoc)
         print("Use option --fromfile to read additional options from a file")
         print("Summary of available options and expected data types (see code manual for details):")

@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 30, 2025
+# Date: Nov. 5, 2017 - Feb. 13, 2026
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -54,7 +54,7 @@ from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, parse_options, showoptions, str2bool, Ncores, Ncpus, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, gridspec, make_axes_locatable, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS
+from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS, init_drag_parser
 if Ncores>1:
     from joblib import Parallel, delayed
 Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads()/2))) ## use this for parts of the code where openmp is not supported
@@ -89,6 +89,14 @@ phononwind_opts = {}
 OPTIONS = OPTIONS | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
                      "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
 metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
+
+parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
+parser.add_argument('-Ntheta','--Ntheta', type=int, default=600, help='set the resolution of the character angles (angles between disloc. line and Burgers vector) used in line tension calculations')
+parser.add_argument('-bccslip', '--bccslip', type=str, default='110', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
+allowed values: '110', '112', '123', 'all' (for all three)''')
+parser.add_argument('-hcpslip', '--hcpslip', type=str, default='basal', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
+allowed values: 'basal', 'prismatic', 'pyramidal', 'all'  (for all three)''')
+## TODO: add other options
 
 #########
 if __name__ == '__main__':
