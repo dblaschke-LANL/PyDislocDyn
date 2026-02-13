@@ -2,32 +2,10 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 30, 2025
+# Date: Nov. 3, 2017 - Feb. 13, 2026
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
-   
-Additional options (can be set on the commandline with syntax --keyword=value):
-   --scale_by_mu - choose which shear modulus to use for rescaling to dimensionless quantities;
-                   allowed values are: 'crude', 'aver', and 'exp' (default)
-                   choose 'crude' for mu = (c11-c12+2c44)/4,
-                   'aver' for mu=Hill average  (resp. improved average for cubic), 
-                   and 'exp' for experimental mu supplemented by 'aver' where data are missing
-                   (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided 
-                    in that file will be used and an average is only computed if mu is missing)
-   --skip_plots - default=False, set to True to skip generating line tension plots from the results
-   
-The following options are for choosing the resolution of discretized parameters.
-theta is the angle between disloc. line and Burgers vector, beta is the dislocation velocity,
-and phi is an integration angle used in the integral method for computing dislocations:
-   --Ntheta (default:600)
-   --Nbeta (default: 500) - set to 0 to bypass line tension calculations
-   --Nphi (default: 1000)
-   --Ntheta2 (default: 21) - number of character angles for which to calculate critical velocities (set to None or 0 to bypass entirely)
-   
-Choose among predefined slip systems when using metal_data.py (see that file for details):
-   --bccslip - allowed values: '110', '112', '123', 'all' (for all three, default)
-   --hcpslip - allowed values: 'basal', 'prismatic', 'pyramidal', 'all' (for all three,default)
 '''
 #################################
 import sys
@@ -41,40 +19,49 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import printthreadinfo, Ncores, parse_options, showoptions, read_2dresults, OPTIONS, \
+from pydislocdyn.utilities import printthreadinfo, Ncores, read_2dresults, init_parser, OPTIONS, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
 if Ncores>1:
     from joblib import Parallel, delayed
 
-scale_by_mu = 'exp'
-skip_plots=False
-Ntheta = 600
-Ntheta2 = 21
-Nbeta = 500 
-Nphi = 1000
-bccslip = 'all' 
-hcpslip = 'all'
-OPTIONS = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str}
+parser = init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
+parser.add_argument('-Ntheta','--Ntheta', type=int, default=600, help='set the resolution of the character angles (angles between disloc. line and Burgers vector) used in line tension calculations')
+parser.add_argument('-Ntheta2','--Ntheta2', type=int, default=600, help='set the resolution of the character angles considered for calculating limiting velocities (set to None or 0 to bypass entirely)')
+parser.add_argument('-Nbeta','--Nbeta', type=int, default=500, help='set the resolution of the dislocation velocities to consider; set to 0 to bypass line tension calculations')
+parser.add_argument('-Nphi', '--Nphi', type=int, default=1000, help='set the resolution of the polar angles (integration angles used in the integral method for computing dislocations)')
+parser.add_argument('-scale_by_mu', '--scale_by_mu', type=str, default='exp', help="""choose which shear modulus to use for rescaling to dimensionless quantities;
+                allowed values are: 'crude', 'aver', and 'exp'.
+                Choose 'crude' for mu = (c11-c12+2c44)/4, 'aver' for mu=Hill average  (resp. improved average for cubic), 
+                and 'exp' for experimental mu supplemented by 'aver' where data are missing
+                (note: when using input files, 'aver' and 'exp' are equivalent in that mu provided 
+                 in that file will be used and an average is only computed if mu is missing)""")
+parser.add_argument('-bccslip', '--bccslip', type=str, default='all', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
+allowed values: '110', '112', '123', 'all' (for all three)''')
+parser.add_argument('-hcpslip', '--hcpslip', type=str, default='all', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
+allowed values: 'basal', 'prismatic', 'pyramidal', 'all'  (for all three)''')
+
+OPTIONS = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str} ## TODO: remove once test suite is ported to argparse
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
 ### start the calculations
 if __name__ == '__main__':
+    opts, args = parser.parse_known_args()
+    if opts.Ncores is not None:
+        Ncores = opts.Ncores
     Y={}
     metal_list = []
     use_metaldata=True
-    if len(sys.argv) > 1:
-        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
     printthreadinfo(Ncores)
     ### set range & step sizes after parsing the commandline for options
-    dtheta = np.pi/(Ntheta-2)
-    theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,Ntheta+1)
-    beta = np.linspace(0,1,Nbeta)
+    dtheta = np.pi/(opts.Ntheta-2)
+    theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,opts.Ntheta+1)
+    beta = np.linspace(0,1,opts.Nbeta)
     metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
         try:
-            inputdata = [readinputfile(i,init=False,theta=theta,Nphi=Nphi) for i in args]
+            inputdata = [readinputfile(i,init=False,theta=theta,Nphi=opts.Nphi) for i in args]
             Y = {i.name:i for i in inputdata}
             metal = metal_list = list(Y.keys())
             use_metaldata=False
@@ -91,27 +78,27 @@ if __name__ == '__main__':
     if use_metaldata:
         pathlib.Path("temp_pydislocdyn").mkdir(exist_ok=True)
         os.chdir("temp_pydislocdyn")
-        if scale_by_mu not in ('exp','crude','aver'):
-            raise ValueError("option 'scale_by_mu must be one of 'exp','crude', or 'aver'.")
-        if scale_by_mu=='exp':
+        if opts.scale_by_mu not in ('exp','crude','aver'):
+            raise ValueError("option 'scale_by_mu' must be one of 'exp','crude', or 'aver'.")
+        if opts.scale_by_mu=='exp':
             isokw=False ## use single crystal elastic constants and additionally write average shear modulus of polycrystal to temp. input file
         else:
             isokw='omit' ## writeinputfile(..., iso='omit') will bypass writing ISO_c44 values to the temp. input files and missing Lame constants will always be auto-generated by averaging
         for X in metal:
             if X in bcc_metals:
-                if bccslip == 'all':
+                if opts.bccslip == 'all':
                     slipkw = ['110', '112', '123']
                 else:
-                    slipkw=[bccslip]
+                    slipkw=[opts.bccslip]
                 for kw in slipkw:
                     data.writeinputfile(X,X+kw,iso=isokw,bccslip=kw)
                     metal_list.append(X+kw)
                     bcc_metals.add(X+kw)
             elif X in hcp_metals:
-                if hcpslip == 'all':
+                if opts.hcpslip == 'all':
                     slipkw = ['basal','prismatic','pyramidal']
                 else:
-                    slipkw=[hcpslip]
+                    slipkw=[opts.hcpslip]
                 for kw in slipkw:
                     data.writeinputfile(X,X+kw,iso=isokw,hcpslip=kw)
                     metal_list.append(X+kw)
@@ -123,13 +110,13 @@ if __name__ == '__main__':
                 metal_list.append(X)
         for X in metal_list:
             if X=='ISO': ## define some isotropic elastic constants to check isotropic limit:
-                Y[X] = Dislocation(sym='iso', name='ISO', b=[1,0,0], n0=[0,1,0], theta=theta, Nphi=Nphi, lat_a=1e-10)
+                Y[X] = Dislocation(sym='iso', name='ISO', b=[1,0,0], n0=[0,1,0], theta=theta, Nphi=opts.Nphi, lat_a=1e-10)
                 Y[X].burgers = 1e-10
                 Y[X].c44 = 1e9
                 Y[X].poisson = 1/3
                 Y[X].rho = 1e3
             else:
-                Y[X] = readinputfile(X,init=False,theta=theta,Nphi=Nphi)
+                Y[X] = readinputfile(X,init=False,theta=theta,Nphi=opts.Nphi)
         os.chdir("..")
         metal = metal_list
         ## list of metals symmetric in +/-theta (for the predefined slip systems):
@@ -140,16 +127,16 @@ if __name__ == '__main__':
     for X in metal:
         Y[X].init_C2()
         ## want to scale everything by the average shear modulus and thereby calculate in dimensionless quantities
-        if scale_by_mu == 'crude':
+        if opts.scale_by_mu == 'crude':
             Y[X].mu = (Y[X].C2[0,0]-Y[X].C2[0,1]+2*Y[X].C2[3,3])/4
         #### will generate missing mu/lam by averaging over single crystal constants (improved Hershey/Kroener scheme for cubic, Hill otherwise)
         ### for hexagonal/tetragonal metals, this corresponds to the average shear modulus in the basal plane (which is the most convenient for the present calculations)
         if Y[X].mu is None:
             Y[X].compute_Lame()
 
-    if Nbeta > 0:
+    if opts.Nbeta > 0:
         with open("linetension_calcs_options.log","w", encoding="utf8") as logfile:
-            optiondict = showoptions(OPTIONS,globals())
+            optiondict = vars(opts)
             for key, item in optiondict.items():
                 if key not in ['Ncores', 'skip_plots']:
                     logfile.write(f"{key} = {item}\n")
@@ -196,15 +183,15 @@ if __name__ == '__main__':
         
     # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
     print(f"Computing the line tension for: {metal}")
-    if Ncores == 1 and Nbeta >=1:
+    if Ncores == 1 and opts.Nbeta >=1:
         [maincomputations(i) for i in range(len(metal))]
-    elif Nbeta<1:
+    elif opts.Nbeta<1:
         print("skipping line tension calculations, Nbeta>0 required")
     else:
         Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
 
 ################## create plots ################
-    if skip_plots:
+    if opts.skip_plots:
         print("skipping plots as requested")
         plt_metal = []
     else:
@@ -256,21 +243,21 @@ if __name__ == '__main__':
         mkLTplots(X)
     
 ################################################
-    if Ntheta2==0 or Ntheta2 is None:
+    if opts.Ntheta2==0 or opts.Ntheta2 is None:
         sys.exit()
     
     print(f"Computing critical velocities for: {metal}")
     for X in metal:
         if X in metal_symm:
             current_symm=True
-            Y[X].computevcrit(theta=np.linspace(0,np.pi/2,Ntheta2))
+            Y[X].computevcrit(theta=np.linspace(0,np.pi/2,opts.Ntheta2))
         else:
             current_symm=False
-            Y[X].computevcrit(theta=np.linspace(-np.pi/2,np.pi/2,2*Ntheta2-1))
+            Y[X].computevcrit(theta=np.linspace(-np.pi/2,np.pi/2,2*opts.Ntheta2-1))
     
     ## write vcrit results to disk, then plot
     with open("vcrit.dat","w", encoding="utf8") as vcritfile:
-        vcritfile.write("theta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*Ntheta2-1)) + '\n')
+        vcritfile.write("theta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*opts.Ntheta2-1)) + '\n')
         vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
         for X in sorted(list(set(metal))):
             for i in range(3):
@@ -301,4 +288,4 @@ if __name__ == '__main__':
         plt.close()
     
     for X in sorted(list(set(metal))):
-        mkvcritplot(X,Ntheta2)
+        mkvcritplot(X,opts.Ntheta2)

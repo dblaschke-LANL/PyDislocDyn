@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 5, 2025
+# Date: Nov. 5, 2017 - Feb. 13, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -11,6 +11,7 @@ import shutil
 import pathlib
 import glob
 import time
+import argparse
 import math
 from fractions import Fraction
 import multiprocessing
@@ -226,6 +227,25 @@ def loadinputfile(fname,optionmode=False):
                             value += addval
                     inputparams[key] = value
     return inputparams
+
+def init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",**kwargs):
+    '''initializes an instance of an argparse.ArgumentParser() class with some default options, allowing additional arguments to be passed via **kwargs.'''
+    parser = argparse.ArgumentParser(usage=usage,formatter_class=argparse.ArgumentDefaultsHelpFormatter,fromfile_prefix_chars='@',**kwargs)
+    parser.add_argument('-Ncores','--Ncores', type=int, help='set the number of cores to use for joblib parallelization; will be auto-adjusted for optimal performance unless set by the user')
+    parser.add_argument('-skip_plots','--skip_plots', action='store_true', help='as its name suggests, plots are skipped if this is set')
+    # parser.add_argument('-Ntheta','--Ntheta', type=int, help='set the number of character angles; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ
+    # parser.add_argument('-Nbeta','--Nbeta', type=int, help='set the number of velocities to consider; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ between drag and LT calcs
+    # parser.add_argument('-Nphi', type=int, help='set the number of polar angles; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ between drag and LT calcs
+    return parser
+
+# may not need this fct after all:
+# def strip_options(arglist):
+#     '''takes a list of strings and removes all entries starting with a dash'''
+#     out = arglist
+#     setoptions = [i for i in out if "-" in i and i[:1]=="-"]
+#     for i in setoptions:
+#         out.remove(i)
+#     return out
 
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
 def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n\n",includedoc=""):
