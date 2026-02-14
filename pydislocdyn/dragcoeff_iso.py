@@ -7,24 +7,6 @@
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
    metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
-
-Additional options (can be set on the commandline with syntax --keyword=value):
-   --skip_plots - default=False, set to True to skip generating plots from the results
-   --use_exp_Lame - default=True, if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default) 
-                                  or analytical averages of SOEC and TOEC (use_exp_Lame = False)
-   --allplots - default=False, set to True to show more B_of_sigma plots for each metal
-
-Choose various resolutions and other parameters:
-    --Ntheta (default:2) - number of angles between Burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)
-    --Nbeta (default:99) - number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)
-    --minb (default:0.01)
-    --maxb (default:0.99)
-    
-    --modes - phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T, 'LT'=T scattering into L, 
-                                  'mix'=TL+LT, 'all'=sum of all four = default)
-    --Nphi - resolution of polar angle in Fourier space; keep this an even number for higher accuracy (because we integrate over 
-                pi-periodic expressions in some places and phi ranges from 0 to 2pi)
-    --phononwind_opts - pass additional options to the phononwind subroutine (formatted as a dictionary)
 '''
 #################################
 import sys
@@ -38,55 +20,39 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import printthreadinfo, parse_options, showoptions, Ncores, read_2dresults, \
+from pydislocdyn.utilities import printthreadinfo, separate_options, showoptions, Ncores, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS, init_drag_parser
-
-Ntheta = 2
-Nbeta = 99
-minb = 0.01
-maxb = 0.99
-modes = 'all'
-skip_plots = False
-use_exp_Lame = True
-allplots = False
-NT = 1 # number of temperatures between baseT and maxT (WARNING: implementation of temperature dependence is incomplete!)
-constantrho = False ## set to True to override thermal expansion coefficient and use alpha_a = 0 for T > baseT
-increaseTby = 300 # so that maxT=baseT+increaseTby (default baseT=300 Kelvin, but may be overwritten by an input file below)
-beta_reference = 'base'  ## define beta=v/ct, choosing ct at baseT ('base') or current T ('current') as we increase temperature
-Nphi = 50
-phononwind_opts = {} ## 
 
 parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
 parser.add_argument('-Ntheta','--Ntheta', type=int, default=2, help="""number of angles between Burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)""")
 
 #########
 if __name__ == '__main__':
-    # opts, args = parser.parse_known_args()
-    # if opts.Ncores is not None:
-    #     Ncores = opts.Ncores
+    opts, args = parser.parse_known_args()
+    if opts.Ncores is None:
+        opts.Ncores = Ncores
+    if not isinstance(opts.phononwind_opts, dict):
+        raise ValueError(f"{opts.phononwind_opts=} is not a dictionary - please check formatting of commandline option '--phononwind_opts'!")
     Y={}
     use_metaldata=True
     if len(sys.argv) > 1:
-        args, kwargs = parse_options(sys.argv[1:],OPTIONS,globals(),includedoc=f"{__doc__}\n")
-        ## TODO: kwargs returned by parse_options contained keyword arguments from the commandline that are NOT in OPTIONS and
-        ## hence intepreted as additional keyword arguments to be passed on to phonondrag(); need to write a new function that
-        ## generates a dictionary for this purpose; some options are defined in OPTIONS, though (like 'modes', or maybe it's just this one?) and need to be added as well
-        phononwind_opts.update(kwargs) 
-    phononwind_opts['modes']=modes
-    printthreadinfo(Ncores)
+        ## any options starting with a '-' not recognized by parser will go into kwargs here
+        args, kwargs = separate_options(args,OPTIONS)
+        opts.phononwind_opts.update(kwargs)
+    printthreadinfo(opts.Ncores)
     ### set range & step sizes after parsing the command line for options
-    beta = np.linspace(minb,maxb,Nbeta)
-    phi = np.linspace(0,2*np.pi,Nphi)
-    if use_exp_Lame:
+    beta = np.linspace(opts.minb,opts.maxb,opts.Nbeta)
+    phi = np.linspace(0,2*np.pi,opts.Nphi)
+    if opts.use_exp_Lame:
         metal = sorted(list(data.ISO_l.keys()))
     else:
         metal = sorted(list(data.c111.keys()))
     metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
         try:
-            inputdata = [readinputfile(i, Ntheta=Ntheta, isotropify=True) for i in args]
+            inputdata = [readinputfile(i, Ntheta=opts.Ntheta, isotropify=True) for i in args]
             Y = {i.name:i for i in inputdata}
             metal = list(Y.keys())
             use_metaldata=False
@@ -102,11 +68,11 @@ if __name__ == '__main__':
         pathlib.Path("temp_pydislocdyn").mkdir(exist_ok=True)
         os.chdir("temp_pydislocdyn")
         for X in metal:
-            data.writeinputfile(X,X,iso=use_exp_Lame) # write temporary input files for requested X of metal_data
-            Y[X] = readinputfile(X,Ntheta=Ntheta,isotropify=True)
+            data.writeinputfile(X,X,iso=opts.use_exp_Lame) # write temporary input files for requested X of metal_data
+            Y[X] = readinputfile(X,Ntheta=opts.Ntheta,isotropify=True)
         os.chdir("..")
     
-    if Ncores == 0:
+    if opts.Ncores == 0:
         print("skipping phonon wind calculations as requested")
     else:
         with open("dragcoeff_iso_options.log","w", encoding="utf8") as logfile:
@@ -122,22 +88,22 @@ if __name__ == '__main__':
                 logfile.write("\n\ntheta:\n")
                 logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
-        print(f"Computing the drag coefficient from phonon wind ({modes} modes in the isotropic limit) for: {metal}")
+        print(f"Computing the drag coefficient from phonon wind ({opts.modes} modes in the isotropic limit) for: {metal}")
     
     highT = {}
     for X in metal:
-        highT[X] = np.linspace(Y[X].T,Y[X].T+increaseTby,NT)
-        if constantrho:
+        highT[X] = np.linspace(Y[X].T,Y[X].T+opts.increaseTby,opts.NT)
+        if opts.constantrho:
             Y[X].alpha_a = 0
         ## only write temperature to files if we're computing temperatures other than baseT=Y[X].T
-        if len(highT[X])>1 and Ncores !=0:
+        if len(highT[X])>1 and opts.Ncores !=0:
             with open(X+"_iso.log","a", encoding="utf8") as logfile:
                 logfile.write("\n\nT:\n")
                 logfile.write('\n'.join(map("{:.2f}".format,highT[X])))
     for X in metal:
-        if Ncores != 0:
+        if opts.Ncores != 0:
             Bmix = np.zeros((len(beta),len(Y[X].theta),len(highT[X])))
-            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=Ncores, pandas_out=False, **phononwind_opts)
+            Bmix[:,:,0] = phonondrag(Y[X], beta, Ncores=opts.Ncores, pandas_out=False, **opts.phononwind_opts)
             for Ti in range(len(highT[X])-1):
                 Z = copy.copy(Y[X]) ## local copy we can modify for higher T
                 Z.T = highT[X][Ti+1]
@@ -152,7 +118,7 @@ if __name__ == '__main__':
                 Z.cl = Z.ct/Z.ct_over_cl
                 Z.init_C2()
                 ## beta, as it appears in the equations, is v/ctT, therefore:
-                if beta_reference == 'current':
+                if opts.beta_reference == 'current':
                     betaT = beta
                 else:
                     betaT = beta*Y[X].ct/Z.ct
@@ -163,7 +129,7 @@ if __name__ == '__main__':
                 Z.init_C3()
                 Z.vcrit_all = None ## needs to be recomputed
                 ##
-                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=Ncores, pandas_out=False, **phononwind_opts)
+                Bmix[:,:,Ti+1] = phonondrag(Z, betaT, Ncores=opts.Ncores, pandas_out=False, **opts.phononwind_opts)
             
             # and write the results to disk (in various formats)
             with open(f"drag_{X}.dat","w", encoding="utf8") as Bfile:
@@ -173,7 +139,7 @@ if __name__ == '__main__':
                     Bfile.write(f"{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
-        if len(highT[X])>1 and Ncores !=0:
+        if len(highT[X])>1 and opts.Ncores !=0:
             with open(f"drag_T_{X}.dat","w", encoding="utf8") as Bfile:
                 if len(Y[X].theta)>2:
                     Bfile.write('temperature[K]\tbeta\tBscrew[mPas]\t' + '\t'.join(map("{:.5f}".format,Y[X].theta[1:-1])) + '\tBedge[mPas]' + '\n')
@@ -185,7 +151,7 @@ if __name__ == '__main__':
 
     #############################################################################################################################
 
-    if skip_plots:
+    if opts.skip_plots:
         print("skipping plots as requested")
         sys.exit()
     
@@ -203,7 +169,7 @@ if __name__ == '__main__':
     metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'green', 'Nb':'red', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
         
     ## define fitting fcts.:
-    if modes=='TT': ## degree of divergence is reduced for purely transverse modes
+    if opts.modes=='TT': ## degree of divergence is reduced for purely transverse modes
         print("fitting for transverse modes only (assuming reduced degrees of divergence)")
         def fit_edge(x, c0, c1, c2, c3, c4):
             '''define a fitting function for edge dislocations'''
@@ -234,7 +200,7 @@ if __name__ == '__main__':
         popt_screw[X], pcov_screw[X] = curve_fit(fit_screw, beta, Broom[X].iloc[:,0], bounds=([0.9*Broom[X].iloc[0,0],0.,-0.,-0.,-0.], [1.1*Broom[X].iloc[0,0], 2*Broom[X].iloc[0,0], 1., 1., 1.]))
     
     with open("drag_iso_fit.txt","w", encoding="utf8") as fitfile:
-        if modes=='TT': ## degree of divergence is reduced for purely transverse modes
+        if opts.modes=='TT': ## degree of divergence is reduced for purely transverse modes
             fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature (transverse modes only):\nEdge dislocations:\n")
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_edge[X]))
@@ -261,7 +227,7 @@ if __name__ == '__main__':
         plt.yticks(**fntsettings)
         ax.set_xticks(np.arange(11)/10)
         ax.set_yticks(np.arange(12)/100)
-        ax.axis((0,maxb,0,0.11)) ## define plot range
+        ax.axis((0,opts.maxb,0,0.11)) ## define plot range
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel(r'$\beta_\mathrm{t}$',**fntsettings)
@@ -314,9 +280,9 @@ if __name__ == '__main__':
                 popt = tuple(popt_screw[X])+tuple(popt_edge[X])
                 fit=fit_aver
             Xc = X+character
-            if character=='screw' and modes == 'TT':
+            if character=='screw' and opts.modes == 'TT':
                 print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
-            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=allplots,B0fit='weighted',fit=fit)
+            B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=opts.allplots,B0fit='weighted',fit=fit)
         if len(metal)<5:
             fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
             legendops={'loc':'best','ncol':1}

@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Nov. 22, 2025
+# Date: Mar. 6, 2023 - Feb. 13, 2026
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -59,7 +59,7 @@ fastapprox=True ## set to False to include terms that are (close to) zero in acc
 vRF_resolution=50
 vRF_fast=True
 
-## TODO: port to argparse; need to know about all options - not clear if we can import from frontend scripts though ...
+## TODO: instead of porting to argparse, switch all tests here to pytest functions
 ## maybe keep parse_options and OPTIONS for this script only an djust port the package?
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool,
            "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
@@ -149,6 +149,8 @@ if __name__ == '__main__':
         if len(old)==0:
             raise ValueError("missing one argument: folder containing old results")
         old = pathlib.Path(old[0])
+        if not isinstance(phononwind_opts, dict):
+            raise ValueError(f"{phononwind_opts=} is not a dictionary, please check the formatting of the according command-line option!")
         phononwind_opts.update(kwargs)
         NEWopts = globals().keys()-oldglobals.keys() ## pass options which we haven't previously defined but that the user has set
         LTopts = {i:globals()[i] for i in NEWopts if i in OPTIONS_LT.keys()}

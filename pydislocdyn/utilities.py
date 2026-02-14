@@ -276,8 +276,27 @@ def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsag
     time.sleep(1) ## avoid race conditions after changing global variables
     return (out,kwargs)
 
+def separate_options(arglist,optionlist):
+    '''Separates options (format --key=value) from positional arguments (no dash), assuming arglist is a list of commandline arguments unknown to the argparse parser.
+       Note that this function will silently ignore any options deviating from the expected format.'''
+    out = arglist
+    options = [i for i in out if "-" in i and i[:1]=="-"]
+    kwargs = {}
+    for i in options:
+        out.remove(i)
+        if "=" not in i: continue ## ignore options without assigned values
+        key,val = i[1:].split("=")
+        if key[0]=='-':
+            key = key[1:]
+        if key=="fromfile":
+            raise ValueError("Option '--fromfile' is no longer supported, please use prefix '@' to read options from a file.")
+        else:
+            kwargs[key] = guesstype(val)
+    return (out,kwargs)
+
 def showoptions(optionlist,globaldict=globals()):
-    '''returns a python dictionary of all options that can be set by the user (showing default values for those that have not been set by the user)'''
+    '''returns a python dictionary of all options that can be set by the user (showing default values for those that have not been set by the user)
+    DEPRECATED - no longer used'''
     optiondict = {}
     for key in optionlist:
         optiondict[key] = globaldict.get(key)
