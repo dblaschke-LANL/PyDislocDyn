@@ -17,7 +17,7 @@ import ast
 import numpy as np
 from scipy.optimize import curve_fit, minimize_scalar, root
 import pandas as pd
-from pydislocdyn.utilities import Ncores, usefortran, hbar, kB, str2bool, OPTIONS, init_parser, \
+from pydislocdyn.utilities import Ncores, usefortran, hbar, kB, str2bool, init_parser, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
@@ -455,7 +455,3 @@ def init_drag_parser(**kwargs):
     parser.add_argument('-phononwind_opts','--phononwind_opts', type=ast.literal_eval, default={}, help="""pass additional options to the phononwind subroutine (formatted as a dictionary)""")
     parser.add_argument('-allplots','--allplots', action='store_true', help='set to show more B_of_sigma plots for each metal')
     return parser
-
-## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
-OPTIONS = OPTIONS | {"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool,
-                     "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval, "allplots":str2bool}

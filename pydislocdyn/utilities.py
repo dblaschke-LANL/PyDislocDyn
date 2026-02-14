@@ -236,7 +236,7 @@ def init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",**kwargs):
     # parser.add_argument('-Ntheta','--Ntheta', type=int, help='set the number of character angles; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ
     return parser
 
-OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
+OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by test suite
 def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n\n",includedoc=""):
     '''Search commandline arguments for known options to set by comparing to a list of keyword strings "optionlist".
     These will then override default variables. This function also returns a copy of 'arglist' stripped of all
@@ -276,7 +276,7 @@ def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsag
     time.sleep(1) ## avoid race conditions after changing global variables
     return (out,kwargs)
 
-def separate_options(arglist):
+def _separate_options(arglist):
     '''Separates options (format --key=value) from positional arguments (no dash), assuming arglist is a list of commandline arguments unknown to the argparse parser.
        Note that this function will silently ignore any options deviating from the expected format.'''
     out = arglist

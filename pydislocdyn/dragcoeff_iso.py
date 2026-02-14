@@ -20,7 +20,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import printthreadinfo, separate_options, Ncores, read_2dresults, \
+from pydislocdyn.utilities import printthreadinfo, _separate_options, Ncores, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, B_of_sigma, init_drag_parser
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     use_metaldata=True
     if len(sys.argv) > 1:
         ## any options starting with a '-' not recognized by parser will go into kwargs here
-        args, kwargs = separate_options(args)
+        args, kwargs = _separate_options(args)
         opts.phononwind_opts.update(kwargs)
     printthreadinfo(opts.Ncores)
     ### set range & step sizes after parsing the command line for options

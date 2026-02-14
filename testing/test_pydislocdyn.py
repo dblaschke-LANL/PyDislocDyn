@@ -12,6 +12,7 @@ import subprocess
 import pathlib
 import difflib
 import lzma
+import ast
 dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
     sys.path.append(dir_path)
@@ -21,7 +22,6 @@ from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_meta
     ISO_l, c111, all_metals
 from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df, OPTIONS
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
-from pydislocdyn.phononwind import OPTIONS as OPTIONS_drag
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
 import sympy as sp
 import pandas as pd
@@ -29,7 +29,10 @@ if Ncores>1:
     from joblib import Parallel, delayed
 
 OPTIONS_LT = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str} 
-OPTIONS_drag = OPTIONS_drag | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
+## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
+OPTIONS_drag = OPTIONS | {"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool,
+                     "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval, "allplots":str2bool} \
+     | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
                      "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
 runtests = 'all'
 skip_calcs = False
