@@ -20,10 +20,10 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 import pydislocdyn.metal_data as data
-from pydislocdyn.utilities import printthreadinfo, separate_options, showoptions, Ncores, read_2dresults, \
+from pydislocdyn.utilities import printthreadinfo, separate_options, Ncores, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag, B_of_sigma, OPTIONS, init_drag_parser
+from pydislocdyn.phononwind import phonondrag, B_of_sigma, init_drag_parser
 
 parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
 parser.add_argument('-Ntheta','--Ntheta', type=int, default=2, help="""number of angles between Burgers vector and dislocation line (minimum 2, i.e. pure edge and pure screw)""")
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     use_metaldata=True
     if len(sys.argv) > 1:
         ## any options starting with a '-' not recognized by parser will go into kwargs here
-        args, kwargs = separate_options(args,OPTIONS)
+        args, kwargs = separate_options(args)
         opts.phononwind_opts.update(kwargs)
     printthreadinfo(opts.Ncores)
     ### set range & step sizes after parsing the command line for options

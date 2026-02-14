@@ -19,16 +19,18 @@ dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
     ISO_l, c111, all_metals
-from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
+from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df, OPTIONS
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
-from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
-from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
+from pydislocdyn.phononwind import OPTIONS as OPTIONS_drag
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
 import sympy as sp
 import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
 
+OPTIONS_LT = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str} 
+OPTIONS_drag = OPTIONS_drag | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
+                     "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
 runtests = 'all'
 skip_calcs = False
 verbose = False
@@ -251,7 +253,7 @@ if __name__ == '__main__':
             drag_folder.mkdir(exist_ok=True)
             print("running test 'drag' ...")
             os.chdir(pathlib.Path(cwd,drag_folder))
-            commandargs = dragopts + [f'--{Ncores=}',f'--{skiptransonic=}',f'--{use_exp_Lame=}',f'--{use_iso=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--phononwind_opts={phononwind_opts}',f'--{Ntheta=}',f'--{Nbeta=}',f'--{NT=}',f'{metals}']
+            commandargs = dragopts + [f'--{Ncores=}',f'--{skiptransonic=}',f'--{use_exp_Lame=}',f'--{use_iso}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--phononwind_opts={phononwind_opts}',f'--{Ntheta=}',f'--{Nbeta=}',f'--{NT=}',f'{metals}']
             if runscript("dragcoeff_semi_iso.py",commandargs,'dragsemi.log')!=0:
                 success=False
             os.chdir(cwd)

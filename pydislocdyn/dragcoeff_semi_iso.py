@@ -24,12 +24,10 @@ from pydislocdyn import metal_data as data
 from pydislocdyn.utilities import ompthreads, printthreadinfo, separate_options, str2bool, Ncores, Ncpus, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, gridspec, make_axes_locatable, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
-from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, OPTIONS, init_drag_parser
+from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, init_drag_parser
 if Ncores>1:
     from joblib import Parallel, delayed
 Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads()/2))) ## use this for parts of the code where openmp is not supported
-OPTIONS = OPTIONS | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
-                     "Nq":int, "NphiX":int, "rmin":float, "rmax":float} ## TODO: remove once test suite is ported to argparse
 metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
 parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
@@ -60,7 +58,7 @@ if __name__ == '__main__':
     use_metaldata=True
     if len(sys.argv) > 1:
         ## any options starting with a '-' not recognized by parser will go into kwargs here
-        args, kwargs = separate_options(args,OPTIONS)
+        args, kwargs = separate_options(args)
         opts.phononwind_opts.update(kwargs)
     if len(kwargs)>0:
         print(f"passing {opts.phononwind_opts=}")

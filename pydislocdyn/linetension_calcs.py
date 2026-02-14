@@ -19,7 +19,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import printthreadinfo, Ncores, read_2dresults, init_parser, OPTIONS, \
+from pydislocdyn.utilities import printthreadinfo, Ncores, read_2dresults, init_parser, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
 from pydislocdyn.elasticconstants import UnVoigt
 from pydislocdyn.dislocations import Dislocation, readinputfile
@@ -42,7 +42,6 @@ allowed values: '110', '112', '123', 'all' (for all three)''')
 parser.add_argument('-hcpslip', '--hcpslip', type=str, default='all', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
 allowed values: 'basal', 'prismatic', 'pyramidal', 'all'  (for all three)''')
 
-OPTIONS = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str} ## TODO: remove once test suite is ported to argparse
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
 ### start the calculations

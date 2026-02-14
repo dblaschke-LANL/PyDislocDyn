@@ -276,7 +276,7 @@ def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsag
     time.sleep(1) ## avoid race conditions after changing global variables
     return (out,kwargs)
 
-def separate_options(arglist,optionlist):
+def separate_options(arglist):
     '''Separates options (format --key=value) from positional arguments (no dash), assuming arglist is a list of commandline arguments unknown to the argparse parser.
        Note that this function will silently ignore any options deviating from the expected format.'''
     out = arglist
@@ -290,17 +290,8 @@ def separate_options(arglist,optionlist):
             key = key[1:]
         if key=="fromfile":
             raise ValueError("Option '--fromfile' is no longer supported, please use prefix '@' to read options from a file.")
-        else:
-            kwargs[key] = guesstype(val)
+        kwargs[key] = guesstype(val)
     return (out,kwargs)
-
-def showoptions(optionlist,globaldict=globals()):
-    '''returns a python dictionary of all options that can be set by the user (showing default values for those that have not been set by the user)
-    DEPRECATED - no longer used'''
-    optiondict = {}
-    for key in optionlist:
-        optiondict[key] = globaldict.get(key)
-    return optiondict
 
 def str_to_array(arg,dtype=float):
     '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
