@@ -76,7 +76,7 @@ if __name__ == '__main__':
         print("skipping phonon wind calculations as requested")
     else:
         with open("dragcoeff_iso_options.log","w", encoding="utf8") as logfile:
-            optiondict = showoptions(OPTIONS,globals())
+            optiondict = vars(opts)
             for key, item in optiondict.items():
                 if key not in ['Ncores', 'skip_plots']:
                     logfile.write(f"{key} = {item}\n")
