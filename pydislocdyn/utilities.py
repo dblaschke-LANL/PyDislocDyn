@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 13, 2026
+# Date: Nov. 5, 2017 - Feb. 15, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -330,6 +330,8 @@ def isclose(f1,f2,verbose=False):
         out = np.allclose(f1,f2,equal_nan=True)
         if verbose and not out:
             print(compare_df(f1,f2))
+    elif verbose:
+        print("shapes differ")
     return out
 
 def compare_df(f1,f2):

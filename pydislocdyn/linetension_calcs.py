@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 13, 2026
+# Date: Nov. 3, 2017 - Feb. 15, 2026
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
@@ -28,7 +28,7 @@ if Ncores>1:
 
 parser = init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
 parser.add_argument('-Ntheta','--Ntheta', type=int, default=600, help='set the resolution of the character angles (angles between disloc. line and Burgers vector) used in line tension calculations')
-parser.add_argument('-Ntheta2','--Ntheta2', type=int, default=600, help='set the resolution of the character angles considered for calculating limiting velocities (set to None or 0 to bypass entirely)')
+parser.add_argument('-Ntheta2','--Ntheta2', type=int, default=21, help='set the resolution of the character angles considered for calculating limiting velocities (set to None or 0 to bypass entirely)')
 parser.add_argument('-Nbeta','--Nbeta', type=int, default=500, help='set the resolution of the dislocation velocities to consider; set to 0 to bypass line tension calculations')
 parser.add_argument('-Nphi', '--Nphi', type=int, default=1000, help='set the resolution of the polar angles (integration angles used in the integral method for computing dislocations)')
 parser.add_argument('-scale_by_mu', '--scale_by_mu', type=str, default='exp', help="""choose which shear modulus to use for rescaling to dimensionless quantities;

@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 13, 2026
+# Date: Mar. 6, 2023 - Feb. 15, 2026
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.'''
@@ -111,7 +111,7 @@ def diff(f1,f2,verbose=True):
     f1lines = [removewhitespace(i) for i in f1lines]
     f2lines = readfile(f2)
     f2lines = [removewhitespace(i) for i in f2lines]
-    thediff = difflib.unified_diff(f1lines, f2lines, fromfile=f1,tofile=f2,lineterm="",n=0)
+    thediff = difflib.unified_diff(f1lines, f2lines, fromfile=str(f1),tofile=str(f2),lineterm="",n=0)
     equal = f1lines==f2lines
     if verbose and not equal:
         for line in thediff:
