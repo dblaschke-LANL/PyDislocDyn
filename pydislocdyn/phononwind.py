@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 13, 2026
+# Date: Nov. 5, 2017 - Feb. 15, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -443,7 +443,7 @@ def init_drag_parser(**kwargs):
     parser.add_argument('-Nbeta', '--Nbeta', type=int, default=99, help="""number of velocities to consider ranging from minb to maxb (as fractions of transverse sound speed)""")
     parser.add_argument('-modes','--modes', type=str, default='all', help="""phonons to include ('TT'=pure transverse, 'LL'=pure longitudinal, 'TL'=L scattering into T,
                                   'LT'=T scattering into L, 'mix'=TL+LT, 'all'=sum of all four)""")
-    parser.add_argument('-use_exp_Lame','--use_exp_Lame', type=str2bool, help='''if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default)
+    parser.add_argument('-use_exp_Lame','--use_exp_Lame', type=str2bool, default=True, help='''if using data from metal_data, choose between experimentally determined Lame and Murnaghan constants (default)
                                    or analytical averages of SOEC and TOEC (use_exp_Lame = False)''')
     parser.add_argument('-Nphi', '--Nphi', type=int, default=50, help="""resolution of polar angle in Fourier space; keep this an even number for higher accuracy (because we integrate over 
                 pi-periodic expressions in some places and phi ranges from 0 to 2pi)""")

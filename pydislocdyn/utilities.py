@@ -323,11 +323,13 @@ def read_2dresults(fname):
     out.columns.name='theta'
     return out
     
-def isclose(f1,f2):
+def isclose(f1,f2,verbose=False):
     '''Returns True if all elements of arrays f1 and f2 are 'close' to one another and their shapes match, and False otherwise.'''
     out = False
     if f1.shape==f2.shape:
         out = np.allclose(f1,f2,equal_nan=True)
+        if verbose and not out:
+            print(compare_df(f1,f2))
     return out
 
 def compare_df(f1,f2):

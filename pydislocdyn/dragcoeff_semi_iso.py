@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 13, 2026
+# Date: Nov. 5, 2017 - Feb. 15, 2026
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -37,7 +37,7 @@ allowed values: '110', '112', '123', 'all' (for all three)''')
 parser.add_argument('-hcpslip', '--hcpslip', type=str, default='basal', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
 allowed values: 'basal', 'prismatic', 'pyramidal', 'all'  (for all three)''')
 parser.add_argument('-use_iso', '--use_iso', action='store_true', help="""set to calculate using isotropic elastic constants from metal_data (no effect if input files are used)""")
-parser.add_argument('-skiptransonic', '--skiptransonic', type=str2bool, help="""if True (default) will skip phononwind calcs. for velocities above the lowest limiting velocity on a per character angle 
+parser.add_argument('-skiptransonic', '--skiptransonic', type=str2bool, default=True, help="""if True (default) will skip phononwind calcs. for velocities above the lowest limiting velocity on a per character angle 
         basis, filling in the blanks with np.inf; Note: this will speed up calculations by avoiding slow converging drag calcs near divergences of the dislocation field""")
 parser.add_argument('-Nq', '--Nq', type=int, default=50,help='''only used in Fourier trafo of disloc. field, 
               don't need such high resolution if cutoffs are chosen carefully since the q-dependence drops out in that case''')
