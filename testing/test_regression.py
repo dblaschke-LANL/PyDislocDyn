@@ -125,19 +125,26 @@ def expand_slipsystems(metals,bccslip='all',hcpslip='all'):
             out.append(X)
     return out
 
-########## tests:
-
-def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
-    '''implements regression tests for frontend script polycrystal_averaging.py'''
-    testfolder = new/"regressiontests"
+def prepare_testfolder(old,new,verbose=False):
+    '''creates the required folders and chdir into the test folder'''
+    testfolder = pathlib.Path(new , "regressiontests")
     testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
-        old = new / old
+        old = pathlib.Path(new , old)
     if verbose:
         print(f"{testfolder=}, baseline folder={old}")
     os.chdir(testfolder)
+    print(testfolder)
+    print(old)
+    return testfolder, old
+    
+########## tests:
+
+def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
+    '''implements regression tests for frontend script polycrystal_averaging.py'''
+    testfolder, old = prepare_testfolder(old,new,verbose)
     fname = 'averaged_elastic_constants.tex'
     if not skip_calcs:
         print("running test 'aver' ...")
@@ -150,15 +157,7 @@ def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
 def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',**kwargs):
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
-    testfolder = new/"regressiontests"
-    testfolder.mkdir(parents=True,exist_ok=True)
-    if old is None:
-        old = testfolder
-    else:
-        old = new / old
-    if verbose:
-        print(f"{testfolder=}, baseline folder={old}")
-    os.chdir(testfolder)
+    testfolder, old = prepare_testfolder(old,new,verbose)
     options = {'Nbeta': 7, 'use_exp_Lame': True, 'phononwind_opts': {'maxrec': 4, 'target_accuracy': 0.01}, 'NT': 1} # defaults for this test
     options['Ncores'] = Ncores
     options.update(kwargs)
@@ -196,15 +195,7 @@ def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',
 def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for anisotropic phonon drag calculations via frontend script dragcoeff_semi_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
-    testfolder = new/"regressiontests"
-    testfolder.mkdir(parents=True,exist_ok=True)
-    if old is None:
-        old = testfolder
-    else:
-        old = new / old
-    if verbose:
-        print(f"{testfolder=}, baseline folder={old}")
-    os.chdir(testfolder)
+    testfolder, old = prepare_testfolder(old,new,verbose)
     options = {'Nbeta': 7, 'use_exp_Lame': True, 'phononwind_opts': {'maxrec': 4, 'target_accuracy': 0.01}, 'NT': 1,
                'bccslip': 'all', 'hcpslip': 'all', 'Ntheta': 4} # defaults for this test
     options['Ncores'] = Ncores
@@ -243,15 +234,7 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
 def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for line tension calculations via frontend script linetension_calcs.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
-    testfolder = new/"regressiontests"
-    testfolder.mkdir(parents=True,exist_ok=True)
-    if old is None:
-        old = testfolder
-    else:
-        old = new / old
-    if verbose:
-        print(f"{testfolder=}, baseline folder={old}")
-    os.chdir(testfolder)
+    testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'Nbeta':50,'Ntheta':200,'Ntheta2':4,'Nphi':500,'scale_by_mu':'exp','bccslip':'all','hcpslip':'all'} # defaults for this test
     opts['Ncores'] = Ncores
     opts.update(kwargs)
@@ -284,15 +267,7 @@ def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn'
 def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for accelerating dislocation solutions,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
-    testfolder = new/"regressiontests"
-    testfolder.mkdir(parents=True,exist_ok=True)
-    if old is None:
-        old = testfolder
-    else:
-        old = new / old
-    if verbose:
-        print(f"{testfolder=}, baseline folder={old}")
-    os.chdir(testfolder)
+    testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
     opts['Ncores'] = Ncores
     opts.update(kwargs)
@@ -379,15 +354,7 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
 def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements various regression tests for the dislocation class,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
-    testfolder = new/"regressiontests"
-    testfolder.mkdir(parents=True,exist_ok=True)
-    if old is None:
-        old = testfolder
-    else:
-        old = new / old
-    if verbose:
-        print(f"{testfolder=}, baseline folder={old}")
-    os.chdir(testfolder)
+    testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True,'P':0,'volpres':False} # defaults for this test
     opts['Ncores'] = Ncores
     opts.update(kwargs)
