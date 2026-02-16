@@ -355,12 +355,11 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     '''implements various regression tests for the dislocation class,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True,'P':0,'volpres':False} # defaults for this test
+    opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True} # defaults for this test
     opts['Ncores'] = Ncores
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
-    crystalsyms = ['iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric']
     metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
     if not skip_calcs:
         print("running test 'misc' ...")
@@ -392,6 +391,32 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
             Y[X].computeuij(0.5,r=Y[X].r)
             Y[X].alignuij()
             np.savez_compressed(f"u_{X}.npz",uk_05small=Y[X].uk_aligned[:,:,::10,::10],uij_05small=Y[X].uij_aligned[:,:,:,::10,::10])
+    else: print("skipping tests 'misc' as requested")
+    print("\ncomparing misc results")
+    for X in metal_list:
+        fname = X+"props.txt"
+        assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
+        fname = f"u_{X}.npz"
+        if pathlib.Path(old,fname).is_file():
+            u_results1 = np.load(pathlib.Path(old,fname))
+        else:
+            u_results1 = {'uk_05small':np.load(pathlib.Path(old,f'uk_05small_{X}.npy')),'uij_05small':np.load(pathlib.Path(old,f'uij_05small_{X}.npy'))}
+        u_results2 = np.load(pathlib.Path(testfolder,fname))
+        for aname in ['uk_05small','uij_05small']:
+            f1 = u_results1[aname]
+            f2 = u_results2[aname]
+            assert isclose(f1,f2)
+
+def test_strainpoly(old=None,new=cwd,skip_calcs=False,verbose=False,**kwargs):
+    '''implements regression tests for the strain_ppoly class,
+       where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
+    testfolder, old = prepare_testfolder(old,new,verbose)
+    opts = {'P':0,'volpres':False} # defaults for this test
+    opts['Ncores'] = Ncores
+    opts.update(kwargs)
+    crystalsyms = ['iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric']
+    if not skip_calcs:
+        print("running test 'strainpoly' ...")
         print("calculating various deformations within the 'strain_poly' class")
         y = sp.Symbol('y')
         eta1, eta2, eta3, eta4, eta5, eta6 = sp.symbols('eta1 eta2 eta3 eta4 eta5 eta6')
@@ -417,20 +442,7 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
         else:
             [maincomputations(sym) for sym in crystalsyms]
     else: print("skipping tests 'misc' as requested")
-    print("\ncomparing misc results")
-    for X in metal_list:
-        fname = X+"props.txt"
-        assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
-        fname = f"u_{X}.npz"
-        if pathlib.Path(old,fname).is_file():
-            u_results1 = np.load(pathlib.Path(old,fname))
-        else:
-            u_results1 = {'uk_05small':np.load(pathlib.Path(old,f'uk_05small_{X}.npy')),'uij_05small':np.load(pathlib.Path(old,f'uij_05small_{X}.npy'))}
-        u_results2 = np.load(pathlib.Path(testfolder,fname))
-        for aname in ['uk_05small','uij_05small']:
-            f1 = u_results1[aname]
-            f2 = u_results2[aname]
-            assert isclose(f1,f2)
+    print("\ncomparing strainpoly results")
     for sym in crystalsyms:
         fname = f"deformations_results_{sym}.txt"
         assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
