@@ -5,7 +5,8 @@
 # Date: Mar. 6, 2023 - Feb. 15, 2026
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
-   For additional options, call this script with '--help'.'''
+   For additional options, call this script with '--help'.
+   DEPRECATED - this legacy test suite will be removed soon, pls use test_regression.py with pytest instead.'''
 import os
 import sys
 import subprocess
@@ -64,8 +65,6 @@ fastapprox=True ## set to False to include terms that are (close to) zero in acc
 vRF_resolution=50
 vRF_fast=True
 
-## TODO: instead of porting to argparse, switch all tests here to pytest functions
-## maybe keep parse_options and OPTIONS for this script only an djust port the package?
 OPTIONS = {"runtests":str, "metals_iso":str, "metals":str, "verbose":str2bool, "skip_calcs":str2bool,
            "Nbeta_LT":int, "Ntheta_LT":int, "P":sp.Symbol, "volpres":str2bool}
 OPTIONS |= OPTIONS_LT | OPTIONS_drag

@@ -2,10 +2,8 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 15, 2026
-'''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
-   (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
-   For additional options, call this script with '--help'.'''
+# Date: Mar. 6, 2023 - Feb. 16, 2026
+'''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
 import subprocess
@@ -19,8 +17,9 @@ dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
     ISO_l, c111, all_metals
-from pydislocdyn.utilities import str2bool, isclose, compare_df
+from pydislocdyn.utilities import isclose
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
+from pydislocdyn.dragcoeff_semi_iso import metal as all_drag_metals
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
 import sympy as sp
 import pandas as pd
@@ -28,6 +27,8 @@ if Ncores>1:
     from joblib import Parallel, delayed
     
 cwd =pathlib.Path.cwd()
+# all available metals (to be used if user requests 'all' in one of the tests below):
+all_metals = " ".join(all_metals)
 
 ########## define helper functions for the tests below
 
@@ -102,9 +103,7 @@ def expand_slipsystems(metals,bccslip='all',hcpslip='all'):
     '''takes a list of keyword-strings for metals and appends slip system names'''
     if isinstance(metals, str):
         metals = metals.split(" ")
-    elif isinstance(metals, list) and isinstance(metals[0], str):
-        metals = metals
-    else:
+    elif not (isinstance(metals, list) and isinstance(metals[0], str)):
         raise ValueError(f"epxected a string or list of strings but got {metals=}")
     out = []
     if bccslip == 'all':
@@ -131,7 +130,7 @@ def expand_slipsystems(metals,bccslip='all',hcpslip='all'):
 def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
     '''implements regression tests for frontend script polycrystal_averaging.py'''
     testfolder = new/"regressiontests"
-    testfolder.mkdir(exist_ok=True)
+    testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
@@ -152,7 +151,7 @@ def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder = new/"regressiontests"
-    testfolder.mkdir(exist_ok=True)
+    testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
@@ -164,6 +163,15 @@ def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',
     options['Ncores'] = Ncores
     options.update(kwargs)
     commandargs = convert_options(options)
+    if metals == 'all':
+        if options['use_exp_Lame']:
+            metals_temp = sorted(list(ISO_l.keys()))
+        else:
+            metals_temp = sorted(list(c111.keys()))
+        metals=''
+        for i in metals_temp:
+            metals += i+' '
+        metals = metals.strip()
     commandargs.append(f'{metals}')
     if not skip_calcs:
         print(f"running test 'dragiso' with {commandargs=} ...")
@@ -189,7 +197,7 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     '''implements regression tests for anisotropic phonon drag calculations via frontend script dragcoeff_semi_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder = new/"regressiontests"
-    testfolder.mkdir(exist_ok=True)
+    testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
@@ -202,6 +210,8 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     options['Ncores'] = Ncores
     options.update(kwargs)
     commandargs = convert_options(options)
+    if metals == 'all':
+        metals = " ".join(all_drag_metals)
     commandargs.append(f'{metals}')
     metals = expand_slipsystems(metals,bccslip=options['bccslip'],hcpslip=options['hcpslip'])
     drag_folder = pathlib.Path('drag')
@@ -234,7 +244,7 @@ def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn'
     '''implements regression tests for line tension calculations via frontend script linetension_calcs.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder = new/"regressiontests"
-    testfolder.mkdir(exist_ok=True)
+    testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
@@ -246,6 +256,9 @@ def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn'
     opts['Ncores'] = Ncores
     opts.update(kwargs)
     commandargs = convert_options(opts)
+    if metals=='all':
+        metals = all_metals
+    commandargs.append(f'{metals}')
     LT_folders = [pathlib.Path(f"LT_{opts['scale_by_mu']}"), pathlib.Path(f"LT_{opts['scale_by_mu']}","fromfiles")]
     fname = "vcrit.dat"
     if not skip_calcs:
@@ -272,7 +285,7 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
     '''implements regression tests for accelerating dislocation solutions,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder = new/"regressiontests"
-    testfolder.mkdir(exist_ok=True)
+    testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
@@ -283,6 +296,8 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
     opts['Ncores'] = Ncores
     opts.update(kwargs)
+    if metals=='all':
+        metals = all_metals
     metal_acc_screw = []
     metal_acc_edge = []
     metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
@@ -302,6 +317,15 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
         acc_screw = {}
         uij_acc_edge = {}
         acc_edge = {}
+        ## another dynamic solution:
+        ## assume l(t) = adot*t**3/6 ## (i.e. acceleration starts at 0 and increases at rate adot from t>0)
+        adot = 6.2e25 ## time-derivative of acceleration, acc is initially zero at time t=0
+        def eta(x):
+            '''returns time as a function of position x for the special case of a constant acceleration rate adot.'''
+            return np.sign(x)*np.cbrt(6*abs(x)/adot)
+        def etapr(x):
+            '''returns the derivative of eta(x) (units: one over velocity)'''
+            return eta(x)/(3*x)
         print(f"calculating accelerating screw dislocation fields for {metal_acc_screw}")
         for X in metal_acc_screw:
             acc_screw[X] = readinputfile(pathlib.Path("temp_pydislocdyn",X),Nphi=50)
@@ -314,15 +338,6 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
             uij_acc_screw[X].index.name="r[burgers]"
             uij_acc_screw[X].columns.name="phi[pi]"
             uij_acc_screw[X].to_csv(pathlib.Path(testfolder,f"uij_acc_screw_{X}.csv.xz"),compression='xz')
-            ## another dynamic solution:
-            ## assume l(t) = adot*t**3/6 ## (i.e. acceleration starts at 0 and increases at rate adot from t>0)
-            adot = 6.2e25 ## time-derivative of acceleration, acc is initially zero at time t=0
-            def eta(x):
-                '''returns time as a function of position x for the special case of a constant acceleration rate adot.'''
-                return np.sign(x)*np.cbrt(6*abs(x)/adot)
-            def etapr(x):
-                '''returns the derivative of eta(x) (units: one over velocity)'''
-                return eta(x)/(3*x)
             time = np.sqrt(2*vel/adot) ## vel=adot*t**2/2, time=t(vel)
             distance = adot*time**3/6 ## distance covered by the core at time 'time'
             acc = adot*time ## current acceleration at time 'time'
@@ -365,7 +380,7 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     '''implements various regression tests for the dislocation class,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder = new/"regressiontests"
-    testfolder.mkdir(exist_ok=True)
+    testfolder.mkdir(parents=True,exist_ok=True)
     if old is None:
         old = testfolder
     else:
@@ -376,6 +391,8 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True,'P':0,'volpres':False} # defaults for this test
     opts['Ncores'] = Ncores
     opts.update(kwargs)
+    if metals=='all':
+        metals = all_metals
     crystalsyms = ['iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric']
     metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
     if not skip_calcs:
