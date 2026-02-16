@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - June 26, 2025
+# Date: Nov. 3, 2017 - Feb. 16, 2026
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
 
 References for the data included in these dictionaries (see the manual and its bibliography for further details):
@@ -165,6 +165,32 @@ for X in tetr_metals:
 
 X=Y=None
 #####################################################################################
+def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
+    '''takes a list of keyword-strings for metals and appends slip system names; the output matches the file names used by writeallinputfiles().'''
+    if isinstance(metals, str):
+        metals = metals.split(" ")
+    elif not (isinstance(metals, (list,set)) and isinstance(list(metals)[0], str)):
+        raise ValueError(f"epxected a string or list of strings but got {metals=}")
+    out = []
+    if bccslip == 'all':
+        slipkw_bcc = ['110', '112', '123']
+    else:
+        slipkw_bcc = [bccslip]
+    if hcpslip == 'all':
+        slipkw_hcp = ['basal','prismatic','pyramidal']
+    else:
+        slipkw_hcp=[hcpslip]
+    for X in metals:
+        if X in bcc_metals:
+            for kw in slipkw_bcc:
+                out.append(X+kw)
+        elif X in hcp_metals:
+            for kw in slipkw_hcp:
+                out.append(X+kw)
+        else:
+            out.append(X)
+    return out
+
 def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False):
     '''Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
        Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.

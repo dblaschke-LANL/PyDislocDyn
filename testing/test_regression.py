@@ -15,8 +15,7 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 
-from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
-    ISO_l, c111, all_metals
+from pydislocdyn.metal_data import fcc_metals, tetr_metals, ISO_l, c111, all_metals, expand_slipsystems
 from pydislocdyn.utilities import isclose
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.dragcoeff_semi_iso import metal as all_drag_metals
@@ -35,8 +34,6 @@ all_metals = " ".join(all_metals)
 def readfile(fname):
     '''reads a text file (or xz compressed text file) and returns a list of its lines'''
     fname = str(fname)
-    if fname[-4:] == '.tex' and not pathlib.Path(fname).is_file():
-        fname = fname[:-4]+'.txt' ## allow comparing to old versions of pydislocdyn
     if fname[-3:] == '.xz':
         with lzma.open(fname,"rt") as f1:
             f1lines = f1.readlines()
@@ -97,32 +94,6 @@ def convert_options(optiondict):
     out = []
     for k,v in optiondict.items():
         out.append(f"--{k}={v}")
-    return out
-
-def expand_slipsystems(metals,bccslip='all',hcpslip='all'):
-    '''takes a list of keyword-strings for metals and appends slip system names'''
-    if isinstance(metals, str):
-        metals = metals.split(" ")
-    elif not (isinstance(metals, list) and isinstance(metals[0], str)):
-        raise ValueError(f"epxected a string or list of strings but got {metals=}")
-    out = []
-    if bccslip == 'all':
-        slipkw_bcc = ['110', '112', '123']
-    else:
-        slipkw_bcc = [bccslip]
-    if hcpslip == 'all':
-        slipkw_hcp = ['basal','prismatic','pyramidal']
-    else:
-        slipkw_hcp=[hcpslip]
-    for X in metals:
-        if X in bcc_metals:
-            for kw in slipkw_bcc:
-                out.append(X+kw)
-        elif X in hcp_metals:
-            for kw in slipkw_hcp:
-                out.append(X+kw)
-        else:
-            out.append(X)
     return out
 
 def prepare_testfolder(old,new,verbose=False):
