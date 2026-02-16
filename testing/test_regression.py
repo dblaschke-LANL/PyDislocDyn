@@ -139,6 +139,15 @@ def prepare_testfolder(old,new,verbose=False):
     print(testfolder)
     print(old)
     return testfolder, old
+
+def prepare_inputfiles(tmpfolder="temp_pydislocdyn"):
+    '''creates the specified temporary folder and writes all input files into that folder'''
+    tmppydislocdyn = pathlib.Path(tmpfolder)
+    tmppydislocdyn.mkdir(exist_ok=True)
+    os.chdir(tmppydislocdyn)
+    writeallinputfiles()
+    os.chdir("..")
+    return tmppydislocdyn
     
 ########## tests:
 
@@ -264,8 +273,8 @@ def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn'
         assert diff(pathlib.Path(old,folder,fname),pathlib.Path(testfolder,folder,fname),verbose=verbose) is True
     os.chdir(new)
 
-def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
-    '''implements regression tests for accelerating dislocation solutions,
+def test_acc_screw(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+    '''implements regression tests for accelerating screw dislocation solutions,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
@@ -274,24 +283,15 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
     if metals=='all':
         metals = all_metals
     metal_acc_screw = []
-    metal_acc_edge = []
     metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
     for X in metal_list:
         if X in fcc_metals or "basal" in X or "prismatic" in X or "pyramidal" in X or X in tetr_metals:
             metal_acc_screw.append(X)
-        if "112" in X or "basal" in X or "prismatic" in X or X in tetr_metals:
-            metal_acc_edge.append(X)
     if not skip_calcs:
         print("running test 'acc' ...")
-        tmppydislocdyn = pathlib.Path("temp_pydislocdyn")
-        tmppydislocdyn.mkdir(exist_ok=True)
-        os.chdir(tmppydislocdyn)
-        writeallinputfiles()
-        os.chdir("..")
+        tmppydislocdyn = prepare_inputfiles()
         uij_acc_screw = {}
         acc_screw = {}
-        uij_acc_edge = {}
-        acc_edge = {}
         ## another dynamic solution:
         ## assume l(t) = adot*t**3/6 ## (i.e. acceleration starts at 0 and increases at rate adot from t>0)
         adot = 6.2e25 ## time-derivative of acceleration, acc is initially zero at time t=0
@@ -303,7 +303,7 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
             return eta(x)/(3*x)
         print(f"calculating accelerating screw dislocation fields for {metal_acc_screw}")
         for X in metal_acc_screw:
-            acc_screw[X] = readinputfile(pathlib.Path("temp_pydislocdyn",X),Nphi=50)
+            acc_screw[X] = readinputfile(pathlib.Path(tmppydislocdyn,X),Nphi=50)
             acc_screw[X].computevcrit()
             vel=0.9*acc_screw[X].vcrit_screw
             if verbose:
@@ -326,27 +326,47 @@ def test_acc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn
             uij_acc_screw[X].index.name="r[burgers]"
             uij_acc_screw[X].columns.name="phi[pi]"
             uij_acc_screw[X].to_csv(pathlib.Path(testfolder,f"uij_acc_screw_alt_{X}.csv.xz"),compression='xz')
+    else: print("skipping test 'acc screw' as requested")
+    print("\ncomparing acc screw results")
+    for X in metal_acc_screw:
+        for fname in ("uij_acc_screw_", "uij_acc_screw_alt_"):
+            f1 = pd.read_csv(pathlib.Path(old,f"{fname}{X}.csv.xz"),index_col=0)
+            f2 = pd.read_csv(pathlib.Path(testfolder,f"{fname}{X}.csv.xz"),index_col=0)
+            assert isclose(f1,f2,verbose=verbose)
+    os.chdir(new)
+
+def test_acc_edge(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+    '''implements regression tests for accelerating dislocation solutions,
+       where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
+    testfolder, old = prepare_testfolder(old,new,verbose)
+    opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
+    opts['Ncores'] = Ncores
+    opts.update(kwargs)
+    if metals=='all':
+        metals = all_metals
+    metal_acc_edge = []
+    metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
+    for X in metal_list:
+        if "112" in X or "basal" in X or "prismatic" in X or X in tetr_metals:
+            metal_acc_edge.append(X)
+    if not skip_calcs:
+        print("running test 'acc' ...")
+        tmppydislocdyn = prepare_inputfiles()
+        uij_acc_edge = {}
+        acc_edge = {}
         print(f"calculating accelerating edge dislocation fields for {metal_acc_edge}")
         for X in metal_acc_edge:
-            acc_edge[X] = readinputfile(pathlib.Path("temp_pydislocdyn",X),Nphi=25)
+            acc_edge[X] = readinputfile(pathlib.Path(tmppydislocdyn,X),Nphi=25)
             acc_edge[X].computevcrit()
             acc_edge[X].plotdisloc(0.9*acc_edge[X].vcrit_edge/acc_edge[X].ct,a=1e14,character='edge',component=[1,1],Nr=25)
             uij_acc_edge[X] = pd.DataFrame(acc_edge[X].uij_acc_edge_aligned[1,1],index=acc_edge[X].r,columns=acc_edge[X].phi/np.pi)
             uij_acc_edge[X].index.name="r[burgers]"
             uij_acc_edge[X].columns.name="phi[pi]"
             uij_acc_edge[X].to_csv(pathlib.Path(testfolder,f"uij_acc_edge_{X}.csv.xz"),compression='xz')
-    else: print("skipping test 'acc' as requested")
-    print("\ncomparing acc results")
-    for X in metal_acc_screw:
-        for fname in ("uij_acc_screw_", "uij_acc_screw_alt_"):
-            fending = ".csv.xz"
-            if not pathlib.Path(old,f"{fname}{X}{fending}").is_file():
-                fending = ".csv" # support reading old uncompressed files
-            f1 = pd.read_csv(pathlib.Path(old,f"{fname}{X}{fending}"),index_col=0)
-            f2 = pd.read_csv(pathlib.Path(testfolder,f"{fname}{X}.csv.xz"),index_col=0)
-            assert isclose(f1,f2,verbose=verbose)
+    else: print("skipping test 'acc edge' as requested")
+    print("\ncomparing acc edge results")
     for X in metal_acc_edge:
-        f1 = pd.read_csv(pathlib.Path(old,f"uij_acc_edge_{X}{fending}"),index_col=0)
+        f1 = pd.read_csv(pathlib.Path(old,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
         f2 = pd.read_csv(pathlib.Path(testfolder,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
         assert isclose(f1,f2,verbose=verbose)
     os.chdir(new)
@@ -363,15 +383,11 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
     if not skip_calcs:
         print("running test 'misc' ...")
-        tmppydislocdyn = pathlib.Path("temp_pydislocdyn")
-        tmppydislocdyn.mkdir(exist_ok=True)
-        os.chdir(tmppydislocdyn)
-        writeallinputfiles()
-        os.chdir("..")
+        tmppydislocdyn = prepare_inputfiles()
         Y = {}
         print(f"calculating limiting velocities, Rayleigh speeds, and radiation-free velocities for {metal_list}")
         for X in metal_list:
-            Y[X] = readinputfile(pathlib.Path("temp_pydislocdyn",X),Ntheta=5)
+            Y[X] = readinputfile(pathlib.Path(tmppydislocdyn,X),Ntheta=5)
             Y[X].computevcrit()
             Y[X].findvcrit_smallest()
             Y[X].findRayleigh()
