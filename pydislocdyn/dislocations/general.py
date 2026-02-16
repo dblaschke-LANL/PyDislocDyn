@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 2, 2025
+# Date: Nov. 3, 2017 - Feb. 16, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -562,7 +562,7 @@ class Dislocation(StrohGeometry,metal_props):
                         # double check number of real eigenvalues (method above only works for one pair out of three)
                         checkdet = roundcoeff(thedet.subs(rv2,vRF.x))
                         eigenvals = np.array(roundcoeff(sp.Matrix(sp.solve(checkdet.subs({p**6:rv2**3,p**4:rv2**2,p**2:rv2}),rv2))),dtype=complex)
-                        if (int(sum(eigenvals.real>0)) != 1) and (float(sum(eigenvals.imag**2)) > 1e-15):
+                        if (int(sum(eigenvals.real>0)[0]) != 1) and (float(sum(eigenvals.imag**2)[0]) > 1e-15):
                             print(f"Error: unexpected number of real eigenvalues detected: \n{eigenvals=}")
                             if verbose: print(f"{out_norm}")
                         else:
