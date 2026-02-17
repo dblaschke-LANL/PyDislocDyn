@@ -142,7 +142,7 @@ def test_dragiso(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Cu Fe'
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    options = {'Nbeta':7, 'phononwind_opts':{'maxrec':2, 'target_accuracy':0.01}} # defaults for this test
+    options = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts': {'maxrec':2, 'Nchunks':1, 'target_accuracy':0.01}, 'NT':1} # defaults for this test
     options['Ncores'] = Ncores
     options.update(kwargs)
     commandargs = convert_options(options)
@@ -180,7 +180,7 @@ def test_drag(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti 
     '''implements regression tests for anisotropic phonon drag calculations via frontend script dragcoeff_semi_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    options = {'Nbeta':7, 'phononwind_opts':{'maxrec':2, 'target_accuracy':0.01},
+    options = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts':{'maxrec':2, 'Nchunks':1, 'target_accuracy':0.01}, 'NT':1,
                'bccslip':'all', 'hcpslip':'all', 'Ntheta':4} # defaults for this test
     options['Ncores'] = Ncores
     if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
@@ -222,7 +222,7 @@ def test_LT(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti Sn
     '''implements regression tests for line tension calculations via frontend script linetension_calcs.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    opts = {'Nbeta':50,'Ntheta':200,'Ntheta2':4,'Nphi':500} # defaults for this test
+    opts = {'Nbeta':50,'Ntheta':200,'Ntheta2':4,'Nphi':500,'scale_by_mu':'exp','bccslip':'all','hcpslip':'all'} # defaults for this test
     opts['Ncores'] = Ncores
     if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
         opts['bccslip'] = '112'
