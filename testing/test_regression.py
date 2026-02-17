@@ -105,7 +105,7 @@ def prepare_testfolder(old,new,verbose=False):
     else:
         old = pathlib.Path(new , old)
     if verbose:
-        print(f"{testfolder=}, baseline folder={old}")
+        print(f"\n{testfolder=}, \nbaseline folder={old}\n")
     os.chdir(testfolder)
     return testfolder, old
 
@@ -125,10 +125,10 @@ def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
     testfolder, old = prepare_testfolder(old,new,verbose)
     fname = 'averaged_elastic_constants.tex'
     if not skip_calcs:
-        print("running test 'aver' ...")
+        print("\nrunning test 'aver' ...")
         assert runscript('polycrystal_averaging.py',[],'poly.log')==0
-    else: print("skipping test 'aver' as requested")
-    print(f"checking {fname}")
+    else: print("\nskipping test 'aver' as requested")
+    print(f"checking {fname}\n")
     assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
     os.chdir(new)
 
@@ -151,11 +151,11 @@ def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',
         metals = metals.strip()
     commandargs.append(f'{metals}')
     if not skip_calcs:
-        print(f"running test 'dragiso' with {commandargs=} ...")
+        print(f"\nrunning test 'dragiso' with {commandargs=} ...")
         assert runscript("dragcoeff_iso.py",commandargs,'dragiso.log')==0
-    else: print("skipping test 'dragiso' as requested")
+    else: print("\nskipping test 'dragiso' as requested")
     metals = metals.split()
-    print(f"\ncomparing dragiso results for: {metals}")
+    print(f"\ncomparing dragiso results for: {metals}\n")
     for X in metals:
         dragname = "drag"
         if options['NT']>1:# and os.access(pathlib.Path(old,f"{dragname}_T_{X}.dat"), os.R_OK):
@@ -189,12 +189,12 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     drag_folder = pathlib.Path('drag')
     if not skip_calcs:
         drag_folder.mkdir(exist_ok=True)
-        print(f"running test 'drag' with {commandargs=} ...")
+        print(f"\nrunning test 'drag' with {commandargs=} ...")
         os.chdir(pathlib.Path(testfolder,drag_folder))
         assert runscript("dragcoeff_semi_iso.py",commandargs,'dragsemi.log')==0
         os.chdir(testfolder)
-    else: print("skipping test 'drag' as requested")
-    print(f"\ncomparing drag results for: {metals}")
+    else: print("\nskipping test 'drag' as requested")
+    print(f"\ncomparing drag results for: {metals}\n")
     for X in metals:
         dragname = "drag_anis"
         if options['NT']>1 and os.access(pathlib.Path(old,drag_folder,f"{dragname}_T_{X}.dat.xz"), os.R_OK):
@@ -218,25 +218,28 @@ def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn'
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'Nbeta':50,'Ntheta':200,'Ntheta2':4,'Nphi':500,'scale_by_mu':'exp','bccslip':'all','hcpslip':'all'} # defaults for this test
     opts['Ncores'] = Ncores
+    if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
+        opts['bccslip'] = '112'
+        opts['hcpslip'] = 'prismatic'
     opts.update(kwargs)
     commandargs = convert_options(opts)
     if metals=='all':
         metals = all_metals
-    commandargs.append(f'{metals}')
+    commandargs
     LT_folders = [pathlib.Path(f"LT_{opts['scale_by_mu']}"), pathlib.Path(f"LT_{opts['scale_by_mu']}","fromfiles")]
     fname = "vcrit.dat"
     if not skip_calcs:
         LT_folders[1].mkdir(parents=True,exist_ok=True)
-        print(f"running test 'LT' with {commandargs=} ...")
+        print(f"\nrunning test 'LT' with {commandargs=} ...")
         os.chdir(pathlib.Path(testfolder,LT_folders[0]))
         assert runscript("linetension_calcs.py",commandargs+[f'{metals}'],'LT.log')==0
         os.chdir(pathlib.Path(testfolder,LT_folders[1]))
         filelist = sorted(pathlib.Path(os.pardir,"temp_pydislocdyn").glob("*"))
         assert runscript("linetension_calcs.py",commandargs+filelist,'LT.log')==0
         os.chdir(testfolder)
-    else: print("skipping test 'LT' as requested")
+    else: print("\nskipping test 'LT' as requested")
     metals = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
-    print(f"\ncomparing LT results for: {metals}")
+    print(f"\ncomparing LT results for: {metals}\n")
     for folder in LT_folders:
         for X in metals:
             f1 = read_2dresults(pathlib.Path(old,folder,f"LT_{X}.dat.xz"))
@@ -260,7 +263,7 @@ def test_acc_screw(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo
         if X in fcc_metals or "basal" in X or "prismatic" in X or "pyramidal" in X or X in tetr_metals:
             metal_acc_screw.append(X)
     if not skip_calcs:
-        print("running test 'acc' ...")
+        print("\nrunning test 'acc_screw' ...")
         tmppydislocdyn = prepare_inputfiles()
         uij_acc_screw = {}
         acc_screw = {}
@@ -298,8 +301,8 @@ def test_acc_screw(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo
             uij_acc_screw[X].index.name="r[burgers]"
             uij_acc_screw[X].columns.name="phi[pi]"
             uij_acc_screw[X].to_csv(pathlib.Path(testfolder,f"uij_acc_screw_alt_{X}.csv.xz"),compression='xz')
-    else: print("skipping test 'acc screw' as requested")
-    print("\ncomparing acc screw results")
+    else: print("\nskipping test 'acc screw' as requested")
+    print("\ncomparing acc screw results\n")
     for X in metal_acc_screw:
         for fname in ("uij_acc_screw_", "uij_acc_screw_alt_"):
             f1 = pd.read_csv(pathlib.Path(old,f"{fname}{X}.csv.xz"),index_col=0)
@@ -322,7 +325,7 @@ def test_acc_edge(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo 
         if "112" in X or "basal" in X or "prismatic" in X or X in tetr_metals:
             metal_acc_edge.append(X)
     if not skip_calcs:
-        print("running test 'acc' ...")
+        print("\nrunning test 'acc_edge' ...")
         tmppydislocdyn = prepare_inputfiles()
         uij_acc_edge = {}
         acc_edge = {}
@@ -335,8 +338,8 @@ def test_acc_edge(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo 
             uij_acc_edge[X].index.name="r[burgers]"
             uij_acc_edge[X].columns.name="phi[pi]"
             uij_acc_edge[X].to_csv(pathlib.Path(testfolder,f"uij_acc_edge_{X}.csv.xz"),compression='xz')
-    else: print("skipping test 'acc edge' as requested")
-    print("\ncomparing acc edge results")
+    else: print("\nskipping test 'acc edge' as requested")
+    print("\ncomparing acc edge results\n")
     for X in metal_acc_edge:
         f1 = pd.read_csv(pathlib.Path(old,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
         f2 = pd.read_csv(pathlib.Path(testfolder,f"uij_acc_edge_{X}.csv.xz"),index_col=0)
@@ -354,7 +357,7 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
         metals = all_metals
     metal_list = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
     if not skip_calcs:
-        print("running test 'misc' ...")
+        print("\nrunning test 'misc' ...")
         tmppydislocdyn = prepare_inputfiles()
         Y = {}
         print(f"calculating limiting velocities, Rayleigh speeds, and radiation-free velocities for {metal_list}")
@@ -379,8 +382,8 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
             Y[X].computeuij(0.5,r=Y[X].r)
             Y[X].alignuij()
             np.savez_compressed(f"u_{X}.npz",uk_05small=Y[X].uk_aligned[:,:,::10,::10],uij_05small=Y[X].uij_aligned[:,:,:,::10,::10])
-    else: print("skipping tests 'misc' as requested")
-    print("\ncomparing misc results")
+    else: print("\nskipping tests 'misc' as requested")
+    print("\ncomparing misc results\n")
     for X in metal_list:
         fname = X+"props.txt"
         assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
@@ -404,7 +407,7 @@ def test_strainpoly(old=None,new=cwd,skip_calcs=False,verbose=False,**kwargs):
     opts.update(kwargs)
     crystalsyms = ['iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric']
     if not skip_calcs:
-        print("running test 'strainpoly' ...")
+        print("\nrunning test 'strainpoly' ...")
         print("calculating various deformations within the 'strain_poly' class")
         y = sp.Symbol('y')
         eta1, eta2, eta3, eta4, eta5, eta6 = sp.symbols('eta1 eta2 eta3 eta4 eta5 eta6')
@@ -429,8 +432,8 @@ def test_strainpoly(old=None,new=cwd,skip_calcs=False,verbose=False,**kwargs):
             Parallel(n_jobs=Ncores)(delayed(maincomputations)(sym) for sym in crystalsyms)
         else:
             [maincomputations(sym) for sym in crystalsyms]
-    else: print("skipping tests 'misc' as requested")
-    print("\ncomparing strainpoly results")
+    else: print("\nskipping tests 'misc' as requested")
+    print("\ncomparing strainpoly results\n")
     for sym in crystalsyms:
         fname = f"deformations_results_{sym}.txt"
         assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)

@@ -40,10 +40,10 @@ jobs:
           pip install ${{ matrix.module-versions }}
           pip install .
       - name: Run tests
-        run: yes 2>/dev/null | pytest -s testing/
+        run: yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os != 'Windows'
       - name: Run tests windows
-        run: echo 'N' | pytest -s testing/
+        run: echo 'N' | pytest -s --durations=0 testing/
         if: runner.os == 'Windows'
       - name: Upload log files as artifacts
         uses: actions/upload-artifact@v4
