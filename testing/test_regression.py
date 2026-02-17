@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 16, 2026
+# Date: Mar. 6, 2023 - Feb. 17, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -16,7 +16,7 @@ if dir_path not in sys.path:
 dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 
 from pydislocdyn.metal_data import fcc_metals, tetr_metals, ISO_l, c111, all_metals, expand_slipsystems
-from pydislocdyn.utilities import isclose
+from pydislocdyn.utilities import isclose, usefortran
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.dragcoeff_semi_iso import metal as all_drag_metals
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
@@ -107,8 +107,6 @@ def prepare_testfolder(old,new,verbose=False):
     if verbose:
         print(f"{testfolder=}, baseline folder={old}")
     os.chdir(testfolder)
-    print(testfolder)
-    print(old)
     return testfolder, old
 
 def prepare_inputfiles(tmpfolder="temp_pydislocdyn"):
@@ -138,7 +136,7 @@ def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    options = {'Nbeta': 7, 'use_exp_Lame': True, 'phononwind_opts': {'maxrec': 4, 'target_accuracy': 0.01}, 'NT': 1} # defaults for this test
+    options = {'Nbeta': 7, 'use_exp_Lame': True, 'phononwind_opts': {'maxrec': 2, 'Nchunks':3, 'target_accuracy': 0.01}, 'NT': 1} # defaults for this test
     options['Ncores'] = Ncores
     options.update(kwargs)
     commandargs = convert_options(options)
@@ -176,9 +174,12 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     '''implements regression tests for anisotropic phonon drag calculations via frontend script dragcoeff_semi_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    options = {'Nbeta': 7, 'use_exp_Lame': True, 'phononwind_opts': {'maxrec': 4, 'target_accuracy': 0.01}, 'NT': 1,
+    options = {'Nbeta': 7, 'use_exp_Lame': True, 'phononwind_opts': {'maxrec': 2, 'Nchunks':3, 'target_accuracy': 0.01}, 'NT': 1,
                'bccslip': 'all', 'hcpslip': 'all', 'Ntheta': 4} # defaults for this test
     options['Ncores'] = Ncores
+    if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
+        options['bcccslip'] = '112'
+        options['hcpslip'] = 'prismatic'
     options.update(kwargs)
     commandargs = convert_options(options)
     if metals == 'all':
