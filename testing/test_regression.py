@@ -178,7 +178,7 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
                'bccslip': 'all', 'hcpslip': 'all', 'Ntheta': 4} # defaults for this test
     options['Ncores'] = Ncores
     if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
-        options['bcccslip'] = '112'
+        options['bccslip'] = '112'
         options['hcpslip'] = 'prismatic'
     options.update(kwargs)
     commandargs = convert_options(options)
