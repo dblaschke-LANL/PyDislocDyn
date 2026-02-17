@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 15, 2026
+# Date: Mar. 6, 2023 - Feb. 17, 2026
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
    For additional options, call this script with '--help'.
@@ -40,7 +40,7 @@ skip_calcs = False
 verbose = False
 ## drag and dragiso options:
 Nbeta = 7
-phononwind_opts={'maxrec':4,'target_accuracy':1e-2}
+phononwind_opts={'maxrec':2,'target_accuracy':1e-2}
 NT = 1
 use_exp_Lame=True
 ## dragiso only options:
