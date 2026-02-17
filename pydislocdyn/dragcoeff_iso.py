@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 13, 2026
+# Date: Nov. 5, 2017 - Feb. 17, 2026
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -41,6 +41,7 @@ if __name__ == '__main__':
         ## any options starting with a '-' not recognized by parser will go into kwargs here
         args, kwargs = _separate_options(args)
         opts.phononwind_opts.update(kwargs)
+    modes = opts.phononwind_opts['modes'] = opts.modes
     printthreadinfo(opts.Ncores)
     ### set range & step sizes after parsing the command line for options
     beta = np.linspace(opts.minb,opts.maxb,opts.Nbeta)
@@ -88,7 +89,7 @@ if __name__ == '__main__':
                 logfile.write("\n\ntheta:\n")
                 logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
-        print(f"Computing the drag coefficient from phonon wind ({opts.modes} modes in the isotropic limit) for: {metal}")
+        print(f"Computing the drag coefficient from phonon wind ({modes} modes in the isotropic limit) for: {metal}")
     
     highT = {}
     for X in metal:
@@ -169,7 +170,7 @@ if __name__ == '__main__':
     metalcolors = {'Al':'blue', 'Cu':'orange', 'Fe':'green', 'Nb':'red', 'Zn':'purple', 'Sn':'black', 'Ag':'lightblue', 'Au':'goldenrod', 'Cd':'lightgreen', 'Mg':'lightsalmon', 'Mo':'magenta', 'Ni':'silver', 'Ti':'olive', 'Zr':'cyan'}
         
     ## define fitting fcts.:
-    if opts.modes=='TT': ## degree of divergence is reduced for purely transverse modes
+    if modes=='TT': ## degree of divergence is reduced for purely transverse modes
         print("fitting for transverse modes only (assuming reduced degrees of divergence)")
         def fit_edge(x, c0, c1, c2, c3, c4):
             '''define a fitting function for edge dislocations'''
@@ -200,7 +201,7 @@ if __name__ == '__main__':
         popt_screw[X], pcov_screw[X] = curve_fit(fit_screw, beta, Broom[X].iloc[:,0], bounds=([0.9*Broom[X].iloc[0,0],0.,-0.,-0.,-0.], [1.1*Broom[X].iloc[0,0], 2*Broom[X].iloc[0,0], 1., 1., 1.]))
     
     with open("drag_iso_fit.txt","w", encoding="utf8") as fitfile:
-        if opts.modes=='TT': ## degree of divergence is reduced for purely transverse modes
+        if modes=='TT': ## degree of divergence is reduced for purely transverse modes
             fitfile.write("Fitting functions for B[$\\mu$Pas] at room temperature (transverse modes only):\nEdge dislocations:\n")
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_edge[X]))
@@ -280,7 +281,7 @@ if __name__ == '__main__':
                 popt = tuple(popt_screw[X])+tuple(popt_edge[X])
                 fit=fit_aver
             Xc = X+character
-            if character=='screw' and opts.modes == 'TT':
+            if character=='screw' and modes == 'TT':
                 print("Warning: B for screw dislocations from purely transverse phonons does not diverge. Analytic expression for B(sigma) will not be a good approximation!")
             B0[Xc], vcrit[Xc], sigma[Xc], B_of_sig[Xc] = B_of_sigma(Y[X],popt,character,mkplot=opts.allplots,B0fit='weighted',fit=fit)
         if len(metal)<5:

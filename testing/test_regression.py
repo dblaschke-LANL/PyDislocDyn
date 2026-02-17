@@ -28,6 +28,7 @@ if Ncores>1:
 cwd =pathlib.Path.cwd()
 # all available metals (to be used if user requests 'all' in one of the tests below):
 all_metals = " ".join(all_metals)
+baseln = "baseline" # default folder to check against
 
 ########## define helper functions for the tests below
 
@@ -100,6 +101,11 @@ def prepare_testfolder(old,new,verbose=False):
     '''creates the required folders and chdir into the test folder'''
     testfolder = pathlib.Path(new , "regressiontests")
     testfolder.mkdir(parents=True,exist_ok=True)
+    if old==baseln:
+        if os.access(bln:=testfolder/baseln, os.R_OK):
+            old=bln
+        else:
+            old=None
     if old is None:
         old = testfolder
     else:
@@ -120,7 +126,7 @@ def prepare_inputfiles(tmpfolder="temp_pydislocdyn"):
     
 ########## tests:
 
-def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
+def test_aver(old=baseln,new=cwd,skip_calcs=False,verbose=False):
     '''implements regression tests for frontend script polycrystal_averaging.py'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     fname = 'averaged_elastic_constants.tex'
@@ -132,7 +138,7 @@ def test_aver(old=None,new=cwd,skip_calcs=False,verbose=False):
     assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
     os.chdir(new)
 
-def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',**kwargs):
+def test_dragiso(old=baseln,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',**kwargs):
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
@@ -170,7 +176,7 @@ def test_dragiso(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Cu Fe',
     assert diff(pathlib.Path(old,fname),pathlib.Path(testfolder,fname),verbose=verbose)
     os.chdir(new)
 
-def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+def test_drag(old=baseln,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for anisotropic phonon drag calculations via frontend script dragcoeff_semi_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
@@ -212,7 +218,7 @@ def test_drag(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
     os.chdir(new)
     
 
-def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+def test_LT(old=baseln,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for line tension calculations via frontend script linetension_calcs.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
@@ -248,7 +254,7 @@ def test_LT(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn'
         assert diff(pathlib.Path(old,folder,fname),pathlib.Path(testfolder,folder,fname),verbose=verbose) is True
     os.chdir(new)
 
-def test_acc_screw(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+def test_acc_screw(old=baseln,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for accelerating screw dislocation solutions,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
@@ -310,7 +316,7 @@ def test_acc_screw(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo
             assert isclose(f1,f2,verbose=verbose)
     os.chdir(new)
 
-def test_acc_edge(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+def test_acc_edge(old=baseln,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements regression tests for accelerating dislocation solutions,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
@@ -346,7 +352,7 @@ def test_acc_edge(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo 
         assert isclose(f1,f2,verbose=verbose)
     os.chdir(new)
 
-def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
+def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti Sn',**kwargs):
     '''implements various regression tests for the dislocation class,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
@@ -398,7 +404,7 @@ def test_misc(old=None,new=cwd,skip_calcs=False,verbose=False,metals='Al Mo Ti S
             f2 = u_results2[aname]
             assert isclose(f1,f2)
 
-def test_strainpoly(old=None,new=cwd,skip_calcs=False,verbose=False,**kwargs):
+def test_strainpoly(old=baseln,new=cwd,skip_calcs=False,verbose=False,**kwargs):
     '''implements regression tests for the strain_ppoly class,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)

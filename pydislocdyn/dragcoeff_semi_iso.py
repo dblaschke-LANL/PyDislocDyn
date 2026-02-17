@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 15, 2026
+# Date: Nov. 5, 2017 - Feb. 17, 2026
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -31,7 +31,7 @@ Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads()/2))) ## use this for par
 metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
 parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
-parser.add_argument('-Ntheta','--Ntheta', type=int, default=600, help='set the resolution of the character angles (angles between disloc. line and Burgers vector) used in line tension calculations')
+parser.add_argument('-Ntheta','--Ntheta', type=int, default=21, help='set the resolution of the character angles (angles between disloc. line and Burgers vector) used in line tension calculations')
 parser.add_argument('-bccslip', '--bccslip', type=str, default='110', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
 allowed values: '110', '112', '123', 'all' (for all three)''')
 parser.add_argument('-hcpslip', '--hcpslip', type=str, default='basal', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
@@ -60,6 +60,7 @@ if __name__ == '__main__':
         ## any options starting with a '-' not recognized by parser will go into kwargs here
         args, kwargs = _separate_options(args)
         opts.phononwind_opts.update(kwargs)
+    modes = opts.phononwind_opts['modes'] = opts.modes
     if len(kwargs)>0:
         print(f"passing {opts.phononwind_opts=}")
     printthreadinfo(opts.Ncores)
@@ -139,7 +140,7 @@ if __name__ == '__main__':
                 logfile.write("\n\ntheta:\n")
                 logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
         
-        print(f"Computing the drag coefficient from phonon wind ({opts.modes} modes) for: {metal}")
+        print(f"Computing the drag coefficient from phonon wind ({modes} modes) for: {metal}")
     
     ###
     highT = {}

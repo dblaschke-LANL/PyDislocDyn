@@ -233,7 +233,6 @@ def init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",**kwargs):
     parser = argparse.ArgumentParser(usage=usage,formatter_class=argparse.ArgumentDefaultsHelpFormatter,fromfile_prefix_chars='@',**kwargs)
     parser.add_argument('-Ncores','--Ncores', type=int, help='set the number of cores to use for joblib parallelization; will be auto-adjusted for optimal performance unless set by the user')
     parser.add_argument('-skip_plots','--skip_plots', action='store_true', help='as its name suggests, plots are skipped if this is set')
-    # parser.add_argument('-Ntheta','--Ntheta', type=int, help='set the number of character angles; defaults differ by frontend script') ## FIXME: maybe define this in each of the frontend scripts since defaults differ
     return parser
 
 OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by test suite
@@ -279,7 +278,7 @@ def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsag
 def _separate_options(arglist):
     '''Separates options (format --key=value) from positional arguments (no dash), assuming arglist is a list of commandline arguments unknown to the argparse parser.
        Note that this function will silently ignore any options deviating from the expected format.'''
-    out = arglist
+    out = [i.strip() for i in arglist]
     options = [i for i in out if "-" in i and i[:1]=="-"]
     kwargs = {}
     for i in options:
