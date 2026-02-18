@@ -39,31 +39,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install ${{ matrix.module-versions }}
           pip install .
-      - name: Run regression test suite
-        run: yes 2>/dev/null | testing/test_pydislocdyn.py . --Ntheta=3 --Nbeta=5 --maxrec=1 --Nchunks=1 --verbose=true --runtests=all | tee test_output.log
+      - name: Run tests
+        run: yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os != 'Windows'
-      - name: Run regression test suite windows
-        run: echo 'N' | python testing/test_pydislocdyn.py --Ntheta=3 --Nbeta=5 --maxrec=0 --Nchunks=1 --bccslip=112 --hcpslip=prismatic --verbose=true --runtests=all .
+      - name: Run tests windows
+        run: echo 'N' | pytest -s --durations=0 testing/
         if: runner.os == 'Windows'
-      - name: Run unit tests
-        run: yes 2>/dev/null | pytest -s testing/
-        if: runner.os != 'Windows'
-      - name: Run unit tests windows
-        run: echo 'N' | pytest -s testing/
-        if: runner.os == 'Windows'
-      - name: Upload main log file as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-log_${{runner.os}}_${{matrix.python-version}}
-          path: test_output.log
-        if: runner.os != 'Windows'
-      - name: Upload other log files as artifacts
+      - name: Upload log files as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: test-logfiles_${{runner.os}}_${{matrix.python-version}}
           path: |
-            poly.log
-            dragiso.log
-            drag/dragsemi.log
-            LT_exp/LT.log
+            regressiontests/poly.log
+            regressiontests/dragiso.log
+            regressiontests/drag/dragsemi.log
+            regressiontests/LT_exp/LT.log
 

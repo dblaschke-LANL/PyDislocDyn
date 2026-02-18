@@ -2,16 +2,18 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 15, 2026
+# Date: Mar. 6, 2023 - Feb. 17, 2026
 '''This script implements regression testing for PyDislocDyn. Required argument: 'folder' containing old results.
    (To freshly create a folder to compare to later, run from within an empty folder with argument 'folder' set to '.')
-   For additional options, call this script with '--help'.'''
+   For additional options, call this script with '--help'.
+   DEPRECATED - this legacy test suite will be removed soon, pls use test_regression.py with pytest instead.'''
 import os
 import sys
 import subprocess
 import pathlib
 import difflib
 import lzma
+import ast
 dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
     sys.path.append(dir_path)
@@ -19,22 +21,26 @@ dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 
 from pydislocdyn.metal_data import fcc_metals, bcc_metals, hcp_metals, tetr_metals, \
     ISO_l, c111, all_metals
-from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df
+from pydislocdyn.utilities import parse_options, str2bool, isclose, compare_df, OPTIONS
 from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
-from pydislocdyn.linetension_calcs import OPTIONS as OPTIONS_LT
-from pydislocdyn.dragcoeff_semi_iso import OPTIONS as OPTIONS_drag
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
 import sympy as sp
 import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
 
+OPTIONS_LT = OPTIONS | {"Ntheta2":int, "scale_by_mu":str, "bccslip":str, "hcpslip":str} 
+## options used by both dragcoeff_iso and dragcoeff_semi_iso (don't use |= operator as it would overwrite utilities.OPTIONS)
+OPTIONS_drag = OPTIONS | {"minb":float, "maxb":float, "modes":str, "use_exp_Lame":str2bool, "NT":int, "constantrho":str2bool,
+                     "increaseTby":float, "beta_reference":str, "phononwind_opts":ast.literal_eval, "allplots":str2bool} \
+     | {"use_iso":str2bool, "bccslip":str, "hcpslip":str, "skiptransonic":str2bool,
+                     "Nq":int, "NphiX":int, "rmin":float, "rmax":float}
 runtests = 'all'
 skip_calcs = False
 verbose = False
 ## drag and dragiso options:
 Nbeta = 7
-phononwind_opts={'maxrec':4,'target_accuracy':1e-2}
+phononwind_opts={'maxrec':2,'target_accuracy':1e-2}
 NT = 1
 use_exp_Lame=True
 ## dragiso only options:
@@ -249,7 +255,7 @@ if __name__ == '__main__':
             drag_folder.mkdir(exist_ok=True)
             print("running test 'drag' ...")
             os.chdir(pathlib.Path(cwd,drag_folder))
-            commandargs = dragopts + [f'--{Ncores=}',f'--{skiptransonic=}',f'--{use_exp_Lame=}',f'--{use_iso=}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--phononwind_opts={phononwind_opts}',f'--{Ntheta=}',f'--{Nbeta=}',f'--{NT=}',f'{metals}']
+            commandargs = dragopts + [f'--{Ncores=}',f'--{skiptransonic=}',f'--{use_exp_Lame=}',f'--{use_iso}',f'--{hcpslip=!s}',f'--{bccslip=!s}',f'--phononwind_opts={phononwind_opts}',f'--{Ntheta=}',f'--{Nbeta=}',f'--{NT=}',f'{metals}']
             if runscript("dragcoeff_semi_iso.py",commandargs,'dragsemi.log')!=0:
                 success=False
             os.chdir(cwd)

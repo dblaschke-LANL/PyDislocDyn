@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Nov. 5, 2025
+# Date: Nov. 5, 2017 - Feb. 15, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -11,6 +11,7 @@ import shutil
 import pathlib
 import glob
 import time
+import argparse
 import math
 from fractions import Fraction
 import multiprocessing
@@ -227,15 +228,23 @@ def loadinputfile(fname,optionmode=False):
                     inputparams[key] = value
     return inputparams
 
-OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by 3 frontend scripts
+def init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",**kwargs):
+    '''initializes an instance of an argparse.ArgumentParser() class with some default options, allowing additional arguments to be passed via **kwargs.'''
+    parser = argparse.ArgumentParser(usage=usage,formatter_class=argparse.ArgumentDefaultsHelpFormatter,fromfile_prefix_chars='@',**kwargs)
+    parser.add_argument('-Ncores','--Ncores', type=int, help='set the number of cores to use for joblib parallelization; will be auto-adjusted for optimal performance unless set by the user')
+    parser.add_argument('-skip_plots','--skip_plots', action='store_true', help='as its name suggests, plots are skipped if this is set')
+    return parser
+
+OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by test suite
 def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n\n",includedoc=""):
     '''Search commandline arguments for known options to set by comparing to a list of keyword strings "optionlist".
     These will then override default variables. This function also returns a copy of 'arglist' stripped of all
     option calls for further processing (e.g. opening input files that were passed etc.). If options are to be read
     from a file "fname" (with format key = value), use option --fromfile=fname; all options will be processed in
-    order of appearance even if an option appears more than once.'''
+    order of appearance even if an option appears more than once.
+    DEPRECATED - please consider using Python standard library 'argparse' instead.'''
     out = arglist
-    if '--help' in out:
+    if '--help' in out or out[0]=='-h':
         print(starthelpwith+includedoc)
         print("Use option --fromfile to read additional options from a file")
         print("Summary of available options and expected data types (see code manual for details):")
@@ -266,12 +275,22 @@ def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsag
     time.sleep(1) ## avoid race conditions after changing global variables
     return (out,kwargs)
 
-def showoptions(optionlist,globaldict=globals()):
-    '''returns a python dictionary of all options that can be set by the user (showing default values for those that have not been set by the user)'''
-    optiondict = {}
-    for key in optionlist:
-        optiondict[key] = globaldict.get(key)
-    return optiondict
+def _separate_options(arglist):
+    '''Separates options (format --key=value) from positional arguments (no dash), assuming arglist is a list of commandline arguments unknown to the argparse parser.
+       Note that this function will silently ignore any options deviating from the expected format.'''
+    out = [i.strip() for i in arglist]
+    options = [i for i in out if "-" in i and i[:1]=="-"]
+    kwargs = {}
+    for i in options:
+        out.remove(i)
+        if "=" not in i: continue ## ignore options without assigned values
+        key,val = i[1:].split("=")
+        if key[0]=='-':
+            key = key[1:]
+        if key=="fromfile":
+            raise ValueError("Option '--fromfile' is no longer supported, please use prefix '@' to read options from a file.")
+        kwargs[key] = guesstype(val)
+    return (out,kwargs)
 
 def str_to_array(arg,dtype=float):
     '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
@@ -303,11 +322,15 @@ def read_2dresults(fname):
     out.columns.name='theta'
     return out
     
-def isclose(f1,f2):
+def isclose(f1,f2,verbose=False):
     '''Returns True if all elements of arrays f1 and f2 are 'close' to one another and their shapes match, and False otherwise.'''
     out = False
     if f1.shape==f2.shape:
         out = np.allclose(f1,f2,equal_nan=True)
+        if verbose and not out:
+            print(compare_df(f1,f2))
+    elif verbose:
+        print("shapes differ")
     return out
 
 def compare_df(f1,f2):
