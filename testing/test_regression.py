@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 17, 2026
+# Date: Mar. 6, 2023 - Feb. 18, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -259,7 +259,6 @@ def test_acc_screw(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al M
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
-    opts['Ncores'] = Ncores
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
@@ -321,7 +320,6 @@ def test_acc_edge(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
-    opts['Ncores'] = Ncores
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
@@ -357,7 +355,6 @@ def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti 
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True} # defaults for this test
-    opts['Ncores'] = Ncores
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
@@ -434,8 +431,8 @@ def test_strainpoly(old=baseln,new=cwd,skip_calcs=False,verbose=True,**kwargs):
                 for i in range(len(strain)):
                     deffile.write(f"\nalpha[{i}]: {np.array2string(Voigt(alpha[i]), separator=', ')}\n")
                     deffile.write(f"poly[{i}]: {polynom[i]}\n")
-        if Ncores>1:
-            Parallel(n_jobs=Ncores)(delayed(maincomputations)(sym) for sym in crystalsyms)
+        if opts['Ncores']>1:
+            Parallel(n_jobs=opts['Ncores'])(delayed(maincomputations)(sym) for sym in crystalsyms)
         else:
             [maincomputations(sym) for sym in crystalsyms]
     else: print("\nskipping tests 'misc' as requested")
