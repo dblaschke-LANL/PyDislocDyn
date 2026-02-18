@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.5 (wip)
+
+Features and improvements:
+
+ - use argparse for parsing command line options instead of our previous custom parser;
+(Note some changed syntax: options '--use_iso', '--allplots', and '--skip_plots' no longer take an argument)
+ - ported the test suite to pytest
+ - changed some defaults for faster dislocation drag calculations
+
+Fix:
+
+ - 
+
+Other:
+
+ - use pathlib for paths
+
 ## 1.3.4 (2025-11-18)
 
 Features and improvements:

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 15, 2026
+# Date: Nov. 5, 2017 - Feb. 17, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -234,46 +234,6 @@ def init_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",**kwargs):
     parser.add_argument('-Ncores','--Ncores', type=int, help='set the number of cores to use for joblib parallelization; will be auto-adjusted for optimal performance unless set by the user')
     parser.add_argument('-skip_plots','--skip_plots', action='store_true', help='as its name suggests, plots are skipped if this is set')
     return parser
-
-OPTIONS = {"Ncores":int, "Ntheta":int, "Nbeta":int, "skip_plots":str2bool, "Nphi":int} ## options used by test suite
-def parse_options(arglist,optionlist,globaldict=globals(),starthelpwith=f"\nUsage: {sys.argv[0]} <options> <inputfile(s)>\n\n",includedoc=""):
-    '''Search commandline arguments for known options to set by comparing to a list of keyword strings "optionlist".
-    These will then override default variables. This function also returns a copy of 'arglist' stripped of all
-    option calls for further processing (e.g. opening input files that were passed etc.). If options are to be read
-    from a file "fname" (with format key = value), use option --fromfile=fname; all options will be processed in
-    order of appearance even if an option appears more than once.
-    DEPRECATED - please consider using Python standard library 'argparse' instead.'''
-    out = arglist
-    if '--help' in out or out[0]=='-h':
-        print(starthelpwith+includedoc)
-        print("Use option --fromfile to read additional options from a file")
-        print("Summary of available options and expected data types (see code manual for details):")
-        for key, OPTk in optionlist.items():
-            print(f'--{key}={OPTk.__name__}')
-        sys.exit()
-    setoptions = [i for i in out if "--" in i and i[:2]=="--"]
-    kwargs = {}
-    for i in setoptions:
-        out.remove(i)
-        if "=" not in i: continue ## ignore options without assigned values
-        key,val = i[2:].split("=")
-        if key=="fromfile":
-            print(f"getting options from file {val}:")
-            optiondict = loadinputfile(val,optionmode=True)
-            for fkey,fval in optiondict.items():
-                if fkey in optionlist:
-                    globaldict[fkey] = optionlist[fkey](fval)
-                    print(f"setting {fkey}={globaldict[fkey]}")
-                else:
-                    kwargs[fkey] = guesstype(fval)
-            print(f"done with options file {val}")
-        elif key in optionlist:
-            globaldict[key] = optionlist[key](val)
-            print(f"setting {key}={globaldict[key]}")
-        else:
-            kwargs[key] = guesstype(val)
-    time.sleep(1) ## avoid race conditions after changing global variables
-    return (out,kwargs)
 
 def _separate_options(arglist):
     '''Separates options (format --key=value) from positional arguments (no dash), assuming arglist is a list of commandline arguments unknown to the argparse parser.
