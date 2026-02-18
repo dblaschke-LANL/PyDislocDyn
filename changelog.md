@@ -5,7 +5,7 @@
 Features and improvements:
 
  - use argparse for parsing command line options instead of our previous custom parser;
-(Note some changed syntax: options '--use_iso', '--allplots', and '--skip_plots' no longer take an argument)
+(Note some changed syntax: options `--use_iso`, `--allplots`, and `--skip_plots` no longer take an argument)
  - ported the test suite to pytest
  - changed some defaults for faster dislocation drag calculations
 
@@ -23,7 +23,7 @@ Features and improvements:
 
  - automatically compile and reload the fortran submodule if it is missing or outdated upon importing pydislocdyn
    (requires user confirmation)
- - new option in pydislocdyn.utilities.compilefortranmodule(): set clean=True to delete all previously compiled module files and exit
+ - new option in `pydislocdyn.utilities.compilefortranmodule()`: set `clean=True` to delete all previously compiled module files and exit
 
 Fix:
 
@@ -43,7 +43,7 @@ Features and improvements:
  - phonon wind: implement `Debye_series` option also for mixed modes, and warn if the temperature is too low to warrant the high temperature series expansion
  - speedup phononwind calculations (if fortran subroutines are used)
  - speedup `find_wavespeed()` method
- - phonon drag: new commandline option 'allplots' to generate additional plots of B(sigma) that are suppressed by default
+ - phonon drag: new commandline option `allplots` to generate additional plots of B(sigma) that are suppressed by default
  - testsuite: add a new test and options for more control over some tests
 
 Fix:
