@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 18, 2026
+# Date: Mar. 6, 2023 - Feb. 23, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -142,12 +142,12 @@ def test_dragiso(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Cu Fe'
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    options = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts': {'maxrec':2, 'Nchunks':1, 'target_accuracy':0.01}, 'NT':1} # defaults for this test
-    options['Ncores'] = Ncores
-    options.update(kwargs)
-    commandargs = convert_options(options)
+    opts = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts': {'maxrec':2, 'target_accuracy':0.01}, 'NT':1} # defaults for this test
+    opts['Ncores'] = Ncores
+    opts.update(kwargs)
+    commandargs = convert_options(opts)
     if metals == 'all':
-        if options['use_exp_Lame']:
+        if opts['use_exp_Lame']:
             metals_temp = sorted(list(ISO_l.keys()))
         else:
             metals_temp = sorted(list(c111.keys()))
@@ -164,7 +164,7 @@ def test_dragiso(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Cu Fe'
     print(f"\ncomparing dragiso results for: {metals}\n")
     for X in metals:
         dragname = "drag"
-        if options['NT']>1:# and os.access(pathlib.Path(old,f"{dragname}_T_{X}.dat"), os.R_OK):
+        if opts['NT']>1:# and os.access(pathlib.Path(old,f"{dragname}_T_{X}.dat"), os.R_OK):
             dragname = "drag_T"
         assert diff(pathlib.Path(old,f"{dragname}_{X}.dat"),pathlib.Path(testfolder,f"{dragname}_{X}.dat"),verbose=verbose)
         for ch in ["screw","edge","aver"]:
@@ -180,18 +180,18 @@ def test_drag(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti 
     '''implements regression tests for anisotropic phonon drag calculations via frontend script dragcoeff_semi_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    options = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts':{'maxrec':2, 'Nchunks':1, 'target_accuracy':0.01}, 'NT':1,
+    opts = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts':{'maxrec':2, 'target_accuracy':0.01}, 'NT':1,
                'bccslip':'all', 'hcpslip':'all', 'Ntheta':4} # defaults for this test
-    options['Ncores'] = Ncores
+    opts['Ncores'] = Ncores
     if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
-        options['bccslip'] = '112'
-        options['hcpslip'] = 'prismatic'
-    options.update(kwargs)
-    commandargs = convert_options(options)
+        opts['bccslip'] = '112'
+        opts['hcpslip'] = 'prismatic'
+    opts.update(kwargs)
+    commandargs = convert_options(opts)
     if metals == 'all':
         metals = " ".join(all_drag_metals)
     commandargs.append(f'{metals}')
-    metals = expand_slipsystems(metals,bccslip=options['bccslip'],hcpslip=options['hcpslip'])
+    metals = expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip'])
     drag_folder = pathlib.Path('drag')
     if not skip_calcs:
         drag_folder.mkdir(exist_ok=True)
@@ -203,7 +203,7 @@ def test_drag(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti 
     print(f"\ncomparing drag results for: {metals}\n")
     for X in metals:
         dragname = "drag_anis"
-        if options['NT']>1 and os.access(pathlib.Path(old,drag_folder,f"{dragname}_T_{X}.dat.xz"), os.R_OK):
+        if opts['NT']>1 and os.access(pathlib.Path(old,drag_folder,f"{dragname}_T_{X}.dat.xz"), os.R_OK):
             dragname = "drag_anis_T"
         f1 = read_2dresults(pathlib.Path(old,drag_folder,f"{dragname}_{X}.dat.xz"))
         f2 = read_2dresults(pathlib.Path(testfolder,drag_folder,f"{dragname}_{X}.dat.xz"))

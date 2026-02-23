@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 17, 2026
+# Date: Nov. 5, 2017 - Feb. 23, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -10,7 +10,6 @@ import os
 import shutil
 import pathlib
 import glob
-import time
 import argparse
 import math
 from fractions import Fraction

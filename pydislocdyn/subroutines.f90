@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 24, 2025
+! Date: July 23, 2018 - Feb. 22, 2026
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20251024
+  versionnumber=20260222
 end subroutine version
 
 module parameters
@@ -765,11 +765,10 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
   real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
   real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta(3,3)
   real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-  integer :: Nchunks, kthchk, Nt_total, i, j, k, th
+  integer :: Nchunks, kthchk, i, j, k, th
   
   Nchunks = chunks(1)
   kthchk = chunks(2)
-  Nt_total = 1 + Nchunks*(lent-1)
   call linspace(0.d0,2.d0*pi,lenph,phi)
   call linspace(0.d0,2.d0*pi,lenph1,phi1)
   call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
@@ -912,11 +911,10 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
   real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
   real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta1(3,3), delta2(3,3)
   real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-  integer :: Nchunks, kthchk, Nt_total, i, j, k, th
+  integer :: Nchunks, kthchk, i, j, k, th
   
   Nchunks = chunks(1)
   kthchk = chunks(2)
-  Nt_total = 1 + Nchunks*(lent-1)
   call linspace(0.d0,2.d0*pi,lenph,phi)
   call linspace(0.d0,2.d0*pi,lenph1,phi1)
   call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)

@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 15, 2026
+# Date: Nov. 3, 2017 - Feb. 20, 2026
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
@@ -44,15 +44,14 @@ allowed values: 'basal', 'prismatic', 'pyramidal', 'all'  (for all three)''')
 
 metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
 
-### start the calculations
 if __name__ == '__main__':
     opts, args = parser.parse_known_args()
-    if opts.Ncores is not None:
-        Ncores = opts.Ncores
+    if opts.Ncores is None:
+        opts.Ncores = Ncores
     Y={}
     metal_list = []
     use_metaldata=True
-    printthreadinfo(Ncores)
+    printthreadinfo(opts.Ncores)
     ### set range & step sizes after parsing the commandline for options
     dtheta = np.pi/(opts.Ntheta-2)
     theta = np.linspace(-np.pi/2-dtheta,np.pi/2+dtheta,opts.Ntheta+1)
@@ -182,12 +181,12 @@ if __name__ == '__main__':
         
     # run these calculations in a parallelized loop (bypass Parallel() if only one core is requested, in which case joblib-import could be dropped above)
     print(f"Computing the line tension for: {metal}")
-    if Ncores == 1 and opts.Nbeta >=1:
+    if opts.Ncores == 1 and opts.Nbeta >=1:
         [maincomputations(i) for i in range(len(metal))]
     elif opts.Nbeta<1:
         print("skipping line tension calculations, Nbeta>0 required")
     else:
-        Parallel(n_jobs=Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
+        Parallel(n_jobs=opts.Ncores)(delayed(maincomputations)(i) for i in range(len(metal)))
 
 ################## create plots ################
     if opts.skip_plots:
