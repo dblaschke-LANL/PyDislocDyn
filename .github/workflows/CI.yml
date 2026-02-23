@@ -23,7 +23,7 @@ jobs:
           - python-version: '3.9'
             module-versions: "numpy==1.21 scipy==1.9 sympy==1.9 matplotlib==3.3 pandas==1.3 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.53 meson ninja pytest setuptools==69"
           - python-version: '3.14'
-            module-versions: "numpy<2.4 scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest"
+            module-versions: "numpy==2.3 scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest"
         toolchain:
           - {compiler: gcc, version: 'latest'}
     steps:
