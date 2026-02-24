@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 23, 2026
+# Date: Mar. 6, 2023 - Feb. 24, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -29,6 +29,8 @@ cwd =pathlib.Path.cwd()
 # all available metals (to be used if user requests 'all' in one of the tests below):
 all_metals = " ".join(all_metals)
 baseln = "baseline" # default folder to check against
+if not usefortran: # allow running with different params if we're falling back to slower numba-jit routines
+    baseln = "baseline_nofortran"
 
 ########## define helper functions for the tests below
 
@@ -144,6 +146,8 @@ def test_dragiso(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Cu Fe'
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts': {'maxrec':2, 'target_accuracy':0.01}, 'NT':1} # defaults for this test
     opts['Ncores'] = Ncores
+    if not usefortran: # change some defaults if we're falling back to slower numba-jit routines
+        opts['phononwind_opts'].update({'maxrec':0, 'Nchunks':10})
     opts.update(kwargs)
     commandargs = convert_options(opts)
     if metals == 'all':
@@ -186,6 +190,7 @@ def test_drag(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti 
     if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
         opts['bccslip'] = '112'
         opts['hcpslip'] = 'prismatic'
+        opts['phononwind_opts'].update({'maxrec':0, 'Nchunks':10})
     opts.update(kwargs)
     commandargs = convert_options(opts)
     if metals == 'all':
@@ -231,7 +236,6 @@ def test_LT(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti Sn
     commandargs = convert_options(opts)
     if metals=='all':
         metals = all_metals
-    commandargs
     LT_folders = [pathlib.Path(f"LT_{opts['scale_by_mu']}"), pathlib.Path(f"LT_{opts['scale_by_mu']}","fromfiles")]
     fname = "vcrit.dat"
     if not skip_calcs:
@@ -240,7 +244,9 @@ def test_LT(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti Sn
         os.chdir(pathlib.Path(testfolder,LT_folders[0]))
         assert runscript("linetension_calcs.py",commandargs+[f'{metals}'],'LT.log')==0
         os.chdir(pathlib.Path(testfolder,LT_folders[1]))
-        filelist = sorted(pathlib.Path(os.pardir,"temp_pydislocdyn").glob("*"))
+        # filelist = sorted(pathlib.Path(os.pardir,"temp_pydislocdyn").glob("*")) ## only read the ones we just wrote:
+        filelist = sorted(expand_slipsystems(metals,bccslip=opts['bccslip'],hcpslip=opts['hcpslip']))
+        filelist = [pathlib.Path(os.pardir,"temp_pydislocdyn")/i for i in filelist]
         assert runscript("linetension_calcs.py",commandargs+filelist,'LT.log')==0
         os.chdir(testfolder)
     else: print("\nskipping test 'LT' as requested")
@@ -320,6 +326,8 @@ def test_acc_edge(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True} # defaults for this test
+    if not usefortran: # skip some if we're falling back to slower numba-jit routines by default
+        opts['hcpslip'] = 'prismatic'
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
