@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Feb. 22, 2026
+! Date: July 23, 2018 - Feb. 23, 2026
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20260222
+  versionnumber=20260223
 end subroutine version
 
 module parameters
@@ -654,13 +654,13 @@ END SUBROUTINE computeuij
 
 !!**********************************************************************
 
-SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
+SUBROUTINE integratetphi(B,beta,t,phi,updatet,Nphi,Nt,Bresult)
 ! this is a subroutine of dragcoeff_iso() in phononwind.py
 !-----------------------------------------------------------------------
   use parameters, only : sel
   IMPLICIT NONE
 !-----------------------------------------------------------------------
-  INTEGER, INTENT(IN) :: Nphi, Nt, kthchk
+  INTEGER, INTENT(IN) :: Nphi, Nt
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: t
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
@@ -682,9 +682,7 @@ SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
     NBtmp = size(Btmp)
     Bt(p) = 0.d0
     if (NBtmp.gt.1) then
-      if ((updatet.eqv..True.).or.(kthchk.eq.0)) then
-        Btmp(1) = 2.d0*Btmp(1)
-      endif
+      Btmp(1) = 2.d0*Btmp(1)
       if (updatet.eqv..True.) then
         Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
       endif
@@ -699,18 +697,17 @@ END SUBROUTINE integratetphi
 
 !!**********************************************************************
 
-SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
+SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,Nphi,Nt,Bresult)
 ! this is a subroutine of dragcoeff_iso() in phononwind.py
 !-----------------------------------------------------------------------
   use parameters, only : sel
   IMPLICIT NONE
 !-----------------------------------------------------------------------
-  INTEGER, INTENT(IN) :: Nphi, Nt, kthchk, Nchunks
+  INTEGER, INTENT(IN) :: Nphi, Nt
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B, t
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: qtilde
   REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
   REAL(KIND=sel), INTENT(IN)  :: beta1
-  LOGICAL, INTENT(IN)  :: updatet
   REAL(KIND=sel), INTENT(OUT) :: Bresult
   integer :: p, NBtmp
   real(kind=sel) :: qtlimit(Nphi), Bt(Nphi)
@@ -727,12 +724,8 @@ SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,N
     NBtmp = size(Btmp)
     Bt(p) = 0.d0
     if (NBtmp.gt.1) then
-      if ((updatet.eqv..True.).or.(kthchk.eq.0)) then
-        Btmp(1) = 2.d0*Btmp(1)
-      endif
-      if ((updatet.eqv..True.).or.(kthchk.eq.(Nchunks-1))) then
-        Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
-      endif
+      Btmp(1) = 2.d0*Btmp(1)
+      Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
       call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
     endif
   enddo
@@ -744,7 +737,7 @@ END SUBROUTINE integrateqtildephi
 
 !!**********************************************************************
 
-SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
+SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,r0cut,debye,dragb)
 ! this is a subroutine of dragcoeff_iso() in phononwind.py (TT and LL modes)
 !-----------------------------------------------------------------------
   use parameters, only : sel, selsm, hbar, kb, pi
@@ -754,7 +747,6 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
   real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:) :: A3
   real(kind=sel), intent(in) :: qBZ, ct, cl, beta, burgers, Temp, r0cut
   logical, intent(in) :: updatet, debye
-  integer, intent(in), dimension(2) :: chunks
   real(kind=sel), intent(in), dimension(lenph,3,3,lentheta) :: dij
   real(kind=sel), intent(out), dimension(lentheta) :: dragb
 !----------- local vars ------------------------------------------------
@@ -765,10 +757,8 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
   real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
   real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta(3,3)
   real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-  integer :: Nchunks, kthchk, i, j, k, th
+  integer :: i, j, k, th
   
-  Nchunks = chunks(1)
-  kthchk = chunks(2)
   call linspace(0.d0,2.d0*pi,lenph,phi)
   call linspace(0.d0,2.d0*pi,lenph1,phi1)
   call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
@@ -793,22 +783,11 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
   dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
   ph1 = real(phi1(1:lenph1-1), kind=selsm)
   
-  if (Nchunks > 1) then
-    tmin = (1.d0*kthchk)/Nchunks
-    tmax = (1.d0+kthchk)/Nchunks
-    if (updatet) then
-      dt = (tmax-tmin)/(2.d0*lent)
-      call linspace(tmin+dt,tmax-dt,lent,t)
-    else
-      call linspace(tmin,tmax,lent,t)
-    endif
+  if (updatet) then
+    dt = 1.d0/(2.d0*lent)
+    call linspace(dt,1.d0-dt,lent,t)
   else
-    if (updatet) then
-      dt = 1.d0/(2.d0*lent)
-      call linspace(dt,1.d0-dt,lent,t)
-    else
-      call linspace(0.d0,1.d0,lent,t)
-    endif
+    call linspace(0.d0,1.d0,lent,t)
   endif
   
   do i=1,lenph
@@ -871,7 +850,7 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
       dijc = real(dij(:,:,:,th), kind=selsm)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
-      call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
+      call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,lenph,lent,dragb(th))
     enddo
   else
     do th=1,lentheta
@@ -881,7 +860,7 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
                       ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
-      call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
+      call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,lenph,lent,dragb(th))
     enddo !th
   endif
   
@@ -890,7 +869,7 @@ END SUBROUTINE phononwind_xx
 
 !!**********************************************************************
 
-SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
+SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,r0cut,debye,dragb)
 ! this is a subroutine of dragcoeff_iso() in phononwind.py (mixed modes)
 !-----------------------------------------------------------------------
   use parameters, only : sel, selsm, hbar, kb, pi
@@ -900,7 +879,6 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
   real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:) :: A3
   real(kind=sel), intent(in) :: qBZ, cx, cy, beta, burgers, Temp, r0cut
   logical, intent(in) :: updatet, debye
-  integer, intent(in), dimension(2) :: chunks
   real(kind=sel), intent(in), dimension(lenph,3,3,lentheta) :: dij
   real(kind=sel), intent(out), dimension(lentheta) :: dragb
 !----------- local vars ------------------------------------------------
@@ -911,10 +889,8 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
   real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
   real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta1(3,3), delta2(3,3)
   real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-  integer :: Nchunks, kthchk, i, j, k, th
+  integer :: i, j, k, th
   
-  Nchunks = chunks(1)
-  kthchk = chunks(2)
   call linspace(0.d0,2.d0*pi,lenph,phi)
   call linspace(0.d0,2.d0*pi,lenph1,phi1)
   call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
@@ -947,22 +923,11 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
   dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
   ph1 = real(phi1(1:lenph1-1), kind=selsm)
   
-  if (Nchunks > 1) then
-    subqtmin = qt_min + (qt_max-qt_min)*kthchk/Nchunks
-    subqtmax = qt_min + (qt_max-qt_min)*(1.d0+kthchk)/Nchunks
-    if (updatet) then
-      dt = (subqtmax-subqtmin)/(2.d0*lent)
-      call linspace(subqtmin+dt,subqtmax-dt,lent,qtilde)
-    else
-      call linspace(subqtmin,subqtmax,lent,qtilde)
-    endif
+  if (updatet) then
+    dt = 1.d0/(2.d0*lent)
+    call linspace(qt_min+dt,qt_max-dt,lent,qtilde)
   else
-    if (updatet) then
-      dt = 1.d0/(2.d0*lent)
-      call linspace(qt_min+dt,qt_max-dt,lent,qtilde)
-    else
-      call linspace(qt_min,qt_max,lent,qtilde)
-    endif
+    call linspace(qt_min,qt_max,lent,qtilde)
   endif
   
   do i=1,lenph
@@ -1049,7 +1014,7 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       dijc = real(dij(:,:,:,th), kind=selsm)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
-      call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
+      call integrateqtildephi(Bmx,beta1,qtilde,t,phi,lenph,lent,dragb(th))
     enddo
   else
     do th=1,lentheta
@@ -1059,7 +1024,7 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
                       ph1,dphi1,lenph,lent,lenph1-1,lent*lenph)
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
-      call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
+      call integrateqtildephi(Bmx,beta1,qtilde,t,phi,lenph,lent,dragb(th))
     enddo !th
   endif
   

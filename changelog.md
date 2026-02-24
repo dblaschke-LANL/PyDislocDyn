@@ -16,6 +16,7 @@ Fix:
 Other:
 
  - use pathlib for paths
+ - removed deprecated keyword Nchunks from phonondrag()
 
 ## 1.3.4 (2025-11-18)
 

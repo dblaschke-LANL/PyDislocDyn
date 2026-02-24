@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Sept. 16, 2025
+# Date: Feb. 23, 2026
 '''This submodule contains various subroutines that are accelerated using just-in-time compiler numba.
    For the Fortran-implementation of these subroutines, see subroutines.f90.'''
 
@@ -270,7 +270,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
     distri[0] = 2*distri[0]
     return trapezoid(distri,x=q1, axis=0)
 
-def integratetphi(B,beta,t,phi,updatet,kthchk):
+def integratetphi(B,beta,t,phi,updatet):
     '''Subroutine of dragcoeff_iso().'''
     limit = beta*np.abs(np.cos(phi))
     # qtlimit = 1/(beta*np.abs(np.cos(phi))) ## mask not needed for this, as it is always automatically fulfilled in the present coordinates and with the limit above
@@ -282,19 +282,16 @@ def integratetphi(B,beta,t,phi,updatet,kthchk):
         Btmp = Btmp[tmask]
         ## tmin is moved to higher value for most angles phi and t[0] (after mask) may be <dt higher than tmin;
         ## thus might be missing an interval 0<=dt0<=dt which we approximate by dt0~dt/2 and use same value as the neighboring interval;
-        ## also, on updatet runs, we are missing dt/2 intervals on both ends of a chunk since we're computing intermediate points;
-        ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
-        ## this amounts to doubling the endpoints and letting trapz take care of the rest
         if len(Btmp!=0):
             if updatet:
                 Btmp[0] = 2*Btmp[0]
                 Btmp[-1] = 2*Btmp[-1]
-            elif kthchk==0:
+            else:
                 Btmp[0] = 2*Btmp[0]
         Bt[p] = trapezoid(Btmp, x=t1)
     return trapezoid(Bt, x=phi)
 
-def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
+def integrateqtildephi(B,beta1,qtilde,t,phi):
     '''Subroutine of dragcoeff_iso().'''
     Bt = np.zeros((len(phi)))
     ## energy conservation tells us w1-Wq>0, and hence qtilde<c1/v*cosphi=1/beta1*cosphi;
@@ -308,14 +305,9 @@ def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
         qt = qt[qtmask]
         Btmp = Btmp[qtmask]
         ## endpoints Btmp[0], Btmp[-1] may have moved inside due to mask
-        ## also: if we're refining, we are missing dt/2 intervals on both ends of a chunk on updatet runs since we're computing intermediate points;
-        ## to compensate, multiply the end-intervals by 1.5 and weight the end points by 2/3 compared to their neighbors;
-        ## this amounts to doubling the endpoints and letting trapz take care of the rest
         if len(Btmp)!=0:
-            if updatet or kthchk==0:
-                Btmp[0] = 2*Btmp[0]
-            if updatet or kthchk==(Nchunks-1):
-                Btmp[-1] = 2*Btmp[-1]
+            Btmp[0] = 2*Btmp[0]
+            Btmp[-1] = 2*Btmp[-1]
         Bt[p] = trapezoid(Btmp, x=qt)
     return trapezoid(Bt, x=phi)
 
@@ -346,7 +338,7 @@ def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
     
     return distri
 
-def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, Nphi1=50, Debye_series=False, beta_long=False, updatet=False, chunks=(1,0), r0cut=-1):
+def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, Nphi1=50, Debye_series=False, beta_long=False, updatet=False, r0cut=-1):
     '''Subroutine of dragcoeff_iso(): Computes one of the four modes (TT, LL, TL, LT where T=transverse, L=longitudinal) contributing to the drag coefficient from phonon wind for an isotropic crystal.
        Required inputs are the dislocation displacement gradient (times magnitude q and rescaled by the Burgers vector) dij in Fourier space,
        being a 3x3xNthetaxNphi array where theta is the angle parametrizing the dislocation type and phi is the polar angle in Fourier space. Additionally, the array of shifted 3rd order elastic constants A3 in units of the shear modulus mu,
@@ -358,15 +350,6 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
        Optionally, the default values for the resolution of integration variables t, q1, and phi1 may be changed. The parameter 'Debye_series' may be set to True in order to use the first 4 terms of the series representation of the
        Debye functions instead of computing the Debye integral over the phonon spectrum numerically. Note, however, that the series representation converges only for high enough temperature.'''
     
-    ### chunks = np.array(total#ofchunks=Nchk, #ofcurrentchunk=ithchk)
-    ### if set, Nt is number of points to use on current chunk
-    ### with this information we divide array t (or qtilde) into Nchk subintervals,
-    ### subintervals always end on exactly one point which is shared across neighboring chunks (we can then easily refine only certain chunks), i.e. initial Nt for total range must be divisible by #chunks,
-    ### i.e. Nt_total = 1 + #chunks*(Nt-1) where Nt is number of points in each chunk of initial run (we're sharing boundary points!), 
-    ### hence Nt_initial = (Nt_total -1)/#chunks + 1 and Nt_total = (int((Nt_userchoice)/#chunks) + 1) * #chunks + 1 (so that Nt_total>=Nt_userchoice)
-    ### Nt will always be 2^#rec (Nt_initial-1) and we only need Nt to calculate dt below once we divide the interval t into #chunks subintervals (that alone determines lower and upper limit, which then automatically matches points of the initial run)
-    Nchunks, kthchk = chunks
-    Nt_total = 1 + Nchunks*(Nt-1)
     ### initialize arrays
     Nphi = len(dij[0,0,0])
     phi = np.linspace(0,2*np.pi,Nphi)
@@ -388,40 +371,22 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             beta1=beta2*c2/c1
             beta_L=beta1
             qt_min = abs(c1/c2-1)/(1+beta2)
-            if Nt_total==Nt:
-                if updatet:
-                    dt = 1/(2*Nt)
-                    qtilde = np.linspace(qt_min+dt,qt_max-dt,Nt)
-                else:
-                    qtilde = np.linspace(qt_min,qt_max,Nt)
+            if updatet:
+                dt = 1/(2*Nt)
+                qtilde = np.linspace(qt_min+dt,qt_max-dt,Nt)
             else:
-                subqtmin = qt_min + (qt_max-qt_min)*kthchk/Nchunks
-                subqtmax = qt_min + (qt_max-qt_min)*(1+kthchk)/Nchunks
-                if updatet:
-                    dt = (subqtmax-subqtmin)/(2*Nt)
-                    qtilde = np.linspace(subqtmin+dt,subqtmax-dt,Nt)
-                else:
-                    qtilde = np.linspace(subqtmin,subqtmax,Nt)
+                qtilde = np.linspace(qt_min,qt_max,Nt)
         else:
             longitud = "2"
             beta1=beta ## assume beta is beta_T
             beta2=beta1*c1/c2
             beta_L=beta2
             qt_min = abs(1-c1/c2)/(1+beta2)
-            if Nt_total==Nt:
-                if updatet:
-                    dt = 1/(2*Nt)
-                    qtilde = np.linspace(qt_min+dt,qt_max-dt,Nt)
-                else:
-                    qtilde = np.linspace(qt_min,qt_max,Nt)
+            if updatet:
+                dt = 1/(2*Nt)
+                qtilde = np.linspace(qt_min+dt,qt_max-dt,Nt)
             else:
-                subqtmin = qt_min + (qt_max-qt_min)*kthchk/Nchunks
-                subqtmax = qt_min + (qt_max-qt_min)*(1+kthchk)/Nchunks
-                if updatet:
-                    dt = (subqtmax-subqtmin)/(2*Nt)
-                    qtilde = np.linspace(subqtmin+dt,subqtmax-dt,Nt)
-                else:
-                    qtilde = np.linspace(subqtmin,subqtmax,Nt)
+                qtilde = np.linspace(qt_min,qt_max,Nt)
         ###
         t = np.outer((qtilde+(1-c1**2/c2**2)/qtilde)/2,np.ones((len(phi)))) + np.outer(np.ones((len(qtilde))),(c1*beta2/c2)*np.abs(np.cos(phi))) - np.outer(qtilde/2,(beta2*np.cos(phi))**2)
         ### when integrating t later, need to slice such that -1<=t<=1 is ensured;
@@ -432,22 +397,12 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
             beta1=beta
         else:
             beta1=beta_L
-        if Nt_total==Nt:
-            # if updatet and Nt % 2 == 0:
-            ## always need the range [dt,1-dt] for any refinement (i.e. endpoints are present only in the initial run), no matter if even or not
-            if updatet:
-                dt = 1/(2*Nt)
-                t = np.linspace(dt,1-dt,Nt)
-            else:
-                t = np.linspace(0,1,Nt)
+        ## always need the range [dt,1-dt] for any refinement (i.e. endpoints are present only in the initial run), no matter if even or not
+        if updatet:
+            dt = 1/(2*Nt)
+            t = np.linspace(dt,1-dt,Nt)
         else:
-            tmin = kthchk/Nchunks
-            tmax = (1+kthchk)/Nchunks
-            if updatet:
-                dt = (tmax-tmin)/(2*Nt)
-                t = np.linspace(tmin+dt,tmax-dt,Nt)
-            else:
-                t = np.linspace(tmin,tmax,Nt)
+            t = np.linspace(0,1,Nt)
         qtilde = 2*(np.outer(t,np.ones((len(phi)))) - beta1*np.outer(np.ones((len(t))),np.abs(np.cos(phi))))/np.outer(np.ones((len(t))),(1-(beta1*np.cos(phi))**2))
         qtilde[qtilde==0] = 1e-30 ## avoid 1/0
 
@@ -465,38 +420,38 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
         for th in range(Ntheta):
             Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
             if isinstance(cs, list):
-                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi,updatet,kthchk,Nchunks)
+                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi)
             else:
                 if beta_long is False:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi,updatet,kthchk)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi,updatet)
                 else:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet,kthchk)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet)
     else:
         for th in range(Ntheta):
             poly = dragcoeff_iso_computepoly(A3[th], phi, qvec, qtilde, t, phi1, longitud)
             Bmix[th] = dragcoeff_iso_Bintegrand(prefactor1,dij[:,:,th],poly)
             if isinstance(cs, list):
-                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi,updatet,kthchk,Nchunks)
+                Bmixfinal[th] = integrateqtildephi(Bmix[th],beta1,qtilde,t,phi)
             else:
                 if beta_long is False:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi,updatet,kthchk)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta,t,phi,updatet)
                 else:
-                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet,kthchk)
+                    Bmixfinal[th] = integratetphi(Bmix[th],beta_L,t,phi,updatet)
     
     return Bmixfinal
 
-def phononwind_xx(dij, a3, qbz, ct, cl, beta, burgers, temp, lentheta, lent, lenph, lenq1, lenph1, updatet, chunks, r0cut, debye):
+def phononwind_xx(dij, a3, qbz, ct, cl, beta, burgers, temp, lentheta, lent, lenph, lenq1, lenph1, updatet, r0cut, debye):
     '''This subroutine simulates the behavior of the according Fortran sub-rountine using the (older) numba.jit accelerated python implementation.'''
     A3 = np.moveaxis(a3,-1,0)
     if len(A3)==1:
         A3 = A3[0] ## detect isotropic case
     if cl>0:
-        return dragcoeff_iso_onemode(dij=np.moveaxis(dij,0, -1), A3=A3, qBZ=qbz, cs=cl, beta=beta, burgers=burgers, T=temp, Nt=lent, Nq1=lenq1, Nphi1=lenph1, Debye_series=debye, beta_long=beta*ct/cl, r0cut=r0cut, updatet=updatet, chunks=chunks)
-    return dragcoeff_iso_onemode(dij=np.moveaxis(dij,0, -1), A3=A3, qBZ=qbz, cs=ct, beta=beta, burgers=burgers, T=temp, Nt=lent, Nq1=lenq1, Nphi1=lenph1, Debye_series=debye, beta_long=False, r0cut=r0cut, updatet=updatet, chunks=chunks)
+        return dragcoeff_iso_onemode(dij=np.moveaxis(dij,0, -1), A3=A3, qBZ=qbz, cs=cl, beta=beta, burgers=burgers, T=temp, Nt=lent, Nq1=lenq1, Nphi1=lenph1, Debye_series=debye, beta_long=beta*ct/cl, r0cut=r0cut, updatet=updatet)
+    return dragcoeff_iso_onemode(dij=np.moveaxis(dij,0, -1), A3=A3, qBZ=qbz, cs=ct, beta=beta, burgers=burgers, T=temp, Nt=lent, Nq1=lenq1, Nphi1=lenph1, Debye_series=debye, beta_long=False, r0cut=r0cut, updatet=updatet)
 
-def phononwind_xy(dij, a3, qbz, cx, cy, beta, burgers, temp, lentheta, lent, lenph, lenq1, lenph1, updatet, chunks, r0cut, debye):
+def phononwind_xy(dij, a3, qbz, cx, cy, beta, burgers, temp, lentheta, lent, lenph, lenq1, lenph1, updatet, r0cut, debye):
     '''This subroutine simulates the behavior of the according Fortran sub-rountine uisng the (older) numba.jit accelerated python implementation.'''
     A3 = np.moveaxis(a3,-1,0)
     if len(A3)==1:
         A3 = A3[0] ## detect isotropic case
-    return dragcoeff_iso_onemode(dij=np.moveaxis(dij,0, -1), A3=A3, qBZ=qbz, cs=[cx,cy], beta=beta, burgers=burgers, T=temp, Nt=lent, Nq1=lenq1, Nphi1=lenph1, Debye_series=debye, beta_long=False, r0cut=r0cut, updatet=updatet, chunks=chunks)
+    return dragcoeff_iso_onemode(dij=np.moveaxis(dij,0, -1), A3=A3, qBZ=qbz, cs=[cx,cy], beta=beta, burgers=burgers, T=temp, Nt=lent, Nq1=lenq1, Nphi1=lenph1, Debye_series=debye, beta_long=False, r0cut=r0cut, updatet=updatet)

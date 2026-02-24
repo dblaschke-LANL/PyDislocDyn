@@ -34,7 +34,7 @@ if Ncores>1:
 
 ### rho x ct^2  = c44, and B is divided by rho^2*ct^4 = c44^2;
 ### it is therefore convenient to divide A3 by c44 as it enters quadratically, and this is a requirement below, i.e. A3 must be rescaled by c44 to be dimensionless!
-def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, Nq1=400, Nphi1=50, Debye_series=False, target_accuracy=5e-3, maxrec=6, accurate_to_digit=1e-5, Nchunks=1, skip_theta=None, skip_theta_val=np.inf, r0cut=-1, name='drag'):
+def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, Nq1=400, Nphi1=50, Debye_series=False, target_accuracy=5e-3, maxrec=6, accurate_to_digit=1e-5, skip_theta=None, skip_theta_val=np.inf, r0cut=-1, name='drag'):
     '''Computes the drag coefficient from phonon wind for an isotropic crystal. Required inputs are the dislocation displacement gradient (times magnitude q and rescaled by the Burgers vector) dij in Fourier space
        (being a 3x3xNthetaxNphi array where theta is the angle parametrizing the dislocation type and phi is the polar angle in Fourier space), the array of shifted 3rd order elastic constants A3 in units of the shear modulus mu,
        the radius of the Brillouin zone qBZ, the transverse and longitudinal sound speeds ct and cl, the velocity beta in units of ct (i.e. beta=v/ct), the magnitude of the Burgers vectors burgers, as well as the temperature T.
@@ -64,28 +64,9 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         iso=True
     dij=np.moveaxis(dij, -1, 0) ## shape:  (i,j,Ntheta,Nphi) -> (Nphi,i,j,Ntheta)
     A3=np.moveaxis(A3,0,-1) ## shape:  (Ntheta,i,ii,j,jj,k,kk) -> (i,ii,j,jj,k,kk,Ntheta)
-    Nchks = Nchunks
-    ## make sure Nt_total-1 is divisible by 2*Nchunks, and that Nt_current is odd and >=5 (i.e. increase user provided Nt as necessary)
-    Nt_k = int(abs(Nt - 1 - 4*Nchunks)/(2*Nchunks))
-    Nt_total = 4*Nchunks + 2*Nt_k*Nchunks + 1
-    if Nt_total < Nt:
-        Nt_total += 2*Nchunks ## ensure we never reduce resolution
-    
-    def adaptive_t_chunks(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, \
-                          maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt_total=Nt, Nchunks=Nchunks, mode='??'):
-        if Nchunks==1:
-            out = adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, \
-                             maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt=Nt, mode=mode)
-        else:
-            out = 0
-            Nt_current = int((Nt_total-1)/Nchunks+1)
-            for kth in range(Nchunks):
-                out += adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta_long, target_accuracy=target_accuracy, \
-                                  maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=(Nchunks,kth), Nt=Nt_current, mode=mode)
-        return out
     
     def adaptive_t(dij, A3, qBZ, cs, beta, burgers, T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, target_accuracy=target_accuracy, \
-                   maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, chunks=(1,0), Nt=Nt, mode='??'):
+                   maxrec=maxrec, accurate_to_digit=accurate_to_digit, skip_theta=skip_theta, r0cut=r0cut, Nt=Nt, mode='??'):
         if skip_theta is None:
             dijtmp = dij
             A3tmp = A3
@@ -104,15 +85,15 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             args = {'dij':dijtmp, 'a3':A3tmp, 'qbz':qBZ, 'ct':ct, 'cl':0, 'beta':beta, 'burgers':burgers, 'temp':T, 'r0cut':r0cut, 'debye':Debye_series}
             if beta_long is not False:
                 args['cl'] = cl
-            out_old = phononwind_xx(**args, lentheta=Ntheta, lent=Ntauto_old, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=False, chunks=chunks)
+            out_old = phononwind_xx(**args, lentheta=Ntheta, lent=Ntauto_old, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=False)
             Ntauto = Ntauto_old-1 ## number of points to add (i.e. total is 2*Ntauto_old-1); refine previous result
-            out = out_old/2 + phononwind_xx(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True, chunks=chunks)/2
+            out = out_old/2 + phononwind_xx(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True)/2
         else:
             c1,c2 = cs
             args = {'dij':dijtmp, 'a3':A3tmp, 'qbz':qBZ, 'cx':c1, 'cy':c2, 'beta':beta, 'burgers':burgers, 'temp':T, 'r0cut':r0cut, 'debye':Debye_series}
-            out_old = phononwind_xy(**args, lentheta=Ntheta, lent=Ntauto_old, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=False, chunks=chunks)
+            out_old = phononwind_xy(**args, lentheta=Ntheta, lent=Ntauto_old, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=False)
             Ntauto = Ntauto_old-1 ## number of points to add (i.e. total is 2*Ntauto_old-1); refine previous result
-            out = out_old/2 + phononwind_xy(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True, chunks=chunks)/2
+            out = out_old/2 + phononwind_xy(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True)/2
         ## determine if target accuracy was achieved
         err_mask = out!=0
         out_error_all = np.abs(np.abs(out)-np.abs(out_old))[err_mask]
@@ -120,7 +101,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             out_error = 0
         else:
             out_norm = (np.abs(out))[err_mask]
-            out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit/Nchks)))
+            out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit)))
         refnmts = 0
         for rec in range(maxrec):
             if out_error < target_accuracy:
@@ -130,9 +111,9 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             Ntauto = 2*Ntauto ## number of points to add
             if iso:
                 if mode in ('TT','LL'):
-                    out = out_old/2 + phononwind_xx(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True, chunks=chunks)/2
+                    out = out_old/2 + phononwind_xx(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True)/2
                 else:
-                    out = out_old/2 + phononwind_xy(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True, chunks=chunks)/2
+                    out = out_old/2 + phononwind_xy(**args, lentheta=Ntheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True)/2
             else:
                 ## refine only needed angles theta if A3 is theta dependent to save computation time
                 theta_mask = out_error_all/out_norm>=target_accuracy
@@ -142,12 +123,12 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                                'beta':beta, 'burgers':burgers, 'temp':T, 'r0cut':r0cut, 'debye':Debye_series}
                     newargs['cl'] = args['cl']
                     newNtheta = len(newargs['a3'][0,0,0,0,0,0])
-                    out_newpoints = phononwind_xx(**newargs, lentheta=newNtheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True, chunks=chunks)
+                    out_newpoints = phononwind_xx(**newargs, lentheta=newNtheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True)
                 else:
                     newargs = {'dij':(dijtmp[:,:,:,err_mask])[:,:,:,theta_mask], 'a3':(A3tmp[:,:,:,:,:,:,err_mask])[:,:,:,:,:,:,theta_mask], 'qbz':qBZ, 'cx':c1, 'cy':c2, \
                                'beta':beta, 'burgers':burgers, 'temp':T, 'r0cut':r0cut, 'debye':Debye_series}
                     newNtheta = len(newargs['a3'][0,0,0,0,0,0])
-                    out_newpoints = phononwind_xy(**newargs, lentheta=newNtheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True, chunks=chunks)
+                    out_newpoints = phononwind_xy(**newargs, lentheta=newNtheta, lent=Ntauto, lenph=Nphi, lenq1=Nq1, lenph1=Nphi1, updatet=True)
                 for th, thi in enumerate(theta_refine):
                     out[thi] = out_old[thi]/2 + out_newpoints[th]/2
             err_mask = out!=0
@@ -156,10 +137,10 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
                 out_error = 0
             else:
                 out_norm = (np.abs(out))[err_mask]
-                out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit/Nchks)))
+                out_error = min(np.max(out_error_all/out_norm),np.max(target_accuracy*out_error_all/(accurate_to_digit)))
             refnmts = rec+1
         if refnmts==maxrec and out_error > 2*target_accuracy and maxrec>0:
-            print(f"warning: max # recursions reached ({name}), {beta=:.4f}, {T=}, {mode=}, {chunks=}, est. error={100*out_error:.2f}%")
+            print(f"warning: max # recursions reached ({name}), {beta=:.4f}, {T=}, {mode=}, est. error={100*out_error:.2f}%")
         
         return out
     
@@ -178,33 +159,33 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         if maxrec<0: ## bypass adaptive grid if requested by user
             Ntauto = int((1+beta)*Nt) ## we know we need more points at higher beta, so already start from higher value
             BTT = phononwind_xx(dij=dij, a3=A3, qbz=qBZ, ct=ct, cl=0, beta=beta, burgers=burgers, temp=T, lentheta=Ntheta, lent=Ntauto, lenph=len(dij), \
-                                lenq1=Nq1, lenph1=Nphi1, updatet=False, chunks=(1,0), r0cut=r0cut, debye=Debye_series)
+                                lenq1=Nq1, lenph1=Nphi1, updatet=False, r0cut=r0cut, debye=Debye_series)
         else:
-            BTT = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=ct, beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='TT')
+            BTT = adaptive_t(dij=dij, A3=A3, qBZ=qBZ, cs=ct, beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt=Nt, mode='TT')
         
     if modes in ('all', 'LL'):
         if maxrec<0:
             Ntauto = int((1+beta/2)*Nt)
             BLL = phononwind_xx(dij=dij, a3=A3, qbz=qBZ, ct=ct, cl=cl, beta=beta, burgers=burgers, temp=T, lentheta=Ntheta, lent=Ntauto, lenph=len(dij), \
-                                lenq1=Nq1, lenph1=Nphi1, updatet=False, chunks=(1,0), r0cut=r0cut, debye=Debye_series)
+                                lenq1=Nq1, lenph1=Nphi1, updatet=False, r0cut=r0cut, debye=Debye_series)
         else:
-            BLL = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=cl, beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta*ct/cl, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='LL')
+            BLL = adaptive_t(dij=dij, A3=A3, qBZ=qBZ, cs=cl, beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=beta*ct/cl, r0cut=r0cut, Nt=Nt, mode='LL')
         
     if modes in ('all', 'mix', 'TL'):
         if maxrec<0:
             Ntauto = int((1+beta/2)*Nt)
             BTL = phononwind_xy(dij=dij, a3=A3, qbz=qBZ, cx=ct, cy=cl, beta=beta, burgers=burgers, temp=T, lentheta=Ntheta, lent=Ntauto, lenph=len(dij), \
-                                lenq1=Nq1, lenph1=Nphi1, updatet=False, chunks=(1,0), r0cut=r0cut, debye=Debye_series)
+                                lenq1=Nq1, lenph1=Nphi1, updatet=False, r0cut=r0cut, debye=Debye_series)
         else:
-            BTL = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=[ct,cl], beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='TL')
+            BTL = adaptive_t(dij=dij, A3=A3, qBZ=qBZ, cs=[ct,cl], beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt=Nt, mode='TL')
         
     if modes in ('all', 'mix', 'LT'):
         if maxrec<0:
             Ntauto = int((1+beta)*Nt)
             BLT = phononwind_xy(dij=dij, a3=A3, qbz=qBZ, cx=cl, cy=ct, beta=beta, burgers=burgers, temp=T, lentheta=Ntheta, lent=Ntauto, lenph=len(dij), \
-                                lenq1=Nq1, lenph1=Nphi1, updatet=False, chunks=(1,0), r0cut=r0cut, debye=Debye_series)
+                                lenq1=Nq1, lenph1=Nphi1, updatet=False, r0cut=r0cut, debye=Debye_series)
         else:
-            BLT = adaptive_t_chunks(dij=dij, A3=A3, qBZ=qBZ, cs=[cl,ct], beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt_total=Nt_total, Nchunks=Nchunks, mode='LT')
+            BLT = adaptive_t(dij=dij, A3=A3, qBZ=qBZ, cs=[cl,ct], beta=beta, burgers=burgers, T=T, Nq1=Nq1, Nphi1=Nphi1, Debye_series=Debye_series, beta_long=False, r0cut=r0cut, Nt=Nt, mode='LT')
     
     if skip_theta is None:
         out = BTT + BLL + BTL + BLT
