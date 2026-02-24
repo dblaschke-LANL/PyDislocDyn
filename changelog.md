@@ -11,7 +11,7 @@ Features and improvements:
 
 Fix:
 
- - 
+ - fix `B_of_sigma()` for numpy 2.4
 
 Other:
 

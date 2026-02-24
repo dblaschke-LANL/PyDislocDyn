@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 17, 2026
+# Date: Nov. 5, 2017 - Feb. 23, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -367,7 +367,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         if not themin.success or zero>1e-8:
             # fall back to (slower) root (try x0 close to vcrit as this case typically happens for very large stress):
             themin = root(nonlinear_equation,x0=0.999*vcrit)
-            out = themin.x
+            out = themin.x[0]
             zero=themin.fun[0]
             if not themin.success or zero>1e-8:
                 print(f"Warning: bad convergence for {Y.name}, {character}; got vr({stress=:.3e})={out[0]:.2f}; {vcrit=:.2f}, eq={zero:.6e}")
