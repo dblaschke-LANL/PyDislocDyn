@@ -53,11 +53,11 @@ output(:,:,:,:,:) = 0.0
 !$ k=i*lent
 !$ call thesum(output(j:k,:,:,:,:),tcosphi(j:k),sqrtsinphi(j:k),tsinphi(j:k),sqrtcosphi(j:k),sqrtt(j:k), &
 !$              qv(j:k,:),delta1,delta2,mag(j:k),A3,phi1,dphi1,lenph1,lent)
-!$ enddo
+!$ end do
 !$OMP END PARALLEL DO
 !$ else
 call thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
-!$ endif
+!$ end if
 end subroutine parathesum
 
 subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
@@ -209,11 +209,11 @@ SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
         do l=1,3
           do k=1,3
             AB(:,l,o,i) = AB(:,l,o,i) + a(:,k,i)*Cmat(k,l,o,p,i)*b(:,p,i)
-          enddo
-        enddo
-      enddo
-    enddo
-  enddo
+          end do
+        end do
+      end do
+    end do
+  end do
   !$OMP END PARALLEL DO
   
   RETURN
@@ -238,10 +238,10 @@ SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
       do l=1,3
         do k=1,3
           AB(:,l,o) = AB(:,l,o) + a(:,k)*Cmat(k,l,o,p)*b(:,p)
-        enddo
-      enddo
-    enddo
-  enddo
+        end do
+      end do
+    end do
+  end do
   
   RETURN
 END SUBROUTINE elbrak1d
@@ -366,7 +366,7 @@ SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
                    - (x-xpr)**2*(tau_min_R)) &
                 - (stepfct2*(1.d0/rpr**4)*((tau2**2*y**2*abc/ct**2 - (x-xpr)*y*(b/(2*c))*rpr**2/(ct*ca**2))/tau_min_R2 &
                    - (x-xpr)**2*tau_min_R2))
-  endif
+  end if
   
   RETURN
 END SUBROUTINE accscrew_xyintegrand
@@ -451,12 +451,12 @@ SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
         do l=1,3
           do k=1,3
             Wdensity(:) = Wdensity(:) + 0.5d0*uij(:,l,k,th)*uij(:,o,p,th)*(C2(k,l,o,p) + betaj*betaj*Cv(k,l,o,p,th))
-          enddo
-        enddo
-      enddo
-    enddo
+          end do
+        end do
+      end do
+    end do
     call trapz(Wdensity,phi,Nphi,Wtot(th))
-  enddo
+  end do
   !$OMP END PARALLEL DO
   
   RETURN
@@ -482,7 +482,7 @@ SUBROUTINE inv(A,invA)
   ! note: hard coding this loop speeds up things by factor 6/27
 !~   do i=1,3; do j=1,3; do k=1,3
 !~     det = det + eps(i,j,k)*A(1,i)*A(2,j)*A(3,k)
-!~   enddo; enddo; enddo
+!~   end do; end do; end do
   det = A(1,1)*A(2,2)*A(3,3) + A(1,3)*A(2,1)*A(3,2) + A(1,2)*A(2,3)*A(3,1) &
         - A(1,3)*A(2,2)*A(3,1) - A(1,1)*A(2,3)*A(3,2) - A(1,2)*A(2,1)*A(3,3)
   
@@ -491,8 +491,8 @@ SUBROUTINE inv(A,invA)
 !~   do i=1,3; do j=1,3; do k=1,3
 !~     do l=1,3; do m=1,3; do n=1,3
 !~       invA(i,j) = invA(i,j) + 0.5d0*eps(j,k,l)*eps(i,m,n)*A(k,m)*A(l,n)
-!~     enddo; enddo; enddo
-!~   enddo; enddo; enddo
+!~     end do; end do; end do
+!~   end do; end do; end do
   invA(1,1) = A(2,2)*A(3,3) - A(2,3)*A(3,2)
   invA(2,2) = A(1,1)*A(3,3) - A(1,3)*A(3,1)
   invA(3,3) = A(1,1)*A(2,2) - A(1,2)*A(2,1)
@@ -564,32 +564,32 @@ SUBROUTINE computeuk(beta, C2, Cv, b, M, N, phi, r, Ntheta, Nphi, Nr, uk)
   call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
   do ph=1,Nphi
     call inv(NN(ph,:,:),NNinv(ph,:,:))
-  enddo
+  end do
   do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
     Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
-  enddo; enddo; enddo; enddo
+  end do; end do; end do; end do
   do j=1,3; do i=1,3; do ph=1,Nphi
     Bphi(ph,i,j) = MM(ph,i,j)
     do k=1,3
       Bphi(ph,i,j) = Bphi(ph,i,j) + MN(ph,i,k)*Sphi(ph,k,j)
-    enddo
-  enddo; enddo; enddo
+    end do
+  end do; end do; end do
     do i=1,3; do j=1,3
       call trapz(Sphi(:,j,i),phi,Nphi,S(j,i))
       call trapz(Bphi(:,j,i),phi,Nphi,BB(j,i))
-    enddo; enddo
+    end do; end do
     Sb(:) = (0.25d0/pi2)*MATMUL(S(:,:),b)
     BBb(:) = (0.25d0/pi2)*MATMUL(BB(:,:),b)
   do i=1,3; do ph=1,Nphi
     tmpu(ph,i) = DOT_PRODUCT(NNinv(ph,i,:),BBb(:)) - DOT_PRODUCT(Sphi(ph,i,:),Sb(:))
-  enddo; enddo
+  end do; end do
   uiphi = 0d0
   do i=1,3
     call cumtrapz(tmpu(:,i),phi,Nphi,uiphi(:,i))
-  enddo
+  end do
   do i=1,3; do j=1,Nr
     uk(:,i,th,j) = uiphi(:,i) - Sb(i)*log(r(j)/r(1))
-  enddo; enddo; enddo
+  end do; end do; end do
   !$OMP END PARALLEL DO
   RETURN
 END SUBROUTINE computeuk
@@ -628,26 +628,26 @@ SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
   call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
   do ph=1,Nphi
     call inv(NN(ph,:,:),NNinv(ph,:,:))
-  enddo
+  end do
   do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
     Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
-  enddo; enddo; enddo; enddo
+  end do; end do; end do; end do
   do j=1,3; do i=1,3; do ph=1,Nphi
     Bphi(ph,i,j) = MM(ph,i,j)
     do k=1,3
       Bphi(ph,i,j) = Bphi(ph,i,j) + MN(ph,i,k)*Sphi(ph,k,j)
-    enddo
-  enddo; enddo; enddo
+    end do
+  end do; end do; end do
     do i=1,3; do j=1,3
       call trapz(Sphi(:,j,i),phi,Nphi,S(j,i))
       call trapz(Bphi(:,j,i),phi,Nphi,BB(j,i))
-    enddo; enddo
+    end do; end do
     Sb(:) = (0.25d0/pi2)*MATMUL(S(:,:),b)
     BBb(:) = (0.25d0/pi2)*MATMUL(BB(:,:),b)
   do j=1,3; do i=1,3; do ph=1,Nphi
     uij(ph,i,j,th) = uij(ph,i,j,th) - Sb(i)*M(ph,j,th) &
                     + N(ph,j,th)*(DOT_PRODUCT(NNinv(ph,i,:),BBb(:)) - DOT_PRODUCT(Sphi(ph,i,:),Sb(:)))
-  enddo; enddo; enddo; enddo
+  end do; end do; end do; end do
   !$OMP END PARALLEL DO
   RETURN
 END SUBROUTINE computeuij
@@ -681,16 +681,16 @@ SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
     Btmp = pack(B(:,p),tmask)
     NBtmp = size(Btmp)
     Bt(p) = 0.d0
-    if (NBtmp.gt.1) then
-      if ((updatet.eqv..True.).or.(kthchk.eq.0)) then
+    if (NBtmp>1) then
+      if ((updatet.eqv..True.).or.(kthchk==0)) then
         Btmp(1) = 2.d0*Btmp(1)
-      endif
+      end if
       if (updatet.eqv..True.) then
         Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
-      endif
+      end if
       call trapz(Btmp(:),t1(:),NBtmp,Bt(p))
-    endif
-  enddo
+    end if
+  end do
   !$OMP END PARALLEL DO
   call trapz(Bt,phi,Nphi,Bresult)
   
@@ -726,16 +726,16 @@ SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,N
     Btmp = pack(B(:,p),tmask)
     NBtmp = size(Btmp)
     Bt(p) = 0.d0
-    if (NBtmp.gt.1) then
-      if ((updatet.eqv..True.).or.(kthchk.eq.0)) then
+    if (NBtmp>1) then
+      if ((updatet.eqv..True.).or.(kthchk==0)) then
         Btmp(1) = 2.d0*Btmp(1)
-      endif
-      if ((updatet.eqv..True.).or.(kthchk.eq.(Nchunks-1))) then
+      end if
+      if ((updatet.eqv..True.).or.(kthchk==(Nchunks-1))) then
         Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
-      endif
+      end if
       call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
-    endif
-  enddo
+    end if
+  end do
   !$OMP END PARALLEL DO
   call trapz(Bt,phi,Nphi,Bresult)
   
@@ -787,8 +787,8 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
     cqBZ = ct*qBZ
     do i=1,3
       delta(i,i) = 1.d0
-    enddo
-  endif
+    end do
+  end if
   prefac1 = (1.d3*pi*hbar*qBZ*burgers**2*ctovcl**3/(2*beta*(2*pi)**5))
   dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
   ph1 = real(phi1(1:lenph1-1), kind=selsm)
@@ -801,21 +801,21 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
       call linspace(tmin+dt,tmax-dt,lent,t)
     else
       call linspace(tmin,tmax,lent,t)
-    endif
+    end if
   else
     if (updatet) then
       dt = 1.d0/(2.d0*lent)
       call linspace(dt,1.d0-dt,lent,t)
     else
       call linspace(0.d0,1.d0,lent,t)
-    endif
-  endif
+    end if
+  end if
   
   do i=1,lenph
     qtilde(:,i) = 2.d0*(t-beta*ctovcl*csphi(i))/(1.d0-(beta*ctovcl*cos(phi(i)))**2) + tiny(1.)
     prefac(:,i) = prefac1*csphi(i)/(1.d0-(beta*ctovcl*csphi(i))**2)/qtilde(:,i)
     OneMinBtqcosph1(:,i) = 1.d0 - beta*ctovcl*qtilde(:,i)*csphi(i)
-  enddo
+  end do
   
   ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
   if (debye) then
@@ -826,7 +826,7 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
               +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
               -(hbarcsqBZ_TkB**4/(30.d0*4.d0*24.d0))*(1.d0-(betafactor)**3) &
               +(hbarcsqBZ_TkB**6/(42.d0*5.d0*720.d0))*(1.d0-(betafactor)**5))
-    enddo
+    end do
   else
     call dragcoeff_iso_phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
     ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
@@ -836,22 +836,22 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
       do i=1,(lenq1-1)
         do j=1,lenph1
           distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
-        enddo
-      enddo
-    endif
+        end do
+      end do
+    end if
     prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
     ! integrate over last axis (q1), speedup by looping over last variable instead of calling subroutine trapz
     do i=1,lenq1-2
       prefac = prefac + 0.5d0*(distri(:,:,i+1)+distri(:,:,i))*(q1(i+1)-q1(i))
-    enddo
-  endif
+    end do
+  end if
   prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
   !!!
   do i=1,lenph
     do j=1,lent
       do k=1,3
         qv((j-1)*lenph+i,k) = real(qtilde(j,i)*qvec(i,k), kind=selsm)
-      enddo !k
+      end do !k
       k = (j-1)*lenph+i
       mag(k) = real(1.d0 + qtilde(j,i)**2 - 2.d0*t(j)*qtilde(j,i), kind=selsm)
       sqrtt(k) = real(sqrt(1.d0-t(j)**2), kind=selsm)
@@ -859,8 +859,8 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
       sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
       tsinphi(k) = real(t(j)*sin(phi(i)), kind=selsm)
       sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
-    enddo !j
-  enddo !i
+    end do !j
+  end do !i
   !!!
   if (size(A3,7)==1) then
     ! no need to call bottleneck parathesum() more than once in the isotropic limit
@@ -872,7 +872,7 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
       call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
-    enddo
+    end do
   else
     do th=1,lentheta
       dijc = real(dij(:,:,:,th), kind=selsm)
@@ -882,8 +882,8 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
       call integratetphi(Bmx,beta*ctovcl,t,phi,updatet,kthchk,lenph,lent,dragb(th))
-    enddo !th
-  endif
+    end do !th
+  end if
   
   RETURN
 END SUBROUTINE phononwind_xx
@@ -933,15 +933,15 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
     beta2 = beta
     do i=1,3
       delta2(i,i) = 1.d0
-    enddo
+    end do
   else
     ctovcl = cx/cy
     beta1 = beta
     beta2 = beta*ctovcl
     do i=1,3
       delta1(i,i) = 1.d0
-    enddo
-  endif
+    end do
+  end if
   qt_min = abs(1-cx/cy)/(1+beta2)
   prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4*beta1*(2*pi)**5))
   dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
@@ -955,21 +955,21 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       call linspace(subqtmin+dt,subqtmax-dt,lent,qtilde)
     else
       call linspace(subqtmin,subqtmax,lent,qtilde)
-    endif
+    end if
   else
     if (updatet) then
       dt = 1.d0/(2.d0*lent)
       call linspace(qt_min+dt,qt_max-dt,lent,qtilde)
     else
       call linspace(qt_min,qt_max,lent,qtilde)
-    endif
-  endif
+    end if
+  end if
   
   do i=1,lenph
     t(:,i) = (qtilde+(1.d0-cx**2/cy**2)/qtilde)/2.d0 + (cx*beta2/cy)*csphi(i) - qtilde*(beta2*csphi(i))**2/2.d0
     prefac(:,i) = prefac1*csphi(i)/qtilde
     OneMinBtqcosph1(:,i) = 1.d0 - beta1*qtilde*csphi(i)
-  enddo
+  end do
   
   ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
   ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
@@ -989,8 +989,8 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
               +(hbarcsqBZ_TkB/36.d0)*(beta1*qtilde*csphi(j)) &
               -(hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
               +(hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
-      endif
-    enddo
+      end if
+    end do
   else
     call dragcoeff_iso_phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
     ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
@@ -1001,9 +1001,9 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       do i=1,(lenq1-1)
         do j=1,lenph1
           distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
-        enddo
-      enddo
-    endif
+        end do
+      end do
+    end if
     ! if cx>cy, we need to limit the integration range of q1<=(cy/cx)/(1-beta1*qtilde*csphi) in addition to q1<=1
     if (cx>cy) then
       q1limit = ctovcl/OneMinBtqcosph1
@@ -1012,24 +1012,24 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
           do k=1,lent
             if (q1(i)>q1limit(k,j)) then
               distri(k,j,i) = 0.d0
-            endif
-          enddo !k
-        enddo !j
-      enddo !i
-    endif
+            end if
+          end do !k
+        end do !j
+      end do !i
+    end if
     prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
     ! integrate over last axis (q1), speedup by looping over last variable instead of calling subroutine trapz
     do i=1,lenq1-2
       prefac = prefac + 0.5d0*(distri(:,:,i+1)+distri(:,:,i))*(q1(i+1)-q1(i))
-    enddo
-  endif
+    end do
+  end if
   prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
   !!!
   do i=1,lenph
     do j=1,lent
       do k=1,3
         qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
-      enddo !k
+      end do !k
       k = (j-1)*lenph+i
       mag(k) = real(1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j), kind=selsm)
       sqrtt(k) = real(sqrt(abs(1.d0-t(j,i)**2)), kind=selsm)
@@ -1037,8 +1037,8 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
       tsinphi(k) = real(t(j,i)*sin(phi(i)), kind=selsm)
       sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
-    enddo !j
-  enddo !i
+    end do !j
+  end do !i
   !!!
   if (size(A3,7)==1) then
     ! no need to call bottleneck parathesum() more than once in the isotropic limit
@@ -1050,7 +1050,7 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
       call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
-    enddo
+    end do
   else
     do th=1,lentheta
       dijc = real(dij(:,:,:,th), kind=selsm)
@@ -1060,8 +1060,8 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       call dragintegrand(Bmix,prefactor1,dijc,flatpoly,lent,lenph)
       Bmx = real(Bmix,kind=sel) ! integratetphi needs kind=sel again
       call integrateqtildephi(Bmx,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,lenph,lent,dragb(th))
-    enddo !th
-  endif
+    end do !th
+  end if
   
   RETURN
 END SUBROUTINE phononwind_xy
