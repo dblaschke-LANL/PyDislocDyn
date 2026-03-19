@@ -4,15 +4,11 @@
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ! Date: July 23, 2018 - Mar. 19, 2026
 
-subroutine version(versionnumber)
-  integer, intent(out) :: versionnumber
-  versionnumber=20260319
-end subroutine version
-
 module parameters
 implicit none
 integer,parameter :: sel = selected_real_kind(10)
 integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
+integer,parameter :: version = 20260319
 real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
 real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
 real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -473,8 +469,6 @@ module phononwind_subroutines
   implicit none
   contains
     SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
-    ! this is a subroutine of dragcoeff_iso() in phononwind.py
-    !-----------------------------------------------------------------------
       use parameters, only : sel, hbar, kb
       IMPLICIT NONE
     !-----------------------------------------------------------------------
@@ -658,8 +652,6 @@ module phononwind_subroutines
     !!**********************************************************************
 
     SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
-    ! this is a subroutine of dragcoeff_iso() in phononwind.py
-    !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
@@ -703,8 +695,6 @@ module phononwind_subroutines
     !!**********************************************************************
 
     SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
-    ! this is a subroutine of dragcoeff_iso() in phononwind.py
-    !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
