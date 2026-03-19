@@ -2,11 +2,11 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Feb. 22, 2026
+! Date: July 23, 2018 - Mar. 19, 2026
 
 subroutine version(versionnumber)
   integer, intent(out) :: versionnumber
-  versionnumber=20260222
+  versionnumber=20260319
 end subroutine version
 
 module parameters
@@ -28,164 +28,6 @@ nthreads = 0
 !~ !$   print*, 'type "export OMP_NUM_THREADS=n" before running this prog. to change'
 return
 end subroutine ompinfo
-
-subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
-                      lenp,lent,lenph1,lentph)
-! this wrapper parallelizes thesum() which is a subroutine of dragcoeff_iso_computepoly() in phononwind.py
-!$   Use omp_lib
-use parameters, only : selsm
-implicit none
-
-integer, intent(in) :: lentph, lenph1, lenp, lent
-real(kind=selsm), intent(in), dimension(lenph1) :: phi1, dphi1
-real(kind=selsm), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-real(kind=selsm), intent(in), dimension(lentph,3) :: qv
-real(kind=selsm), intent(in), dimension(3,3) :: delta1, delta2
-real(kind=selsm), intent(in), dimension(3,3,3,3,3,3) :: A3
-real(kind=selsm), intent(out), dimension(lentph,3,3,3,3) :: output
-!$ integer :: i,j,k, nthreads
-output(:,:,:,:,:) = 0.0
-!$ call ompinfo(nthreads)
-!$ if (nthreads .ge. 2) then
-!$OMP PARALLEL DO default(shared), private(i,j,k)
-!$ do i=1,lenp
-!$ j=(i-1)*lent+1
-!$ k=i*lent
-!$ call thesum(output(j:k,:,:,:,:),tcosphi(j:k),sqrtsinphi(j:k),tsinphi(j:k),sqrtcosphi(j:k),sqrtt(j:k), &
-!$              qv(j:k,:),delta1,delta2,mag(j:k),A3,phi1,dphi1,lenph1,lent)
-!$ end do
-!$OMP END PARALLEL DO
-!$ else
-call thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
-!$ end if
-end subroutine parathesum
-
-subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
-! this is a subroutine of dragcoeff_iso_computepoly() in phononwind.py
-use parameters, only : selsm
-implicit none
-integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
-integer, intent(in) :: lentph, lenph1
-real(kind=selsm), intent(in), dimension(lenph1) :: phi1, dphi1
-real(kind=selsm), dimension(lentph,3) :: qt, qtshift
-real(kind=selsm), dimension(lentph,3,3,3,3) :: A3qt2, part1, part2
-real(kind=selsm), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
-real(kind=selsm), intent(in), dimension(lentph,3) :: qv
-real(kind=selsm), intent(in), dimension(3,3) :: delta1, delta2
-real(kind=selsm), intent(in), dimension(3,3,3,3,3,3) :: A3
-real(kind=selsm), intent(inout), dimension(lentph,3,3,3,3) :: output
-
-!~ ! problem: openmp puts private variables in the stack, and if maxrec>3 arrays can get too large and cause a segfault
-!~ !$OMP PARALLEL DO default(shared), private(i, j, k, l, ii, jj, kk, n, nn, m, p, &
-!~ !$omp                      qt,qtshift,A3qt2,part1,part2) &
-!~ !$omp& reduction(+:output)
-do p = 1,lenph1
-
-qt(:,1) = tcosphi - sqrtsinphi*cos(phi1(p))
-qt(:,2) = tsinphi + sqrtcosphi*cos(phi1(p))
-qt(:,3) = sqrtt*sin(phi1(p))
-qtshift = qt - qv
-
-A3qt2(:,:,:,:,:) = 0.0
-do kk = 1,3
-   do k = 1,3
-      do j = 1,3
-         do i = 1,3
-            do jj = 1,3
-               do ii = 1,3
-                  A3qt2(:,i,j,k,kk) = A3qt2(:,i,j,k,kk) + qt(:,ii)*qtshift(:,jj)*A3(i,ii,j,jj,k,kk)
-               end do
-            end do
-         end do
-      end do
-   end do
-end do
-
-part1(:,:,:,:,:) = 0.0
-do kk = 1,3
-   do k = 1,3
-      do j = 1,3
-         do l = 1,3
-            do i = 1,3
-               part1(:,l,j,k,kk) = part1(:,l,j,k,kk) + (delta1(i,l) - qt(:,l)*qt(:,i))*A3qt2(:,i,j,k,kk)
-            end do
-         end do
-      end do
-   end do
-end do
-
-part2(:,:,:,:,:) = 0.0
-do nn = 1,3
-   do n = 1,3
-      do j = 1,3
-         do m = 1,3
-            do l = 1,3
-               part2(:,l,j,n,nn) = part2(:,l,j,n,nn) + (delta2(j,m) - qtshift(:,j)*qtshift(:,m)/mag)*A3qt2(:,l,m,n,nn)
-            end do
-         end do
-      end do
-   end do
-end do
-part2(:,:,:,:,:) = part2(:,:,:,:,:)*dphi1(p)
-
-do nn = 1,3
-   do n = 1,3
-      do kk = 1,3
-         do k = 1,3
-            do j = 1,3
-               do l = 1,3
-                  output(:,k,kk,n,nn) = output(:,k,kk,n,nn) + part1(:,l,j,k,kk)*part2(:,l,j,n,nn)
-               end do
-            end do
-         end do
-      end do
-   end do
-end do
-
-end do
-!~ !$OMP END PARALLEL DO
-
-return
-end subroutine thesum
-
-!!**********************************************************************
-
-subroutine dragintegrand(output,prefactor,dij,flatpoly,lent,lenph)
-! this is a subroutine of dragcoeff_iso() in phononwind.py
-use parameters, only : selsm
-implicit none
-
-integer :: i, j, ij, k, kk, n, nn
-integer, intent(in) :: lent, lenph
-real(kind=selsm), intent(in), dimension(lent,lenph) :: prefactor
-real(kind=selsm), intent(in), dimension(lenph,3,3) :: dij
-real(kind=selsm), intent(in), dimension(lent*lenph,3,3,3,3) :: flatpoly
-real(kind=selsm), intent(out), dimension(lent,lenph) :: output
-
-output(:,:) = 0.0
-
-
-do nn=1,3
-  do n=1,3
-    do kk=1,3
-      do k=1,3
-        do j = 1,lenph
-          do i = 1,lent
-            ij = (i-1)*lenph+j
-            output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
-          end do
-        end do
-      end do
-    end do
-  end do 
-end do
-
-output(:,:) = prefactor(:,:)*output(:,:)
-
-return
-end subroutine dragintegrand
-
-!!**********************************************************************
 
 SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
 ! Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
@@ -370,33 +212,6 @@ SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
   
   RETURN
 END SUBROUTINE accscrew_xyintegrand
-
-!!**********************************************************************
-
-SUBROUTINE dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
-! this is a subroutine of dragcoeff_iso() in phononwind.py
-!-----------------------------------------------------------------------
-  use parameters, only : sel, hbar, kb
-  IMPLICIT NONE
-!-----------------------------------------------------------------------
-  INTEGER, INTENT(IN) :: lenq1,lent,lenphi
-  REAL(KIND=sel), INTENT(IN) :: T, c1qBZ, c2qBZ
-  REAL(KIND=sel), INTENT(IN) :: q1(lenq1), q1h4(lenq1), prefac(lent,lenphi), OneMinBtqcosph1(lent,lenphi)
-  REAL(KIND=sel), INTENT(OUT), DIMENSION(lent,lenphi,lenq1) :: distri
-  INTEGER :: i
-  REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), beta
-  
-  beta = hbar/(kB*T)
-  !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,phonon1,phonon2)
-  do i=1,lenq1
-    phonon1 = 1.d0/(exp(beta*c1qBZ*q1(i))-1.d0) 
-    phonon2 = 1.d0/(exp(beta*c2qBZ*q1(i)*OneMinBtqcosph1(:,:))-1.d0) 
-    distri(:,:,i) = prefac(:,:)*(phonon1 - phonon2(:,:))*q1h4(i)
-  end do
-  !$OMP END PARALLEL DO
-  
-  RETURN
-END SUBROUTINE dragcoeff_iso_phonondistri
 
 !!**********************************************************************
 
@@ -594,7 +409,6 @@ SUBROUTINE computeuk(beta, C2, Cv, b, M, N, phi, r, Ntheta, Nphi, Nr, uk)
   RETURN
 END SUBROUTINE computeuk
 
-
 !!**********************************************************************
 
 SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
@@ -654,93 +468,284 @@ END SUBROUTINE computeuij
 
 !!**********************************************************************
 
-SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
-! this is a subroutine of dragcoeff_iso() in phononwind.py
-!-----------------------------------------------------------------------
-  use parameters, only : sel
-  IMPLICIT NONE
-!-----------------------------------------------------------------------
-  INTEGER, INTENT(IN) :: Nphi, Nt, kthchk
-  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B
-  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: t
-  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
-  REAL(KIND=sel), INTENT(IN)  :: beta
-  LOGICAL, INTENT(IN)  :: updatet
-  REAL(KIND=sel), INTENT(OUT) :: Bresult
-  integer :: p, NBtmp
-  real(kind=sel) :: limit(Nphi), Bt(Nphi)
-  real(kind=sel), dimension(:), allocatable :: Btmp, t1
-  logical ::  tmask(Nt)
-  
-  limit = beta*abs(cos(phi))
-  Bt = 0.d0
-  !$OMP PARALLEL DO default(shared), private(p,tmask,t1,Btmp,NBtmp)
-  do p=1,Nphi
-    tmask = (t>limit(p))
-    t1 = pack(t,tmask)
-    Btmp = pack(B(:,p),tmask)
-    NBtmp = size(Btmp)
-    Bt(p) = 0.d0
-    if (NBtmp>1) then
-      if ((updatet.eqv..True.).or.(kthchk==0)) then
-        Btmp(1) = 2.d0*Btmp(1)
-      end if
-      if (updatet.eqv..True.) then
-        Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
-      end if
-      call trapz(Btmp(:),t1(:),NBtmp,Bt(p))
-    end if
-  end do
-  !$OMP END PARALLEL DO
-  call trapz(Bt,phi,Nphi,Bresult)
-  
-  RETURN
-END SUBROUTINE integratetphi
+module phononwind_subroutines
+  ! his module contains subroutines for phononwind_xx() and phononwind_xy()
+  implicit none
+  contains
+    SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
+    ! this is a subroutine of dragcoeff_iso() in phononwind.py
+    !-----------------------------------------------------------------------
+      use parameters, only : sel, hbar, kb
+      IMPLICIT NONE
+    !-----------------------------------------------------------------------
+      INTEGER, INTENT(IN) :: lenq1,lent,lenphi
+      REAL(KIND=sel), INTENT(IN) :: T, c1qBZ, c2qBZ
+      REAL(KIND=sel), INTENT(IN) :: q1(lenq1), q1h4(lenq1), prefac(lent,lenphi), OneMinBtqcosph1(lent,lenphi)
+      REAL(KIND=sel), INTENT(OUT), DIMENSION(lent,lenphi,lenq1) :: distri
+      INTEGER :: i
+      REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), beta
+      
+      beta = hbar/(kB*T)
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,phonon1,phonon2)
+      do i=1,lenq1
+        phonon1 = 1.d0/(exp(beta*c1qBZ*q1(i))-1.d0) 
+        phonon2 = 1.d0/(exp(beta*c2qBZ*q1(i)*OneMinBtqcosph1(:,:))-1.d0) 
+        distri(:,:,i) = prefac(:,:)*(phonon1 - phonon2(:,:))*q1h4(i)
+      end do
+      !$OMP END PARALLEL DO
+      
+      RETURN
+    END SUBROUTINE phonondistri
 
-!!**********************************************************************
+    !!**********************************************************************
 
-SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
-! this is a subroutine of dragcoeff_iso() in phononwind.py
-!-----------------------------------------------------------------------
-  use parameters, only : sel
-  IMPLICIT NONE
-!-----------------------------------------------------------------------
-  INTEGER, INTENT(IN) :: Nphi, Nt, kthchk, Nchunks
-  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B, t
-  REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: qtilde
-  REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
-  REAL(KIND=sel), INTENT(IN)  :: beta1
-  LOGICAL, INTENT(IN)  :: updatet
-  REAL(KIND=sel), INTENT(OUT) :: Bresult
-  integer :: p, NBtmp
-  real(kind=sel) :: qtlimit(Nphi), Bt(Nphi)
-  real(kind=sel), dimension(:), allocatable :: Btmp, qt
-  logical ::  tmask(Nt)
-  
-  qtlimit = 1/(beta1*abs(cos(phi)))
-  Bt = 0.d0
-  !$OMP PARALLEL DO default(shared), private(p,tmask,qt,Btmp,NBtmp)
-  do p=1,Nphi
-    tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
-    qt = pack(qtilde,tmask)
-    Btmp = pack(B(:,p),tmask)
-    NBtmp = size(Btmp)
-    Bt(p) = 0.d0
-    if (NBtmp>1) then
-      if ((updatet.eqv..True.).or.(kthchk==0)) then
-        Btmp(1) = 2.d0*Btmp(1)
-      end if
-      if ((updatet.eqv..True.).or.(kthchk==(Nchunks-1))) then
-        Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
-      end if
-      call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
-    end if
-  end do
-  !$OMP END PARALLEL DO
-  call trapz(Bt,phi,Nphi,Bresult)
-  
-  RETURN
-END SUBROUTINE integrateqtildephi
+    subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
+    use parameters, only : selsm
+    implicit none
+    integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
+    integer, intent(in) :: lentph, lenph1
+    real(kind=selsm), intent(in), dimension(lenph1) :: phi1, dphi1
+    real(kind=selsm), dimension(lentph,3) :: qt, qtshift
+    real(kind=selsm), dimension(lentph,3,3,3,3) :: A3qt2, part1, part2
+    real(kind=selsm), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+    real(kind=selsm), intent(in), dimension(lentph,3) :: qv
+    real(kind=selsm), intent(in), dimension(3,3) :: delta1, delta2
+    real(kind=selsm), intent(in), dimension(3,3,3,3,3,3) :: A3
+    real(kind=selsm), intent(inout), dimension(lentph,3,3,3,3) :: output
+
+    !~ ! problem: openmp puts private variables in the stack, and if maxrec>3 arrays can get too large and cause a segfault
+    !~ !$OMP PARALLEL DO default(shared), private(i, j, k, l, ii, jj, kk, n, nn, m, p, &
+    !~ !$omp                      qt,qtshift,A3qt2,part1,part2) &
+    !~ !$omp& reduction(+:output)
+    do p = 1,lenph1
+
+    qt(:,1) = tcosphi - sqrtsinphi*cos(phi1(p))
+    qt(:,2) = tsinphi + sqrtcosphi*cos(phi1(p))
+    qt(:,3) = sqrtt*sin(phi1(p))
+    qtshift = qt - qv
+
+    A3qt2(:,:,:,:,:) = 0.0
+    do kk = 1,3
+       do k = 1,3
+          do j = 1,3
+             do i = 1,3
+                do jj = 1,3
+                   do ii = 1,3
+                      A3qt2(:,i,j,k,kk) = A3qt2(:,i,j,k,kk) + qt(:,ii)*qtshift(:,jj)*A3(i,ii,j,jj,k,kk)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+
+    part1(:,:,:,:,:) = 0.0
+    do kk = 1,3
+       do k = 1,3
+          do j = 1,3
+             do l = 1,3
+                do i = 1,3
+                   part1(:,l,j,k,kk) = part1(:,l,j,k,kk) + (delta1(i,l) - qt(:,l)*qt(:,i))*A3qt2(:,i,j,k,kk)
+                end do
+             end do
+          end do
+       end do
+    end do
+
+    part2(:,:,:,:,:) = 0.0
+    do nn = 1,3
+       do n = 1,3
+          do j = 1,3
+             do m = 1,3
+                do l = 1,3
+                   part2(:,l,j,n,nn) = part2(:,l,j,n,nn) + (delta2(j,m) - qtshift(:,j)*qtshift(:,m)/mag)*A3qt2(:,l,m,n,nn)
+                end do
+             end do
+          end do
+       end do
+    end do
+    part2(:,:,:,:,:) = part2(:,:,:,:,:)*dphi1(p)
+
+    do nn = 1,3
+       do n = 1,3
+          do kk = 1,3
+             do k = 1,3
+                do j = 1,3
+                   do l = 1,3
+                      output(:,k,kk,n,nn) = output(:,k,kk,n,nn) + part1(:,l,j,k,kk)*part2(:,l,j,n,nn)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+
+    end do
+    !~ !$OMP END PARALLEL DO
+
+    return
+    end subroutine thesum
+    
+    ! **********************************************************************
+    
+    subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
+                          lenp,lent,lenph1,lentph)
+    ! this wrapper parallelizes thesum()
+    !$   Use omp_lib
+    use parameters, only : selsm
+    implicit none
+
+    integer, intent(in) :: lentph, lenph1, lenp, lent
+    real(kind=selsm), intent(in), dimension(lenph1) :: phi1, dphi1
+    real(kind=selsm), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+    real(kind=selsm), intent(in), dimension(lentph,3) :: qv
+    real(kind=selsm), intent(in), dimension(3,3) :: delta1, delta2
+    real(kind=selsm), intent(in), dimension(3,3,3,3,3,3) :: A3
+    real(kind=selsm), intent(out), dimension(lentph,3,3,3,3) :: output
+    !$ integer :: i,j,k, nthreads
+    output(:,:,:,:,:) = 0.0
+    !$ call ompinfo(nthreads)
+    !$ if (nthreads .ge. 2) then
+    !$OMP PARALLEL DO default(shared), private(i,j,k)
+    !$ do i=1,lenp
+    !$ j=(i-1)*lent+1
+    !$ k=i*lent
+    !$ call thesum(output(j:k,:,:,:,:),tcosphi(j:k),sqrtsinphi(j:k),tsinphi(j:k),sqrtcosphi(j:k),sqrtt(j:k), &
+    !$              qv(j:k,:),delta1,delta2,mag(j:k),A3,phi1,dphi1,lenph1,lent)
+    !$ end do
+    !$OMP END PARALLEL DO
+    !$ else
+    call thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
+    !$ end if
+    end subroutine parathesum
+
+    !!**********************************************************************
+    
+    subroutine dragintegrand(output,prefactor,dij,flatpoly,lent,lenph)
+    use parameters, only : selsm
+    implicit none
+
+    integer :: i, j, ij, k, kk, n, nn
+    integer, intent(in) :: lent, lenph
+    real(kind=selsm), intent(in), dimension(lent,lenph) :: prefactor
+    real(kind=selsm), intent(in), dimension(lenph,3,3) :: dij
+    real(kind=selsm), intent(in), dimension(lent*lenph,3,3,3,3) :: flatpoly
+    real(kind=selsm), intent(out), dimension(lent,lenph) :: output
+
+    output(:,:) = 0.0
+
+
+    do nn=1,3
+      do n=1,3
+        do kk=1,3
+          do k=1,3
+            do j = 1,lenph
+              do i = 1,lent
+                ij = (i-1)*lenph+j
+                output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
+              end do
+            end do
+          end do
+        end do
+      end do 
+    end do
+
+    output(:,:) = prefactor(:,:)*output(:,:)
+
+    return
+    end subroutine dragintegrand
+
+    !!**********************************************************************
+
+    SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
+    ! this is a subroutine of dragcoeff_iso() in phononwind.py
+    !-----------------------------------------------------------------------
+      use parameters, only : sel
+      IMPLICIT NONE
+    !-----------------------------------------------------------------------
+      INTEGER, INTENT(IN) :: Nphi, Nt, kthchk
+      REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B
+      REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: t
+      REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
+      REAL(KIND=sel), INTENT(IN)  :: beta
+      LOGICAL, INTENT(IN)  :: updatet
+      REAL(KIND=sel), INTENT(OUT) :: Bresult
+      integer :: p, NBtmp
+      real(kind=sel) :: limit(Nphi), Bt(Nphi)
+      real(kind=sel), dimension(:), allocatable :: Btmp, t1
+      logical ::  tmask(Nt)
+      
+      limit = beta*abs(cos(phi))
+      Bt = 0.d0
+      !$OMP PARALLEL DO default(shared), private(p,tmask,t1,Btmp,NBtmp)
+      do p=1,Nphi
+        tmask = (t>limit(p))
+        t1 = pack(t,tmask)
+        Btmp = pack(B(:,p),tmask)
+        NBtmp = size(Btmp)
+        Bt(p) = 0.d0
+        if (NBtmp>1) then
+          if ((updatet.eqv..True.).or.(kthchk==0)) then
+            Btmp(1) = 2.d0*Btmp(1)
+          end if
+          if (updatet.eqv..True.) then
+            Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
+          end if
+          call trapz(Btmp(:),t1(:),NBtmp,Bt(p))
+        end if
+      end do
+      !$OMP END PARALLEL DO
+      call trapz(Bt,phi,Nphi,Bresult)
+      
+      RETURN
+    END SUBROUTINE integratetphi
+
+    !!**********************************************************************
+
+    SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
+    ! this is a subroutine of dragcoeff_iso() in phononwind.py
+    !-----------------------------------------------------------------------
+      use parameters, only : sel
+      IMPLICIT NONE
+    !-----------------------------------------------------------------------
+      INTEGER, INTENT(IN) :: Nphi, Nt, kthchk, Nchunks
+      REAL(KIND=sel), INTENT(IN), DIMENSION(Nt,Nphi)  :: B, t
+      REAL(KIND=sel), INTENT(IN), DIMENSION(Nt)  :: qtilde
+      REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
+      REAL(KIND=sel), INTENT(IN)  :: beta1
+      LOGICAL, INTENT(IN)  :: updatet
+      REAL(KIND=sel), INTENT(OUT) :: Bresult
+      integer :: p, NBtmp
+      real(kind=sel) :: qtlimit(Nphi), Bt(Nphi)
+      real(kind=sel), dimension(:), allocatable :: Btmp, qt
+      logical ::  tmask(Nt)
+      
+      qtlimit = 1/(beta1*abs(cos(phi)))
+      Bt = 0.d0
+      !$OMP PARALLEL DO default(shared), private(p,tmask,qt,Btmp,NBtmp)
+      do p=1,Nphi
+        tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
+        qt = pack(qtilde,tmask)
+        Btmp = pack(B(:,p),tmask)
+        NBtmp = size(Btmp)
+        Bt(p) = 0.d0
+        if (NBtmp>1) then
+          if ((updatet.eqv..True.).or.(kthchk==0)) then
+            Btmp(1) = 2.d0*Btmp(1)
+          end if
+          if ((updatet.eqv..True.).or.(kthchk==(Nchunks-1))) then
+            Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
+          end if
+          call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
+        end if
+      end do
+      !$OMP END PARALLEL DO
+      call trapz(Bt,phi,Nphi,Bresult)
+      
+      RETURN
+    END SUBROUTINE integrateqtildephi
+
+end module phononwind_subroutines
 
 !!**********************************************************************
 
@@ -748,6 +753,7 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
 ! this is a subroutine of dragcoeff_iso() in phononwind.py (TT and LL modes)
 !-----------------------------------------------------------------------
   use parameters, only : sel, selsm, hbar, kb, pi
+  use phononwind_subroutines
   IMPLICIT NONE
 !-----------------------------------------------------------------------
   integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
@@ -828,7 +834,7 @@ SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,
               +(hbarcsqBZ_TkB**6/(42.d0*5.d0*720.d0))*(1.d0-(betafactor)**5))
     end do
   else
-    call dragcoeff_iso_phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
+    call phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
     ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
     distri(:,:,1) = 2.d0*distri(:,:,1)
     ! include cutoff if r0cut>0:
@@ -894,6 +900,7 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
 ! this is a subroutine of dragcoeff_iso() in phononwind.py (mixed modes)
 !-----------------------------------------------------------------------
   use parameters, only : sel, selsm, hbar, kb, pi
+  use phononwind_subroutines
   IMPLICIT NONE
 !-----------------------------------------------------------------------
   integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
@@ -992,7 +999,7 @@ SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,
       end if
     end do
   else
-    call dragcoeff_iso_phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
+    call phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
     ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
     distri(:,:,1) = 2.d0*distri(:,:,1)
     distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
