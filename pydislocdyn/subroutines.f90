@@ -465,7 +465,7 @@ END SUBROUTINE computeuij
 !!**********************************************************************
 
 module phononwind_subroutines
-  ! his module contains subroutines for phononwind_xx() and phononwind_xy()
+  ! this module contains subroutines for phononwind_xx() and phononwind_xy()
   implicit none
   private :: thesum
   public :: phonondistri, parathesum, dragintegrand, integratetphi, integrateqtildephi
