@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Nov. 22, 2025
+# Date: Mar. 6, 2023 - Mar. 25, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -16,6 +16,7 @@ tmppydislocdyn.mkdir(exist_ok=True)
 
 import pydislocdyn as pydis
 import numpy as np
+from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
 
 def initialize_metals(metal_list=None):
@@ -137,3 +138,21 @@ def test_hcp():
     cp = (c11-c12)/2
     hcpresult = sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp)))
     assert abs(hcpresult.subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))<1e-12
+
+def test_fortransubroutines():
+    '''tests some of the fortran code, if it is available'''
+    if not pydis.usefortran:
+        print("\ntest_fortransubroutines(): cannot import fortran subroutines, therefore nothing to test")
+        return
+    # test inv()
+    A = np.random.rand(9).reshape((3,3))
+    Ainv = pydis.subroutines.inv(A)
+    assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-12) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-12)
+    # test linspace()
+    assert sum(abs(np.linspace(0,1,11)-pydis.subroutines.linspace(0,1,11)))<1e-15
+    # test trapz() and cumtrapz()
+    f = 21*(np.random.rand(10)-0.3)
+    x = np.random.rand(10)
+    assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
+    assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
+    
