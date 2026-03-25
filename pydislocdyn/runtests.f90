@@ -2,13 +2,15 @@
 ! gfortran pydislocdyn/subroutines.f90 pydislocdyn/runtests.f90 -o runtests.x -Wall -pedantic -Wextra -fopenmp -lgomp
 ! or similar
 module checks
+  use parameters, only: sel
+  implicit none
   contains
   subroutine testequal(A,B,n,m,string,tolerance,count_pass,count_fail)
   !  Check if two NxM matrices are equal (with some tolerance), and print 'test <string> PASSED/FAILED'
     implicit none
     integer, intent(in)  :: n, m
-    real(kind=8), intent(in)  :: tolerance
-    real(kind=8), dimension(n,m), intent(in)  :: A, B
+    real(kind=sel), intent(in)  :: tolerance
+    real(kind=sel), dimension(n,m), intent(in)  :: A, B
     character(*), intent(in) :: string
     integer :: count_pass,count_fail
     logical :: equal
@@ -20,7 +22,7 @@ module checks
     else
       count_fail = count_fail+1
       print*,"test " // string//": "//char(9)//"FAILED"
-    endif
+    end if
     
     return
   end subroutine testequal
@@ -29,8 +31,8 @@ module checks
   !  Check if two arrays are equal (with some tolerance), and print 'test <string> PASSED/FAILED'
     implicit none
     integer, intent(in)  :: n
-    real(kind=8), intent(in)  :: tolerance
-    real(kind=8), dimension(n), intent(in)  :: A, B
+    real(kind=sel), intent(in)  :: tolerance
+    real(kind=sel), dimension(n), intent(in)  :: A, B
     character(*), intent(in) :: string
     integer :: count_pass,count_fail
     logical :: equal
@@ -42,7 +44,7 @@ module checks
     else
       count_fail = count_fail+1
       print*,"test " // string//": "//char(9)//"FAILED"
-    endif
+    end if
     
     return
   end subroutine testequalarray
@@ -50,7 +52,7 @@ module checks
   subroutine testzero(A,string,tolerance,count_pass,count_fail)
   ! check if A=0 (with some tolerance), and print 'test <string> PASSED/FAILED'
     implicit none
-    real(kind=8), intent(in)  :: tolerance, A
+    real(kind=sel), intent(in)  :: tolerance, A
     character(*), intent(in) :: string
     integer :: count_pass,count_fail
     call testequalarray((/A/),(/0.d0/),1,string,tolerance,count_pass,count_fail)
@@ -64,13 +66,23 @@ program runtests
   use checks
   implicit none
   
-  real(kind=8) :: tmpintegral, array1(5),array2(5), start_time, finish_time
-  real(kind=8), dimension(3,3) :: A, B, one=reshape((/1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0/),(/3,3/))
-  real(kind=8), allocatable, dimension(:) :: x, func, integral
-  integer :: resol, count_fail=0, count_pass=0
+  real(kind=sel) :: tmpintegral, array1(5),array2(5), start_time, finish_time
+  real(kind=sel), dimension(3,3) :: A, B, one=reshape((/1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0/),(/3,3/))
+  real(kind=sel), allocatable, dimension(:) :: x, func, integral
+  integer :: resol, nthreads, count_fail=0, count_pass=0
+  character(32) :: exe_name
   resol = 10000
   allocate(x(resol), func(resol), integral(resol))
   call cpu_time(start_time)
+  
+  ! check for openmp
+  call get_command_argument(0, exe_name)
+  call ompinfo(nthreads)
+  if (nthreads>0) then
+    print*,exe_name, " compiled with openmp support, using ",nthreads," threads"
+  else
+    print*,exe_name, " compiled without openmp support"
+  end if
   
   ! test linspace
   call linspace(0.2d0,1.d0,5,array1)
