@@ -627,8 +627,6 @@ module phononwind_subroutines
     real(kind=selsm), intent(out), dimension(lent,lenph) :: output
 
     output(:,:) = 0.0
-
-
     do nn=1,3
       do n=1,3
         do kk=1,3
