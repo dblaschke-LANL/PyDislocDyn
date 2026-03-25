@@ -467,7 +467,7 @@ END SUBROUTINE computeuij
 module phononwind_subroutines
   ! this module contains subroutines for phononwind_xx() and phononwind_xy()
   implicit none
-  private :: thesum
+  ! private :: thesum !! numpy <1.26 does not support the private statement
   public :: phonondistri, parathesum, dragintegrand, integratetphi, integrateqtildephi
   contains
     SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
