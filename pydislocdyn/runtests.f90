@@ -1,3 +1,7 @@
+! standalone test suite for subroutines.f90
+! Author: Daniel N. Blaschke
+! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
+! Date: Mar. 25, 2026
 ! compile with:
 ! gfortran pydislocdyn/subroutines.f90 pydislocdyn/runtests.f90 -o runtests.x -Wall -pedantic -Wextra -fopenmp -lgomp
 ! or similar
