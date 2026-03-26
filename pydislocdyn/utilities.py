@@ -118,6 +118,8 @@ def compilefortranmodule(buildopts='',clean=False):
         if setuptools.__version__ < '70' and np.__version__<'1.26':
             if shutil.which('gfortran'):
                 compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
+            if sys.platform=='win32':
+                compilerflags+='--compiler=mingw32'
         elif np.__version__>='1.26':
             compilerflags = '--dep=openmp --backend=meson' # requires meson to be installed
         else:

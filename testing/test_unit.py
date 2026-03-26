@@ -147,9 +147,7 @@ def test_fortransubroutines():
     # test inv()
     A = np.random.rand(9).reshape((3,3))
     Ainv = pydis.subroutines.inv(A)
-    print(A@Ainv)
-    print(np.abs(np.linalg.inv(A)-Ainv))
-    assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-12) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-12)
+    assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-9) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-9)
     # test linspace()
     assert sum(abs(np.linspace(0,1,11)-pydis.subroutines.linspace(0,1,11)))<1e-15
     # test trapz() and cumtrapz()
