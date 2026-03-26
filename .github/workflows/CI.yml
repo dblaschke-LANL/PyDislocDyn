@@ -16,7 +16,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.14"]
+        toolchain:
+          - {compiler: gcc, version: 'latest'}
+          - {compiler: intel, version: '2025.0'}
         exclude:
+          - os: macos-latest
+            toolchain: {compiler: intel}
+          - os: windows-latest
+            toolchain: {compiler: gcc}
           - os: macos-latest
             python-version: '3.9'
           - os: windows-latest
@@ -26,14 +33,6 @@ jobs:
             module-versions: "numpy==1.21 scipy==1.9 sympy==1.9 matplotlib==3.3 pandas==1.3 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.53 meson ninja pytest setuptools==69"
           - python-version: '3.14'
             module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest"
-        toolchain:
-          - {compiler: gcc, version: 'latest'}
-          - {compiler: intel, version: '2025.0'}
-        exclude:
-          - os: macos-latest
-            toolchain: {compiler: intel}
-          - os: windows-latest
-            toolchain: {compiler: gcc}
     steps:
       - uses: actions/checkout@v6
       - name: Setup Fortran Compiler
