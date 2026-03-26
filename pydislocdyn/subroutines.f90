@@ -465,7 +465,7 @@ END SUBROUTINE computeuij
 !!**********************************************************************
 
 module phononwind_subroutines
-  ! his module contains subroutines for phononwind_xx() and phononwind_xy()
+  ! this module contains subroutines for phononwind_xx() and phononwind_xy()
   implicit none
   contains
     SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
