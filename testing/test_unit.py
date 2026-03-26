@@ -144,10 +144,23 @@ def test_disloc_props(metal_list=None,Ntheta=2):
     Y = initialize_dislocs(metal_list=metal_list,Ntheta=Ntheta)
     for X in Y:
         Y[X].alignC2()
+        Y[X].computevcrit()
+        num_edge = sorted(Y[X].vcrit_barnett[0,-1])[:2]
+        num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
+        if not np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1e-02)):
+            print(f"Warning: numerical accuracy of vcrit_edge for {X} may be less than 1%")
+        ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
+        ## for screw disloc. with reflection symm. we have an analytic expression, so warn only for edge case
+        ## where the reflection symm. routine also relies on numerical solutions (albeit a more accurate one we think)
+        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), print('edge',X,num_edge,Y[X].vcrit_edge)
+        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), print('screw',X,num_screw,Y[X].vcrit_screw)
         if pydis.CheckReflectionSymmetry(Y[X].C2_aligned[0]):
             Y[X].computeuij(0.5)
             trace_of_screw = np.trace(Y[X].uij[:,:,0]) # trace is zero for pure screw dislocations
             assert np.all(trace_of_screw<1e-15), print(X,trace_of_screw)
+            if X in pydis.metal_data.fcc_metals: 
+                vlim_edge = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
+                assert np.isclose(Y[X].vcrit_edge,vlim_edge)
 
 def test_fortransubroutines():
     '''tests some of the fortran code, if it is available'''
