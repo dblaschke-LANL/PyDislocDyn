@@ -27,14 +27,21 @@ jobs:
           - python-version: '3.14'
             module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest"
         toolchain:
+          - {compiler: gcc, version: 'latest'}
           - {compiler: intel, version: '2025.0'}
+        exclude:
+          - os: macos-latest
+            toolchain: {compiler: intel}
+          - os: windows-latest
+            toolchain: {compiler: gcc}
     steps:
       - uses: actions/checkout@v6
       - name: Setup Fortran Compiler
         uses: fortran-lang/setup-fortran@v1
         if: runner.os == 'MacOS' || runner.os == 'Windows'
         with:
-          compiler: intel
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
@@ -48,7 +55,7 @@ jobs:
         run: yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os != 'Windows'
       - name: Run tests windows
-        run: echo 'Y' | pytest -s --durations=0 testing/
+        run: echo 'N' | pytest -s --durations=0 testing/
         if: runner.os == 'Windows'
       - name: Upload log files as artifacts
         uses: actions/upload-artifact@v7
