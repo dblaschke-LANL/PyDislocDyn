@@ -32,7 +32,7 @@ jobs:
         uses: fortran-lang/setup-fortran@v1
         if: runner.os == 'MacOS' || runner.os == 'Windows'
         with:
-          compiler: gcc
+          compiler: flang
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
