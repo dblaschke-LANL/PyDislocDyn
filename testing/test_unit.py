@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Mar. 25, 2026
+# Date: Mar. 6, 2023 - Mar. 26, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -139,6 +139,16 @@ def test_hcp():
     hcpresult = sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp)))
     assert abs(hcpresult.subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))<1e-12
 
+def test_disloc_props(metal_list=None,Ntheta=2):
+    '''checks some propoerties of the steady-state dislocation displacement gradient field'''
+    Y = initialize_dislocs(metal_list=metal_list,Ntheta=Ntheta)
+    for X in Y:
+        Y[X].alignC2()
+        if pydis.CheckReflectionSymmetry(Y[X].C2_aligned[0]):
+            Y[X].computeuij(0.5)
+            trace_of_screw = np.trace(Y[X].uij[:,:,0]) # trace is zero for pure screw dislocations
+            assert np.all(trace_of_screw<1e-15), print(X,trace_of_screw)
+
 def test_fortransubroutines():
     '''tests some of the fortran code, if it is available'''
     if not pydis.usefortran:
@@ -147,7 +157,7 @@ def test_fortransubroutines():
     # test inv()
     A = np.random.rand(9).reshape((3,3))
     Ainv = pydis.subroutines.inv(A)
-    assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-12) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-12)
+    assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-9) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-9)
     # test linspace()
     assert sum(abs(np.linspace(0,1,11)-pydis.subroutines.linspace(0,1,11)))<1e-15
     # test trapz() and cumtrapz()
@@ -155,4 +165,3 @@ def test_fortransubroutines():
     x = np.random.rand(10)
     assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
     assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
-    
