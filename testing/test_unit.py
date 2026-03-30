@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Mar. 26, 2026
+# Date: Mar. 6, 2023 - Mar. 30, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -36,10 +36,15 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
     '''writes all input files to subfolder "temp_pydislocdyn", then reads a subset defined by the keywords in "metal_list",
        and returns a dictionary of the resulting Dislocation class instances.'''
     os.chdir(tmppydislocdyn)
+    pydis.writeallinputfiles(iso=True)
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
         metal_list = sorted(tmppydislocdyn.glob("*"))
+        ## make sure we wrote all expected files: iso+3 slip systems for bcc and hcp, fcc and tetr
+        ## are overwritten by anisotropic version; also missing iso data for K, so -1
+        assert (len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
+                +4*len(pydis.metal_data.hcp_metals)+4*len(pydis.metal_data.bcc_metals)-1)
     for X in metal_list:
         tmpY = pydis.readinputfile(X,Ntheta=Ntheta)
         Y[tmpY.name] = tmpY
@@ -145,8 +150,11 @@ def test_disloc_props(metal_list=None,Ntheta=2):
     for X in Y:
         Y[X].alignC2()
         Y[X].computevcrit()
-        num_edge = sorted(Y[X].vcrit_barnett[0,-1])[:2]
-        num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
+        if Y[X].sym=='iso':
+            num_edge = num_screw = Y[X].ct ## Barnett routine is not called in the isotropic case
+        else:
+            num_edge = sorted(Y[X].vcrit_barnett[0,-1])[:2]
+            num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
         if not np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1e-02)):
             print(f"Warning: numerical accuracy of vcrit_edge for {X} may be less than 1%")
         ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
@@ -178,3 +186,18 @@ def test_fortransubroutines():
     x = np.random.rand(10)
     assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
     assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
+    ## check that fortran implementations of (un)voigt and elasticC2 give the same results as the python version
+    xtric = np.linspace(1,21,21)
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:2],sym='iso')==pydis.elasticC2(c12=xtric[0],c44=xtric[1],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:3],sym='cubic')==pydis.elasticC2(c11=xtric[0],c12=xtric[1],c44=xtric[2],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:5],sym='hcp')==pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric,sym='tric')==pydis.elasticC2(cij=xtric,voigt=True))
+    A = np.random.rand(6)
+    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_one(A))
+    assert np.all(A==pydis.subroutines.elastic_constants.vgt_two(pydis.subroutines.elastic_constants.unvgt_one(A)))
+    A = np.resize(np.random.rand(6**2),(6,6))
+    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_two(A))
+    assert np.all(A==pydis.subroutines.elastic_constants.vgt_four(pydis.subroutines.elastic_constants.unvgt_two(A)))
+    A = np.resize(np.random.rand(6**3),(6,6,6))
+    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_three(A))
+    assert np.all(A==pydis.subroutines.elastic_constants.vgt_six(pydis.subroutines.elastic_constants.unvgt_three(A)))
