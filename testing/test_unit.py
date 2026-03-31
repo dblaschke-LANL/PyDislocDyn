@@ -157,6 +157,13 @@ def test_disloc_props(metal_list=None,Ntheta=2):
             num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
         if not np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1e-02)):
             print(f"Warning: numerical accuracy of vcrit_edge for {X} may be less than 1%")
+        ## check fortran implementation of stroh geometry also:
+        t,m0,M,N,Cv = pydis.subroutines.strohgeometry(Y[X].b,Y[X].n0,Y[X].theta,Y[X].phi)
+        assert np.allclose(m0,Y[X].m0.T)
+        assert np.allclose(t,Y[X].t.T)
+        assert np.allclose(Cv,Y[X].Cv)
+        assert np.allclose(M,np.moveaxis(Y[X].M,-1,0))
+        assert np.allclose(N,np.moveaxis(Y[X].N,-1,0))
         ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
         ## for screw disloc. with reflection symm. we have an analytic expression, so warn only for edge case
         ## where the reflection symm. routine also relies on numerical solutions (albeit a more accurate one we think)

@@ -199,6 +199,18 @@ END SUBROUTINE elbrak1d
 
 !!**********************************************************************
 
+subroutine cross(x,y,z)
+  use parameters, only : sel
+  implicit none
+  real(sel), dimension(3), intent(in)  :: x, y
+  real(sel), dimension(3), intent(out)  :: z
+  z(1) = x(2)*y(3) - x(3)*y(2)
+  z(2) = x(3)*y(1) - x(1)*y(3)
+  z(3) = x(1)*y(2) - x(2)*y(1)
+end subroutine cross
+
+!!**********************************************************************
+
 SUBROUTINE trapz(f,x,n,intf)
 ! integrate using the trapezoidal rule
 !-----------------------------------------------------------------------
@@ -452,6 +464,38 @@ SUBROUTINE linspace(start,finish,num,output)
   
   return
 END SUBROUTINE linspace
+
+!!**********************************************************************
+
+subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
+  use parameters, only : sel
+  implicit none
+  integer, intent(in) :: ntheta, nphi
+  real(sel), intent(in) :: b(3), n0(3)
+  real(sel), intent(in) :: theta(ntheta), phi(nphi)
+  real(sel), intent(out), dimension(3,ntheta) :: t, m0
+  real(sel), intent(out), dimension(nphi,3,ntheta) :: M, N
+  real(sel), intent(out), dimension(3,3,3,3,ntheta)  :: Cv
+  real(sel), dimension(3) :: x
+  integer i,j,k,th,ph
+  Cv = 0.d0
+  call cross(b,n0,x)
+  do th=1, ntheta
+    t(:,th) = cos(theta(th))*b + x*sin(theta(th))
+    call cross(n0,t(:,th),m0(:,th))
+    do i=1,3
+      do j=1,3
+        do k=1,3
+          Cv(k,j,j,i,th) = m0(k,th)*m0(i,th)
+        end do
+      end do
+    end do
+    do ph=1, nphi
+      M(ph,:,th) = m0(:,th)*cos(phi(ph)) + n0*sin(phi(ph))
+      N(ph,:,th) = n0*cos(phi(ph)) - m0(:,th)*sin(phi(ph))
+    end do
+  end do
+end subroutine strohgeometry
 
 !!**********************************************************************
 
