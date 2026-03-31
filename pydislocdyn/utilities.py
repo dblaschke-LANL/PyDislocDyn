@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Mar. 27, 2026
+# Date: Nov. 5, 2017 - Mar. 31, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -127,7 +127,7 @@ def compilefortranmodule(buildopts='',clean=False):
                     os.remove(f)
         os.chdir(cwd)
         return 0
-    error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
+    error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 elasticconstants.f90 -m subroutines')
     fname  = f"fmoderror_py{sys.version_info[0]}.{sys.version_info[1]}.txt"
     if error != 0:
         with open(fname,"w", encoding="utf8") as f1:
