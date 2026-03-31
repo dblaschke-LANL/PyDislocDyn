@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Mar. 30, 2026
+! Date: Mar. 30, 2026 - Mar. 31, 2026
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)

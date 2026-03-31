@@ -17,6 +17,7 @@ Other:
 
  - use pathlib for paths
  - removed deprecated keyword Nchunks from phonondrag()
+ - replace setuptools with hatchling as build-backend in pyproject.toml
  - refactored the Fortran code for better readability and `version` is now an integer instead of a fct
  - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules);
    this has implications for other version requirements (e.g. numba)

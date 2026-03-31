@@ -1,11 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "numpy>=1.26"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ['pydislocdyn','pydislocdyn.dislocations']
-[tool.setuptools.package-data]
-"*" = ["*.f90"]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
 
 [project]
 name = "PyDislocDyn"
@@ -19,7 +14,7 @@ license = {file = "LICENSE.md"}
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD-3 License",
+    "License :: OSI Approved :: BSD License",
     "Private :: Do Not Upload",
 ]
 dependencies = [
