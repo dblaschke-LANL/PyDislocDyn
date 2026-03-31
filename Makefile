@@ -1,14 +1,14 @@
 ifeq ($(FC),lfortran)
   FC = lfortran -v
-  FFLAGS = -c -O3 --std=f23 --separate-compilation --implicit-interface #--openmp
+  FFLAGS = -O3 --std=f23 --separate-compilation --implicit-interface #--openmp
   LDFLAGS = 
 else ifeq ($(FC),flang)
   FC = flang
-  FFLAGS = -c -O3 -fopenmp
+  FFLAGS = -O3 -std=f2018 -fopenmp
   LDFLAGS = -lomp
 else # always fall back to gfortran
   FC = gfortran -fimplicit-none
-  FFLAGS = -c -O3 -fimplicit-none -Wall -pedantic -Wextra -fopenmp
+  FFLAGS = -O3 -fimplicit-none -Wall -pedantic -Wextra -std=f2018 -fopenmp
   LDFLAGS = -lgomp
 endif
 
@@ -28,11 +28,11 @@ help:
 runtests:  $(EXEC_tests)
 $(EXEC_tests): pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
         pydislocdyn/runtests.f90
-	$(FC) $(FFLAGS) pydislocdyn/subroutines.f90
-	$(FC) $(FFLAGS) pydislocdyn/elasticconstants.f90
-	$(FC) $(FFLAGS) pydislocdyn/runtests.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/runtests.f90
 	# Link
-	$(FC) $(LDFLAGS) -o runtests.x subroutines.o elasticconstants.o runtests.o
+	$(FC) -o runtests.x subroutines.o elasticconstants.o runtests.o $(LDFLAGS)
 
 clean: 
 	rm -f subroutines.o elasticconstants.o runtests.o \
