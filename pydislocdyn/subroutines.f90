@@ -28,7 +28,7 @@ end subroutine ompinfo
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
-  ! private VoigtIndices, UnVoigtIndices ! f2py-incompatibilities prevent us from making more stuff private
+  private VoigtIndices, UnVoigtIndices ! f2py-incompatibilities prevent us from making more stuff private
   public voigt, unvoigt
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six
@@ -624,7 +624,7 @@ END SUBROUTINE computeuij
 module phononwind_subroutines
   ! this module contains subroutines for phononwind_xx() and phononwind_xy()
   implicit none
-  ! private :: thesum !! numpy <1.26 does not support the private statement
+  private :: thesum
   public :: phonondistri, parathesum, dragintegrand, integratetphi, integrateqtildephi
   contains
     SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)

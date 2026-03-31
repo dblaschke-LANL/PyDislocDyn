@@ -114,7 +114,7 @@ program runtests
   real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21)
   real(kind=sel), allocatable, dimension(:) :: x, func, integral
   logical :: istrue
-  integer :: resol, nthreads, count_fail=0, count_pass=0, i
+  integer :: resol, nthreads, count_fail=0, count_pass=0
   character(32) :: exe_name
   resol = 10000
   allocate(x(resol), func(resol), integral(resol))
@@ -178,7 +178,7 @@ program runtests
 !~   do i=1,6
 !~     print*,b2(i,:)
 !~   end do
-  call testtrue(sum(b2)==sum(xtric)*2.d0-76.d0,"elasticC2_tric",count_pass,count_fail)
+  call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
   
   call cpu_time(finish_time)
   print*,"------------------------------------------------------------"
