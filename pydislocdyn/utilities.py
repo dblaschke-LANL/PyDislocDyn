@@ -113,6 +113,8 @@ def compilefortranmodule(buildopts='',clean=False):
        To delete files created by this function, set "clean"=True.'''
     cwd =pathlib.Path.cwd()
     compilerflags = '--dep=openmp'
+    if sys.version_info[:2]<=(3,11):
+        compilerflags += ' --backend=meson'
     if buildopts != '':
         compilerflags += f" {buildopts}"
     os.chdir(pathlib.Path(__file__).parent)
