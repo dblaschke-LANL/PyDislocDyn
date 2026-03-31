@@ -1,7 +1,7 @@
 ! standalone test suite for subroutines.f90
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Mar. 30, 2026
+! Date: Mar. 25, 2026 - Mar. 31, 2026
 ! compile with:
 ! gfortran pydislocdyn/subroutines.f90 pydislocdyn/runtests.f90 -o runtests.x -Wall -pedantic -Wextra -fopenmp -lgomp
 ! or similar
@@ -102,11 +102,49 @@ module checks
   end subroutine checkvoigt
 end module checks
 
+module tests
+  use parameters, only: sel
+  use checks
+  implicit none
+  contains
+    subroutine test_disloc(count_pass,count_fail)
+      use elastic_constants
+      use dislocations
+      integer, intent(inout) :: count_pass,count_fail
+      type(disloc) :: Cu
+      real(sel) :: C2(3,3,3,3)
+      logical :: istrue
+      integer :: i
+      
+      Cu%sym = "cubic"
+      Cu%metal = "Cu"
+      Cu%rho = 8960.d0
+      Cu%lat_a = (/3.6146d-10,0.d0,0.d0/)
+      Cu%cij = (/168.3d9,121.2d9,75.7d9/)
+      call elasticC2(Cu%cij,Cu%sym,Cu%C2)
+!~       do i=1,6
+!~         print*,Cu%C2(i,:)/1.d9
+!~       end do
+      call testzero(sum(Cu%C2/1.d9)-1459.2d0,"disloc_Cu_1",1.d-12,count_pass,count_fail)
+      call unvoigt(Cu%C2,C2)
+      call checkvoigt(C2,istrue)
+      call testtrue(istrue,"disloc_Cu_checkvoigt",count_pass,count_fail)
+      
+      call Cu%update_Vc()
+      call testzero(Cu%Vc*1.d29-4.7225953240136,"disloc_Cu_Vc",1.d-6,count_pass,count_fail)
+      Cu%ntheta = 2
+      call Cu%update_theta()
+      call testzero(sum(Cu%theta)-pi/2.d0,"disloc_Cu_theta",1.d-6,count_pass,count_fail)
+      
+    end subroutine test_disloc
+end module tests
+
 program runtests
   use parameters
   use phononwind_subroutines
   use elastic_constants
   use checks
+  use tests
   implicit none
   
   real(kind=sel) :: tmpintegral, array1(5),array2(5), start_time, finish_time
@@ -179,6 +217,8 @@ program runtests
 !~     print*,b2(i,:)
 !~   end do
   call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
+  
+  call test_disloc(count_pass,count_fail)
   
   call cpu_time(finish_time)
   print*,"------------------------------------------------------------"

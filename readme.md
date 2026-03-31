@@ -42,7 +42,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 ### Optional (but recommended):
 
-* a Fortran 90 compiler and meson
+* a Fortran 2018 capable compiler and meson
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>

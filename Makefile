@@ -27,16 +27,17 @@ help:
 
 runtests:  $(EXEC_tests)
 $(EXEC_tests): pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
-        pydislocdyn/runtests.f90
+        pydislocdyn/dislocations.f90 pydislocdyn/runtests.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/runtests.f90
 	# Link
-	$(FC) -o runtests.x subroutines.o elasticconstants.o runtests.o $(LDFLAGS)
+	$(FC) -o runtests.x subroutines.o elasticconstants.o dislocations.o runtests.o $(LDFLAGS)
 
 clean: 
-	rm -f subroutines.o elasticconstants.o runtests.o \
-	parameters.mod  elastic_constants.mod  phononwind_subroutines.mod checks.mod
+	rm -f subroutines.o elasticconstants.o dislocations.o runtests.o \
+	parameters.mod  elastic_constants.mod  phononwind_subroutines.mod dislocations.mod checks.mod tests.mod
 
 cleanall: clean
 	rm -f $(EXEC_tests)

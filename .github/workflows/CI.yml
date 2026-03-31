@@ -42,7 +42,7 @@ jobs:
           pip install .
       - name: Run tests
         run: |
-          gfortran pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/runtests.f90 -o runtests.x -fopenmp -lgomp -Wall -pedantic -Wextra
+          make
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os != 'Windows'
