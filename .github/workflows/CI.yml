@@ -51,7 +51,10 @@ jobs:
           pip install ${{ matrix.module-versions }}
           pip install .
       - name: Run tests
-        run: yes 2>/dev/null | pytest -s --durations=0 testing/
+        run: |
+          gfortran pydislocdyn/subroutines.f90 pydislocdyn/runtests.f90 -o runtests.x -fopenmp -lgomp
+          ./runtests.x
+          yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os != 'Windows'
       - name: Run tests windows
         run: echo 'N' | pytest -s --durations=0 testing/
