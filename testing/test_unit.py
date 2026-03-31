@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Mar. 25, 2026
+# Date: Mar. 6, 2023 - Mar. 30, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -36,10 +36,15 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
     '''writes all input files to subfolder "temp_pydislocdyn", then reads a subset defined by the keywords in "metal_list",
        and returns a dictionary of the resulting Dislocation class instances.'''
     os.chdir(tmppydislocdyn)
+    pydis.writeallinputfiles(iso=True)
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
         metal_list = sorted(tmppydislocdyn.glob("*"))
+        ## make sure we wrote all expected files: iso+3 slip systems for bcc and hcp, fcc and tetr
+        ## are overwritten by anisotropic version; also missing iso data for K, so -1
+        assert (len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
+                +4*len(pydis.metal_data.hcp_metals)+4*len(pydis.metal_data.bcc_metals)-1)
     for X in metal_list:
         tmpY = pydis.readinputfile(X,Ntheta=Ntheta)
         Y[tmpY.name] = tmpY
@@ -139,6 +144,40 @@ def test_hcp():
     hcpresult = sp.simplify(sp.simplify(hcp.rho*hcp.vcrit['screw']**2) - sp.simplify(c44*cp*(3/4+c0**2)/(3/4*c44 + c0**2*cp)))
     assert abs(hcpresult.subs({c0:1.6,c44:1,c11:1.9,c12:0.9}))<1e-12
 
+def test_disloc_props(metal_list=None,Ntheta=2):
+    '''checks some propoerties of the steady-state dislocation displacement gradient field'''
+    Y = initialize_dislocs(metal_list=metal_list,Ntheta=Ntheta)
+    for X in Y:
+        Y[X].alignC2()
+        Y[X].computevcrit()
+        if Y[X].sym=='iso':
+            num_edge = num_screw = Y[X].ct ## Barnett routine is not called in the isotropic case
+        else:
+            num_edge = sorted(Y[X].vcrit_barnett[0,-1])[:2]
+            num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
+        if not np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1e-02)):
+            print(f"Warning: numerical accuracy of vcrit_edge for {X} may be less than 1%")
+        if pydis.usefortran:
+            ## check fortran implementation of stroh geometry also:
+            t,m0,M,N,Cv = pydis.subroutines.strohgeometry(Y[X].b,Y[X].n0,Y[X].theta,Y[X].phi)
+            assert np.allclose(m0,Y[X].m0.T)
+            assert np.allclose(t,Y[X].t.T)
+            assert np.allclose(Cv,Y[X].Cv)
+            assert np.allclose(M,np.moveaxis(Y[X].M,-1,0))
+            assert np.allclose(N,np.moveaxis(Y[X].N,-1,0))
+        ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
+        ## for screw disloc. with reflection symm. we have an analytic expression, so warn only for edge case
+        ## where the reflection symm. routine also relies on numerical solutions (albeit a more accurate one we think)
+        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), print('edge',X,num_edge,Y[X].vcrit_edge)
+        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), print('screw',X,num_screw,Y[X].vcrit_screw)
+        if pydis.CheckReflectionSymmetry(Y[X].C2_aligned[0]):
+            Y[X].computeuij(0.5)
+            trace_of_screw = np.trace(Y[X].uij[:,:,0]) # trace is zero for pure screw dislocations
+            assert np.all(trace_of_screw<1e-15), print(X,trace_of_screw)
+            if X in pydis.metal_data.fcc_metals: 
+                vlim_edge = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
+                assert np.isclose(Y[X].vcrit_edge,vlim_edge)
+
 def test_fortransubroutines():
     '''tests some of the fortran code, if it is available'''
     if not pydis.usefortran:
@@ -155,3 +194,18 @@ def test_fortransubroutines():
     x = np.random.rand(10)
     assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
     assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
+    ## check that fortran implementations of (un)voigt and elasticC2 give the same results as the python version
+    xtric = np.linspace(1,21,21)
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:2],sym='iso')==pydis.elasticC2(c12=xtric[0],c44=xtric[1],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:3],sym='cubic')==pydis.elasticC2(c11=xtric[0],c12=xtric[1],c44=xtric[2],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:5],sym='hcp')==pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric,sym='tric')==pydis.elasticC2(cij=xtric,voigt=True))
+    A = np.random.rand(6)
+    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_one(A))
+    assert np.all(A==pydis.subroutines.elastic_constants.vgt_two(pydis.subroutines.elastic_constants.unvgt_one(A)))
+    A = np.resize(np.random.rand(6**2),(6,6))
+    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_two(A))
+    assert np.all(A==pydis.subroutines.elastic_constants.vgt_four(pydis.subroutines.elastic_constants.unvgt_two(A)))
+    A = np.resize(np.random.rand(6**3),(6,6,6))
+    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_three(A))
+    assert np.all(A==pydis.subroutines.elastic_constants.vgt_six(pydis.subroutines.elastic_constants.unvgt_three(A)))

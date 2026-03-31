@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Feb. 24, 2026
+# Date: Mar. 6, 2023 - Mar. 29, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -117,11 +117,13 @@ def prepare_testfolder(old,new,verbose=True):
     os.chdir(testfolder)
     return testfolder, old
 
-def prepare_inputfiles(tmpfolder="temp_pydislocdyn"):
+def prepare_inputfiles(tmpfolder="temp_pydislocdyn",include_iso=False):
     '''creates the specified temporary folder and writes all input files into that folder'''
     tmppydislocdyn = pathlib.Path(tmpfolder)
     tmppydislocdyn.mkdir(exist_ok=True)
     os.chdir(tmppydislocdyn)
+    if include_iso:
+        writeallinputfiles(iso=True)
     writeallinputfiles()
     os.chdir("..")
     return tmppydislocdyn
