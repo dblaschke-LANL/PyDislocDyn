@@ -103,7 +103,7 @@ module checks
 end module checks
 
 module tests
-  use parameters, only: sel
+  use parameters, only: sel, pi
   use checks
   implicit none
   contains
@@ -114,7 +114,7 @@ module tests
       type(disloc) :: Cu
       real(sel) :: C2(3,3,3,3)
       logical :: istrue
-      integer :: i
+!~       integer :: i
       
       Cu%sym = "cubic"
       Cu%metal = "Cu"

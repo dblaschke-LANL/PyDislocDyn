@@ -1,0 +1,29 @@
+name = "PyDislocDyn_subroutines"
+version = "20260331"
+license = "LICENSE.md"
+author = "Daniel N. Blaschke"
+maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
+copyright = "Copyright 2018, Triad National Security, LLC"
+homepage = "https://github.com/dblaschke-LANL/PyDislocDyn"
+
+[fortran]
+## need this mainly for compiling subroutines.f90, which does not use modules
+## throughout in order to maintain compatibility with numpy.f2py
+implicit-external = true
+
+[dependencies]
+#stdlib = "*"
+openmp = "*"
+
+#[dev-dependencies]
+#test-drive.git = "https://github.com/fortran-lang/test-drive"
+#test-drive.tag = "v0.6.0"
+
+[library]
+type = ["shared", "static"]
+source-dir = "pydislocdyn"
+
+[[executable]]
+name = "runtests"
+source-dir = "pydislocdyn"
+main = "runtests.f90"

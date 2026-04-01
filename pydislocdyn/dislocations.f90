@@ -4,6 +4,7 @@
 module dislocations
   use parameters, only : sel, pi ! defined in subroutines.f90
   implicit none
+  private
   type, public :: metalprops
     character(:), allocatable :: sym, metal ! sym defines the symmetry via keyword, metal is a name given to this instance
     real(sel), allocatable :: cij(:) ! store linearly independent elastic constants only
@@ -13,7 +14,7 @@ module dislocations
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
   end type metalprops
-  type, extends(metalprops) :: disloc
+  type, extends(metalprops), public :: disloc
     real(sel) :: b(3), n(3) ! Burgers vector and slip plane normal
     real(sel) :: burgers ! Burgers vector length
     integer :: ntheta, nphi ! number of character angles between 0 and pi/2; resolution in polar angle phi
@@ -21,6 +22,7 @@ module dislocations
     contains
       procedure :: update_theta => set_character_angles
   end type
+  public :: volume_unitcell, set_character_angles
   contains
     subroutine volume_unitcell(mat)
       class(metalprops), intent(inout) :: mat
