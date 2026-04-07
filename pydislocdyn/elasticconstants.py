@@ -2,7 +2,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 25, 2025
+# Date: Nov. 7, 2017 - Apr. 6, 2026
 '''This module contains functions to generate elastic constant and compliance tensors,
    as well as a class to help with calculating elastic constants.
    In particular, it contains the following functions:
@@ -97,7 +97,7 @@ def convert_TOECiso(c123=None, c144=None, c456=None, l=None, m=None, n=None, nu1
 def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=False):
     '''Generates the tensor of second order elastic constants using c11, c12, c13, c22, c23, c33, c44, c55, and c66 as input data
     (assuming the third axis is perpendicular to the basal plane).
-    If only c22, c23, and c55 are omitted (or 'None'), tetragonal I symmetry is assumed and this function will set c22=c11, c23=c12, and c55=c44.
+    If only c22, c23, and c55 are omitted (or 'None'), tetragonal I symmetry is assumed and this function will set c22=c11, c23=c13, and c55=c44.
     If additionally c66 is omitted (or 'None'), hexagonal symmetry is assumed and this function will set c66=(c11-c12)/2.
     If c13 or c33 are omitted (or 'None'), cubic symmetry is assumed and the according tensor is generated with c13=c12, c33=c11, and c66=c44.
     If in addition c11 is omitted (or 'None'), an isotropic tensor is generated with c11 = c12+2*c44.

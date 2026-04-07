@@ -6,7 +6,7 @@ Features and improvements:
 
  - use argparse for parsing command line options instead of our previous custom parser;
 (Note some changed syntax: options `--use_iso`, `--allplots`, and `--skip_plots` no longer take an argument)
- - ported the test suite to pytest and optimized its defaults for faster completion
+ - ported the test suite to pytest, optimized its defaults for faster completion, and added more unit tests
  - changed some defaults for faster dislocation drag calculations
 
 Fix:
