@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Feb. 13, 2026
+# Date: Nov. 7, 2017 - Apr. 6, 2026
 '''This script will compute polycrystal averages of second and third order elastic constants;
    it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
    will be taken into account unless the user passes input files (or keywords for some of 
@@ -113,13 +113,13 @@ if __name__ == '__main__':
     for X in metal:
         #### divide by 1e9 to get the results in units of GPa
         C2[X] = UnVoigt(Y[X].C2/1e9)
-        S2[X] = elasticS2(C2[X])
+        S2[X] = elasticS2(C2[X],voigt=False)
         C3[X] = None
         S3[X] = None
     
     for X in metal_toec:
         C3[X] = UnVoigt(Y[X].C3/1e9)
-        S3[X] = elasticS3(S2[X],C3[X])
+        S3[X] = elasticS3(S2[X],C3[X],voigt=False)
 
     for X in metal:
         VoigtAverage[X] = aver.voigt_average(C2[X],C3[X])
