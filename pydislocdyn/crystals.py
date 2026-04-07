@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 28, 2025
+# Date: Nov. 7, 2017 - Apr. 6, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -47,20 +47,20 @@ class IsoInvariants:
     '''This class initializes isotropic second and third order elastic tensors and their invariants depending on the provided Lame and Murnaghan constants,
     which may be sympy symbols or numbers.'''
     def __init__(self,lam,mu,Murl,Murm,Murn):
-        self.C2 = elasticC2(c12=lam,c44=mu)
+        self.C2 = elasticC2(c12=lam,c44=mu,voigt=False)
         self.invI1 = sp.factor(invI1(self.C2))
         self.invI2 = sp.factor(invI2(self.C2))
         
-        self.C3 = elasticC3(l=Murl,m=Murm,n=Murn)
+        self.C3 = elasticC3(l=Murl,m=Murm,n=Murn,voigt=False)
         self.invI3 = sp.factor(invI3(self.C3))
         self.invI4 = sp.factor(invI4(self.C3))
         self.invI5 = sp.factor(invI5(self.C3))
         
-        self.S2 = elasticS2(self.C2)
+        self.S2 = elasticS2(self.C2,voigt=False)
         self.invI1b = sp.factor(invI1(self.S2))
         self.invI2b = sp.factor(invI2(self.S2))
         
-        self.S3 = elasticS3(self.S2,self.C3)
+        self.S3 = elasticS3(self.S2,self.C3,voigt=False)
         self.invI3b = sp.factor(invI3(self.S3))
         self.invI4b = sp.factor(invI4(self.S3))
         self.invI5b = sp.factor(invI5(self.S3))
@@ -131,7 +131,7 @@ class IsoAverages(IsoInvariants):
         ### Amat is (x_i x_j x_k x_l + y_i y_j y_k y_l + z_i z_j z_k z_l) where x,y,z are the unit vectors along the crystal axes
         ### one may easily check that in Voigt notation this construction leads to the diagonal matrix below
         Amat = np.diag([1,1,1,0,0,0])
-        Hmat = Voigt(elasticC2(c12=Sh,c44=Sh+1/sp.S(2))) -5*Sh*Amat
+        Hmat = elasticC2(c12=Sh,c44=Sh+1/sp.S(2),voigt=True) -5*Sh*Amat
         Hm = np.dot(Hmat,np.diag([1,1,1,2,2,2]))
         C2hat = UnVoigt(np.array(sp.factor(sp.expand(sp.Matrix(np.dot(Hm,np.dot(Voigt(C2),Hm.T)))).subs(Sh**2,0)).subs(Sh,hfactor/2)))
         ###
@@ -286,9 +286,9 @@ class metal_props:
             C3 = None
             aver = IsoAverages(lam,mu,0,0,0)
         if include_TOEC or self.sym not in ['iso','fcc','bcc', 'cubic'] or scheme!='auto':
-            S2 = elasticS2(C2)
+            S2 = elasticS2(C2,voigt=False)
             if include_TOEC:
-                S3 = elasticS3(S2,C3)
+                S3 = elasticS3(S2,C3,voigt=False)
             else: S3 = None
             aver.voigt_average(C2,C3)
             if scheme != 'voigt':
