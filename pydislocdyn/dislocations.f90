@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Mar. 31, 2026
+! Date: Mar. 31, 2026 - Apr. 7, 2026
 module dislocations
   use parameters, only : sel, pi ! defined in subroutines.f90
   implicit none
@@ -15,14 +15,15 @@ module dislocations
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
   end type metalprops
   type, extends(metalprops), public :: disloc
-    real(sel) :: b(3), n(3) ! Burgers vector and slip plane normal
+    real(sel) :: b(3), n0(3) ! Burgers vector and slip plane normal
     real(sel) :: burgers ! Burgers vector length
-    integer :: ntheta, nphi ! number of character angles between 0 and pi/2; resolution in polar angle phi
-    real(sel), allocatable :: theta(:), phi(:)
+    integer :: ntheta=2, nphi=500 ! number of character angles between 0 and pi/2; resolution in polar angle phi
+    real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:)
+    real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
     contains
       procedure :: update_theta => set_character_angles
   end type
-  public :: volume_unitcell, set_character_angles
+  public :: volume_unitcell, set_character_angles, computerot, computestroh
   contains
     subroutine volume_unitcell(mat)
       class(metalprops), intent(inout) :: mat
@@ -51,4 +52,20 @@ module dislocations
       allocate(disl%theta(disl%ntheta))
       call linspace(0.d0,pi/2.d0,disl%ntheta,disl%theta)
     end subroutine set_character_angles
+    subroutine computestroh(disl)
+      class(disloc), intent(inout) :: disl
+      allocate(disl%t(3,disl%ntheta),disl%m0(3,disl%ntheta),disl%phi(disl%nphi))
+      allocate(disl%M(disl%nphi,3,disl%ntheta),disl%N(disl%nphi,3,disl%ntheta),disl%Cv(3,3,3,3,disl%ntheta))
+      call strohgeometry(disl%b,disl%n0,disl%t,disl%m0,disl%M,disl%N,disl%Cv,disl%theta,disl%phi,disl%ntheta,disl%nphi)
+    end subroutine computestroh
+    subroutine computerot(disl)
+      class(disloc), intent(inout) :: disl
+      integer :: th
+      allocate(disl%rot(3,3,disl%ntheta))
+      do th=1,disl%ntheta
+        call cross(disl%n0,disl%t,disl%rot(1,:,th))
+        disl%rot(2,:,th) = disl%n0
+        disl%rot(3,:,th) = disl%t(:,th)
+      end do
+    end subroutine computerot
 end module dislocations

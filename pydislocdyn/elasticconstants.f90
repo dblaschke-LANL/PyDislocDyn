@@ -109,7 +109,7 @@ module elastic_constants
       real(sel), intent(in) :: cijk(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6,6)
-      real(sel) :: x, xijk(56)
+      real(sel) :: xijk(56)
       integer :: i,j,k,n,ii,jj,kk,iind(6)
       iind = (/0,15,25,31,34,35/)
       xijk = 0.d0
@@ -142,6 +142,70 @@ module elastic_constants
           xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21) ! c155=c244=c266=c344=c355=c166
           xijk(22)=xijk(1); xijk(37)=xijk(1) ! c222=c333=c111
           xijk(34)=xijk(16); xijk(46)=xijk(16) ! c255=c366=c144
+        case ("hcp")
+          if (n/=10) then
+            print*,"error: expected length 10"
+            return
+          end if
+          ! user passes (c111,c112,c113,c123,c133,c144,c155,c222,c333,c344) in this case:
+          xijk(:3) = cijk(:3); xijk(8) = cijk(4); xijk(12) = cijk(5); xijk(16) = cijk(6); xijk(19) = cijk(7)
+          xijk(22) = cijk(8); xijk(37) = cijk(9); xijk(41) = cijk(10)
+          xijk(23) = cijk(3); xijk(27) = cijk(5); xijk(31) = cijk(7); xijk(34) = cijk(6); xijk(44) = cijk(10)
+          xijk(7) = (xijk(1)+xijk(2)-xijk(22)) !c122 = c111+c112-c222
+          xijk(21) = 0.25d0*(3.d0*xijk(22)-xijk(2)-2.d0*xijk(1)) !c166 = (3*c222-c112-2*c111)/4
+          xijk(36) = 0.25d0*(2*xijk(1)-xijk(2)-xijk(22)) !c266 = (2*c111-c112-c222)/4
+          xijk(46) = 0.5d0*(xijk(3)-xijk(8)) !c366 = (c113-c123)/2
+          xijk(51) = 0.5d0*(xijk(19)-xijk(16)) !c456 = (c155-c144)/2
+        case ("tetr")
+          if (n/=12) then
+            print*,"error: expected length 12"
+            return
+          end if
+          ! user passes (c111,c112,c113,c123,c133,c144,c155,c166,c333,c344,c366,c456) in this case:
+          xijk(:3) = cijk(:3); xijk(8) = cijk(4); xijk(12) = cijk(5); xijk(16) = cijk(6); xijk(19) = cijk(7)
+          xijk(21) = cijk(8); xijk(37) = cijk(9); xijk(41) = cijk(10); xijk(46) = cijk(11); xijk(51) = cijk(12)
+          xijk(22)=xijk(1); xijk(7) = xijk(2); xijk(23) = xijk(3); xijk(27) = xijk(12) ! c222=c111, c122=c112, c223=c113, c233=c133
+          xijk(31) = xijk(19); xijk(34) = xijk(16); xijk(36) = xijk(21); xijk(44) = xijk(41) ! c244=c155, c255=c144, c266=c166, c355=c344
+        case ("trig")
+          if (n/=14) then
+            print*,"error: expected length 14"
+            return
+          end if
+          xijk(:4) = cijk(:4); xijk(7)=(cijk(1)+cijk(2)-cijk(11)); xijk(8)=cijk(5); xijk(9)=cijk(6); xijk(12)=cijk(7)
+          xijk(13)=cijk(8); xijk(16)=cijk(9); xijk(19)=cijk(10); xijk(20)=0.5d0*(cijk(4)+3.d0*cijk(6))
+          xijk(21)=0.25d0*(3.d0*cijk(11)-2.d0*cijk(1)-cijk(2)); xijk(22)=cijk(11); xijk(23)=cijk(3); xijk(24)=-cijk(4)-2.d0*cijk(6)
+          xijk(27)=cijk(7); xijk(28)=-cijk(8); xijk(31)=cijk(10); xijk(34)=cijk(9); xijk(35)=0.5d0*(cijk(4)-cijk(6))
+          xijk(36)=0.25d0*(2.d0*cijk(1)-cijk(2)-cijk(11)); xijk(37)=cijk(12); xijk(41)=cijk(13); xijk(44)=cijk(13)
+          xijk(45)=cijk(8); xijk(46)=0.5d0*(cijk(3)-cijk(5)); xijk(47)=cijk(14); xijk(50)=-cijk(14)
+          xijk(51)=0.5d0*(cijk(10)-cijk(9)); xijk(52)=cijk(6)
+        case ("tetr2")
+          if (n/=16) then
+            print*,"error: expected length 16"
+            return
+          end if
+          xijk(:3) = cijk(:3); xijk(6)=cijk(4); xijk(7)=cijk(2); xijk(8)=cijk(5); xijk(12)=cijk(6); xijk(15:17)=cijk(7:9)
+          xijk(19)=cijk(10); xijk(21)=cijk(11); xijk(22)=cijk(1); xijk(23)=cijk(3)
+          xijk(26)=-cijk(4); xijk(27)=cijk(6); xijk(30)=-cijk(7); xijk(31)=cijk(10); xijk(32)=-cijk(9); xijk(34)=cijk(8)
+          xijk(36:37)=cijk(11:12); xijk(41)=cijk(13); xijk(44)=cijk(13); xijk(46)=cijk(14); xijk(49)=cijk(15)
+          xijk(51)=cijk(16); xijk(54)=-cijk(15)
+        case ("orth", "ortho")
+          if (n/=20) then
+            print*,"error: expected length 20"
+            return
+          end if
+          xijk(:3) = cijk(:3); xijk(7:8)=cijk(4:5); xijk(12)=cijk(6); xijk(16)=cijk(7); xijk(19)=cijk(8)
+          xijk(21:23)=cijk(9:11); xijk(27)=cijk(12); xijk(31)=cijk(13); xijk(34)=cijk(14)
+          xijk(36:37)=cijk(15:16); xijk(41)=cijk(17); xijk(44)=cijk(18); xijk(46)=cijk(19); xijk(51)=cijk(20)
+        case ("mono")
+          if (n/=32) then
+            print*,"error: expected length 32"
+            return
+          end if
+          xijk(:3) = cijk(:3); xijk(5)=cijk(4); xijk(7)=cijk(5); xijk(8)=cijk(6); xijk(10)=cijk(7); xijk(12)=cijk(8)
+          xijk(14)=cijk(9); xijk(16)=cijk(10); xijk(18)=cijk(11); xijk(19)=cijk(12); xijk(21:23)=cijk(13:15)
+          xijk(25)=cijk(16); xijk(27)=cijk(17); xijk(29)=cijk(18); xijk(31)=cijk(19); xijk(33)=cijk(20); xijk(34)=cijk(21)
+          xijk(36:37)=cijk(22:23); xijk(39)=cijk(24); xijk(41)=cijk(25); xijk(43:44)=cijk(26:27); xijk(46)=cijk(28)
+          xijk(48)=cijk(29); xijk(51)=cijk(30); xijk(53)=cijk(31); xijk(55)=cijk(32)
         case ("tric")
           if (n/=56) then
             print*,"error: expected length 56"
@@ -253,19 +317,18 @@ module elastic_constants
     subroutine kroeneraverage(C2,lambda,mu)
     !! Warning: use for cubic crystals only - we do not check C2 for cubic symmetry in this routine!
     use parameters, only: sel
-    implicit none
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
     real(sel) :: C11, C12, C44
     complex(sel) :: zero, m3
     C11 = C2(1,1); C12 = C2(1,2); C44 = C2(4,4)
-    zero = cmplx(0.d0,0.d0)
+    zero = cmplx(0.d0,0.d0,kind=sel)
     m3 = -5.d0*C11/24.d0 - C12/6.d0 - (21.d0*C11*C44/8.d0 - 3.d0*C12*C44/2.d0 + (5.d0*C11/8.d0 + C12/2.d0)**2)/(3.d0&
-         *cmplx(-0.5d0,0.5d0*sqrt(3.d0))*(-27.d0*C11**2*C44/16.d0 - 27.d0*C11*C12*C44/16.d0 + 27.d0*C12**2*C44/8.d0 &
+         *cmplx(-0.5d0,0.5d0*sqrt(3.d0),sel)*(-27.d0*C11**2*C44/16.d0 - 27.d0*C11*C12*C44/16.d0 + 27.d0*C12**2*C44/8.d0 &
          + (5.d0*C11/8.d0 + C12/2.d0)**3 - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)*(-7.d0*C11*C44/8.d0 + C12*C44/2.d0)/2.d0 &
          + sqrt(zero-4.d0*(21.d0*C11*C44/8.d0 - 3.d0*C12*C44/2.d0 + (5.d0*C11/8.d0 + C12/2.d0)**2)**3 + (-27.d0*C11**2*C44/8.d0 &
          - 27.d0*C11*C12*C44/8.d0 + 27.d0*C12**2*C44/4.d0 + 2.d0*(5.d0*C11/8.d0 + C12/2.d0)**3 - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)&
-         *(-7.d0*C11*C44/8.d0 + C12*C44/2.d0))**2)/2.d0)**(1.d0/3.d0)) - cmplx(-0.5d0,0.5d0*sqrt(3.d0))&
+         *(-7.d0*C11*C44/8.d0 + C12*C44/2.d0))**2)/2.d0)**(1.d0/3.d0)) - cmplx(-0.5d0,0.5d0*sqrt(3.d0),sel)&
          *(-27.d0*C11**2*C44/16.d0 - 27.d0*C11*C12*C44/16.d0 + 27.d0*C12**2*C44/8.d0 + (5.d0*C11/8.d0 + C12/2.d0)**3 &
          - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)*(-7.d0*C11*C44/8.d0 + C12*C44/2.d0)/2.d0 + sqrt(zero-4.d0*(21.d0*C11*C44/8.d0 &
          - 3.d0*C12*C44/2.d0 + (5.d0*C11/8.d0 + C12/2.d0)**2)**3 + (-27.d0*C11**2*C44/8.d0 - 27.d0*C11*C12*C44/8.d0 &
