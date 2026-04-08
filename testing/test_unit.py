@@ -180,6 +180,8 @@ def test_disloc_props(metal_list=None,Ntheta=2):
     if pydis.usefortran:
         ## check that fortran implementation of averaging schemes matches the python implementations
         for X in Y:
+            if Y[X].sym in ('cubic','fcc','bcc'):
+                assert np.allclose(np.array(Y[X].compute_Lame(scheme='improved',roundto=0)[:2]),np.array(pydis.subroutines.elastic_constants.kroeneraverage(Y[X].C2)))
             if X in ('Cu','Tibasal','Sn','Mo'): # check only one rep. for each symmetry (Mo is isotropic in contrast to Mo110 etc.)
                 assert np.allclose(np.array(Y[X].compute_Lame(scheme='hill',roundto=0)[:2]),np.array(pydis.subroutines.elastic_constants.hillaverage(Y[X].C2)))
 
@@ -199,7 +201,7 @@ def test_fortransubroutines():
     x = np.random.rand(10)
     assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
     assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
-    ## check that fortran implementations of elasticC2 and (un)voigt give the same results as the python version
+    ## check that fortran implementations of elasticC2, elasticC3, and (un)voigt give the same results as the python version
     xtric = np.random.rand(21)
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:2],sym='iso')==pydis.elasticC2(c12=xtric[0],c44=xtric[1],voigt=True))
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:3],sym='cubic')==pydis.elasticC2(c11=xtric[0],c12=xtric[1],c44=xtric[2],voigt=True))
@@ -207,9 +209,14 @@ def test_fortransubroutines():
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:6],sym='tetr')==pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],c66=xtric[5],voigt=True))
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:6],sym='trig')==pydis.elasticC2(cij=xtric[:6],voigt=True))
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:7],sym='tetr2')==pydis.elasticC2(cij=xtric[:7],voigt=True))
-    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:9],sym='ortho')==pydis.elasticC2(cij=xtric[:9],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:9],sym='orth')==pydis.elasticC2(cij=xtric[:9],voigt=True))
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric[:13],sym='mono')==pydis.elasticC2(cij=xtric[:13],voigt=True))
     assert np.all(pydis.subroutines.elastic_constants.elasticc2(xtric,sym='tric')==pydis.elasticC2(cij=xtric,voigt=True))
+    ##
+    xtric = np.random.rand(56)
+    assert np.all(pydis.subroutines.elastic_constants.elasticc3(xtric[:3],sym='iso')==pydis.elasticC3(c123=xtric[0],c144=xtric[1],c456=xtric[2],voigt=True))
+    assert np.all(pydis.subroutines.elastic_constants.elasticc3(xtric[:6],sym='cubic')==pydis.elasticC3(c111=xtric[0],c112=xtric[1],c123=xtric[2],c144=xtric[3],c166=xtric[4],c456=xtric[5],voigt=True))
+    ##
     A = np.random.rand(6)
     assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_one(A))
     assert np.all(A==pydis.subroutines.elastic_constants.vgt_two(pydis.subroutines.elastic_constants.unvgt_one(A)))

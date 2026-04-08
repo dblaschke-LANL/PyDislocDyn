@@ -34,7 +34,7 @@ module elastic_constants
           xij(1) = x; xij(7) = x; xij(12) = x
           xij(2) = cij(1); xij(3) = cij(1); xij(8) = cij(1)
           xij(16) = cij(2); xij(19) = cij(2); xij(21) = cij(2)
-        case ("cubic")
+        case ("cubic", "fcc", "bcc")
           if (n/=3) then
             print*,"error: expected length 3"
             return
@@ -70,7 +70,7 @@ module elastic_constants
           end if
           xij(:3) = cij(:3); xij(6) = cij(4); xij(7) = cij(1); xij(8) = cij(3); xij(11) = -cij(4); xij(12) = cij(5)
           xij(16) = cij(6); xij(19) = cij(6); xij(21) = cij(7)
-        case ("ortho")
+        case ("orth","ortho")
           if (n/=9) then
             print*,"error: expected length 9"
             return
@@ -91,17 +91,78 @@ module elastic_constants
           end if
           xij = cij
         case default
-          print*,"Error: expected one of these keywords for sym: 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'ortho', 'mono', 'tric'."
+          print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
           return
       end select
       do i=1,6
         do j=1,6
           ii = min(i,j)
           jj = max(i,j)
-          vc(i,j) = xij((jj-ii+1)+int((ii-1)*(14-ii)/2))!xij(int((ii-1)*ii/2)+jj)
+          vc(i,j) = xij((jj-ii+1)+int((ii-1)*(14-ii)/2))
         end do
       end do
     end subroutine elasticC2
+    !-------------------------
+    subroutine elasticC3(cijk,sym,vc)
+    ! takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
+      use parameters, only : sel
+      real(sel), intent(in) :: cijk(:)
+      character(*), intent(in) :: sym
+      real(sel), intent(out) :: vc(6,6,6)
+      real(sel) :: x, xijk(56)
+      integer :: i,j,k,n,ii,jj,kk,iind(6)
+      iind = (/0,15,25,31,34,35/)
+      xijk = 0.d0
+      vc = 0.d0
+      n = size(cijk)
+      select case (trim(sym))
+        case ("iso")
+          if (n/=3) then
+            print*,"error: expected length 3"
+            return
+          end if
+          ! user passes (c123,c144,c456) in this case:
+          xijk(8) = cijk(1); xijk(16) = cijk(2); xijk(51) = cijk(3)
+          xijk(2) = xijk(8) + 2.d0*xijk(16) ! c112 = c123 + 2*c144
+          xijk(21) = xijk(16) + 2.d0*xijk(51)! c166 = c144 + 2*c456
+          xijk(1) = xijk(8) + 6.d0*xijk(16) + 8*xijk(51) ! c111 = c123 + 6*c144 + 8*c456
+          xijk(3)=xijk(2); xijk(7)=xijk(2); xijk(12)=xijk(2); xijk(23)=xijk(2); xijk(27)=xijk(2) ! c113=c122=c133=c223=c233=c112
+          xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21) ! c155=c244=c266=c344=c355=c166
+          xijk(22)=xijk(1); xijk(37)=xijk(1) ! c222=c333=c111
+          xijk(34)=xijk(16); xijk(46)=xijk(16) ! c255=c366=c144
+        case ("cubic", "fcc", "bcc")
+          if (n/=6) then
+            print*,"error: expected length 6"
+            return
+          end if
+          ! user passes (c111,c112,c123,c144,c166,c456) in this case:
+          xijk(1) = cijk(1); xijk(2) = cijk(2); xijk(8) = cijk(3)
+          xijk(16) = cijk(4); xijk(21) = cijk(5); xijk(51) = cijk(6)
+          xijk(3)=xijk(2); xijk(7)=xijk(2); xijk(12)=xijk(2); xijk(23)=xijk(2); xijk(27)=xijk(2) ! c113=c122=c133=c223=c233=c112
+          xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21) ! c155=c244=c266=c344=c355=c166
+          xijk(22)=xijk(1); xijk(37)=xijk(1) ! c222=c333=c111
+          xijk(34)=xijk(16); xijk(46)=xijk(16) ! c255=c366=c144
+        case ("tric")
+          if (n/=56) then
+            print*,"error: expected length 56"
+            return
+          end if
+          xijk = cijk
+        case default
+          print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
+          return
+      end select
+      do i=1,6
+        do j=1,6
+          do k=1,6
+            ii = min(i,j,k)
+            jj = min(max(i,j),max(i,k),max(j,k))
+            kk = max(i,j,k)
+            vc(i,j,k) = xijk(kk-jj+1+int((14-jj)*(jj-1)/2)+iind(ii))
+          end do
+        end do
+      end do
+    end subroutine elasticC3
     ! -----------------------------
     subroutine vgt_two(x,y)
       use parameters, only : sel
@@ -159,15 +220,24 @@ module elastic_constants
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
     ! expressions derived using PyDislocDyn (python implementation using a symbolic calculation with sym='tric')
-    lambda = -3.d0 *(C2(1,1)*C2(3,3) + C2(1,2)*C2(3,3) - 2.d0*C2(1,3)**2)*(-C2(1,1)**2*C2(3,3)*C2(4,4) - 2.d0*C2(1,1)**2*C2(3,3)*C2(6,6) + 2.d0*C2(1,1)**2*C2(4,4)*C2(6,6) + 2.d0*C2(1,1)*C2(1,3)**2*C2(4,4) &
-             + 4.d0*C2(1,1)*C2(1,3)**2*C2(6,6) - 16.d0*C2(1,1)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,1)*C2(3,3)*C2(4,4)*C2(6,6) + C2(1,2)**2*C2(3,3)*C2(4,4) + 2.d0*C2(1,2)**2*C2(3,3)*C2(6,6) - 2.d0*C2(1,2)**2*C2(4,4)*C2(6,6) &
-             - 2.d0*C2(1,2)*C2(1,3)**2*C2(4,4) - 4.d0*C2(1,2)*C2(1,3)**2*C2(6,6) + 16.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) - 8.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,3)**2*C2(4,4)*C2(6,6))/((C2(1,1) + C2(1,2) &
-             - 4.d0*C2(1,3) + 2*C2(3,3))*(3*C2(1,1)**2*C2(3,3)*C2(4,4) + 6.d0*C2(1,1)**2*C2(3,3)*C2(6,6) + 4.d0*C2(1,1)**2*C2(4,4)*C2(6,6) - 6.d0*C2(1,1)*C2(1,3)**2*C2(4,4) - 12.d0*C2(1,1)*C2(1,3)**2*C2(6,6) &
-             + 8.d0*C2(1,1)*C2(1,3)*C2(4,4)*C2(6,6) + 8.d0*C2(1,1)*C2(3,3)*C2(4,4)*C2(6,6) - 3.d0*C2(1,2)**2*C2(3,3)*C2(4,4) - 6.d0*C2(1,2)**2*C2(3,3)*C2(6,6) - 4.d0*C2(1,2)**2*C2(4,4)*C2(6,6) &
-             + 6.d0*C2(1,2)*C2(1,3)**2*C2(4,4) + 12.d0*C2(1,2)*C2(1,3)**2*C2(6,6) - 8.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) - 12.d0*C2(1,3)**2*C2(4,4)*C2(6,6)))
-    mu = 15.d0*C2(4,4)*C2(6,6)*(C2(1,1)-C2(1,2))*(C2(1,1)*C2(3,3) + C2(1,2)*C2(3,3) - 2.d0*C2(1,3)**2)/(3.d0*C2(1,1)**2*C2(3,3)*C2(4,4) + 6.d0*C2(1,1)**2*C2(3,3)*C2(6,6) + 4.d0*C2(1,1)**2*C2(4,4)*C2(6,6) &
-         - 6.d0*C2(1,1)*C2(1,3)**2*C2(4,4) - 12.d0*C2(1,1)*C2(1,3)**2*C2(6,6) + 8.d0*C2(1,1)*C2(1,3)*C2(4,4)*C2(6,6) + 8.d0*C2(1,1)*C2(3,3)*C2(4,4)*C2(6,6) - 3.d0*C2(1,2)**2*C2(3,3)*C2(4,4) - 6.d0*C2(1,2)**2*C2(3,3)*C2(6,6) &
-         - 4.d0*C2(1,2)**2*C2(4,4)*C2(6,6) + 6.d0*C2(1,2)*C2(1,3)**2*C2(4,4) + 12.d0*C2(1,2)*C2(1,3)**2*C2(6,6) - 8.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) - 12.d0*C2(1,3)**2*C2(4,4)*C2(6,6))
+    lambda = -3.d0 *(C2(1,1)*C2(3,3) + C2(1,2)*C2(3,3) - 2.d0*C2(1,3)**2)*(-C2(1,1)**2*C2(3,3)*C2(4,4) - 2.d0*C2(1,1)**2 &
+             *C2(3,3)*C2(6,6) + 2.d0*C2(1,1)**2*C2(4,4)*C2(6,6) + 2.d0*C2(1,1)*C2(1,3)**2*C2(4,4) &
+             + 4.d0*C2(1,1)*C2(1,3)**2*C2(6,6) - 16.d0*C2(1,1)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,1)*C2(3,3)*C2(4,4)*C2(6,6) &
+             + C2(1,2)**2*C2(3,3)*C2(4,4) + 2.d0*C2(1,2)**2*C2(3,3)*C2(6,6) - 2.d0*C2(1,2)**2*C2(4,4)*C2(6,6) &
+             - 2.d0*C2(1,2)*C2(1,3)**2*C2(4,4) - 4.d0*C2(1,2)*C2(1,3)**2*C2(6,6) + 16.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) &
+             - 8.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,3)**2*C2(4,4)*C2(6,6))/((C2(1,1) + C2(1,2) &
+             - 4.d0*C2(1,3) + 2*C2(3,3))*(3*C2(1,1)**2*C2(3,3)*C2(4,4) + 6.d0*C2(1,1)**2*C2(3,3)*C2(6,6) + 4.d0*C2(1,1)**2 &
+             *C2(4,4)*C2(6,6) - 6.d0*C2(1,1)*C2(1,3)**2*C2(4,4) - 12.d0*C2(1,1)*C2(1,3)**2*C2(6,6) &
+             + 8.d0*C2(1,1)*C2(1,3)*C2(4,4)*C2(6,6) + 8.d0*C2(1,1)*C2(3,3)*C2(4,4)*C2(6,6) - 3.d0*C2(1,2)**2*C2(3,3)*C2(4,4) &
+             - 6.d0*C2(1,2)**2*C2(3,3)*C2(6,6) - 4.d0*C2(1,2)**2*C2(4,4)*C2(6,6) &
+             + 6.d0*C2(1,2)*C2(1,3)**2*C2(4,4) + 12.d0*C2(1,2)*C2(1,3)**2*C2(6,6) - 8.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) &
+             + 4.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) - 12.d0*C2(1,3)**2*C2(4,4)*C2(6,6)))
+    mu = 15.d0*C2(4,4)*C2(6,6)*(C2(1,1)-C2(1,2))*(C2(1,1)*C2(3,3) + C2(1,2)*C2(3,3) - 2.d0*C2(1,3)**2)/(3.d0*C2(1,1)**2 &
+         *C2(3,3)*C2(4,4) + 6.d0*C2(1,1)**2*C2(3,3)*C2(6,6) + 4.d0*C2(1,1)**2*C2(4,4)*C2(6,6) &
+         - 6.d0*C2(1,1)*C2(1,3)**2*C2(4,4) - 12.d0*C2(1,1)*C2(1,3)**2*C2(6,6) + 8.d0*C2(1,1)*C2(1,3)*C2(4,4)*C2(6,6) &
+         + 8.d0*C2(1,1)*C2(3,3)*C2(4,4)*C2(6,6) - 3.d0*C2(1,2)**2*C2(3,3)*C2(4,4) - 6.d0*C2(1,2)**2*C2(3,3)*C2(6,6) &
+         - 4.d0*C2(1,2)**2*C2(4,4)*C2(6,6) + 6.d0*C2(1,2)*C2(1,3)**2*C2(4,4) + 12.d0*C2(1,2)*C2(1,3)**2*C2(6,6) &
+         - 8.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) - 12.d0*C2(1,3)**2*C2(4,4)*C2(6,6))
     end subroutine reussaverage
     subroutine hillaverage(C2,lambda,mu)
     use parameters, only: sel
@@ -179,4 +249,32 @@ module elastic_constants
     lambda = 0.5d0*(lv+lr)
     mu = 0.5d0*(mv+mr)
     end subroutine hillaverage
+    !--------------------------
+    subroutine kroeneraverage(C2,lambda,mu)
+    !! Warning: use for cubic crystals only - we do not check C2 for cubic symmetry in this routine!
+    use parameters, only: sel
+    implicit none
+    real(sel), intent(in) :: C2(6,6)
+    real(sel), intent(out) :: lambda, mu
+    real(sel) :: C11, C12, C44
+    complex(sel) :: zero, m3
+    C11 = C2(1,1); C12 = C2(1,2); C44 = C2(4,4)
+    zero = cmplx(0.d0,0.d0)
+    m3 = -5.d0*C11/24.d0 - C12/6.d0 - (21.d0*C11*C44/8.d0 - 3.d0*C12*C44/2.d0 + (5.d0*C11/8.d0 + C12/2.d0)**2)/(3.d0&
+         *cmplx(-0.5d0,0.5d0*sqrt(3.d0))*(-27.d0*C11**2*C44/16.d0 - 27.d0*C11*C12*C44/16.d0 + 27.d0*C12**2*C44/8.d0 &
+         + (5.d0*C11/8.d0 + C12/2.d0)**3 - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)*(-7.d0*C11*C44/8.d0 + C12*C44/2.d0)/2.d0 &
+         + sqrt(zero-4.d0*(21.d0*C11*C44/8.d0 - 3.d0*C12*C44/2.d0 + (5.d0*C11/8.d0 + C12/2.d0)**2)**3 + (-27.d0*C11**2*C44/8.d0 &
+         - 27.d0*C11*C12*C44/8.d0 + 27.d0*C12**2*C44/4.d0 + 2.d0*(5.d0*C11/8.d0 + C12/2.d0)**3 - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)&
+         *(-7.d0*C11*C44/8.d0 + C12*C44/2.d0))**2)/2.d0)**(1.d0/3.d0)) - cmplx(-0.5d0,0.5d0*sqrt(3.d0))&
+         *(-27.d0*C11**2*C44/16.d0 - 27.d0*C11*C12*C44/16.d0 + 27.d0*C12**2*C44/8.d0 + (5.d0*C11/8.d0 + C12/2.d0)**3 &
+         - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)*(-7.d0*C11*C44/8.d0 + C12*C44/2.d0)/2.d0 + sqrt(zero-4.d0*(21.d0*C11*C44/8.d0 &
+         - 3.d0*C12*C44/2.d0 + (5.d0*C11/8.d0 + C12/2.d0)**2)**3 + (-27.d0*C11**2*C44/8.d0 - 27.d0*C11*C12*C44/8.d0 &
+         + 27.d0*C12**2*C44/4.d0 + 2.d0*(5.d0*C11/8.d0 + C12/2.d0)**3 - (45.d0*C11/8.d0 + 9.d0*C12/2.d0)*(-7.d0*C11*C44/8.d0 &
+         + C12*C44/2.d0))**2)/2.d0)**(1.d0/3.d0)/3.d0
+    if (abs(m3%im/C44)>1.d-12) then
+      print*,"ERROR: solution is imaginary, i.e. mu/c44=",m3/C44
+    end if
+    mu = m3%re
+    lambda = (C2(1,1) + 2.d0*C2(1,2) - 2.d0*mu)/3.d0
+    end subroutine kroeneraverage
 end module elastic_constants

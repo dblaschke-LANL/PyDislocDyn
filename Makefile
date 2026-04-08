@@ -29,8 +29,7 @@ help:
 	@echo 'make cleanall        delete all object files and executables'
 	@echo ''
 
-runtests:  $(EXEC_tests)
-$(EXEC_tests): pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
+runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
         pydislocdyn/dislocations.f90 pydislocdyn/runtests.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
@@ -39,8 +38,7 @@ $(EXEC_tests): pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
 	# Link
 	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o dislocations.o runtests.o $(LDFLAGS)
 	
-shared:  $(SHARED)
-$(SHARED): pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
+shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
         pydislocdyn/dislocations.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/elasticconstants.f90
