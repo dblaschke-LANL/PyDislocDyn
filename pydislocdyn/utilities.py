@@ -85,7 +85,7 @@ def ompthreads():
     return 0
 try:
     import pydislocdyn.subroutines as fsub
-    if  hasattr(fsub.parameters,'version') and fsub.parameters.version>=20260330:
+    if  hasattr(fsub.parameters,'version') and fsub.parameters.version>=20260407:
         usefortran = True
         ompthreads = fsub.ompinfo
         fsub.version = int(fsub.parameters.version)

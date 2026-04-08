@@ -1,7 +1,7 @@
 ! standalone test suite for subroutines.f90
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Mar. 31, 2026
+! Date: Mar. 25, 2026 - Apr. 8, 2026
 ! compile with:
 ! gfortran pydislocdyn/subroutines.f90 pydislocdyn/runtests.f90 -o runtests.x -Wall -pedantic -Wextra -fopenmp -lgomp
 ! or similar
@@ -112,29 +112,35 @@ module tests
       use dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu
-      real(sel) :: C2(3,3,3,3)
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3)
       logical :: istrue
 !~       integer :: i
       
-      Cu%sym = "cubic"
-      Cu%metal = "Cu"
-      Cu%rho = 8960.d0
+      Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,b=3.6146d-10*(/0.5d0,0.5d0,0.d0/),n0=(/-1.d0,1.d0,-1.d0/))
       Cu%lat_a = (/3.6146d-10,0.d0,0.d0/)
-      Cu%cij = (/168.3d9,121.2d9,75.7d9/)
-      call elasticC2(Cu%cij,Cu%sym,Cu%C2)
+      Cu%cij = (/168.3d9, 121.2d9, 75.7d9/)
+      Cu%cijk = (/-1271.d9, -814.d9, -50.d9, -3.d9, -780.d9, -95.d9/)
+      call Cu%init() ! attempts to inver Cu%burgers from Cu%b if not normalized
 !~       do i=1,6
 !~         print*,Cu%C2(i,:)/1.d9
+!~         print*,Cu%C3(2,i,:)/1.d9
 !~       end do
-      call testzero(sum(Cu%C2/1.d9)-1459.2d0,"disloc_Cu_1",1.d-12,count_pass,count_fail)
+!~       do i=1,3
+!~         print*,Cu%rot(i,:,1),Cu%rot(i,:,2)
+!~       end do
+      call testzero(Cu%rot(1,3,1)+Cu%rot(1,3,2)+0.81649658,"disloc_Cu_rot",1.d-6,count_pass,count_fail)
+      call testzero(sum(Cu%C2)/1.d12-1.4592d0+sum(Cu%C3)/1.d12+33.402d0,"disloc_Cu_C2_C3",1.d-12,count_pass,count_fail)
       call unvoigt(Cu%C2,C2)
       call checkvoigt(C2,istrue)
-      call testtrue(istrue,"disloc_Cu_checkvoigt",count_pass,count_fail)
-      
-      call Cu%update_Vc()
+      call testtrue(istrue,"disloc_Cu_checkvoigt_C2",count_pass,count_fail)
+      call unvoigt(Cu%C3,C3)
+      call checkvoigt(C3,istrue)
+      call testtrue(istrue,"disloc_Cu_checkvoigt_C3",count_pass,count_fail)
       call testzero(Cu%Vc*1.d29-4.7225953240136,"disloc_Cu_Vc",1.d-6,count_pass,count_fail)
-      Cu%ntheta = 2
-      call Cu%update_theta()
       call testzero(sum(Cu%theta)-pi/2.d0,"disloc_Cu_theta",1.d-6,count_pass,count_fail)
+      call testzero(sum(Cu%lat_angles)-1.5d0*pi,"disloc_Cu_lat_angles",1.d-6,count_pass,count_fail)
+      call testzero(dot_product(Cu%b,Cu%b)+dot_product(Cu%n0,Cu%n0)+dot_product(Cu%b,Cu%n0)+dot_product(Cu%t(:,1),Cu%b)-3.d0 &
+             +dot_product(Cu%t(:,2),Cu%b)+1.d10*(Cu%burgers-3.6146d-10/sqrt(2.d0)),"disloc_Cu_b_n0_t",1.d-6,count_pass,count_fail)
       
     end subroutine test_disloc
 end module tests
