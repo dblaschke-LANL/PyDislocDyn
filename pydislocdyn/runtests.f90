@@ -113,6 +113,7 @@ module tests
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3)
+      real(sel), allocatable :: zeros(:), Etot(:)
       logical :: istrue
 !~       integer :: i
       
@@ -141,7 +142,15 @@ module tests
       call testzero(sum(Cu%lat_angles)-1.5d0*pi,"disloc_Cu_lat_angles",1.d-6,count_pass,count_fail)
       call testzero(dot_product(Cu%b,Cu%b)+dot_product(Cu%n0,Cu%n0)+dot_product(Cu%b,Cu%n0)+dot_product(Cu%t(:,1),Cu%b)-3.d0 &
              +dot_product(Cu%t(:,2),Cu%b)+1.d10*(Cu%burgers-3.6146d-10/sqrt(2.d0)),"disloc_Cu_b_n0_t",1.d-6,count_pass,count_fail)
-      
+      Cu%beta = 0.5d0
+      call Cu%update_uij()
+      allocate(zeros(Cu%nphi))
+      zeros = 0.d0
+      call testequalarray(Cu%uij(:,1,1,1)+Cu%uij(:,2,2,1)+Cu%uij(:,3,3,1),zeros,Cu%nphi,&
+                          "disloc_Cu_uij-screw_zero-trace",1.d-12,count_pass,count_fail)
+      allocate(Etot(Cu%ntheta))
+      call computeEtot(Cu%uij,Cu%beta,Cu%C2norm,Cu%Cv,Cu%phi,Cu%ntheta,Cu%nphi,Etot)
+      call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
     end subroutine test_disloc
 end module tests
 

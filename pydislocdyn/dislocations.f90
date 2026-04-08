@@ -12,20 +12,24 @@ module dislocations
     real(sel) :: rho=0.d0, C2(6,6)=0.d0, C3(6,6,6)=0.d0 ! density and elastic constants
     real(sel) :: lat_a(3)=0.d0, lat_angles(3)=0.d0 ! lattice constants and angles
     real(sel) :: Vc=0.d0 ! unit cell volume
+    real(sel) :: lam=0.d0, mu=0.d0 ! Lame constants (polycryst. averages)
+    real(sel) :: C2norm(3,3,3,3)=0.d0 ! will be used to store unvoigt(C2)/mu
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
   end type metalprops
   type, extends(metalprops), public :: disloc
     real(sel) :: b(3)=0.d0, n0(3)=0.d0 ! Burgers vector and slip plane normal
-    real(sel) :: burgers=0.d0 ! Burgers vector length
+    real(sel) :: burgers=0.d0, beta=0.d0 ! Burgers vector length, ratio of gliding velocity over transverse sound speed beta
     integer :: ntheta=2, nphi=500 ! number of character angles between 0 and pi/2; resolution in polar angle phi
     real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:)
     real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
+    real(sel), allocatable :: uij(:,:,:,:)
     contains
       procedure :: update_theta => set_character_angles
       procedure :: update_stroh => computestroh
       procedure :: update_rot => computerot
       procedure :: init => init_disloc
+      procedure :: update_uij => compute_uij
   end type
   public :: volume_unitcell, set_character_angles, computerot
   contains
@@ -64,6 +68,7 @@ module dislocations
       if (allocated(disl%M)) deallocate(disl%M); if (allocated(disl%N)) deallocate(disl%N)
       allocate(disl%t(3,disl%ntheta),disl%m0(3,disl%ntheta),disl%phi(disl%nphi))
       allocate(disl%M(disl%nphi,3,disl%ntheta),disl%N(disl%nphi,3,disl%ntheta),disl%Cv(3,3,3,3,disl%ntheta))
+      call linspace(0.d0,2.d0*pi,disl%nphi,disl%phi)
       call strohgeometry(disl%b,disl%n0,disl%t,disl%m0,disl%M,disl%N,disl%Cv,disl%theta,disl%phi,disl%ntheta,disl%nphi)
     end subroutine computestroh
     subroutine computerot(disl)
@@ -108,5 +113,24 @@ module dislocations
       call elasticC3(disl%cijk,disl%sym,disl%C3)
       call disl%update_stroh()
       call disl%update_rot()
+      if (disl%mu<1.d-9) then
+        ! todo: decide if we want to round the Lame constants by default like we do in the python version
+        select case (trim(disl%sym))
+          case ("iso")
+            disl%lam = disl%cij(1)
+            disl%mu = disl%cij(2)
+          case ("cubic", "fcc", "bcc")
+            call kroeneraverage(disl%C2,disl%lam,disl%mu)
+          case default
+            call hillaverage(disl%C2,disl%lam,disl%mu)
+        end select
+      end if
+      call unvoigt(disl%C2/disl%mu,disl%C2norm)
     end subroutine init_disloc
+    subroutine compute_uij(disl)
+      class(disloc), intent(inout) :: disl
+      if (allocated(disl%uij)) deallocate(disl%uij)
+      allocate(disl%uij(disl%nphi,3,3,disl%ntheta))
+      call computeuij(disl%beta,disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,disl%uij)
+    end subroutine compute_uij
 end module dislocations
