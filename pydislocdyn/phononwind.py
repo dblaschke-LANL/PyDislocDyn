@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 23, 2026
+# Date: Nov. 5, 2017 - Apr. 9, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -17,15 +17,17 @@ import ast
 import numpy as np
 from scipy.optimize import curve_fit, minimize_scalar, root
 import pandas as pd
-from pydislocdyn.utilities import Ncores, usefortran, hbar, kB, str2bool, init_parser, \
+from .utilities import Ncores, usefortran, hbar, kB, str2bool, init_parser, \
     plt, fntsettings, AutoMinorLocator ## matplotlib stuff
-from pydislocdyn.elasticconstants import UnVoigt
-from pydislocdyn.dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
+from .elasticconstants import UnVoigt
+from .dislocations import Dislocation, fourieruij_sincos, fourieruij_nocut, fourieruij_iso
 if usefortran:
-    from pydislocdyn.subroutines import elastica3, phononwind_xx, phononwind_xy
+    from .subroutines import phononwind
+    phononwind_xx = phononwind.phononwind_xx
+    phononwind_xy = phononwind.phononwind_xy
     def elasticA3(C2, C3):
         '''Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons. Required inputs are the tensors of SOEC and TOEC.'''
-        A3 = elastica3(C2,C3)
+        A3 = phononwind.elastica3(C2,C3)
         return A3
 else:
     from pydislocdyn._phononwind_numba import elasticA3, phononwind_xx, phononwind_xy

@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Mar. 31, 2026
+# Date: Mar. 6, 2023 - Apr. 9, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -15,6 +15,8 @@ tmppydislocdyn = pathlib.Path(testpath,"temp_pydislocdyn")
 tmppydislocdyn.mkdir(exist_ok=True)
 
 import pydislocdyn as pydis
+if pydis.usefortran:
+    from pydislocdyn.subroutines import utilities, various_subroutines
 import numpy as np
 from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
@@ -157,6 +159,14 @@ def test_disloc_props(metal_list=None,Ntheta=2):
             num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
         if not np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1e-02)):
             print(f"Warning: numerical accuracy of vcrit_edge for {X} may be less than 1%")
+        if pydis.usefortran:
+            ## check fortran implementation of stroh geometry also:
+            t,m0,M,N,Cv = various_subroutines.strohgeometry(Y[X].b,Y[X].n0,Y[X].theta,Y[X].phi)
+            assert np.allclose(m0,Y[X].m0.T)
+            assert np.allclose(t,Y[X].t.T)
+            assert np.allclose(Cv,Y[X].Cv)
+            assert np.allclose(M,np.moveaxis(Y[X].M,-1,0))
+            assert np.allclose(N,np.moveaxis(Y[X].N,-1,0))
         ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
         ## for screw disloc. with reflection symm. we have an analytic expression, so warn only for edge case
         ## where the reflection symm. routine also relies on numerical solutions (albeit a more accurate one we think)
@@ -177,12 +187,12 @@ def test_fortransubroutines():
         return
     # test inv()
     A = np.random.rand(9).reshape((3,3))
-    Ainv = pydis.subroutines.inv(A)
+    Ainv = utilities.inv(A)
     assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-9) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-9)
     # test linspace()
-    assert sum(abs(np.linspace(0,1,11)-pydis.subroutines.linspace(0,1,11)))<1e-15
+    assert sum(abs(np.linspace(0,1,11)-utilities.linspace(0,1,11)))<1e-15
     # test trapz() and cumtrapz()
     f = 21*(np.random.rand(10)-0.3)
     x = np.random.rand(10)
-    assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
-    assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
+    assert np.allclose(trapezoid(f,x),utilities.trapz(f,x))
+    assert np.allclose(cumulative_trapezoid(f,x,initial=0),utilities.cumtrapz(f,x))
