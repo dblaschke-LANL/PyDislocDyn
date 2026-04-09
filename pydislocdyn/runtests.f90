@@ -182,6 +182,7 @@ program runtests
     print*,exe_name, " compiled with openmp support, using ",nthreads," threads"
   else
     print*,exe_name, " compiled without openmp support"
+    nthreads = 1
   end if
   
   ! test linspace
@@ -240,6 +241,6 @@ program runtests
   call cpu_time(finish_time)
   print*,"------------------------------------------------------------"
   print*,"SUMMARY:", count_pass," passed and ",count_fail," failed"
-  !print*,"time: ",finish_time-start_time, "s"
+  print*,"time: ",(finish_time-start_time)/real(nthreads, kind=sel), "s"
   
 end program runtests
