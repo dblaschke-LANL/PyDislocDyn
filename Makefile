@@ -9,7 +9,7 @@ else ifeq ($(FC),flang)
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
-  FC = gfortran -fimplicit-none
+  FC = gfortran -fimplicit-none# -ffree-line-length-225
   FFLAGS = -O3 -fimplicit-none -Wall -pedantic -Wextra -std=f2018 -fopenmp
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
@@ -51,7 +51,8 @@ shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
 
 clean: 
 	rm -f subroutines.o elasticconstants.o dislocations.o runtests.o \
-	parameters.mod  elastic_constants.mod  phononwind_subroutines.mod dislocations.mod checks.mod tests.mod
+	parameters.mod utilities.mod various_subroutines.mod phononwind.mod phononwind_subroutines.mod \
+	elastic_constants.mod dislocations.mod checks.mod tests.mod
 
 cleanall: clean
 	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x lib$(SHARED).so

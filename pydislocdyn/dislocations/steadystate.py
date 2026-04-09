@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Oct. 2, 2025
+# Date: Nov. 3, 2017 - Apr. 9, 2025
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
@@ -11,38 +11,38 @@ import sympy as sp
 import pydislocdyn.dislocations.numba_subroutines as nsub
 from ..utilities import usefortran, delta, rotaround, artan
 if usefortran:
-    from ..utilities import fsub
-    fourieruij_sincos = fsub.fourieruij_sincos
+    from ..subroutines import utilities, phononwind, various_subroutines
+    fourieruij_sincos = phononwind.fourieruij_sincos
     
     def fourieruij_nocut(uij,phiX,sincos,Ntheta,phres):
         '''Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)'''
-        return fsub.fourieruij_nocut(np.moveaxis(uij,-1,0),phiX,sincos,Ntheta,phres)
+        return phononwind.fourieruij_nocut(np.moveaxis(uij,-1,0),phiX,sincos,Ntheta,phres)
     
     def computeEtot(uij, betaj, C2, Cv, phi):
         '''Computes the self energy of a straight dislocation uij moving at velocity betaj.
         Additional required input parameters are the 2nd order elastic constant tensor C2 (for the strain energy) and its velocity dependent shift Cv (for the kinetic energy),
         as well as the integration angle phi inside the plane normal to the dislocation line.'''
-        return fsub.computeetot(np.moveaxis(uij,-1,0),betaj,C2,Cv,phi)
+        return various_subroutines.computeetot(np.moveaxis(uij,-1,0),betaj,C2,Cv,phi)
     
     def elbrak(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
-        return np.moveaxis(fsub.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
+        return np.moveaxis(utilities.elbrak(np.moveaxis(A,-1,0),np.moveaxis(B,-1,0),elC),0,-1)
     
     def elbrak1d(A,B,elC):
         '''Compute the bracket (A,B) := A.elC.B, where elC is a tensor of 2nd order elastic constants (potentially shifted by a velocity term or similar) and A,B are vectors.
            This function is similar to elbrak(), but its arguments do not depend on the character angle, i.e. A, B have shape (3).'''
-        return fsub.elbrak1d(A,B,elC)
+        return utilities.elbrak1d(A,B,elC)
     
     def computeuk(beta, C2, Cv, b, M, N, phi, r):
         '''Compute the dislocation displacement field uk according to the integral method.'''
-        return np.moveaxis(fsub.computeuk(beta, C2, Cv, b, np.moveaxis(M,-1,0), np.moveaxis(N,-1,0), phi, r),0,-1)
+        return np.moveaxis(various_subroutines.computeuk(beta, C2, Cv, b, np.moveaxis(M,-1,0), np.moveaxis(N,-1,0), phi, r),0,-1)
         
     def computeuij(beta, C2, Cv, b, M, N, phi, r=None, debug=False):
         '''Compute the dislocation displacement gradient field uij according to the integral method. If vector r is omitted, return only the angular dependence.'''
         if debug:
             return nsub.computeuij(beta, C2, Cv, b, M, N, phi, r=r, debug=debug)
-        out = np.moveaxis(fsub.computeuij(beta, C2, Cv, b, np.moveaxis(M,-1,0), np.moveaxis(N,-1,0), phi),0,-1)
+        out = np.moveaxis(various_subroutines.computeuij(beta, C2, Cv, b, np.moveaxis(M,-1,0), np.moveaxis(N,-1,0), phi),0,-1)
         if r is not None:
             Ntheta = len(M[0,:,0])
             out = np.moveaxis(np.reshape(np.outer(1/r,out),(len(r),3,3,Ntheta,len(phi))),0,-2)

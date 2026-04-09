@@ -1,10 +1,7 @@
-! standalone test suite for subroutines.f90
+! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Apr. 8, 2026
-! compile with:
-! gfortran pydislocdyn/subroutines.f90 pydislocdyn/runtests.f90 -o runtests.x -Wall -pedantic -Wextra -fopenmp -lgomp
-! or similar
+! Date: Mar. 25, 2026 - Apr. 9, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module checks
   use parameters, only: sel
@@ -108,6 +105,7 @@ module tests
   implicit none
   contains
     subroutine test_disloc(count_pass,count_fail)
+      use various_subroutines, only : computeEtot
       use elastic_constants
       use dislocations
       integer, intent(inout) :: count_pass,count_fail
@@ -159,6 +157,7 @@ end module tests
 
 program runtests
   use parameters
+  use utilities, only : ompinfo, linspace, inv, trapz, cumtrapz
   use phononwind_subroutines
   use elastic_constants
   use checks

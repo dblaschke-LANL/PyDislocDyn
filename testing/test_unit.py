@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 7, 2026
+# Date: Mar. 6, 2023 - Apr. 9, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -15,6 +15,8 @@ tmppydislocdyn = pathlib.Path(testpath,"temp_pydislocdyn")
 tmppydislocdyn.mkdir(exist_ok=True)
 
 import pydislocdyn as pydis
+if pydis.usefortran:
+    from pydislocdyn.subroutines import elastic_constants, utilities, various_subroutines
 import numpy as np
 from scipy.integrate import cumulative_trapezoid, trapezoid
 import sympy as sp
@@ -159,7 +161,7 @@ def test_disloc_props(metal_list=None,Ntheta=2):
             print(f"Warning: numerical accuracy of vcrit_edge for {X} may be less than 1%")
         if pydis.usefortran:
             ## check fortran implementation of stroh geometry also:
-            t,m0,M,N,Cv = pydis.subroutines.strohgeometry(Y[X].b,Y[X].n0,Y[X].theta,Y[X].phi)
+            t,m0,M,N,Cv = various_subroutines.strohgeometry(Y[X].b,Y[X].n0,Y[X].theta,Y[X].phi)
             assert np.allclose(m0,Y[X].m0.T)
             assert np.allclose(t,Y[X].t.T)
             assert np.allclose(Cv,Y[X].Cv)
@@ -181,9 +183,9 @@ def test_disloc_props(metal_list=None,Ntheta=2):
         ## check that fortran implementation of averaging schemes matches the python implementations
         for X in Y:
             if Y[X].sym in ('cubic','fcc','bcc'):
-                assert np.allclose(np.array(Y[X].compute_Lame(scheme='improved',roundto=0)[:2]),np.array(pydis.subroutines.elastic_constants.kroeneraverage(Y[X].C2)))
+                assert np.allclose(np.array(Y[X].compute_Lame(scheme='improved',roundto=0)[:2]),np.array(elastic_constants.kroeneraverage(Y[X].C2)))
             if X in ('Cu','Tibasal','Sn','Mo'): # check only one rep. for each symmetry (Mo is isotropic in contrast to Mo110 etc.)
-                assert np.allclose(np.array(Y[X].compute_Lame(scheme='hill',roundto=0)[:2]),np.array(pydis.subroutines.elastic_constants.hillaverage(Y[X].C2)))
+                assert np.allclose(np.array(Y[X].compute_Lame(scheme='hill',roundto=0)[:2]),np.array(elastic_constants.hillaverage(Y[X].C2)))
 
 def test_fortransubroutines():
     '''tests some of the fortran code, if it is available'''
@@ -192,45 +194,45 @@ def test_fortransubroutines():
         return
     # test inv()
     A = np.random.rand(9).reshape((3,3))
-    Ainv = pydis.subroutines.inv(A)
+    Ainv = utilities.inv(A)
     assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-9) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-9)
     # test linspace()
-    assert sum(abs(np.linspace(0,1,11)-pydis.subroutines.linspace(0,1,11)))<1e-15
+    assert sum(abs(np.linspace(0,1,11)-utilities.linspace(0,1,11)))<1e-15
     # test trapz() and cumtrapz()
     f = 21*(np.random.rand(10)-0.3)
     x = np.random.rand(10)
-    assert np.allclose(trapezoid(f,x),pydis.subroutines.trapz(f,x))
-    assert np.allclose(cumulative_trapezoid(f,x,initial=0),pydis.subroutines.cumtrapz(f,x))
+    assert np.allclose(trapezoid(f,x),utilities.trapz(f,x))
+    assert np.allclose(cumulative_trapezoid(f,x,initial=0),utilities.cumtrapz(f,x))
     ## check that fortran implementations of elasticC2, elasticC3, and (un)voigt give the same results as the python version
     xtric = 0.01+20*np.random.rand(56)
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:2],sym='iso'),pydis.elasticC2(c12=xtric[0],c44=xtric[1],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:3],sym='cubic'),pydis.elasticC2(c11=xtric[0],c12=xtric[1],c44=xtric[2],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:5],sym='hcp'),pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:6],sym='tetr'),pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],c66=xtric[5],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:6],sym='trig'),pydis.elasticC2(cij=xtric[:6],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:7],sym='tetr2'),pydis.elasticC2(cij=xtric[:7],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:9],sym='orth'),pydis.elasticC2(cij=xtric[:9],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:13],sym='mono'),pydis.elasticC2(cij=xtric[:13],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc2(xtric[:21],sym='tric'),pydis.elasticC2(cij=xtric[:21],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:2],sym='iso'),pydis.elasticC2(c12=xtric[0],c44=xtric[1],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:3],sym='cubic'),pydis.elasticC2(c11=xtric[0],c12=xtric[1],c44=xtric[2],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:5],sym='hcp'),pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:6],sym='tetr'),pydis.elasticC2(c11=xtric[0],c12=xtric[1],c13=xtric[2],c33=xtric[3],c44=xtric[4],c66=xtric[5],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:6],sym='trig'),pydis.elasticC2(cij=xtric[:6],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:7],sym='tetr2'),pydis.elasticC2(cij=xtric[:7],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:9],sym='orth'),pydis.elasticC2(cij=xtric[:9],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:13],sym='mono'),pydis.elasticC2(cij=xtric[:13],voigt=True))
+    assert np.allclose(elastic_constants.elasticc2(xtric[:21],sym='tric'),pydis.elasticC2(cij=xtric[:21],voigt=True))
     ##
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:3],sym='iso'),pydis.elasticC3(c123=xtric[0],c144=xtric[1],c456=xtric[2],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:6],sym='cubic'),pydis.elasticC3(c111=xtric[0],c112=xtric[1],c123=xtric[2],c144=xtric[3],c166=xtric[4],c456=xtric[5],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:10],sym='hcp'),pydis.elasticC3(c111=xtric[0],c112=xtric[1],c113=xtric[2],c123=xtric[3],c133=xtric[4],c144=xtric[5],
+    assert np.allclose(elastic_constants.elasticc3(xtric[:3],sym='iso'),pydis.elasticC3(c123=xtric[0],c144=xtric[1],c456=xtric[2],voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric[:6],sym='cubic'),pydis.elasticC3(c111=xtric[0],c112=xtric[1],c123=xtric[2],c144=xtric[3],c166=xtric[4],c456=xtric[5],voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric[:10],sym='hcp'),pydis.elasticC3(c111=xtric[0],c112=xtric[1],c113=xtric[2],c123=xtric[3],c133=xtric[4],c144=xtric[5],
                                                                                                        c155=xtric[6],c222=xtric[7],c333=xtric[8],c344=xtric[9],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:12],sym='tetr'),pydis.elasticC3(c111=xtric[0],c112=xtric[1],c113=xtric[2],c123=xtric[3],c133=xtric[4],c144=xtric[5],
+    assert np.allclose(elastic_constants.elasticc3(xtric[:12],sym='tetr'),pydis.elasticC3(c111=xtric[0],c112=xtric[1],c113=xtric[2],c123=xtric[3],c133=xtric[4],c144=xtric[5],
                                                                                           c155=xtric[6],c166=xtric[7],c333=xtric[8],c344=xtric[9],c366=xtric[10],c456=xtric[11],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:14],sym='trig'),pydis.elasticC3(cijk=xtric[:14],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:16],sym='tetr2'),pydis.elasticC3(cijk=xtric[:16],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:20],sym='orth'),pydis.elasticC3(cijk=xtric[:20],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric[:32],sym='mono'),pydis.elasticC3(cijk=xtric[:32],voigt=True))
-    assert np.allclose(pydis.subroutines.elastic_constants.elasticc3(xtric,sym='tric'),pydis.elasticC3(cijk=xtric,voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric[:14],sym='trig'),pydis.elasticC3(cijk=xtric[:14],voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric[:16],sym='tetr2'),pydis.elasticC3(cijk=xtric[:16],voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric[:20],sym='orth'),pydis.elasticC3(cijk=xtric[:20],voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric[:32],sym='mono'),pydis.elasticC3(cijk=xtric[:32],voigt=True))
+    assert np.allclose(elastic_constants.elasticc3(xtric,sym='tric'),pydis.elasticC3(cijk=xtric,voigt=True))
     ##
     A = np.random.rand(6)
-    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_one(A))
-    assert np.all(A==pydis.subroutines.elastic_constants.vgt_two(pydis.subroutines.elastic_constants.unvgt_one(A)))
+    assert np.all(pydis.UnVoigt(A)==elastic_constants.unvgt_one(A))
+    assert np.all(A==elastic_constants.vgt_two(elastic_constants.unvgt_one(A)))
     A = np.resize(np.random.rand(6**2),(6,6))
-    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_two(A))
-    assert np.all(A==pydis.subroutines.elastic_constants.vgt_four(pydis.subroutines.elastic_constants.unvgt_two(A)))
+    assert np.all(pydis.UnVoigt(A)==elastic_constants.unvgt_two(A))
+    assert np.all(A==elastic_constants.vgt_four(elastic_constants.unvgt_two(A)))
     A = np.resize(np.random.rand(6**3),(6,6,6))
-    assert np.all(pydis.UnVoigt(A)==pydis.subroutines.elastic_constants.unvgt_three(A))
-    assert np.all(A==pydis.subroutines.elastic_constants.vgt_six(pydis.subroutines.elastic_constants.unvgt_three(A)))
+    assert np.all(pydis.UnVoigt(A)==elastic_constants.unvgt_three(A))
+    assert np.all(A==elastic_constants.vgt_six(elastic_constants.unvgt_three(A)))

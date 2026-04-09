@@ -1,8 +1,10 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Apr. 8, 2026
+! Date: Mar. 31, 2026 - Apr. 9, 2026
 module dislocations
   use parameters, only : sel, pi ! defined in subroutines.f90
+  use utilities, only : linspace, cross ! defined in subroutines.f90
+  use various_subroutines, only : strohgeometry, computeuij ! defined in subroutines.f90
   use elastic_constants ! defined in elasticconstants.f90
   implicit none
   private
