@@ -113,7 +113,7 @@ module tests
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3)
-      real(sel), allocatable :: zeros(:), Etot(:)
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:)
       logical :: istrue
 !~       integer :: i
       
@@ -151,6 +151,9 @@ module tests
       allocate(Etot(Cu%ntheta))
       call computeEtot(Cu%uij,Cu%beta,Cu%C2norm,Cu%Cv,Cu%phi,Cu%ntheta,Cu%nphi,Etot)
       call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
+      
+      call phonondrag(B,Cu,(/0.1d0,0.5d0/))
+      call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-6,count_pass,count_fail)
     end subroutine test_disloc
 end module tests
 

@@ -14,6 +14,7 @@ module dislocations
     real(sel) :: Vc=0.d0 ! unit cell volume
     real(sel) :: lam=0.d0, mu=0.d0 ! Lame constants (polycryst. averages)
     real(sel) :: C2norm(3,3,3,3)=0.d0 ! will be used to store unvoigt(C2)/mu
+    real(sel) :: Temp=300.d0 ! temperature associated with C2, rho, etc.
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
   end type metalprops
@@ -31,7 +32,8 @@ module dislocations
       procedure :: init => init_disloc
       procedure :: update_uij => compute_uij
   end type
-  public :: volume_unitcell, set_character_angles, computerot
+  public :: volume_unitcell, set_character_angles, computerot, phonondrag
+  !-------------------------
   contains
     subroutine volume_unitcell(mat)
       class(metalprops), intent(inout) :: mat
@@ -82,6 +84,7 @@ module dislocations
         disl%rot(3,:,th) = disl%t(:,th)
       end do
     end subroutine computerot
+    !-------------------------
     subroutine init_disloc(disl)
       class(disloc), intent(inout) :: disl
       real(sel) :: tmp_len
@@ -127,10 +130,95 @@ module dislocations
       end if
       call unvoigt(disl%C2/disl%mu,disl%C2norm)
     end subroutine init_disloc
+    !-------------------------
     subroutine compute_uij(disl)
       class(disloc), intent(inout) :: disl
       if (allocated(disl%uij)) deallocate(disl%uij)
       allocate(disl%uij(disl%nphi,3,3,disl%ntheta))
       call computeuij(disl%beta,disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,disl%uij)
     end subroutine compute_uij
+    !-------------------------
+    subroutine phonondrag(drag,disl,beta,nphi,nq)
+      use phononwind
+      class(disloc), intent(in) :: disl
+      real(sel), intent(in) :: beta(:)
+      real(sel), intent(out), allocatable :: drag(:,:)
+      integer, optional :: nphi, nq
+      real(sel) :: uij(disl%nphi,3,3,disl%ntheta), C3norm(3,3,3,3,3,3), A3(3,3,3,3,3,3), A3rot(3,3,3,3,3,3,disl%ntheta)
+      real(sel) :: rot(3,3), uijaligned(disl%nphi,3,3,disl%ntheta), ct, cl, qBZ
+      real(sel), allocatable :: phi(:), q(:), sincos(:,:), fourieruij(:,:,:,:), dragTT(:), dragLL(:), dragTL(:), dragLT(:)
+      real(sel), allocatable :: dij(:,:,:,:)
+      integer :: lenph, lenq, th, nbeta, bt, lent, ntdyn, i, ii, j, jj, k, kk, l, ll
+      if (present(nphi)) then
+        lenph = nphi
+      else
+        lenph = 50
+      end if
+      if (present(nq)) then
+        lenq = nq
+      else
+        lenq = 50
+      end if
+      nbeta = size(beta)
+      lent = 321 ! todo: make this user-configurable
+      allocate(phi(lenph),q(lenq),sincos(disl%nphi,lenph),fourieruij(3,3,disl%ntheta,lenph),drag(disl%ntheta,nbeta))
+      allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta),dij(lenph,3,3,disl%ntheta))
+      ct = sqrt(disl%mu/disl%rho)
+      cl = sqrt((disl%lam+2.d0*disl%mu)/disl%rho)
+      qBZ = (6.d0*pi**2/disl%Vc)**(1.d0/3.d0)
+      call unvoigt(disl%C3/disl%mu,C3norm)
+      call elasticA3(disl%C2norm, C3norm, A3)
+      ! -- some additional preparations for anisotropic case:
+      call linspace(0.d0,2.d0*pi,lenph,phi)
+      call linspace(0.d0,1.d0,lenq,q)
+      call fourieruij_sincos(sincos,0.d0,250.d0*pi,disl%phi,q(4:lenq-4),phi,disl%nphi,lenq-7,lenph)
+      A3rot = 0.d0
+      do th=1,disl%ntheta
+        rot = disl%rot(:,:,th)
+        do ii=1,3
+          do i=1,3
+            do jj=1,3
+              do j=1,3
+                do kk=1,3
+                  do k=1,3
+                    do ll=1,3
+                      do l=1,3
+                        A3rot(:,:,l,k,j,i,th) = A3rot(:,:,l,k,j,i,th) + matmul(matmul(rot,A3(:,:,ll,kk,jj,ii)),transpose(rot)) &
+                                                      *rot(l,ll)*rot(k,kk)*rot(j,jj)*rot(i,ii)
+                      end do
+                    end do
+                  end do
+                end do
+              end do
+            end do
+          end do
+        end do
+      end do
+      ! ---
+      do bt=1,nbeta
+        call computeuij(beta(bt),disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,uij)
+        do th=1,disl%ntheta
+          rot = disl%rot(:,:,th)
+          do i=1,disl%nphi
+            uijaligned(i,:,:,th) = matmul(matmul(rot,uij(i,:,:,th)),transpose(rot))
+          end do
+        end do
+        call fourieruij_nocut(fourieruij,uijaligned,disl%phi,sincos,disl%ntheta,lenph,disl%nphi)
+        do i=1,lenph
+          dij(i,:,:,:) = fourieruij(:,:,:,i) ! todo: change fourieruij_nocut() and python code relying on it so that we don't need this and can remove dij 
+        end do
+        ntdyn = int((1.d0+beta(bt))*lent)
+        call phononwind_xx(dij,A3rot,qBZ,ct,0.d0,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+                          .false.,-1.d0,.true.,dragTT)
+        call phononwind_xy(dij,A3rot,qBZ,cl,ct,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+                          .false.,-1.d0,.true.,dragLT)
+        ntdyn = int((1.d0+0.5d0*beta(bt))*lent)
+        call phononwind_xx(dij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+                          .false.,-1.d0,.true.,dragLL)
+        call phononwind_xy(dij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+                          .false.,-1.d0,.true.,dragTL)
+        drag(:,bt) = dragTT+dragLL+dragTL+dragLT
+!~         print*,drag(:,bt)
+      end do
+    end subroutine phonondrag
 end module dislocations
