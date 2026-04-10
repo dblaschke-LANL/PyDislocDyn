@@ -49,7 +49,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
        i.e. skip_theta must be a boolean mask of len(theta) where False=bypass.
        If option r0cut>0 (turned off by default), a soft dislocation core cutoff is included following Alshits 1979, i.e. multiplying the dislocation field by (1-exp(r/r0)) which leads to 1/sqrt(1-q**2/r0**2) in Fourier space
        Note: this cutoff is intended only for an isotropic dislocation field at low gliding velocity, as the shape of the cutoff is beta-dependent the way it is introduced (i.e. a circle only at beta=0).''' ##(TODO: generalize)
-    Ntheta = len(dij[0,0])
+    Ntheta = len(dij[0,0,0])
     theta_ind = np.arange((Ntheta)) # generate array of theta-indices for later use
     modes_allowed = ['all', 'TT', 'LL', 'LT', 'TL', 'mix'] ## define allowed keywords for modes
     debye_convergence = hbar*cl*qBZ/(np.pi*kB) # warn if T < half the convergence limit for the longitudinal modes
@@ -64,7 +64,6 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     if A3[0,0,0,0,0,0].shape == ():
         A3 = np.repeat(A3[None,:],1,axis=0)
         iso=True
-    dij=np.moveaxis(dij, -1, 0) ## shape:  (i,j,Ntheta,Nphi) -> (Nphi,i,j,Ntheta)
     A3=np.moveaxis(A3,0,-1) ## shape:  (Ntheta,i,ii,j,jj,k,kk) -> (i,ii,j,jj,k,kk,Ntheta)
     Nchks = Nchunks
     ## make sure Nt_total-1 is divisible by 2*Nchunks, and that Nt_current is odd and >=5 (i.e. increase user provided Nt as necessary)

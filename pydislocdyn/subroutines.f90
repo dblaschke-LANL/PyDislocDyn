@@ -784,14 +784,14 @@ module phononwind
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: ntheta,phixres,phres
       REAL(KIND=sel), INTENT(IN) :: uij(phixres,3,3,ntheta), sincos(phixres,phres), phix(phixres)
-      REAL(KIND=sel), INTENT(OUT) :: fourieruij(3,3,ntheta,phres)
+      REAL(KIND=sel), INTENT(OUT) :: fourieruij(phres,3,3,ntheta)
       integer i,j,th,ph
       
-      do ph=1,phres
-        do th=1,ntheta
-          do j=1,3
-            do i=1,3
-              call trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres,fourieruij(i,j,th,ph))
+      do th=1,ntheta
+        do j=1,3
+          do i=1,3
+            do ph=1,phres
+              call trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres,fourieruij(ph,i,j,th))
             end do
           end do
         end do

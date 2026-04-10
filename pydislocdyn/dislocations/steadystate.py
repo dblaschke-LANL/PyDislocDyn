@@ -48,7 +48,11 @@ if usefortran:
             out = np.moveaxis(np.reshape(np.outer(1/r,out),(len(r),3,3,Ntheta,len(phi))),0,-2)
         return out
 else:
-    from pydislocdyn.dislocations.numba_subroutines import fourieruij_sincos, fourieruij_nocut, computeEtot, elbrak, elbrak1d, computeuij
+    from .numba_subroutines import fourieruij_sincos, computeEtot, elbrak, elbrak1d, computeuij
+    from .numba_subroutines import fourieruij_nocut as _fourieruij_nocut
+    def fourieruij_nocut(uij,phiX,sincos,Ntheta,phres):
+        '''Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)'''
+        return np.moveaxis(_fourieruij_nocut(uij,phiX,sincos,Ntheta,phres),-1,0)
     def computeuk(beta, C2, Cv, b, M, N, phi, r):
         '''Compute the dislocation displacement field uk according to the integral method. This wrapper will call computeuij() with keyword nogradient=True;
            see the docs of that function for further details.'''
@@ -349,7 +353,7 @@ def fourieruij_iso(beta,ct_over_cl, theta, phi):
     uij[2,0] = -np.outer(np.cos(theta),sinph*1/denomT)
     uij[2,1] = np.outer(np.cos(theta),cosph*gamt/denomT)
     
-    return uij
+    return np.moveaxis(uij,-1,0)
 
 def computeLT(Etot, dtheta):
     '''Computes the line tension prefactor of a straight dislocation by adding to its energy the second derivative of that energy w.r.t. the dislocation character theta.
