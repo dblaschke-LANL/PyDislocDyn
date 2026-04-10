@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 6, 2026
+# Date: Nov. 7, 2017 - Apr. 10, 2026
 '''This script will compute polycrystal averages of second and third order elastic constants;
    it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
    will be taken into account unless the user passes input files (or keywords for some of 
@@ -102,35 +102,25 @@ if __name__ == '__main__':
     HillAverage = {}
     ImprovedAv = {}
     Anisotropy = {}
-    
     aver = IsoAverages(lam,mu,Murl,Murm,Murn) ### initialize isotropic quantities first
     print(f"Computing Voigt and Reuss averages for SOEC of {len(metal)} metals and for TOEC of {len(metal_toec)} metals ...")
-    # do the calculations for various metals:
-    C2 = {}
-    C3 = {}
-    S2 = {}
-    S3 = {}
     for X in metal:
-        #### divide by 1e9 to get the results in units of GPa
-        C2[X] = UnVoigt(Y[X].C2/1e9)
-        S2[X] = elasticS2(C2[X],voigt=False)
-        C3[X] = None
-        S3[X] = None
-    
-    for X in metal_toec:
-        C3[X] = UnVoigt(Y[X].C3/1e9)
-        S3[X] = elasticS3(S2[X],C3[X],voigt=False)
-
-    for X in metal:
-        VoigtAverage[X] = aver.voigt_average(C2[X],C3[X])
-        ReussAverage[X] = aver.reuss_average(S2[X],S3[X])
-        HillAverage[X] = aver.hill_average()
         Anisotropy[X] = {'log-Eucl. index':Y[X].anisotropy_index()}
+        #### divide by 1e9 to get the results in units of GPa
+        Y[X].S2 = elasticS2(Y[X].C2/1e9,voigt=False)
+        Y[X].C2 = UnVoigt(Y[X].C2/1e9) # all averaging fcts below need the UnVoigted format
+        if X in metal_toec:
+            Y[X].S3 = elasticS3(Y[X].S2,Y[X].C3/1e9,voigt=False)
+            Y[X].C3 = UnVoigt(Y[X].C3/1e9)
+        else:
+            Y[X].S3 = Y[X].C3 = None
+        VoigtAverage[X] = aver.voigt_average(Y[X].C2,Y[X].C3)
+        ReussAverage[X] = aver.reuss_average(Y[X].S2,Y[X].S3)
+        HillAverage[X] = aver.hill_average()
     
     print(f"Computing improved averages for SOEC of {len(metal_cubic)} cubic metals and for TOEC of {len(metal_toec_cubic)} cubic metals ...")
-    
     for X in metal_cubic:
-        ImprovedAv[X] = aver.improved_average(C2[X],C3[X])
+        ImprovedAv[X] = aver.improved_average(Y[X].C2,Y[X].C3)
         Anisotropy[X] |= {'Zener':Y[X].Zener}
     
     ##### write results to files (as LaTeX tables):

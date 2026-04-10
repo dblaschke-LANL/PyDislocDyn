@@ -2,7 +2,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 6, 2026
+# Date: Nov. 7, 2017 - Apr. 10, 2026
 '''This module contains functions to generate elastic constant and compliance tensors,
    as well as a class to help with calculating elastic constants.
    In particular, it contains the following functions:
@@ -94,7 +94,7 @@ def convert_TOECiso(c123=None, c144=None, c456=None, l=None, m=None, n=None, nu1
     return pd.Series(out)
 
 ### generate tensors of elastic constants
-def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=False):
+def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=None, c23=None, c55=None, cij=None, voigt=True):
     '''Generates the tensor of second order elastic constants using c11, c12, c13, c22, c23, c33, c44, c55, and c66 as input data
     (assuming the third axis is perpendicular to the basal plane).
     If only c22, c23, and c55 are omitted (or 'None'), tetragonal I symmetry is assumed and this function will set c22=c11, c23=c13, and c55=c44.
@@ -149,7 +149,7 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
         C2 = UnVoigt(C2)
     return C2
 
-def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, c155=None, c166=None, c222=None, c333=None, c344=None, c366=None, c456=None, l=None, m=None, n=None, cijk=None, voigt=False):
+def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, c155=None, c166=None, c222=None, c333=None, c344=None, c366=None, c456=None, l=None, m=None, n=None, cijk=None, voigt=True):
     '''Generates the tensor of third order elastic constants for solids using c111, c112, c113, c123, c133, c144, c155, c166, c222, c333, c344, c366, and c456 as input data.
     If c333 is omitted (or 'None'), cubic I symmetry is assumed.
     If in addition either c111, c112, or c166 are omitted (or 'None'), an isotropic tensor is generated using c123, c144, and c456 as the input.
@@ -310,7 +310,7 @@ def _CheckReflectionSymmetry_object(C2):
     return bool(len(replace)== 0 and testsum < 1e-12)
 
 ##### generate tensors of elastic compliances
-def elasticS2(elasticC2,voigt=False):
+def elasticS2(elasticC2,voigt=True):
     '''Generates the tensor of second order elastic compliances using a second order elastic constants tensor, elasticC2, as input data.
     Input may be in Voigt or in Cartesian notation, output notation is controlled by Boolean option 'voigt' (default=False, i.e. Cartesian).'''
     if len(elasticC2)==3:
@@ -329,7 +329,7 @@ def elasticS2(elasticC2,voigt=False):
         S2 = UnVoigt(S2)
     return S2
         
-def elasticS3(elasticS2,elasticC3,voigt=False):
+def elasticS3(elasticS2,elasticC3,voigt=True):
     '''Generates the tensor of third order elastic compliances using the second order elastic compliances tensor, elasticS2, and the third order elastic constants tensor, elasticC3, as input data.
     Input may be in Voigt or in Cartesian notation, output notation is controlled by Boolean option 'voigt' (default=False, i.e. Cartesian).'''
     if len(elasticS2)==3:

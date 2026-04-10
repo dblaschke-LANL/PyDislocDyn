@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Apr. 9, 2026
+# Date: Mar. 6, 2023 - Apr. 10, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -45,8 +45,8 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
         metal_list = sorted(tmppydislocdyn.glob("*"))
         ## make sure we wrote all expected files: iso+3 slip systems for bcc and hcp, fcc and tetr
         ## are overwritten by anisotropic version; also missing iso data for K, so -1
-        assert (len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
-                +4*len(pydis.metal_data.hcp_metals)+4*len(pydis.metal_data.bcc_metals)-1)
+        assert len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
+                +4*len(pydis.metal_data.hcp_metals)+4*len(pydis.metal_data.bcc_metals)-1
     for X in metal_list:
         tmpY = pydis.readinputfile(X,Ntheta=Ntheta)
         Y[tmpY.name] = tmpY
