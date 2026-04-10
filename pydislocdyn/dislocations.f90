@@ -149,7 +149,6 @@ module dislocations
       real(sel) :: uij(disl%nphi,3,3,disl%ntheta), C3norm(3,3,3,3,3,3), A3(3,3,3,3,3,3), A3rot(3,3,3,3,3,3,disl%ntheta)
       real(sel) :: rot(3,3), uijaligned(disl%nphi,3,3,disl%ntheta), ct, cl, qBZ
       real(sel), allocatable :: phi(:), q(:), sincos(:,:), fourieruij(:,:,:,:), dragTT(:), dragLL(:), dragTL(:), dragLT(:)
-      real(sel), allocatable :: dij(:,:,:,:)
       integer :: lenph, lenq, th, nbeta, bt, lent, ntdyn, i, ii, j, jj, k, kk, l, ll
       if (present(nphi)) then
         lenph = nphi
@@ -163,8 +162,8 @@ module dislocations
       end if
       nbeta = size(beta)
       lent = 321 ! todo: make this user-configurable
-      allocate(phi(lenph),q(lenq),sincos(disl%nphi,lenph),fourieruij(3,3,disl%ntheta,lenph),drag(disl%ntheta,nbeta))
-      allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta),dij(lenph,3,3,disl%ntheta))
+      allocate(phi(lenph),q(lenq),sincos(disl%nphi,lenph),fourieruij(lenph,3,3,disl%ntheta),drag(disl%ntheta,nbeta))
+      allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta))
       ct = sqrt(disl%mu/disl%rho)
       cl = sqrt((disl%lam+2.d0*disl%mu)/disl%rho)
       qBZ = (6.d0*pi**2/disl%Vc)**(1.d0/3.d0)
@@ -206,18 +205,15 @@ module dislocations
           end do
         end do
         call fourieruij_nocut(fourieruij,uijaligned,disl%phi,sincos,disl%ntheta,lenph,disl%nphi)
-        do i=1,lenph
-          dij(i,:,:,:) = fourieruij(:,:,:,i) ! todo: change fourieruij_nocut() and python code relying on it so that we don't need this and can remove dij 
-        end do
         ntdyn = int((1.d0+beta(bt))*lent)
-        call phononwind_xx(dij,A3rot,qBZ,ct,0.d0,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+        call phononwind_xx(fourieruij,A3rot,qBZ,ct,0.d0,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
                           .false.,-1.d0,.true.,dragTT)
-        call phononwind_xy(dij,A3rot,qBZ,cl,ct,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+        call phononwind_xy(fourieruij,A3rot,qBZ,cl,ct,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
                           .false.,-1.d0,.true.,dragLT)
         ntdyn = int((1.d0+0.5d0*beta(bt))*lent)
-        call phononwind_xx(dij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+        call phononwind_xx(fourieruij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
                           .false.,-1.d0,.true.,dragLL)
-        call phononwind_xy(dij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
+        call phononwind_xy(fourieruij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
                           .false.,-1.d0,.true.,dragTL)
         drag(:,bt) = dragTT+dragLL+dragTL+dragLT
 !~         print*,drag(:,bt)
