@@ -41,18 +41,20 @@ jobs:
           pip install ${{ matrix.module-versions }}
           pip install .
       - name: Set up Fortran Package Manager
-        uses: fortran-lang/setup-fpm@v7
+        uses: fortran-lang/setup-fpm@v9
         with:
             github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run tests
         run: |
           make
           ./runtests.x
+          fpm build --verbose
           fpm test
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os != 'Windows'
       - name: Run tests windows
         run:  |
+          fpm build --verbose
           fpm test
           echo 'N' | pytest -s --durations=0 testing/
         if: runner.os == 'Windows'
