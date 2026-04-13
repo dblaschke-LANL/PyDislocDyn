@@ -1,5 +1,5 @@
 name = "PyDislocDyn_subroutines"
-version = "20260331"
+version = "20260410"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
@@ -24,6 +24,15 @@ type = ["shared", "static"]
 source-dir = "pydislocdyn"
 
 [[executable]]
+## this frontend is still incomplete and therefore just a short demo for now
+name = "dislocdyn"
+source-dir = "app"
+main = "dislocdyn.f90"
+
+[[test]]
 name = "runtests"
-source-dir = "pydislocdyn"
+source-dir = "testing"
 main = "runtests.f90"
+
+[install]
+library = true
