@@ -70,4 +70,4 @@ clean:
 	elastic_constants.mod dislocations.mod readinputfiles.mod checks.mod tests.mod
 
 cleanall: clean
-	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x lib$(SHARED).so
+	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so

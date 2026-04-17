@@ -20,7 +20,7 @@ openmp = "*"
 #test-drive.tag = "v0.6.0"
 
 [library]
-type = "shared"
+type = ["shared", "static"]
 source-dir = "pydislocdyn"
 
 [[executable]]
