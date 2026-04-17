@@ -2,13 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Apr. 9, 2026
+! Date: July 23, 2018 - Apr. 17, 2026
 
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260409
+  integer,parameter :: version = 20260417
   real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -90,7 +90,7 @@ module utilities
 
     !!**********************************************************************
 
-    subroutine cross(x,y,z)
+    pure subroutine cross(x,y,z)
       use parameters, only : sel
       implicit none
       real(sel), dimension(3), intent(in)  :: x, y
@@ -304,7 +304,7 @@ module various_subroutines
       integer i,j,k,th,ph
       Cv = 0.d0
       call cross(b,n0,x)
-      do th=1, ntheta
+      do concurrent (th=1:ntheta)
         t(:,th) = cos(theta(th))*b + x*sin(theta(th))
         call cross(n0,t(:,th),m0(:,th))
         do i=1,3
@@ -855,7 +855,7 @@ module phononwind
         call linspace(0.d0,1.d0,lent,t)
       end if
       
-      do i=1,lenph
+      do concurrent (i=1:lenph)
         qtilde(:,i) = 2.d0*(t-beta*ctovcl*csphi(i))/(1.d0-(beta*ctovcl*cos(phi(i)))**2) + tiny(1.)
         prefac(:,i) = prefac1*csphi(i)/(1.d0-(beta*ctovcl*csphi(i))**2)/qtilde(:,i)
         OneMinBtqcosph1(:,i) = 1.d0 - beta*ctovcl*qtilde(:,i)*csphi(i)
@@ -863,9 +863,9 @@ module phononwind
       
       ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       if (debye) then
-        do j=1,lenph1
+        hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
+        do concurrent (j=1:lenph1)
           betafactor = OneMinBtqcosph1(:,j)
-          hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
           prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta*ctovcl/2.d0)*qtilde(:,j)*csphi(j)/betafactor &
                   +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
                   -(hbarcsqBZ_TkB**4/(30.d0*4.d0*24.d0))*(1.d0-(betafactor)**3) &
@@ -877,7 +877,7 @@ module phononwind
         distri(:,:,1) = 2.d0*distri(:,:,1)
         ! include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do i=1,(lenq1-1)
+          do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
             end do
@@ -891,7 +891,7 @@ module phononwind
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
       !!!
-      do i=1,lenph
+      do concurrent (i=1:lenph)
         do j=1,lent
           do k=1,3
             qv((j-1)*lenph+i,k) = real(qtilde(j,i)*qvec(i,k), kind=selsm)
@@ -997,7 +997,7 @@ module phononwind
         call linspace(qt_min,qt_max,lent,qtilde)
       end if
       
-      do i=1,lenph
+      do concurrent (i=1:lenph)
         t(:,i) = (qtilde+(1.d0-cx**2/cy**2)/qtilde)/2.d0 + (cx*beta2/cy)*csphi(i) - qtilde*(beta2*csphi(i))**2/2.d0
         prefac(:,i) = prefac1*csphi(i)/qtilde
         OneMinBtqcosph1(:,i) = 1.d0 - beta1*qtilde*csphi(i)
@@ -1007,7 +1007,7 @@ module phononwind
       ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
       if (debye) then
         hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
-        do j=1,lenph1
+        do concurrent (j=1:lenph1)
           betafactor = OneMinBtqcosph1(:,j)
           if (cx>cy) then
             qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
@@ -1030,7 +1030,7 @@ module phononwind
         distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
         ! include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do i=1,(lenq1-1)
+          do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
             end do
@@ -1039,7 +1039,7 @@ module phononwind
         ! if cx>cy, we need to limit the integration range of q1<=(cy/cx)/(1-beta1*qtilde*csphi) in addition to q1<=1
         if (cx>cy) then
           q1limit = ctovcl/OneMinBtqcosph1
-          do i=1,(lenq1-1)
+          do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
               do k=1,lent
                 if (q1(i)>q1limit(k,j)) then
@@ -1057,7 +1057,7 @@ module phononwind
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
       !!!
-      do i=1,lenph
+      do concurrent (i=1:lenph)
         do j=1,lent
           do k=1,3
             qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
