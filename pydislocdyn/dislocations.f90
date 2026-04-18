@@ -1,9 +1,9 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Apr. 17, 2026
+! Date: Mar. 31, 2026 - Apr. 18, 2026
 module dislocations
   use parameters, only : sel, pi ! defined in subroutines.f90
-  use utilities, only : linspace, cross ! defined in subroutines.f90
+  use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
   use various_subroutines, only : strohgeometry, computeuij ! defined in subroutines.f90
   use elastic_constants ! defined in elasticconstants.f90
   implicit none
@@ -81,7 +81,7 @@ module dislocations
       if (allocated(disl%rot)) deallocate(disl%rot)
       allocate(disl%rot(3,3,disl%ntheta))
       do concurrent (th=1:disl%ntheta)
-        call cross(disl%n0,disl%t(:,th),disl%rot(1,:,th))
+        disl%rot(1,:,th) = disl%n0 .cross. disl%t(:,th)
         disl%rot(2,:,th) = disl%n0
         disl%rot(3,:,th) = disl%t(:,th)
       end do

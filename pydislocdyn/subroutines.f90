@@ -2,13 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Apr. 17, 2026
+! Date: July 23, 2018 - Apr. 18, 2026
 
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260417
+  integer,parameter :: version = 20260418
   real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -17,7 +17,13 @@ end module parameters
 
 module utilities
   implicit none
-  public :: ompinfo, elbrak, elbrak1d, cross, trapz, cumtrapz, inv, linspace
+  interface operator(.cross.)
+    module procedure cross
+  end interface
+  interface operator(.inv.)
+    module procedure inv
+  end interface
+  public :: ompinfo, elbrak, elbrak1d, cross, operator(.cross.), trapz, cumtrapz, inv, operator(.inv.), linspace
   contains
     subroutine ompinfo(nthreads)
     !$   Use omp_lib
@@ -58,10 +64,9 @@ module utilities
       end do
       !$OMP END PARALLEL DO
       
-      RETURN
     END SUBROUTINE elbrak
 
-    SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
+    pure SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
     ! Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
     !-----------------------------------------------------------------------
       use parameters, only : sel
@@ -85,24 +90,23 @@ module utilities
         end do
       end do
       
-      RETURN
     END SUBROUTINE elbrak1d
 
     !!**********************************************************************
 
-    pure subroutine cross(x,y,z)
+    pure function cross(x,y) result(z)
       use parameters, only : sel
       implicit none
       real(sel), dimension(3), intent(in)  :: x, y
-      real(sel), dimension(3), intent(out)  :: z
+      real(sel), dimension(3)  :: z
       z(1) = x(2)*y(3) - x(3)*y(2)
       z(2) = x(3)*y(1) - x(1)*y(3)
       z(3) = x(1)*y(2) - x(2)*y(1)
-    end subroutine cross
+    end function cross
 
     !!**********************************************************************
 
-    SUBROUTINE trapz(f,x,n,intf)
+    pure SUBROUTINE trapz(f,x,n,intf)
     ! integrate using the trapezoidal rule
     !-----------------------------------------------------------------------
       use parameters, only : sel
@@ -113,13 +117,11 @@ module utilities
       REAL(KIND=sel), INTENT(OUT) :: intf
      
       intf = sum(0.5d0*(f(2:n)+f(1:n-1))*(x(2:n)-x(1:n-1)))
-      
-      RETURN
     END SUBROUTINE trapz
 
     !!**********************************************************************
 
-    SUBROUTINE cumtrapz(f,x,n,intf)
+    pure SUBROUTINE cumtrapz(f,x,n,intf)
     ! cumulatively integrate using the trapezoidal rule
     !-----------------------------------------------------------------------
       use parameters, only : sel
@@ -137,22 +139,20 @@ module utilities
         intf(i+1) = tmp
       end do
       
-      RETURN
     END SUBROUTINE cumtrapz
 
     !!**********************************************************************
 
-    SUBROUTINE inv(A,invA)
+    pure function inv(A) result(invA)
     ! invert 3x3 matrix A
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN), DIMENSION(3,3)  :: A
-      REAL(KIND=sel), INTENT(OUT), DIMENSION(3,3)  :: invA
+      REAL(KIND=sel), DIMENSION(3,3)  :: invA
       REAL(KIND=sel) :: det !, eps(3,3,3)
     !~   INTEGER :: i, j, k, l, m, n
-      
     !~   eps = 0.d0
     !~   eps(1,2,3) = 1.d0; eps(3,1,2) = 1.d0; eps(2,3,1) = 1.d0
     !~   eps(3,2,1) = -1.d0; eps(1,3,2) = -1.d0; eps(2,1,3) = -1.d0
@@ -182,13 +182,11 @@ module utilities
       invA(1,3) = A(1,2)*A(2,3) - A(2,2)*A(1,3)
       
       invA = invA/det
-      
-      RETURN
-    END SUBROUTINE inv
+    END function inv
 
     !!**********************************************************************
 
-    SUBROUTINE linspace(start,finish,num,output)
+    pure SUBROUTINE linspace(start,finish,num,output)
     ! fortran implementation of np.linspace() for real numbers
     !-----------------------------------------------------------------------
       use parameters, only : sel
@@ -204,7 +202,6 @@ module utilities
       step = (finish - start) / (num-1.d0)
       output = (/(start + (i-1)*step, i=1,num)/)
       
-      return
     END SUBROUTINE linspace
 
 end module utilities
@@ -245,7 +242,6 @@ module various_subroutines
                        - (x-xpr)**2*tau_min_R2))
       end if
       
-      RETURN
     END SUBROUTINE accscrew_xyintegrand
 
     !!**********************************************************************
@@ -285,14 +281,13 @@ module various_subroutines
       end do
       !$OMP END PARALLEL DO
       
-      RETURN
     END SUBROUTINE computeEtot
 
     !!**********************************************************************
 
-    subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
+    pure subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
       use parameters, only : sel
-      use utilities, only : cross
+      use utilities, only : operator(.cross.)
       implicit none
       integer, intent(in) :: ntheta, nphi
       real(sel), intent(in) :: b(3), n0(3)
@@ -303,10 +298,10 @@ module various_subroutines
       real(sel), dimension(3) :: x
       integer i,j,k,th,ph
       Cv = 0.d0
-      call cross(b,n0,x)
+      x = b .cross. n0
       do concurrent (th=1:ntheta)
         t(:,th) = cos(theta(th))*b + x*sin(theta(th))
-        call cross(n0,t(:,th),m0(:,th))
+        m0(:,th) = n0 .cross. t(:,th)
         do i=1,3
           do j=1,3
             do k=1,3
@@ -327,7 +322,7 @@ module various_subroutines
     ! Compute the dislocation displacement field uk.
     !-----------------------------------------------------------------------
       use parameters, only : sel, pi2
-      use utilities, only : elbrak1d, inv, trapz, cumtrapz
+      use utilities, only : elbrak1d, operator(.inv.), trapz, cumtrapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
@@ -356,7 +351,7 @@ module various_subroutines
       call elbrak1d(N(:,:,th),M(:,:,th),tmpC,Nphi,NM)
       call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
       do ph=1,Nphi
-        call inv(NN(ph,:,:),NNinv(ph,:,:))
+        NNinv(ph,:,:) = .inv. NN(ph,:,:)
       end do
       do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
         Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
@@ -384,7 +379,7 @@ module various_subroutines
         uk(:,i,th,j) = uiphi(:,i) - Sb(i)*log(r(j)/r(1))
       end do; end do; end do
       !$OMP END PARALLEL DO
-      RETURN
+
     END SUBROUTINE computeuk
 
     !!**********************************************************************
@@ -393,7 +388,7 @@ module various_subroutines
     ! Compute the dislocation displacement gradient field uij.
     !-----------------------------------------------------------------------
       use parameters, only : sel, pi2
-      use utilities, only : elbrak1d, inv, trapz
+      use utilities, only : elbrak1d, operator(.inv.), trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
@@ -420,7 +415,7 @@ module various_subroutines
       call elbrak1d(N(:,:,th),M(:,:,th),tmpC,Nphi,NM)
       call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
       do ph=1,Nphi
-        call inv(NN(ph,:,:),NNinv(ph,:,:))
+        NNinv(ph,:,:) = .inv. NN(ph,:,:)
       end do
       do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
         Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
@@ -442,7 +437,7 @@ module various_subroutines
                         + N(ph,j,th)*(DOT_PRODUCT(NNinv(ph,i,:),BBb(:)) - DOT_PRODUCT(Sphi(ph,i,:),Sb(:)))
       end do; end do; end do; end do
       !$OMP END PARALLEL DO
-      RETURN
+
     END SUBROUTINE computeuij
 
 end module various_subroutines
@@ -475,7 +470,6 @@ module phononwind_subroutines
       end do
       !$OMP END PARALLEL DO
       
-      RETURN
     END SUBROUTINE phonondistri
 
     !!**********************************************************************
@@ -564,7 +558,6 @@ module phononwind_subroutines
     end do
     !~ !$OMP END PARALLEL DO
 
-    return
     end subroutine thesum
     
     ! **********************************************************************
@@ -632,7 +625,6 @@ module phononwind_subroutines
 
     output(:,:) = prefactor(:,:)*output(:,:)
 
-    return
     end subroutine dragintegrand
 
     !!**********************************************************************
@@ -674,7 +666,6 @@ module phononwind_subroutines
       !$OMP END PARALLEL DO
       call trapz(Bt,phi,Nphi,Bresult)
       
-      RETURN
     END SUBROUTINE integratetphi
 
     !!**********************************************************************
@@ -713,7 +704,6 @@ module phononwind_subroutines
       !$OMP END PARALLEL DO
       call trapz(Bt,phi,Nphi,Bresult)
       
-      RETURN
     END SUBROUTINE integrateqtildephi
 
 end module phononwind_subroutines
@@ -724,7 +714,7 @@ module phononwind
   implicit none
   public :: phononwind_xx, phononwind_xy, elasticA3, fourieruij_sincos, fourieruij_nocut
   contains
-    SUBROUTINE elasticA3(C2, C3, A3)
+    pure SUBROUTINE elasticA3(C2, C3, A3)
     ! Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons.
     ! Required inputs are the tensors of SOEC and TOEC.
     !-----------------------------------------------------------------------
@@ -744,7 +734,6 @@ module phononwind
         A3(i,:,i,:,:,:) = A3(i,:,i,:,:,:) + C2
       end do
       
-      RETURN
     END SUBROUTINE elasticA3
 
     !!**********************************************************************
@@ -768,7 +757,6 @@ module phononwind
         end do
       end do
       
-      RETURN
     END SUBROUTINE fourieruij_sincos
 
     !!**********************************************************************
@@ -795,7 +783,6 @@ module phononwind
         end do
       end do
       
-      RETURN
     END SUBROUTINE fourieruij_nocut
 
     !!**********************************************************************
@@ -929,7 +916,6 @@ module phononwind
         end do !th
       end if
       
-      RETURN
     END SUBROUTINE phononwind_xx
 
     !!**********************************************************************
@@ -1095,6 +1081,5 @@ module phononwind
         end do !th
       end if
       
-      RETURN
     END SUBROUTINE phononwind_xy
 end module phononwind

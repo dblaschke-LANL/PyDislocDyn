@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Apr. 9, 2026
+! Date: Mar. 25, 2026 - Apr. 18, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module checks
   use parameters, only: sel
@@ -37,8 +37,6 @@ module checks
       count_fail = count_fail+1
       print*,"test " // string//": "//char(9)//"FAILED"
     end if
-    
-    return
   end subroutine testequal
 
   SUBROUTINE testequalarray(A,B,n,string,tolerance,count_pass,count_fail)
@@ -59,8 +57,6 @@ module checks
       count_fail = count_fail+1
       print*,"test " // string//": "//char(9)//"FAILED"
     end if
-    
-    return
   end subroutine testequalarray
 
   subroutine testzero(A,string,tolerance,count_pass,count_fail)
@@ -70,7 +66,6 @@ module checks
     character(*), intent(in) :: string
     integer :: count_pass,count_fail
     call testequalarray((/A/),(/0.d0/),1,string,tolerance,count_pass,count_fail)
-    return
   end subroutine testzero
   !-------------------------------------
   subroutine checkvoigt(x,b)
@@ -157,7 +152,7 @@ end module tests
 
 program runtests
   use parameters
-  use utilities, only : ompinfo, linspace, inv, trapz, cumtrapz
+  use utilities, only : ompinfo, linspace, operator(.inv.), trapz, cumtrapz
   use phononwind_subroutines
   use elastic_constants
   use checks
@@ -200,7 +195,7 @@ program runtests
   
   ! test inv
   CALL RANDOM_NUMBER(A)
-  call inv(A,B)
+  B = .inv. A
   call testequal(one,matmul(A,B),3,3,"inv",1.d-12,count_pass,count_fail)
   
   ! test voigt
