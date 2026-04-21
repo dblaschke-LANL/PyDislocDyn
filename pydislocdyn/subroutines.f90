@@ -2,13 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Apr. 9, 2026
+! Date: July 23, 2018 - Apr. 18, 2026
 
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260409
+  integer,parameter :: version = 20260418
   real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -57,7 +57,6 @@ module utilities
       end do
       !$OMP END PARALLEL DO
       
-      RETURN
     END SUBROUTINE elbrak
 
     SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
@@ -84,7 +83,6 @@ module utilities
         end do
       end do
       
-      RETURN
     END SUBROUTINE elbrak1d
 
     !!**********************************************************************
@@ -112,8 +110,6 @@ module utilities
       REAL(KIND=sel), INTENT(OUT) :: intf
      
       intf = sum(0.5d0*(f(2:n)+f(1:n-1))*(x(2:n)-x(1:n-1)))
-      
-      RETURN
     END SUBROUTINE trapz
 
     !!**********************************************************************
@@ -136,7 +132,6 @@ module utilities
         intf(i+1) = tmp
       end do
       
-      RETURN
     END SUBROUTINE cumtrapz
 
     !!**********************************************************************
@@ -151,7 +146,6 @@ module utilities
       REAL(KIND=sel), INTENT(OUT), DIMENSION(3,3)  :: invA
       REAL(KIND=sel) :: det !, eps(3,3,3)
     !~   INTEGER :: i, j, k, l, m, n
-      
     !~   eps = 0.d0
     !~   eps(1,2,3) = 1.d0; eps(3,1,2) = 1.d0; eps(2,3,1) = 1.d0
     !~   eps(3,2,1) = -1.d0; eps(1,3,2) = -1.d0; eps(2,1,3) = -1.d0
@@ -181,8 +175,6 @@ module utilities
       invA(1,3) = A(1,2)*A(2,3) - A(2,2)*A(1,3)
       
       invA = invA/det
-      
-      RETURN
     END SUBROUTINE inv
 
     !!**********************************************************************
@@ -203,7 +195,6 @@ module utilities
       step = (finish - start) / (num-1.d0)
       output = (/(start + (i-1)*step, i=1,num)/)
       
-      return
     END SUBROUTINE linspace
 
 end module utilities
@@ -243,7 +234,6 @@ module various_subroutines
                        - (x-xpr)**2*tau_min_R2))
       end if
       
-      RETURN
     END SUBROUTINE accscrew_xyintegrand
 
     !!**********************************************************************
@@ -283,7 +273,6 @@ module various_subroutines
       end do
       !$OMP END PARALLEL DO
       
-      RETURN
     END SUBROUTINE computeEtot
 
     !!**********************************************************************
@@ -382,7 +371,7 @@ module various_subroutines
         uk(:,i,th,j) = uiphi(:,i) - Sb(i)*log(r(j)/r(1))
       end do; end do; end do
       !$OMP END PARALLEL DO
-      RETURN
+
     END SUBROUTINE computeuk
 
     !!**********************************************************************
@@ -440,7 +429,7 @@ module various_subroutines
                         + N(ph,j,th)*(DOT_PRODUCT(NNinv(ph,i,:),BBb(:)) - DOT_PRODUCT(Sphi(ph,i,:),Sb(:)))
       end do; end do; end do; end do
       !$OMP END PARALLEL DO
-      RETURN
+
     END SUBROUTINE computeuij
 
 end module various_subroutines
@@ -471,7 +460,6 @@ module phononwind_subroutines
       end do
       !$OMP END PARALLEL DO
       
-      RETURN
     END SUBROUTINE phonondistri
 
     !!**********************************************************************
@@ -560,7 +548,6 @@ module phononwind_subroutines
     end do
     !~ !$OMP END PARALLEL DO
 
-    return
     end subroutine thesum
     
     ! **********************************************************************
@@ -628,7 +615,6 @@ module phononwind_subroutines
 
     output(:,:) = prefactor(:,:)*output(:,:)
 
-    return
     end subroutine dragintegrand
 
     !!**********************************************************************
@@ -672,7 +658,6 @@ module phononwind_subroutines
       !$OMP END PARALLEL DO
       call trapz(Bt,phi,Nphi,Bresult)
       
-      RETURN
     END SUBROUTINE integratetphi
 
     !!**********************************************************************
@@ -716,7 +701,6 @@ module phononwind_subroutines
       !$OMP END PARALLEL DO
       call trapz(Bt,phi,Nphi,Bresult)
       
-      RETURN
     END SUBROUTINE integrateqtildephi
 
 end module phononwind_subroutines
@@ -746,7 +730,6 @@ module phononwind
         A3(i,:,i,:,:,:) = A3(i,:,i,:,:,:) + C2
       end do
       
-      RETURN
     END SUBROUTINE elasticA3
 
     !!**********************************************************************
@@ -770,7 +753,6 @@ module phononwind
         end do
       end do
       
-      RETURN
     END SUBROUTINE fourieruij_sincos
 
     !!**********************************************************************
@@ -797,7 +779,6 @@ module phononwind
         end do
       end do
       
-      RETURN
     END SUBROUTINE fourieruij_nocut
 
     !!**********************************************************************
@@ -879,9 +860,9 @@ module phononwind
       
       ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       if (debye) then
+        hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
         do j=1,lenph1
           betafactor = OneMinBtqcosph1(:,j)
-          hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
           prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta*ctovcl/2.d0)*qtilde(:,j)*csphi(j)/betafactor &
                   +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
                   -(hbarcsqBZ_TkB**4/(30.d0*4.d0*24.d0))*(1.d0-(betafactor)**3) &
@@ -945,7 +926,6 @@ module phononwind
         end do !th
       end if
       
-      RETURN
     END SUBROUTINE phononwind_xx
 
     !!**********************************************************************
@@ -1125,6 +1105,5 @@ module phononwind
         end do !th
       end if
       
-      RETURN
     END SUBROUTINE phononwind_xy
 end module phononwind

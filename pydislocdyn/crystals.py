@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 6, 2026
+# Date: Nov. 7, 2017 - Apr. 10, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -504,7 +504,7 @@ class metal_props:
         C2 = UnVoigt(self.C2)
         aver = IsoAverages(lam,mu,0,0,0)
         aver.voigt_average(C2)
-        S2 = elasticS2(C2)
+        S2 = elasticS2(C2,voigt=False)
         aver.reuss_average(S2)
         muV = aver.voigt[mu]
         muR = aver.reuss[mu]
