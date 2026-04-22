@@ -2,13 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Apr. 18, 2026
+! Date: July 23, 2018 - Apr. 22, 2026
 
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260418
+  integer,parameter :: version = 20260422
   real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -651,9 +651,12 @@ module phononwind_subroutines
       !$OMP PARALLEL DO default(shared), private(p,tmask,t1,Btmp,NBtmp)
       do p=1,Nphi
         tmask = (t>limit(p))
+        NBtmp = count(tmask)
+        if (allocated(t1)) deallocate(t1); if (allocated(Btmp)) deallocate(Btmp)
+        allocate(t1(NBtmp),Btmp(NBtmp))
         t1 = pack(t,tmask)
         Btmp = pack(B(:,p),tmask)
-        NBtmp = size(Btmp)
+!~         NBtmp = size(Btmp)
         Bt(p) = 0.d0
         if (NBtmp>1) then
           Btmp(1) = 2.d0*Btmp(1)
@@ -691,9 +694,12 @@ module phononwind_subroutines
       !$OMP PARALLEL DO default(shared), private(p,tmask,qt,Btmp,NBtmp)
       do p=1,Nphi
         tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
+        NBtmp = count(tmask)
+        if (allocated(qt)) deallocate(qt); if (allocated(Btmp)) deallocate(Btmp)
+        allocate(qt(NBtmp),Btmp(NBtmp))
         qt = pack(qtilde,tmask)
         Btmp = pack(B(:,p),tmask)
-        NBtmp = size(Btmp)
+!~         NBtmp = size(Btmp)
         Bt(p) = 0.d0
         if (NBtmp>1) then
           Btmp(1) = 2.d0*Btmp(1)

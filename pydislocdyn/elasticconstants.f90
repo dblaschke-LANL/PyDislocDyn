@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Apr. 17, 2026
+! Date: Mar. 30, 2026 - Apr. 22, 2026
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
@@ -94,7 +94,7 @@ module elastic_constants
           print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
           return
       end select
-      do concurrent (i=1:6)
+      do i=1,6
         do j=1,6
           ii = min(i,j)
           jj = max(i,j)
@@ -216,7 +216,7 @@ module elastic_constants
           print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
           return
       end select
-      do concurrent (i=1:6)
+      do concurrent (i=1:6)! local(j,k,ii,jj,kk) shared(vc,xijk) local_init(iind)
         do j=1,6
           do k=1,6
             ii = min(i,j,k)

@@ -110,10 +110,12 @@ module tests
       logical :: istrue
 !~       integer :: i
       
-      Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,b=3.6146d-10*(/0.5d0,0.5d0,0.d0/),n0=(/-1.d0,1.d0,-1.d0/))
-      Cu%lat_a = (/3.6146d-10,0.d0,0.d0/)
-      Cu%cij = (/168.3d9, 121.2d9, 75.7d9/)
-      Cu%cijk = (/-1271.d9, -814.d9, -50.d9, -3.d9, -780.d9, -95.d9/)
+      Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,b=3.6146d-10*[0.5d0,0.5d0,0.d0],n0=[-1.d0,1.d0,-1.d0])
+!~       Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
+!~       Cu%b=3.6146d-10*[0.5d0,0.5d0,0.d0]; Cu%n0=[-1.d0,1.d0,-1.d0]
+      Cu%lat_a = [3.6146d-10,0.d0,0.d0]
+      Cu%cij = [168.3d9, 121.2d9, 75.7d9]
+      Cu%cijk = [-1271.d9, -814.d9, -50.d9, -3.d9, -780.d9, -95.d9]
       call Cu%init() ! attempts to inver Cu%burgers from Cu%b if not normalized
 !~       do i=1,6
 !~         print*,Cu%C2(i,:)/1.d9
@@ -145,7 +147,7 @@ module tests
       call computeEtot(Cu%uij,Cu%beta,Cu%C2norm,Cu%Cv,Cu%phi,Cu%ntheta,Cu%nphi,Etot)
       call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
       
-      call phonondrag(B,Cu,(/0.1d0,0.5d0/))
+      call phonondrag(B,Cu,[0.1d0,0.5d0])
       call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-6,count_pass,count_fail)
     end subroutine test_disloc
 end module tests
@@ -160,7 +162,7 @@ program runtests
   implicit none
   
   real(kind=sel) :: tmpintegral, array1(5),array2(5), start_time, finish_time
-  real(kind=sel), dimension(3,3) :: A, B, one=reshape((/1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0/),(/3,3/))
+  real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],(/3,3/))
   real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21)
   real(kind=sel), allocatable, dimension(:) :: x, func, integral
   logical :: istrue
@@ -182,7 +184,7 @@ program runtests
   
   ! test linspace
   call linspace(0.2d0,1.d0,5,array1)
-  array2 = (/0.2d0,0.4d0,0.6d0,0.8d0,1.d0/)
+  array2 = [0.2d0,0.4d0,0.6d0,0.8d0,1.d0]
   call testequalarray(array1,array2,5,"linspace",1.d-15,count_pass,count_fail)
   
   ! test cumtrapz / trapz

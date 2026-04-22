@@ -1,16 +1,17 @@
+## required compiler versions: gfortran>=10, flang>=20
 ifeq ($(FC),lfortran)
   FC = lfortran -v
-  FFLAGS = -O3 --std=f23 #--openmp
+  FFLAGS = --fast --std=f23 #--openmp
   LDFLAGS = 
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
-  FC = flang -v
-  FFLAGS = -O3 -std=f2018 -fopenmp
+  FC = flang -v# -flto
+  FFLAGS = -O3 -std=f2018 -fopenmp -march=native# -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
-  FC = gfortran -fimplicit-none# -ffree-line-length-225
-  FFLAGS = -O3 -fimplicit-none -Wall -pedantic -Wextra -std=f2018 -fopenmp
+  FC = gfortran -fimplicit-none# -flto -ffree-line-length-225
+  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
 endif

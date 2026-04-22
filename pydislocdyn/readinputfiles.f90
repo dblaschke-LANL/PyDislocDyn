@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Apr. 10, 2026
+! Date: Apr. 10, 2026 - Apr. 22, 2026
 module readinputfiles
   use parameters, only : sel ! defined in subroutines.f90
   use dislocations ! defined in dislocations.f90
@@ -18,14 +18,14 @@ module readinputfiles
       real(sel) :: c111, c112, c113, c123, c133, c144, c155, c166, c222, c333, c344, c366, c456
       
       open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
-      if (ios.ne.0) then
+      if (ios/=0) then
         close(unit=42)
         print*, "Error: file not found, tried ", filename
         stop
       end if
       do
         read(42,'(a)',iostat=ios) line
-        if (ios.ne.0) exit
+        if (ios/=0) exit
         if ((line /= " ") .and. (line(1:1) /= "#")) then
           read(line,*) key,dummy,values
           if (trim(dummy) /= "=") then

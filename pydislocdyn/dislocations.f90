@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Apr. 18, 2026
+! Date: Mar. 31, 2026 - Apr. 22, 2026
 module dislocations
   use parameters, only : sel, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -80,7 +80,7 @@ module dislocations
       integer :: th
       if (allocated(disl%rot)) deallocate(disl%rot)
       allocate(disl%rot(3,3,disl%ntheta))
-      do concurrent (th=1:disl%ntheta)
+      do th=1,disl%ntheta
         disl%rot(1,:,th) = disl%n0 .cross. disl%t(:,th)
         disl%rot(2,:,th) = disl%n0
         disl%rot(3,:,th) = disl%t(:,th)
@@ -174,7 +174,7 @@ module dislocations
       call linspace(0.d0,1.d0,lenq,q)
       call fourieruij_sincos(sincos,0.d0,250.d0*pi,disl%phi,q(4:lenq-4),phi,disl%nphi,lenq-7,lenph)
       A3rot = 0.d0
-      do concurrent (th=1:disl%ntheta)
+      do concurrent (th=1:disl%ntheta)! local(i, ii, j, jj, k, kk, l, ll, rot) shared(disl,A3rot,A3) ! requires gfortran>=15
         rot = disl%rot(:,:,th)
         do ii=1,3
           do i=1,3

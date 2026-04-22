@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Apr. 10, 2026
+! Date: Apr. 10, 2026 - Apr. 22, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use parameters, only : sel, prog_version=>version
@@ -34,11 +34,11 @@ program dislocdyn
     elseif ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
       print*,"USAGE: ",trim(exe_name)," [--version] [--help] <inputfilename>"
       stop
-    endif
+    end if
   else
     print*,"usage: ",trim(exe_name)," [--version] [--help] <inputfilename>"
     stop 1
-  endif
+  end if
   
   call read_materialfile(trim(cmdlinearg),disl)
   print*,"name: ",disl%metal,", sym=", disl%sym," rho= ", disl%rho,"kg/m^3 T= ", disl%Temp,"K"
