@@ -12,32 +12,38 @@ program dislocdyn
   implicit none
   
   integer :: nthreads, i
-  character(256) :: materialfile, instructionfile, cmdlinearg, exe_name
+  character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, proginfo, threadinfo, usageinfo
   type(disloc) :: disl
   real(sel), allocatable :: B(:,:), beta(:)
   
-  print*,"DislocDyn version ",prog_version
+  write(proginfo, '(I0)') prog_version
+  proginfo = "DislocDyn version " // trim(proginfo)
   call get_command_argument(1, cmdlinearg)
   call get_command_argument(0, exe_name)
+  usageinfo = "USAGE: " // trim(exe_name) // " [--version] [--help] <inputfilename>"
 
   call ompinfo(nthreads)
   if (nthreads>0) then
-    print*,exe_name, " compiled with openmp support, using ",nthreads," threads"
+    write(threadinfo, '(I0)') nthreads
+    threadinfo = trim(exe_name) // " compiled with openmp support, using " // trim(threadinfo) // " threads"
   else
-    print*,exe_name, " compiled without openmp support"
+    threadinfo = trim(exe_name) // " compiled without openmp support"
   end if
   
   if (len_trim(cmdlinearg) > 0) then
     if ((cmdlinearg == '--version') .or. (cmdlinearg == '-v')) then
       print*,prog_version
       stop
-    else if ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
-      print*,"USAGE: ",trim(exe_name)," [--version] [--help] <inputfilename>"
-      stop
+    else
+      print*,proginfo
+      print*,threadinfo
+      if ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
+        print*,usageinfo
+        stop
+      end if
     end if
   else
-    print*,"usage: ",trim(exe_name)," [--version] [--help] <inputfilename>"
-    stop 1
+    stop "Missing input; " // usageinfo
   end if
   
   call read_materialfile(trim(cmdlinearg),disl)

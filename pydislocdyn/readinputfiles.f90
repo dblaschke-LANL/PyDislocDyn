@@ -20,8 +20,7 @@ module readinputfiles
       open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
       if (ios/=0) then
         close(unit=42)
-        print*, "Error: file not found, tried ", filename
-        stop
+        stop "File not found: " // filename
       end if
       do
         read(42,'(a)',iostat=ios) line

@@ -2,13 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Apr. 22, 2026
+! Date: July 23, 2018 - Apr. 23, 2026
 
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260422
+  integer,parameter :: version = 20260423
   real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -720,7 +720,7 @@ module phononwind
   implicit none
   public :: phononwind_xx, phononwind_xy, elasticA3, fourieruij_sincos, fourieruij_nocut
   contains
-    pure SUBROUTINE elasticA3(C2, C3, A3)
+    SUBROUTINE elasticA3(C2, C3, A3)
     ! Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons.
     ! Required inputs are the tensors of SOEC and TOEC.
     !-----------------------------------------------------------------------
@@ -729,10 +729,23 @@ module phononwind
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN)  :: C2(3,3,3,3), C3(3,3,3,3,3,3)
       REAL(KIND=sel), INTENT(OUT) :: A3(3,3,3,3,3,3)
-      INTEGER :: i
+      INTEGER :: i,j,k,l
       REAL(KIND=sel), DIMENSION(3,3,3,3) :: C2swap
       
       C2swap = reshape(C2, [3, 3, 3, 3], order = [2,3,1,4])
+      if (sum(abs(C2swap-C2))<1.d-9) then
+        print*,"ERROR: compiler does not support reshape intrinsic with optional 'order' parameter!!"
+        print*,"using fall back code instead"
+        do i=1,3
+          do j=1,3
+            do k=1,3
+              do l=1,3
+                C2swap(i,j,k,l) = C2(j,k,i,l)
+              end do
+            end do
+          end do
+        end do
+      end if
       A3 = C3
       do i=1,3
         A3(:,:,i,:,i,:) = A3(:,:,i,:,i,:) + C2

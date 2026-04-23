@@ -110,9 +110,9 @@ module tests
       logical :: istrue
 !~       integer :: i
       
-      Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,b=3.6146d-10*[0.5d0,0.5d0,0.d0],n0=[-1.d0,1.d0,-1.d0])
-!~       Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
-!~       Cu%b=3.6146d-10*[0.5d0,0.5d0,0.d0]; Cu%n0=[-1.d0,1.d0,-1.d0]
+!~       Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,b=3.6146d-10*[0.5d0,0.5d0,0.d0],n0=[-1.d0,1.d0,-1.d0])
+      Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
+      Cu%b=3.6146d-10*[0.5d0,0.5d0,0.d0]; Cu%n0=[-1.d0,1.d0,-1.d0]
       Cu%lat_a = [3.6146d-10,0.d0,0.d0]
       Cu%cij = [168.3d9, 121.2d9, 75.7d9]
       Cu%cijk = [-1271.d9, -814.d9, -50.d9, -3.d9, -780.d9, -95.d9]
