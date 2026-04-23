@@ -1,12 +1,13 @@
 ## required compiler versions: gfortran>=10, flang>=20
 ifeq ($(FC),lfortran)
   FC = lfortran -v
-  FFLAGS = --fast --std=f23 #--openmp
+  FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
+#~   FFLAGS = --realloc-lhs-arrays --detect-leaks -g --fpe-trap invalid, zero, overflow, underflow, inexact, denormal
   LDFLAGS = 
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
   FC = flang -v# -flto
-  FFLAGS = -O3 -std=f2018 -fopenmp -march=native# -ffast-math
+  FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran

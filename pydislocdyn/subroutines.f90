@@ -200,7 +200,7 @@ module utilities
       real(kind=sel) :: step
       
       step = (finish - start) / (num-1.d0)
-      output = (/(start + (i-1)*step, i=1,num)/)
+      output = [(start + (i-1)*step, i=1,num)]
       
     END SUBROUTINE linspace
 
@@ -732,7 +732,7 @@ module phononwind
       INTEGER :: i
       REAL(KIND=sel), DIMENSION(3,3,3,3) :: C2swap
       
-      C2swap = reshape(C2, (/ 3, 3, 3, 3/), order = (/2,3,1,4/) )
+      C2swap = reshape(C2, [3, 3, 3, 3], order = [2,3,1,4])
       A3 = C3
       do i=1,3
         A3(:,:,i,:,i,:) = A3(:,:,i,:,i,:) + C2

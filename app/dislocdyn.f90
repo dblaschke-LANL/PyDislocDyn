@@ -31,7 +31,7 @@ program dislocdyn
     if ((cmdlinearg == '--version') .or. (cmdlinearg == '-v')) then
       print*,prog_version
       stop
-    elseif ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
+    else if ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
       print*,"USAGE: ",trim(exe_name)," [--version] [--help] <inputfilename>"
       stop
     end if
@@ -48,8 +48,8 @@ program dislocdyn
   print*,"cijk: ", disl%cijk/1.d9,"GPa"
   
   if (trim(disl%sym)=='fcc') then 
-    disl%b = disl%lat_a(1)*(/0.5d0,0.5d0,0.d0/)
-    disl%n0=(/-1.d0,1.d0,-1.d0/)
+    disl%b = disl%lat_a(1)*[0.5d0,0.5d0,0.d0]
+    disl%n0=[-1.d0,1.d0,-1.d0]
   end if
   call disl%init()
   print*,"Vc=", disl%Vc*1.d27, "nm^3"

@@ -92,7 +92,7 @@ module dislocations
       real(sel) :: tmp_len
       select case (trim(disl%sym))
         case ("iso", "cubic", "fcc", "bcc")
-          disl%lat_angles = 0.5d0*(/pi,pi,pi/)
+          disl%lat_angles = 0.5d0*[pi,pi,pi]
         case default
           print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
           return

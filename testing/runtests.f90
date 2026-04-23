@@ -65,7 +65,7 @@ module checks
     real(kind=sel), intent(in)  :: tolerance, A
     character(*), intent(in) :: string
     integer :: count_pass,count_fail
-    call testequalarray((/A/),(/0.d0/),1,string,tolerance,count_pass,count_fail)
+    call testequalarray([A],[0.d0],1,string,tolerance,count_pass,count_fail)
   end subroutine testzero
   !-------------------------------------
   subroutine checkvoigt(x,b)
@@ -162,7 +162,7 @@ program runtests
   implicit none
   
   real(kind=sel) :: tmpintegral, array1(5),array2(5), start_time, finish_time
-  real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],(/3,3/))
+  real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],[3,3])
   real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21)
   real(kind=sel), allocatable, dimension(:) :: x, func, integral
   logical :: istrue
