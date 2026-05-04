@@ -2,13 +2,13 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Apr. 23, 2026
+! Date: July 23, 2018 - May 4, 2026
 
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260423
+  integer,parameter :: version = 20260504
   real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
@@ -199,9 +199,12 @@ module utilities
       integer :: i
       real(kind=sel) :: step
       
-      step = (finish - start) / (num-1.d0)
-      output = [(start + (i-1)*step, i=1,num)]
-      
+      if (num==1) then
+        output = start
+      else
+        step = (finish - start) / (num-1.d0)
+        output = [(start + (i-1)*step, i=1,num)]
+      end if
     END SUBROUTINE linspace
 
 end module utilities

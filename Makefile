@@ -26,8 +26,10 @@ all:  runtests build clean
 
 help:
 	@echo 'targets:'
-	@echo 'make all             build $(EXEC_tests), then delete all object files'
+	@echo 'make all             build $(EXEC_tests) and $(EXEC), then delete all object files'
 	@echo 'make runtests        only build the testsuite $(EXEC_tests)'
+	@echo 'make build           only build $(EXEC)'
+	@echo 'make shared          build the shared library $(SHARED) and $(EXEC) linked against it'
 	@echo 'make clean           delete all object files'
 	@echo 'make cleanall        delete all object files and executables'
 	@echo ''

@@ -1,11 +1,87 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Apr. 22, 2026
+! Date: Apr. 10, 2026 - May 4, 2026
 module readinputfiles
   use parameters, only : sel ! defined in subroutines.f90
   use dislocations ! defined in dislocations.f90
   implicit none
+  type, public :: inputdeck
+    character(:), allocatable :: sim_type ! choose between 'drag' (others not yet implemented)
+    real(sel) :: b(3), n0(3), betamin, betamax ! slip plane in Cartesian coordinates (TODO: implement Miller indices)
+    real(sel), allocatable :: beta(:)
+    integer :: nbeta
+    logical :: echoinput
+  end type inputdeck
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
   contains
+    subroutine read_inputdeck(filename,sim_plan)
+      use utilities, only: linspace
+      ! reads an inputdeck from filename, and stores all values in 'sim_plan' of derived type 'inputdeck'
+      character(*), intent(in) :: filename
+      type(inputdeck), intent(out) :: sim_plan
+      ! local variables
+      integer :: ios, j
+      character(32) :: key, sim_type
+      character(256) :: line, values, dummy
+      ! default values:
+      sim_plan%sim_type = 'drag'
+      sim_plan%nbeta = 1
+      sim_plan%betamin = 0.01d0
+      sim_plan%betamax = 0.99d0
+      sim_plan%b = 0.d0
+      sim_plan%n0 = 0.d0
+      sim_plan%echoinput = .true.
+      
+      open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
+      if (ios/=0) then
+        close(unit=42)
+        error stop "File not found: " // filename
+      end if
+      do
+        read(42,'(a)',iostat=ios) line
+        if (ios/=0) exit
+        if ((line /= " ") .and. (line(1:1) /= "#")) then
+          read(line,*) key,dummy,values
+          if (trim(dummy) /= "=") then
+            key = " "
+            print*,"skipping ", line, " (unknown format)"
+          end if
+        else
+          ! skip empty lines
+          key = trim(line)
+        end if
+        if (key=='sim_type') then
+          read(values,*)sim_type
+          sim_plan%sim_type = trim(sim_type)
+        end if
+        if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
+        if (key=='b') read(line,*) key,dummy,(sim_plan%b(j), j=1,3)
+        if (key=='n0') read(line,*) key,dummy,(sim_plan%n0(j), j=1,3)
+        if (key=='betamin') read(line,*) key,dummy,sim_plan%betamin
+        if (key=='betamax') read(line,*) key,dummy,sim_plan%betamax
+        if (key=='nbeta') then
+          read(line,*) key,dummy,sim_plan%nbeta
+          allocate(sim_plan%beta(sim_plan%nbeta))
+          sim_plan%beta = 0.d0
+        end if
+        if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
+      
+      end do ! read file
+      close(unit=42)
+
+      if (.not.allocated(sim_plan%beta)) then
+        allocate(sim_plan%beta(sim_plan%nbeta))
+        call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
+      else if (all(sim_plan%beta == 0)) then
+        if (allocated(sim_plan%beta)) deallocate(sim_plan%beta); allocate(sim_plan%beta(sim_plan%nbeta))
+        call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
+      end if
+    end subroutine
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     subroutine read_materialfile(filename,disl)
       ! populates an instance of the dislocation derived type using data read from filename
       character(*), intent(in) :: filename
@@ -20,7 +96,7 @@ module readinputfiles
       open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
       if (ios/=0) then
         close(unit=42)
-        stop "File not found: " // filename
+        error stop "File not found: " // filename
       end if
       do
         read(42,'(a)',iostat=ios) line

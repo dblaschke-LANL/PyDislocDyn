@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Apr. 22, 2026
+! Date: Apr. 10, 2026 - May 4, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use parameters, only : sel, prog_version=>version
@@ -11,16 +11,19 @@ program dislocdyn
   use readinputfiles
   implicit none
   
-  integer :: nthreads, i
+  integer :: nthreads, i, j, num_args
   character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, proginfo, threadinfo, usageinfo
-  type(disloc) :: disl
-  real(sel), allocatable :: B(:,:), beta(:)
+  character(256), dimension(:), allocatable :: args
+  type(disloc), dimension(:), allocatable :: disl
+  type(inputdeck) :: sim_plan
+  real(sel), allocatable :: B(:,:)
+  real(kind=sel) :: start_time, finish_time
   
   write(proginfo, '(I0)') prog_version
   proginfo = "DislocDyn version " // trim(proginfo)
   call get_command_argument(1, cmdlinearg)
   call get_command_argument(0, exe_name)
-  usageinfo = "USAGE: " // trim(exe_name) // " [--version] [--help] <inputfilename>"
+  usageinfo = "USAGE: " // trim(exe_name) // " [--version] [--help] <1 or more materialfiles> <inputdeck>"
 
   call ompinfo(nthreads)
   if (nthreads>0) then
@@ -30,6 +33,8 @@ program dislocdyn
     threadinfo = trim(exe_name) // " compiled without openmp support"
   end if
   
+  num_args = command_argument_count()
+  allocate(args(num_args))
   if (len_trim(cmdlinearg) > 0) then
     if ((cmdlinearg == '--version') .or. (cmdlinearg == '-v')) then
       print*,prog_version
@@ -45,28 +50,54 @@ program dislocdyn
   else
     stop "Missing input; " // usageinfo
   end if
-  
-  call read_materialfile(trim(cmdlinearg),disl)
-  print*,"name: ",disl%metal,", sym=", disl%sym," rho= ", disl%rho,"kg/m^3 T= ", disl%Temp,"K"
-  print*,"lattice constants: ",disl%lat_a*1.d10," Angstroem"
-  print*,"cij: ",disl%cij/1.d9,"GPa"
-  print*,"Lame constants: ", disl%lam/1.d9, disl%mu/1.d9, " GPa"
-  print*,"cijk: ", disl%cijk/1.d9,"GPa"
-  
-  if (trim(disl%sym)=='fcc') then 
-    disl%b = disl%lat_a(1)*[0.5d0,0.5d0,0.d0]
-    disl%n0=[-1.d0,1.d0,-1.d0]
+
+  if (num_args>=2) then
+    do i=1,num_args
+      call get_command_argument(i,args(i))
+    end do
+  else
+    stop "Missing input; " // usageinfo
   end if
-  call disl%init()
-  print*,"Vc=", disl%Vc*1.d27, "nm^3"
   
-  allocate(beta(6))
-  call linspace(0.1d0,0.6d0,size(beta),beta)
-  call phonondrag(B,disl,beta)
+  instructionfile = trim(args(num_args))
+  allocate(disl(num_args-1))
+  call read_inputdeck(instructionfile,sim_plan)
   
-  print*,"beta // drag coefficient for screw , edge:"
-  do i=1,size(beta)
-    print*,beta(i), B(:,i)
+  call cpu_time(start_time)
+  ! loop over material files, using the same instruction file for each one
+  do i=1,num_args-1
+    materialfile = trim(args(i))
+    call read_materialfile(materialfile,disl(i))
+    disl(i)%b = sim_plan%b*disl(i)%lat_a(1)
+    disl(i)%n0=sim_plan%n0
+!~     if (trim(disl(i)%sym)=='fcc') then 
+!~       disl(i)%b = disl(i)%lat_a(1)*[0.5d0,0.5d0,0.d0]
+!~       disl(i)%n0=[-1.d0,1.d0,-1.d0]
+!~     end if
+    call disl(i)%init()
+    print*,"name: ",disl(i)%metal
+    if (sim_plan%echoinput) then
+      print*,"sym=", disl(i)%sym," rho= ", disl(i)%rho,"kg/m^3 T= ", disl(i)%Temp,"K"
+      print*,"lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
+      print*,"cij: ",disl(i)%cij/1.d9,"GPa"
+      print*,"Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
+      print*,"cijk: ", disl(i)%cijk/1.d9,"GPa"
+      print*,"Vc=", disl(i)%Vc*1.d27, "nm^3"
+      print*,"slip plane: ", sim_plan%b, sim_plan%n0
+    end if
+    
+    if (sim_plan%sim_type=='drag') then
+      call phonondrag(B,disl(i),sim_plan%beta)
+      print*,"beta // drag coefficient for screw , edge:"
+      do j=1,size(sim_plan%beta)
+        print*,sim_plan%beta(j), B(:,j)
+      end do
+    else
+      print*,"sim_type=",sim_plan%sim_type,"not implemented"
+    end if
   end do
+
+  call cpu_time(finish_time)
+  print*,new_line('a') // "time: ",(finish_time-start_time)/real(nthreads, kind=sel), "s" // new_line('a')
 
 end program dislocdyn
