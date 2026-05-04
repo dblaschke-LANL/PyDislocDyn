@@ -26,7 +26,7 @@ module readinputfiles
       character(32) :: key, sim_type
       character(256) :: line, values, dummy
       ! default values:
-      sim_plan%sim_type = 'drag'
+      sim_plan%sim_type = '' !'drag'
       sim_plan%nbeta = 1
       sim_plan%betamin = 0.01d0
       sim_plan%betamax = 0.99d0
@@ -57,8 +57,8 @@ module readinputfiles
           sim_plan%sim_type = trim(sim_type)
         end if
         if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
-        if (key=='b') read(line,*) key,dummy,(sim_plan%b(j), j=1,3)
-        if (key=='n0') read(line,*) key,dummy,(sim_plan%n0(j), j=1,3)
+        if (key=='b') read(line,*) key,dummy,sim_plan%b(1),sim_plan%b(2),sim_plan%b(3)
+        if (key=='n0') read(line,*) key,dummy,sim_plan%n0(1),sim_plan%n0(2),sim_plan%n0(3)
         if (key=='betamin') read(line,*) key,dummy,sim_plan%betamin
         if (key=='betamax') read(line,*) key,dummy,sim_plan%betamax
         if (key=='nbeta') then
@@ -66,7 +66,7 @@ module readinputfiles
           allocate(sim_plan%beta(sim_plan%nbeta))
           sim_plan%beta = 0.d0
         end if
-        if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
+!~         if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
       
       end do ! read file
       close(unit=42)

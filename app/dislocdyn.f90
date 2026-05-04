@@ -68,14 +68,19 @@ program dislocdyn
   do i=1,num_args-1
     materialfile = trim(args(i))
     call read_materialfile(materialfile,disl(i))
-    disl(i)%b = sim_plan%b*disl(i)%lat_a(1)
+    print*,new_line('a') // "name: ",disl(i)%metal
+    disl(i)%b = sim_plan%b*disl(i)%lat_a(1) ! assume input is Cartesian in units of lattice constant a
     disl(i)%n0=sim_plan%n0
-!~     if (trim(disl(i)%sym)=='fcc') then 
-!~       disl(i)%b = disl(i)%lat_a(1)*[0.5d0,0.5d0,0.d0]
-!~       disl(i)%n0=[-1.d0,1.d0,-1.d0]
-!~     end if
+    if (all(disl(i)%b==0) .and. all(disl(i)%n0==0)) then
+      if (trim(disl(i)%sym)=='fcc' .or. trim(disl(i)%sym)=='iso') then 
+        disl(i)%b = disl(i)%lat_a(1)*[0.5d0,0.5d0,0.d0]
+        disl(i)%n0=[-1.d0,1.d0,-1.d0]
+        print*,"WARNING: slip plane undefined; using default for fcc"
+      else
+        error stop "slip plane undefined"
+      end if
+    end if
     call disl(i)%init()
-    print*,"name: ",disl(i)%metal
     if (sim_plan%echoinput) then
       print*,"sym=", disl(i)%sym," rho= ", disl(i)%rho,"kg/m^3 T= ", disl(i)%Temp,"K"
       print*,"lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
@@ -93,7 +98,7 @@ program dislocdyn
         print*,sim_plan%beta(j), B(:,j)
       end do
     else
-      print*,"sim_type=",sim_plan%sim_type,"not implemented"
+      error stop new_line('a') // "sim_type="//sim_plan%sim_type//" not implemented"
     end if
   end do
 
