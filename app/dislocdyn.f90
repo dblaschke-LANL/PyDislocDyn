@@ -2,10 +2,10 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 4, 2026
+! Date: Apr. 10, 2026 - May 5, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
-  use parameters, only : sel, prog_version=>version
+  use parameters, only : sel, pi, prog_version=>version
   use utilities, only : ompinfo, linspace
   use dislocations
   use readinputfiles
@@ -16,7 +16,7 @@ program dislocdyn
   character(256), dimension(:), allocatable :: args
   type(disloc), dimension(:), allocatable :: disl
   type(inputdeck) :: sim_plan
-  real(sel), allocatable :: B(:,:)
+  real(sel), allocatable :: B(:,:), theta(:)
   real(kind=sel) :: start_time, finish_time
   
   write(proginfo, '(I0)') prog_version
@@ -63,12 +63,17 @@ program dislocdyn
   allocate(disl(num_args-1))
   call read_inputdeck(instructionfile,sim_plan)
   
+  open(unit=123, file=sim_plan%logfile, status='replace') ! open log file
+  write(123,*) proginfo
+  write(123,*) threadinfo
+  
   call cpu_time(start_time)
   ! loop over material files, using the same instruction file for each one
   do i=1,num_args-1
     materialfile = trim(args(i))
     call read_materialfile(materialfile,disl(i))
     print*,new_line('a') // "name: ",disl(i)%metal
+    write(123,*) new_line('a') // "name: ",disl(i)%metal
     disl(i)%b = sim_plan%b*disl(i)%lat_a(1) ! assume input is Cartesian in units of lattice constant a
     disl(i)%n0=sim_plan%n0
     if (all(disl(i)%b==0) .and. all(disl(i)%n0==0)) then
@@ -76,6 +81,7 @@ program dislocdyn
         disl(i)%b = disl(i)%lat_a(1)*[0.5d0,0.5d0,0.d0]
         disl(i)%n0=[-1.d0,1.d0,-1.d0]
         print*,"WARNING: slip plane undefined; using default for fcc"
+        write(123,*) "WARNING: slip plane undefined; using default for fcc"
       else
         error stop "slip plane undefined"
       end if
@@ -91,21 +97,36 @@ program dislocdyn
       print*,"Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
       print*,"cijk: ", disl(i)%cijk/1.d9,"GPa"
       print*,"Vc=", disl(i)%Vc*1.d27, "nm^3"
-      print*,"slip plane: ", sim_plan%b, sim_plan%n0
+      print*,"slip plane: "//new_line('a')//"    b=", sim_plan%b, new_line('a'), "    n0=", sim_plan%n0, new_line('a')
     end if
+    write(123,*) "sym=", disl(i)%sym," rho= ", disl(i)%rho,"kg/m^3 T= ", disl(i)%Temp,"K"
+    write(123,*) "lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
+    write(123,*) "cij: ",disl(i)%cij/1.d9,"GPa"
+    write(123,*) "Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
+    write(123,*) "cijk: ", disl(i)%cijk/1.d9,"GPa"
+    write(123,*) "Vc=", disl(i)%Vc*1.d27, "nm^3"
+    write(123,*) "slip plane: "//new_line('a')//"    b=", sim_plan%b, new_line('a'), "    n0=", sim_plan%n0, new_line('a')
     
     if (sim_plan%sim_type=='drag') then
       call phonondrag(B,disl(i),sim_plan%beta)
-      print*,"beta // drag coefficient for screw , edge:"
+      print*,"character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
+      write(123,*) "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
+      print*,disl(i)%theta/pi
+      write(123,*) disl(i)%theta/pi
+      print*,"beta // drag coefficient B(beta,theta) in units of mPas:"
+      write(123,*) "beta // drag coefficient B(beta,theta) in units of mPas:"
       do j=1,size(sim_plan%beta)
         print*,sim_plan%beta(j), B(:,j)
+        write(123,*) sim_plan%beta(j), B(:,j)
       end do
     else
+      write(123,*) new_line('a') // "ERROR: sim_type="//sim_plan%sim_type//" not implemented"
       error stop new_line('a') // "sim_type="//sim_plan%sim_type//" not implemented"
     end if
   end do
 
   call cpu_time(finish_time)
   print*,new_line('a') // "time: ",(finish_time-start_time)/real(nthreads, kind=sel), "s" // new_line('a')
+  close(unit=123) ! close log file
 
 end program dislocdyn

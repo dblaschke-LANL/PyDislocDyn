@@ -1,12 +1,12 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 4, 2026
+! Date: Apr. 10, 2026 - May 5, 2026
 module readinputfiles
   use parameters, only : sel ! defined in subroutines.f90
   use dislocations ! defined in dislocations.f90
   implicit none
   type, public :: inputdeck
-    character(:), allocatable :: sim_type ! choose between 'drag' (others not yet implemented)
+    character(:), allocatable :: sim_type, logfile ! choose between 'drag' (others not yet implemented)
     real(sel) :: b(3), n0(3), betamin, betamax ! slip plane in Cartesian coordinates (TODO: implement Miller indices)
     real(sel), allocatable :: beta(:)
     integer :: nbeta, ntheta
@@ -23,7 +23,7 @@ module readinputfiles
       type(inputdeck), intent(out) :: sim_plan
       ! local variables
       integer :: ios, j
-      character(32) :: key, sim_type
+      character(32) :: key
       character(256) :: line, values, dummy
       ! default values:
       sim_plan%sim_type = '' !'drag'
@@ -34,6 +34,7 @@ module readinputfiles
       sim_plan%b = 0.d0
       sim_plan%n0 = 0.d0
       sim_plan%echoinput = .true.
+      sim_plan%logfile = 'dislocdyn.log'
       
       open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
       if (ios/=0) then
@@ -53,10 +54,8 @@ module readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key=='sim_type') then
-          read(values,*)sim_type
-          sim_plan%sim_type = trim(sim_type)
-        end if
+        if (key=='sim_type') sim_plan%sim_type = trim(values)
+        if (key=='logfile') sim_plan%logfile = trim(values)
         if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
         if (key=='b') read(line,*) key,dummy,sim_plan%b(1),sim_plan%b(2),sim_plan%b(3)
         if (key=='n0') read(line,*) key,dummy,sim_plan%n0(1),sim_plan%n0(2),sim_plan%n0(3)
