@@ -80,6 +80,9 @@ program dislocdyn
         error stop "slip plane undefined"
       end if
     end if
+    if (sim_plan%ntheta>2) then
+      disl%ntheta = sim_plan%ntheta
+    end if
     call disl(i)%init()
     if (sim_plan%echoinput) then
       print*,"sym=", disl(i)%sym," rho= ", disl(i)%rho,"kg/m^3 T= ", disl(i)%Temp,"K"

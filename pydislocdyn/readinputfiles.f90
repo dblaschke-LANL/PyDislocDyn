@@ -9,7 +9,7 @@ module readinputfiles
     character(:), allocatable :: sim_type ! choose between 'drag' (others not yet implemented)
     real(sel) :: b(3), n0(3), betamin, betamax ! slip plane in Cartesian coordinates (TODO: implement Miller indices)
     real(sel), allocatable :: beta(:)
-    integer :: nbeta
+    integer :: nbeta, ntheta
     logical :: echoinput
   end type inputdeck
   
@@ -28,6 +28,7 @@ module readinputfiles
       ! default values:
       sim_plan%sim_type = '' !'drag'
       sim_plan%nbeta = 1
+      sim_plan%ntheta = 2
       sim_plan%betamin = 0.01d0
       sim_plan%betamax = 0.99d0
       sim_plan%b = 0.d0
@@ -67,6 +68,7 @@ module readinputfiles
           sim_plan%beta = 0.d0
         end if
 !~         if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
+        if (key=='ntheta') read(line,*) key,dummy,sim_plan%ntheta
       
       end do ! read file
       close(unit=42)
