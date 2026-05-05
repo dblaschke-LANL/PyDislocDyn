@@ -91,33 +91,35 @@ program dislocdyn
     end if
     call disl(i)%init()
     if (sim_plan%echoinput) then
-      print*,"sym=", disl(i)%sym," rho= ", disl(i)%rho,"kg/m^3 T= ", disl(i)%Temp,"K"
-      print*,"lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
-      print*,"cij: ",disl(i)%cij/1.d9,"GPa"
-      print*,"Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
-      print*,"cijk: ", disl(i)%cijk/1.d9,"GPa"
-      print*,"Vc=", disl(i)%Vc*1.d27, "nm^3"
-      print*,"slip plane: "//new_line('a')//"    b=", sim_plan%b, new_line('a'), "    n0=", sim_plan%n0, new_line('a')
+      print '(a, a, a10, f10.2, a10, f10.2, a)',"sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"
+      print '(a, f10.6, f10.6, f10.6, a)',"lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
+      print '(a, *(f10.2))',"cij [GPa]: ",disl(i)%cij/1.d9
+      print '(a, f10.2, f10.2, a)',"Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
+      print '(a, *(f10.2))',"cijk [GPa]: ", disl(i)%cijk/1.d9
+      print '(a, f10.8, a)',"Vc=", disl(i)%Vc*1.d27, " nm^3"
+      print '(a, f10.6, a)',"burgers=", disl(i)%burgers*1.d10, " Angstroem"
+      print*,"slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0, new_line('a')
     end if
-    write(123,*) "sym=", disl(i)%sym," rho= ", disl(i)%rho,"kg/m^3 T= ", disl(i)%Temp,"K"
-    write(123,*) "lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
-    write(123,*) "cij: ",disl(i)%cij/1.d9,"GPa"
-    write(123,*) "Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
-    write(123,*) "cijk: ", disl(i)%cijk/1.d9,"GPa"
-    write(123,*) "Vc=", disl(i)%Vc*1.d27, "nm^3"
-    write(123,*) "slip plane: "//new_line('a')//"    b=", sim_plan%b, new_line('a'), "    n0=", sim_plan%n0, new_line('a')
+    write(123,'(a, a, a10, f10.2, a10, f10.2, a)') "sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"
+    write(123,'(a, f10.6, f10.6, f10.6, a)') "lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
+    write(123,'(a, *(f10.2))') "cij [GPa]: ",disl(i)%cij/1.d9
+    write(123,'(a, f10.2, f10.2, a)') "Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
+    write(123,'(a, *(f10.2))') "cijk [GPa]: ", disl(i)%cijk/1.d9
+    write(123,'(a, f10.8, a)') "Vc=", disl(i)%Vc*1.d27, " nm^3"
+    write(123,'(a, f10.6, a)') "burgers=", disl(i)%burgers*1.d10, " Angstroem"
+    write(123,*) "slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0, new_line('a')
     
     if (sim_plan%sim_type=='drag') then
       call phonondrag(B,disl(i),sim_plan%beta)
       print*,"character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
       write(123,*) "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
-      print*,disl(i)%theta/pi
-      write(123,*) disl(i)%theta/pi
+      print '(*(f10.4))',disl(i)%theta/pi
+      write(123,'(*(f10.4))') disl(i)%theta/pi
       print*,"beta // drag coefficient B(beta,theta) in units of mPas:"
       write(123,*) "beta // drag coefficient B(beta,theta) in units of mPas:"
       do j=1,size(sim_plan%beta)
-        print*,sim_plan%beta(j), B(:,j)
-        write(123,*) sim_plan%beta(j), B(:,j)
+        print '(f10.4, *(f10.6))',sim_plan%beta(j), B(:,j)
+        write(123,'(f10.4, *(f10.6))') sim_plan%beta(j), B(:,j)
       end do
     else
       write(123,*) new_line('a') // "ERROR: sim_type="//sim_plan%sim_type//" not implemented"
