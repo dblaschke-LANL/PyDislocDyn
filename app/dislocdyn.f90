@@ -16,7 +16,7 @@ program dislocdyn
   character(256), dimension(:), allocatable :: args
   type(disloc), dimension(:), allocatable :: disl
   type(inputdeck) :: sim_plan
-  real(sel), allocatable :: B(:,:), theta(:)
+  real(sel), allocatable :: B(:,:)
   real(kind=sel) :: start_time, finish_time
   
   write(proginfo, '(I0)') prog_version

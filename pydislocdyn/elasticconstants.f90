@@ -1,20 +1,22 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Apr. 22, 2026
+! Date: Mar. 30, 2026 - May 5, 2026
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
   private VoigtIndices, UnVoigtIndices ! f2py-incompatibilities prevent us from making more stuff private
   public voigt, unvoigt, elasticC2, voigtaverage, reussaverage, hillaverage
+  !> converts the input to Voigt notation
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six
   end interface voigt
+  !> converts the input from Voigt notation back to Cartesian coordinates
   interface unvoigt
     module procedure unvgt_one, unvgt_two, unvgt_three
   end interface unvoigt
   contains
+    !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC2(cij,sym,vc)
-    ! takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
       use parameters, only : sel
       real(sel), intent(in) :: cij(:)
       character(*), intent(in) :: sym
@@ -103,8 +105,8 @@ module elastic_constants
       end do
     end subroutine elasticC2
     !-------------------------
+    !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC3(cijk,sym,vc)
-    ! takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
       use parameters, only : sel
       real(sel), intent(in) :: cijk(:)
       character(*), intent(in) :: sym
@@ -228,6 +230,7 @@ module elastic_constants
       end do
     end subroutine elasticC3
     ! -----------------------------
+    !> subroutine of voigt()
     subroutine vgt_two(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3)
@@ -236,6 +239,7 @@ module elastic_constants
       z = reshape(x,(/9/))
       y = z(VoigtIndices)
     end subroutine vgt_two
+    !> subroutine of voigt()
     subroutine vgt_four(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3)
@@ -244,6 +248,7 @@ module elastic_constants
       z = reshape(x,(/9,9/))
       y = z(VoigtIndices,VoigtIndices)
     end subroutine vgt_four
+    !> subroutine of voigt()
     subroutine vgt_six(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3,3,3)
@@ -252,18 +257,21 @@ module elastic_constants
       z = reshape(x,(/9,9,9/))
       y = z(VoigtIndices,VoigtIndices,VoigtIndices)
     end subroutine vgt_six
+    !> subroutine of unvoigt()
     subroutine unvgt_one(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(6)
       real(kind=sel), intent(out) :: y(3,3)
       y = reshape(x(UnVoigtIndices),(/3,3/))
     end subroutine unvgt_one
+    !> subroutine of unvoigt()
     subroutine unvgt_two(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices),(/3,3,3,3/))
     end subroutine unvgt_two
+    !> subroutine of unvoigt()
     subroutine unvgt_three(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6,6)
@@ -271,6 +279,7 @@ module elastic_constants
       y = reshape(x(UnVoigtIndices,UnVoigtIndices,UnVoigtIndices),(/3,3,3,3,3,3/))
     end subroutine unvgt_three
     !-------------------------
+    !> Computes the Voigt average of 2nd order elastic constants
     subroutine voigtaverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
@@ -279,6 +288,7 @@ module elastic_constants
     lambda = (C2(1,1)+4.d0*C2(1,2)+4.d0*C2(1,3)+C2(2,2)+4.d0*C2(2,3)+C2(3,3)-2.d0*C2(4,4)-2.d0*C2(5,5)-2.d0*C2(6,6))/15.d0
     mu = (C2(1,1)-C2(1,2)-C2(1,3)+C2(2,2)-C2(2,3)+C2(3,3)+3.d0*C2(4,4)+3.d0*C2(5,5)+3.d0*C2(6,6))/15.d0
     end subroutine voigtaverage
+    !> Computes the Reuss average of 2nd order elastic constants
     subroutine reussaverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
@@ -303,6 +313,7 @@ module elastic_constants
          - 4.d0*C2(1,2)**2*C2(4,4)*C2(6,6) + 6.d0*C2(1,2)*C2(1,3)**2*C2(4,4) + 12.d0*C2(1,2)*C2(1,3)**2*C2(6,6) &
          - 8.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) - 12.d0*C2(1,3)**2*C2(4,4)*C2(6,6))
     end subroutine reussaverage
+    !> Computes the Hill average of 2nd order elastic constants
     subroutine hillaverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
@@ -314,8 +325,9 @@ module elastic_constants
     mu = 0.5d0*(mv+mr)
     end subroutine hillaverage
     !--------------------------
-    subroutine kroeneraverage(C2,lambda,mu)
+    !> Computes the Kroener average of 2nd order elastic constants.
     !! Warning: use for cubic crystals only - we do not check C2 for cubic symmetry in this routine!
+    subroutine kroeneraverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu

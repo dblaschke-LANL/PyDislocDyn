@@ -5,6 +5,7 @@ module readinputfiles
   use parameters, only : sel ! defined in subroutines.f90
   use dislocations ! defined in dislocations.f90
   implicit none
+  !>data structure to store the input deck information
   type, public :: inputdeck
     character(:), allocatable :: sim_type, logfile ! choose between 'drag' (others not yet implemented)
     real(sel) :: b(3), n0(3), betamin, betamax ! slip plane in Cartesian coordinates (TODO: implement Miller indices)
@@ -16,6 +17,7 @@ module readinputfiles
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   contains
+    !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
     subroutine read_inputdeck(filename,sim_plan)
       use utilities, only: linspace
       ! reads an inputdeck from filename, and stores all values in 'sim_plan' of derived type 'inputdeck'
@@ -82,13 +84,13 @@ module readinputfiles
     end subroutine
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+    !>reads a material file and stores the information in 'disl' of derived type 'disloc'
     subroutine read_materialfile(filename,disl)
       ! populates an instance of the dislocation derived type using data read from filename
       character(*), intent(in) :: filename
       type(disloc), intent(out) :: disl
       ! local variables
-      integer :: ios, j
+      integer :: ios
       character(32) :: key, metal, sym
       character(256) :: line, values, dummy
       real(sel) :: c11, c12, c13, c33, c44, c66

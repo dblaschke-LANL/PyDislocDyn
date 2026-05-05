@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Apr. 22, 2026
+! Date: Mar. 31, 2026 - May 5, 2026
 module dislocations
   use parameters, only : sel, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -8,22 +8,36 @@ module dislocations
   use elastic_constants ! defined in elasticconstants.f90
   implicit none
   private
+  !> The 'metalprops' derived type is used to store material information for a crystal.
+  !> It represents the fortran version of the metalprops class found in PyDislocDyn, implementing a subset of the latter.
   type, public :: metalprops
-    character(:), allocatable :: sym, metal ! sym defines the symmetry via keyword, metal is a name given to this instance
-    real(sel), allocatable :: cij(:), cijk(:) ! store linearly independent elastic constants only
-    real(sel) :: rho=0.d0, C2(6,6)=0.d0, C3(6,6,6)=0.d0 ! density and elastic constants
-    real(sel) :: lat_a(3)=0.d0, lat_angles(3)=0.d0 ! lattice constants and angles
-    real(sel) :: Vc=0.d0 ! unit cell volume
-    real(sel) :: lam=0.d0, mu=0.d0 ! Lame constants (polycryst. averages)
-    real(sel) :: C2norm(3,3,3,3)=0.d0 ! will be used to store unvoigt(C2)/mu
-    real(sel) :: Temp=300.d0 ! temperature associated with C2, rho, etc.
+    character(:), allocatable :: sym !< defines the symmetry via keyword
+    character(:), allocatable :: metal !< metal is a name given to this instance
+    real(sel), allocatable :: cij(:) !< store linearly independent 2nd order elastic constants only
+    real(sel), allocatable :: cijk(:) !< store linearly independent 3rd order elastic constants only
+    real(sel) :: rho=0.d0 !< material density
+    real(sel) :: C2(6,6)=0.d0 !< tensor of 2nd order elastic constants in Voigt notation
+    real(sel) :: C3(6,6,6)=0.d0 !< tensor of 3rd order elastic constants in Voigt notation
+    real(sel) :: lat_a(3)=0.d0 !< lattice constants
+    real(sel) :: lat_angles(3)=0.d0 !< angles between lattice constants
+    real(sel) :: Vc=0.d0 !< unit cell volume
+    !> Lame constants (polycryst. averages)
+    real(sel) :: lam=0.d0, mu=0.d0
+    real(sel) :: C2norm(3,3,3,3)=0.d0 !< will be used to store unvoigt(C2)/mu
+    real(sel) :: Temp=300.d0 !< temperature associated with C2, rho, etc.
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
   end type metalprops
+  !> The 'disloc' derived type extends 'metalprops' by including information about a dislocation (slip plane etc.).
+  !> It represents the fortran version of the Dislocation class found in PyDislocDyn, implementing a subset of the latter.
+  !> Type-bound procedures include subroutines to calculate the dislocation displacement field and other properties.
   type, extends(metalprops), public :: disloc
-    real(sel) :: b(3)=0.d0, n0(3)=0.d0 ! Burgers vector and slip plane normal
-    real(sel) :: burgers=0.d0, beta=0.d0 ! Burgers vector length, ratio of gliding velocity over transverse sound speed beta
-    integer :: ntheta=2, nphi=500 ! number of character angles between 0 and pi/2; resolution in polar angle phi
+    real(sel) :: b(3)=0.d0  !< Burgers vector
+    real(sel) :: n0(3)=0.d0 !< slip plane normal
+    real(sel) :: burgers=0.d0 !< Burgers vector length
+    real(sel) :: beta=0.d0  !< ratio of gliding velocity over transverse sound speed
+    integer :: ntheta=2 !< number of character angles between 0 and pi/2
+    integer :: nphi=500 !< resolution in polar angle phi
     real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:)
     real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
     real(sel), allocatable :: uij(:,:,:,:)
@@ -37,6 +51,7 @@ module dislocations
   public :: volume_unitcell, set_character_angles, computerot, phonondrag
   !-------------------------
   contains
+    !> computes the unit cell volume
     subroutine volume_unitcell(mat)
       class(metalprops), intent(inout) :: mat
       select case (trim(mat%sym))
@@ -58,6 +73,7 @@ module dislocations
           return
       end select
     end subroutine volume_unitcell
+    !> initializes an array of dislocation character angles to be used in the computations
     subroutine set_character_angles(disl)
       class(disloc), intent(inout) :: disl
       ! todo: use select case to determine whether or not we need negative theta as well
@@ -65,6 +81,8 @@ module dislocations
       allocate(disl%theta(disl%ntheta))
       call linspace(0.d0,pi/2.d0,disl%ntheta,disl%theta)
     end subroutine set_character_angles
+    !> computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals
+    !> using the integral version of the Stroh method
     subroutine computestroh(disl)
       class(disloc), intent(inout) :: disl
       if (allocated(disl%t)) deallocate(disl%t); if (allocated(disl%m0)) deallocate(disl%m0)
@@ -75,6 +93,8 @@ module dislocations
       call linspace(0.d0,2.d0*pi,disl%nphi,disl%phi)
       call strohgeometry(disl%b,disl%n0,disl%t,disl%m0,disl%M,disl%N,disl%Cv,disl%theta,disl%phi,disl%ntheta,disl%nphi)
     end subroutine computestroh
+    !>determines the rotation matrices necessary to align each dislocation of character angle theta with z 
+    !>and its slip plane normal with y
     subroutine computerot(disl)
       class(disloc), intent(inout) :: disl
       integer :: th
@@ -87,6 +107,7 @@ module dislocations
       end do
     end subroutine computerot
     !-------------------------
+    !> initializes various properties of the dislocation
     subroutine init_disloc(disl)
       class(disloc), intent(inout) :: disl
       real(sel) :: tmp_len
@@ -119,7 +140,6 @@ module dislocations
       call disl%update_stroh()
       call disl%update_rot()
       if (disl%mu<1.d-9) then
-        ! todo: decide if we want to round the Lame constants by default like we do in the python version
         select case (trim(disl%sym))
           case ("iso")
             disl%lam = disl%cij(1)
@@ -133,6 +153,7 @@ module dislocations
       call unvoigt(disl%C2/disl%mu,disl%C2norm)
     end subroutine init_disloc
     !-------------------------
+    !>Computes the dislocation displacement gradient field according to the integral method
     subroutine compute_uij(disl)
       class(disloc), intent(inout) :: disl
       if (allocated(disl%uij)) deallocate(disl%uij)
@@ -140,6 +161,8 @@ module dislocations
       call computeuij(disl%beta,disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,disl%uij)
     end subroutine compute_uij
     !-------------------------
+    !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation 'disl' 
+    !>and gliding velocities 'beta'=v/ct
     subroutine phonondrag(drag,disl,beta,nphi,nq)
       use phononwind
       class(disloc), intent(in) :: disl
@@ -216,7 +239,6 @@ module dislocations
         call phononwind_xy(fourieruij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
                           .false.,-1.d0,.true.,dragTL)
         drag(:,bt) = dragTT+dragLL+dragTL+dragLT
-!~         print*,drag(:,bt)
       end do
     end subroutine phonondrag
 end module dislocations

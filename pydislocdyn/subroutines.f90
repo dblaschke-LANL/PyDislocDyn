@@ -2,19 +2,21 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 4, 2026
+! Date: July 23, 2018 - May 5, 2026
 
+!>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
-  integer,parameter :: selsm = selected_real_kind(6)  ! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260504
-  real(kind=sel), parameter :: hbar = 1.0545718d-34       ! reduced Planck constant
-  real(kind=sel), parameter :: kB = 1.38064852d-23        ! Boltzmann constant
-  real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) ! pi
-  real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 ! pi squared
+  integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
+  integer,parameter :: version = 20260505
+  real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
+  real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
+  real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) !< number Pi
+  real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 !< Pi squared
 end module parameters
 
+!>this module contains a number of helper functions
 module utilities
   implicit none
   interface operator(.cross.)
@@ -25,6 +27,7 @@ module utilities
   end interface
   public :: ompinfo, elbrak, elbrak1d, cross, operator(.cross.), trapz, cumtrapz, inv, operator(.inv.), linspace
   contains
+    !>returns the number of threads used for OpenMP parallelization (or 0 if compiled without OpenMP support)
     subroutine ompinfo(nthreads)
     !$   Use omp_lib
     integer, intent(out) :: nthreads
@@ -35,9 +38,9 @@ module utilities
     return
     end subroutine ompinfo
 
+    !> Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
+    !> All three variables have an additional disloc. character dependence.
     SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
-    ! Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
-    ! All three variables have an additional disloc. character dependence.
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -66,8 +69,8 @@ module utilities
       
     END SUBROUTINE elbrak
 
+    !> Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
     pure SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
-    ! Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -106,8 +109,8 @@ module utilities
 
     !!**********************************************************************
 
+    !> integrate using the trapezoidal rule
     pure SUBROUTINE trapz(f,x,n,intf)
-    ! integrate using the trapezoidal rule
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -121,8 +124,8 @@ module utilities
 
     !!**********************************************************************
 
+    !> cumulatively integrate using the trapezoidal rule
     pure SUBROUTINE cumtrapz(f,x,n,intf)
-    ! cumulatively integrate using the trapezoidal rule
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -143,8 +146,8 @@ module utilities
 
     !!**********************************************************************
 
+    !> invert 3x3 matrix A
     pure function inv(A) result(invA)
-    ! invert 3x3 matrix A
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -186,8 +189,8 @@ module utilities
 
     !!**********************************************************************
 
+    !> fortran implementation of np.linspace() for real numbers
     pure SUBROUTINE linspace(start,finish,num,output)
-    ! fortran implementation of np.linspace() for real numbers
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -215,8 +218,8 @@ module various_subroutines
   implicit none
   public :: accscrew_xyintegrand, computeEtot, strohgeometry, computeuk, computeuij
   contains
+    !> subroutine of python function computeuij_acc_screw(), see PyDislocDyn docs
     SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
-    ! subroutine of computeuij_acc_screw
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -249,8 +252,8 @@ module various_subroutines
 
     !!**********************************************************************
 
+    !> Computes the self energy of a straight dislocation uij moving at velocity beta.
     SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
-    ! Computes the self energy of a straight dislocation uij moving at velocity beta.
     !-----------------------------------------------------------------------
       use parameters, only : sel
       use utilities, only : trapz
@@ -287,7 +290,8 @@ module various_subroutines
     END SUBROUTINE computeEtot
 
     !!**********************************************************************
-
+    !> computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals
+    !> using the integral version of the Stroh method
     pure subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
       use parameters, only : sel
       use utilities, only : operator(.cross.)
@@ -320,9 +324,8 @@ module various_subroutines
     end subroutine strohgeometry
 
     !!**********************************************************************
-
+    !> Computes the dislocation displacement field uk.
     SUBROUTINE computeuk(beta, C2, Cv, b, M, N, phi, r, Ntheta, Nphi, Nr, uk)
-    ! Compute the dislocation displacement field uk.
     !-----------------------------------------------------------------------
       use parameters, only : sel, pi2
       use utilities, only : elbrak1d, operator(.inv.), trapz, cumtrapz
@@ -386,9 +389,8 @@ module various_subroutines
     END SUBROUTINE computeuk
 
     !!**********************************************************************
-
+    !>Computes the dislocation displacement gradient field uij according to the integral method
     SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
-    ! Compute the dislocation displacement gradient field uij.
     !-----------------------------------------------------------------------
       use parameters, only : sel, pi2
       use utilities, only : elbrak1d, operator(.inv.), trapz
@@ -447,8 +449,8 @@ end module various_subroutines
 
 !!**********************************************************************
 
+!> this module contains subroutines for phononwind_xx() and phononwind_xy()
 module phononwind_subroutines
-  ! this module contains subroutines for phononwind_xx() and phononwind_xy()
   implicit none
   private :: thesum
   public :: phonondistri, parathesum, dragintegrand, integratetphi, integrateqtildephi
@@ -565,9 +567,9 @@ module phononwind_subroutines
     
     ! **********************************************************************
     
+    !> this wrapper parallelizes thesum()
     subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
                           lenp,lent,lenph1,lentph)
-    ! this wrapper parallelizes thesum()
     !$   Use omp_lib
     use parameters, only : selsm
     use utilities, only : ompinfo
@@ -718,14 +720,14 @@ module phononwind_subroutines
 end module phononwind_subroutines
 
 !!**********************************************************************
-
+!> this module contains various subroutines for phonondrag() (both Fortran and Python implementations)
 module phononwind
   implicit none
   public :: phononwind_xx, phononwind_xy, elasticA3, fourieruij_sincos, fourieruij_nocut
   contains
+    !> Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons.
+    !> Required inputs are the tensors of SOEC and TOEC.
     SUBROUTINE elasticA3(C2, C3, A3)
-    ! Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons.
-    ! Required inputs are the tensors of SOEC and TOEC.
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -760,8 +762,8 @@ module phononwind
 
     !!**********************************************************************
 
+    !> subroutine for one of the inputs of fourieruij_nocut()
     SUBROUTINE fourieruij_sincos(sincos,ra,rb,phix,q,ph,phixres,nq,phres)
-    ! subroutine for one of the inputs of fourieruij_nocut()
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -783,8 +785,8 @@ module phononwind
 
     !!**********************************************************************
 
+    !> Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)
     SUBROUTINE fourieruij_nocut(fourieruij,uij,phix,sincos,ntheta,phres,phixres)
-    ! Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)
     !-----------------------------------------------------------------------
       use parameters, only : sel
       use utilities, only : trapz
@@ -809,8 +811,8 @@ module phononwind
 
     !!**********************************************************************
 
+    !> this is a subroutine of phonondrag() (TT and LL modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,r0cut,debye,dragb)
-    ! this is a subroutine of dragcoeff_iso() in phononwind.py (TT and LL modes)
     !-----------------------------------------------------------------------
       use parameters, only : sel, selsm, hbar, kb, pi
       use utilities, only : linspace
@@ -870,7 +872,7 @@ module phononwind
         OneMinBtqcosph1(:,i) = 1.d0 - beta*ctovcl*qtilde(:,i)*csphi(i)
       end do
       
-      ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
+      !> if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       if (debye) then
         hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
         do concurrent (j=1:lenph1)
@@ -884,7 +886,7 @@ module phononwind
         call phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
-        ! include cutoff if r0cut>0:
+        !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
@@ -942,8 +944,8 @@ module phononwind
 
     !!**********************************************************************
 
+    !> this is a subroutine of phonondrag() (mixed modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,r0cut,debye,dragb)
-    ! this is a subroutine of dragcoeff_iso() in phononwind.py (mixed modes)
     !-----------------------------------------------------------------------
       use parameters, only : sel, selsm, hbar, kb, pi
       use utilities, only : linspace
@@ -1011,7 +1013,7 @@ module phononwind
         OneMinBtqcosph1(:,i) = 1.d0 - beta1*qtilde*csphi(i)
       end do
       
-      ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
+      !> if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
       if (debye) then
         hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
@@ -1036,7 +1038,7 @@ module phononwind
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
         distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
-        ! include cutoff if r0cut>0:
+        !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
