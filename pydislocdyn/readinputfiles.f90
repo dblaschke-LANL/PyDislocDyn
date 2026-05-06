@@ -168,20 +168,22 @@ module readinputfiles
       close(unit=42)
       
       ! start postprocessing / initializing depending on symmetry
-      select case (trim(disl%sym))
-        case ("iso")
-          disl%cij = [c12,c44]
-          disl%cijk = [c123,c144,c456]
-        case ("cubic", "fcc", "bcc")
-          disl%cij = [c11,c12,c44]
-          disl%cijk = [c111,c112,c123,c144,c166,c456]
-        case ("hcp")
-          disl%cij = [c11,c12,c13,c33,c44]
-          disl%cijk = [c111,c112,c113,c123,c133,c144,c155,c222,c333,c344]
-        case ("tetr")
-          disl%cij = [c11,c12,c13,c33,c44,c66]
-          disl%cijk = [c111,c112,c113,c123,c133,c144,c155,c166,c333,c344,c366,c456]
-      end select
+      if (abs(disl%cij(1))<rzero) then
+        select case (trim(disl%sym))
+          case ("iso")
+            disl%cij = [c12,c44]
+            disl%cijk = [c123,c144,c456]
+          case ("cubic", "fcc", "bcc")
+            disl%cij = [c11,c12,c44]
+            disl%cijk = [c111,c112,c123,c144,c166,c456]
+          case ("hcp")
+            disl%cij = [c11,c12,c13,c33,c44]
+            disl%cijk = [c111,c112,c113,c123,c133,c144,c155,c222,c333,c344]
+          case ("tetr")
+            disl%cij = [c11,c12,c13,c33,c44,c66]
+            disl%cijk = [c111,c112,c113,c123,c133,c144,c155,c166,c333,c344,c366,c456]
+        end select
+      end if
       
     end subroutine read_materialfile
 end module readinputfiles
