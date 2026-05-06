@@ -61,9 +61,6 @@ program dislocdyn
   
   instructionfile = trim(args(num_args))
   allocate(disl(num_args-1))
-  call read_inputdeck(instructionfile,sim_plan)
-  
-  open(unit=123, file=sim_plan%logfile, status='replace') ! open log file
   write(123,*) proginfo
   write(123,*) threadinfo
   
@@ -72,14 +69,16 @@ program dislocdyn
   do i=1,num_args-1
     materialfile = trim(args(i))
     call read_materialfile(materialfile,disl(i))
+    if (i==1) then
+      call read_inputdeck(instructionfile,sim_plan,disl(i)%sym) ! need to know how many Miller indices to expect based on 'sym'
+      open(unit=123, file=sim_plan%logfile, status='replace') ! open log file
+    end if
     print*,new_line('a') // "name: ",disl(i)%metal
     write(123,*) new_line('a') // "name: ",disl(i)%metal
-    disl(i)%b = sim_plan%b*disl(i)%lat_a(1) ! assume input is Cartesian in units of lattice constant a
-    disl(i)%n0=sim_plan%n0
-    if (all(abs(disl(i)%b)<rzero) .and. all(abs(disl(i)%n0)<rzero)) then
+    if (all(abs(sim_plan%b)<rzero) .and. all(abs(sim_plan%n0)<rzero)) then
       if (trim(disl(i)%sym)=='fcc' .or. trim(disl(i)%sym)=='iso') then 
-        disl(i)%b = disl(i)%lat_a(1)*[0.5d0,0.5d0,0.d0]
-        disl(i)%n0=[-1.d0,1.d0,-1.d0]
+        sim_plan%b = [0.5d0,0.5d0,0.d0]
+        sim_plan%n0=[-1.d0,1.d0,-1.d0]
         print*,"WARNING: slip plane undefined; using default for fcc"
         write(123,*) "WARNING: slip plane undefined; using default for fcc"
       else
@@ -89,7 +88,7 @@ program dislocdyn
     if (sim_plan%ntheta>2) then
       disl%ntheta = sim_plan%ntheta
     end if
-    call disl(i)%init()
+    call disl(i)%init(Millerb=sim_plan%b,Millern0=sim_plan%n0)
     if (sim_plan%echoinput) then
       print '(a, a, a10, f10.2, a10, f10.2, a)',"sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"
       print '(a, f10.6, f10.6, f10.6, a)',"lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"

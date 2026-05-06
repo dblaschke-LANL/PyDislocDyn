@@ -28,6 +28,7 @@ module dislocations
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
       procedure :: init_crystal => init_crystal
+      procedure :: Miller_to_Cart => Miller_to_Cart
   end type crystal
   !> The 'disloc' derived type extends 'crystal' by including information about a dislocation (slip plane etc.).
   !> It represents the fortran version of the Dislocation class found in PyDislocDyn, implementing a subset of the latter.
@@ -43,6 +44,7 @@ module dislocations
     real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
     real(sel), allocatable :: uij(:,:,:,:)
     contains
+      procedure :: update_slipplane => update_slipplane
       procedure :: update_theta => set_character_angles
       procedure :: update_stroh => computestroh
       procedure :: update_rot => computerot
@@ -129,6 +131,74 @@ module dislocations
       end if
       call unvoigt(mat%C2/mat%mu,mat%C2norm)
     end subroutine init_crystal
+    !-----------------------------------------
+    !> Converts Miller indices to a Cartesian vector v, which is normalized if option normalize=true (default)
+    !> another optional parameter, reziprocal (false by default) can be set to use the reziprocal crystal basis for conversion
+    !> (needed if Millerv describes the normal to a plane for example)
+    subroutine Miller_to_Cart(mat,millerv,normalize,reziprocal,v)
+      class(crystal), intent(in) :: mat ! needed for the lattice vectors and angles
+      real(sel), intent(in) :: millerv(:)
+      logical, optional :: normalize, reziprocal
+      real(sel), intent(out) :: v(3)
+      logical :: norm, rezi
+      real(sel) :: a, b, c, d, T(3,3), R(3,3), RV
+      integer :: n, i
+      norm = .true.
+      rezi = .false.
+      if (present(normalize)) norm = normalize
+      if (present(reziprocal)) rezi = reziprocal
+      n = size(millerv)
+      if (n/=3 .and. trim(mat%sym)/='hcp') then
+        error stop "expected 3 Miller indices"
+      else if (trim(mat%sym)=='hcp' .and. n/=4) then
+        error stop "crystal sym is hcp; expected 4 Miller indices"
+      end if
+      a = mat%lat_a(1); b = mat%lat_a(2); c = mat%lat_a(3)
+      ! choose sensible default lengths for missing vectors:
+      if (a<rzero) a=1.d0
+      if (b<rzero) b=a
+      if (c<rzero) c=a
+      d = c*(cos(mat%lat_angles(1))-cos(mat%lat_angles(3))*cos(mat%lat_angles(2)))/sin(mat%lat_angles(3))
+      T = reshape([a,b*cos(mat%lat_angles(3)),c*cos(mat%lat_angles(2)), &
+                   0.d0,b*sin(mat%lat_angles(3)),d, &
+                   0.d0,0.d0,sqrt((c*sin(mat%lat_angles(2)))**2-d**2)],[3,3])
+      if (any(["iso","fcc","bcc"]==trim(mat%sym)) .or. trim(mat%sym)=="cubic") then
+        v=Millerv*a
+      else if (rezi) then
+        RV = dot_product(T(:,1).cross.T(:,2),T(:,3))
+        R(:,1) = (T(:,2).cross.T(:,3))/RV
+        R(:,2) = (T(:,3).cross.T(:,1))/RV
+        R(:,3) = (T(:,1).cross.T(:,2))/RV
+        if (n==4 .and. abs(sum(millerv(:3)))<rzero) then
+          v = matmul(T,[millerv(1)+millerv(3),millerv(2)-millerv(3),millerv(4)])
+        else
+          v = matmul(T,millerv)
+        end if
+      else
+        if (n==4 .and. abs(sum(millerv(:3)))<rzero) then
+          v = matmul(T,[millerv(1)-millerv(3),millerv(2)-millerv(3),millerv(4)])
+        else
+          v = matmul(T,millerv)
+        end if
+      end if
+      if (norm) then
+        v = v / sqrt(dot_product(v,v))
+      end if
+      do i=1,3 ! remove noise
+        if (abs(v(i))<1.d-15) v(i)=0.d0
+      end do
+    end subroutine Miller_to_Cart
+    !------------------------------
+    subroutine update_slipplane(disl,Millerb,Millern0)
+      class(disloc), intent(inout) :: disl
+      real(sel), intent(in) :: Millerb(:), Millern0(:)
+      if (disl%burgers<rzero) then
+        call disl%Miller_to_Cart(millerv=Millerb,normalize=.false.,reziprocal=.false.,v=disl%b)
+      else
+        call disl%Miller_to_Cart(millerv=Millerb,normalize=.true.,reziprocal=.false.,v=disl%b)
+      end if
+      call disl%Miller_to_Cart(millerv=Millern0,normalize=.true.,reziprocal=.true.,v=disl%n0)
+    end subroutine update_slipplane
     !------------------------------
     !> initializes an array of dislocation character angles to be used in the computations
     subroutine set_character_angles(disl)
@@ -165,12 +235,16 @@ module dislocations
     end subroutine computerot
     !-------------------------
     !> initializes various properties of the dislocation
-    subroutine init_disloc(disl)
+    subroutine init_disloc(disl,Millerb,Millern0)
       class(disloc), intent(inout) :: disl
+      real(sel), optional :: Millerb(:), Millern0(:)
       real(sel) :: tmp_len
       call disl%init_crystal()
       call disl%update_theta()
       ! next, normalize b, n0, and decide if we need to derive burgers
+      if (present(Millerb) .and. present(Millern0)) then
+        call disl%update_slipplane(Millerb,Millern0)
+      end if
       tmp_len = sqrt(dot_product(disl%n0,disl%n0))
       if (abs(tmp_len-1.d0)>1.d-9) then
         disl%n0 = disl%n0/tmp_len

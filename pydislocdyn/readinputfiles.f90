@@ -9,8 +9,8 @@ module readinputfiles
   !>data structure to store the input deck information
   type, public :: inputdeck
     character(:), allocatable :: sim_type, logfile ! choose between 'drag' (others not yet implemented)
-    real(sel) :: b(3), n0(3), betamin, betamax ! slip plane in Cartesian coordinates (TODO: implement Miller indices)
-    real(sel), allocatable :: beta(:)
+    real(sel) :: betamin, betamax
+    real(sel), allocatable :: b(:), n0(:), beta(:)
     integer :: nbeta, ntheta
     logical :: echoinput
   end type inputdeck
@@ -19,13 +19,14 @@ module readinputfiles
   
   contains
     !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
-    subroutine read_inputdeck(filename,sim_plan)
+    subroutine read_inputdeck(filename,sim_plan,sym)
       use utilities, only: linspace
       ! reads an inputdeck from filename, and stores all values in 'sim_plan' of derived type 'inputdeck'
       character(*), intent(in) :: filename
       type(inputdeck), intent(out) :: sim_plan
+      character(*), optional :: sym
       ! local variables
-      integer :: ios, j
+      integer :: ios, j, n
       character(32) :: key
       character(256) :: line, values, dummy
       ! default values:
@@ -34,10 +35,13 @@ module readinputfiles
       sim_plan%ntheta = 2
       sim_plan%betamin = 0.01d0
       sim_plan%betamax = 0.99d0
-      sim_plan%b = 0.d0
-      sim_plan%n0 = 0.d0
       sim_plan%echoinput = .true.
       sim_plan%logfile = 'dislocdyn.log'
+      n = 3 ! expect 3 Miller indices for each b and n0 in the file
+      if (present(sym) .and. trim(sym)=='hcp') n = 4 ! expect 4 Miller indices for each b and n0 in the file
+      allocate(sim_plan%b(n),sim_plan%n0(n))
+      sim_plan%b = 0.d0
+      sim_plan%n0 = 0.d0
       
       open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
       if (ios/=0) then
@@ -125,9 +129,6 @@ module readinputfiles
           if (allocated(disl%cijk)) deallocate(disl%cijk)
           allocate(disl%cij(lencij),disl%cijk(lencijk))
         end if
-        !! TODO: remove commas in line before reading arrays and find a way to read fractions!
-!~         if (key=='Millerb') read(line,*) key,dummy,(disl%b(j), j=1,3) ! cubic only, TODO: generalize
-!~         if (key=='Millern0') read(line,*) key,dummy,(disl%n0(j), j=1,3)
         if (key=='T') read(values,*)disl%Temp
         if (key=='a') read(values,*)disl%lat_a(1)
         if (key=='lcb') read(values,*)disl%lat_a(2) ! b already used for Burgers vector
