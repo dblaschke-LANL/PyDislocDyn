@@ -8,9 +8,9 @@ module dislocations
   use elastic_constants ! defined in elasticconstants.f90
   implicit none
   private
-  !> The 'metalprops' derived type is used to store material information for a crystal.
+  !> The 'crystal' derived type is used to store material information for a crystal.
   !> It represents the fortran version of the metalprops class found in PyDislocDyn, implementing a subset of the latter.
-  type, public :: metalprops
+  type, public :: crystal
     character(:), allocatable :: sym !< defines the symmetry via keyword
     character(:), allocatable :: metal !< metal is a name given to this instance
     real(sel), allocatable :: cij(:) !< store linearly independent 2nd order elastic constants only
@@ -27,11 +27,12 @@ module dislocations
     real(sel) :: Temp=300.d0 !< temperature associated with C2, rho, etc.
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
-  end type metalprops
-  !> The 'disloc' derived type extends 'metalprops' by including information about a dislocation (slip plane etc.).
+      procedure :: init_crystal => init_crystal
+  end type crystal
+  !> The 'disloc' derived type extends 'crystal' by including information about a dislocation (slip plane etc.).
   !> It represents the fortran version of the Dislocation class found in PyDislocDyn, implementing a subset of the latter.
   !> Type-bound procedures include subroutines to calculate the dislocation displacement field and other properties.
-  type, extends(metalprops), public :: disloc
+  type, extends(crystal), public :: disloc
     real(sel) :: b(3)=0.d0  !< Burgers vector
     real(sel) :: n0(3)=0.d0 !< slip plane normal
     real(sel) :: burgers=0.d0 !< Burgers vector length
@@ -53,7 +54,7 @@ module dislocations
   contains
     !> computes the unit cell volume
     subroutine volume_unitcell(mat)
-      class(metalprops), intent(inout) :: mat
+      class(crystal), intent(inout) :: mat
       select case (trim(mat%sym))
         case ("iso","cubic", "fcc", "bcc")
           mat%Vc = mat%lat_a(1)**3
@@ -78,6 +79,57 @@ module dislocations
           return
       end select
     end subroutine volume_unitcell
+    !-------------------------
+    !> initializes various properties of the crystal, such as angles, unit cell volume and tensors of elastic constants
+    subroutine init_crystal(mat)
+      class(crystal), intent(inout) :: mat
+      integer :: i
+      do i=1,3
+        if (mat%lat_angles(i)>pi) then ! convert degrees to radians
+          mat%lat_angles(i) = mat%lat_angles(i)*pi/180.d0
+        end if
+      end do
+      select case (trim(mat%sym))
+        case ("iso", "cubic", "fcc", "bcc", "tetr", "tetr2", "orth", "ortho")
+          mat%lat_angles = 0.5d0*[pi,pi,pi]
+        case ("hcp")
+          mat%lat_angles = [0.5d0*pi,0.5d0*pi,2.d0*pi/3.d0]
+        case ("trig")
+          if (abs(mat%lat_angles(1))<rzero) then
+            mat%lat_angles = [0.5d0*pi,0.5d0*pi,2.d0*pi/3.d0]
+          end if
+        case ("mono")
+          mat%lat_angles(1) = 0.5d0*pi
+          mat%lat_angles(3) = 0.5d0*pi
+          if (abs(mat%lat_angles(2))<rzero) then
+            print*,"Error: missing angle beta between lattice vactors a and c!"
+          end if
+        case ("tric")
+          if (abs(mat%lat_angles(1)*mat%lat_angles(2)*mat%lat_angles(3))<rzero) then
+            print*,"Error: missing angles between lattice vactors!"
+            return
+          end if
+        case default
+          print*,symkwerror
+          return
+      end select
+      call volume_unitcell(mat)
+      call elasticC2(mat%cij,mat%sym,mat%C2)
+      call elasticC3(mat%cijk,mat%sym,mat%C3)
+      if (mat%mu<1.d-9) then
+        select case (trim(mat%sym))
+          case ("iso")
+            mat%lam = mat%cij(1)
+            mat%mu = mat%cij(2)
+          case ("cubic", "fcc", "bcc")
+            call kroeneraverage(mat%C2,mat%lam,mat%mu)
+          case default
+            call hillaverage(mat%C2,mat%lam,mat%mu)
+        end select
+      end if
+      call unvoigt(mat%C2/mat%mu,mat%C2norm)
+    end subroutine init_crystal
+    !------------------------------
     !> initializes an array of dislocation character angles to be used in the computations
     subroutine set_character_angles(disl)
       class(disloc), intent(inout) :: disl
@@ -116,37 +168,7 @@ module dislocations
     subroutine init_disloc(disl)
       class(disloc), intent(inout) :: disl
       real(sel) :: tmp_len
-      integer :: i
-      do i=1,3
-        if (disl%lat_angles(i)>pi) then ! convert degrees to radians
-          disl%lat_angles(i) = disl%lat_angles(i)*pi/180.d0
-        end if
-      end do
-      select case (trim(disl%sym))
-        case ("iso", "cubic", "fcc", "bcc", "tetr", "tetr2", "orth", "ortho")
-          disl%lat_angles = 0.5d0*[pi,pi,pi]
-        case ("hcp")
-          disl%lat_angles = [0.5d0*pi,0.5d0*pi,2.d0*pi/3.d0]
-        case ("trig")
-          if (abs(disl%lat_angles(1))<rzero) then
-            disl%lat_angles = [0.5d0*pi,0.5d0*pi,2.d0*pi/3.d0]
-          end if
-        case ("mono")
-          disl%lat_angles(1) = 0.5d0*pi
-          disl%lat_angles(3) = 0.5d0*pi
-          if (abs(disl%lat_angles(2))<rzero) then
-            print*,"Error: missing angle beta between lattice vactors a and c!"
-          end if
-        case ("tric")
-          if (abs(disl%lat_angles(1)*disl%lat_angles(2)*disl%lat_angles(3))<rzero) then
-            print*,"Error: missing angles between lattice vactors!"
-            return
-          end if
-        case default
-          print*,symkwerror
-          return
-      end select
-      call volume_unitcell(disl)
+      call disl%init_crystal()
       call disl%update_theta()
       ! next, normalize b, n0, and decide if we need to derive burgers
       tmp_len = sqrt(dot_product(disl%n0,disl%n0))
@@ -163,22 +185,8 @@ module dislocations
       if (abs(dot_product(disl%b,disl%n0))>1.d-9) then
         print*,"ERROR: invalid slip system; b and n0 must be normal!"
       end if
-      call elasticC2(disl%cij,disl%sym,disl%C2)
-      call elasticC3(disl%cijk,disl%sym,disl%C3)
       call disl%update_stroh()
       call disl%update_rot()
-      if (disl%mu<1.d-9) then
-        select case (trim(disl%sym))
-          case ("iso")
-            disl%lam = disl%cij(1)
-            disl%mu = disl%cij(2)
-          case ("cubic", "fcc", "bcc")
-            call kroeneraverage(disl%C2,disl%lam,disl%mu)
-          case default
-            call hillaverage(disl%C2,disl%lam,disl%mu)
-        end select
-      end if
-      call unvoigt(disl%C2/disl%mu,disl%C2norm)
     end subroutine init_disloc
     !-------------------------
     !>Computes the dislocation displacement gradient field according to the integral method
