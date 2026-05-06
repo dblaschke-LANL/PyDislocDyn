@@ -1,8 +1,8 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - May 5, 2026
+! Date: Mar. 31, 2026 - May 6, 2026
 module dislocations
-  use parameters, only : sel, pi ! defined in subroutines.f90
+  use parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
   use various_subroutines, only : strohgeometry, computeuij ! defined in subroutines.f90
   use elastic_constants ! defined in elasticconstants.f90
@@ -61,8 +61,13 @@ module dislocations
           mat%Vc = mat%lat_a(1)*mat%lat_a(1)*mat%lat_a(3)*sqrt(3.d0)*3.d0/2.d0
         case ("tetr","tetr2")
           mat%Vc = mat%lat_a(1)*mat%lat_a(1)*mat%lat_a(3)
-        case ("orth")
+        case ("orth", "ortho")
           mat%Vc = mat%lat_a(1)*mat%lat_a(2)*mat%lat_a(3)
+        case ("trig")
+          mat%Vc = mat%lat_a(1)*mat%lat_a(1)*mat%lat_a(3)*sqrt(3.d0)/2.d0
+          if (abs(mat%lat_angles(1)-mat%lat_angles(2))+abs(mat%lat_angles(1)-mat%lat_angles(3)) < rzero) then
+            mat%Vc = mat%lat_a(1)*mat%lat_a(1)*mat%lat_a(3)*sqrt(1.d0-3.d0*cos(mat%lat_angles(1))**2+2.d0*cos(mat%lat_angles(1))**3)
+          end if
         case ("mono")
           mat%Vc = mat%lat_a(1)*mat%lat_a(2)*mat%lat_a(3)*sin(mat%lat_angles(2))
         case ("tric")
@@ -111,11 +116,34 @@ module dislocations
     subroutine init_disloc(disl)
       class(disloc), intent(inout) :: disl
       real(sel) :: tmp_len
+      integer :: i
+      do i=1,3
+        if (disl%lat_angles(i)>pi) then ! convert degrees to radians
+          disl%lat_angles(i) = disl%lat_angles(i)*pi/180.d0
+        end if
+      end do
       select case (trim(disl%sym))
-        case ("iso", "cubic", "fcc", "bcc")
+        case ("iso", "cubic", "fcc", "bcc", "tetr", "tetr2", "orth", "ortho")
           disl%lat_angles = 0.5d0*[pi,pi,pi]
+        case ("hcp")
+          disl%lat_angles = [0.5d0*pi,0.5d0*pi,2.d0*pi/3.d0]
+        case ("trig")
+          if (abs(disl%lat_angles(1))<rzero) then
+            disl%lat_angles = [0.5d0*pi,0.5d0*pi,2.d0*pi/3.d0]
+          end if
+        case ("mono")
+          disl%lat_angles(1) = 0.5d0*pi
+          disl%lat_angles(3) = 0.5d0*pi
+          if (abs(disl%lat_angles(2))<rzero) then
+            print*,"Error: missing angle beta between lattice vactors a and c!"
+          end if
+        case ("tric")
+          if (abs(disl%lat_angles(1)*disl%lat_angles(2)*disl%lat_angles(3))<rzero) then
+            print*,"Error: missing angles between lattice vactors!"
+            return
+          end if
         case default
-          print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
+          print*,symkwerror
           return
       end select
       call volume_unitcell(disl)

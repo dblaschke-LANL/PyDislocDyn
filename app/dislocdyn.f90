@@ -5,7 +5,7 @@
 ! Date: Apr. 10, 2026 - May 5, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
-  use parameters, only : sel, pi, prog_version=>version
+  use parameters, only : sel, rzero, pi, prog_version=>version
   use utilities, only : ompinfo, linspace
   use dislocations
   use readinputfiles
@@ -76,7 +76,7 @@ program dislocdyn
     write(123,*) new_line('a') // "name: ",disl(i)%metal
     disl(i)%b = sim_plan%b*disl(i)%lat_a(1) ! assume input is Cartesian in units of lattice constant a
     disl(i)%n0=sim_plan%n0
-    if (all(disl(i)%b==0) .and. all(disl(i)%n0==0)) then
+    if (all(abs(disl(i)%b)<rzero) .and. all(abs(disl(i)%n0)<rzero)) then
       if (trim(disl(i)%sym)=='fcc' .or. trim(disl(i)%sym)=='iso') then 
         disl(i)%b = disl(i)%lat_a(1)*[0.5d0,0.5d0,0.d0]
         disl(i)%n0=[-1.d0,1.d0,-1.d0]
@@ -93,6 +93,7 @@ program dislocdyn
     if (sim_plan%echoinput) then
       print '(a, a, a10, f10.2, a10, f10.2, a)',"sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"
       print '(a, f10.6, f10.6, f10.6, a)',"lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
+      print '(a, f10.6, f10.6, f10.6)',"lattice angles [pi]: ",disl(i)%lat_angles/pi
       print '(a, *(f10.2))',"cij [GPa]: ",disl(i)%cij/1.d9
       print '(a, f10.2, f10.2, a)',"Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
       print '(a, *(f10.2))',"cijk [GPa]: ", disl(i)%cijk/1.d9
@@ -102,6 +103,7 @@ program dislocdyn
     end if
     write(123,'(a, a, a10, f10.2, a10, f10.2, a)') "sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"
     write(123,'(a, f10.6, f10.6, f10.6, a)') "lattice constants: ",disl(i)%lat_a*1.d10," Angstroem"
+    write(123,'(a, f10.6, f10.6, f10.6)') "lattice angles [pi]: ",disl(i)%lat_angles/pi
     write(123,'(a, *(f10.2))') "cij [GPa]: ",disl(i)%cij/1.d9
     write(123,'(a, f10.2, f10.2, a)') "Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
     write(123,'(a, *(f10.2))') "cijk [GPa]: ", disl(i)%cijk/1.d9

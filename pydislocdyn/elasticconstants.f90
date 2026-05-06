@@ -1,11 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - May 5, 2026
+! Date: Mar. 30, 2026 - May 6, 2026
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
+  character(110), parameter :: symkwerror = &
+                "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
   private VoigtIndices, UnVoigtIndices ! f2py-incompatibilities prevent us from making more stuff private
-  public voigt, unvoigt, elasticC2, voigtaverage, reussaverage, hillaverage
+  public symkwerror, voigt, unvoigt, elasticC2, voigtaverage, reussaverage, hillaverage
   !> converts the input to Voigt notation
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six
@@ -15,6 +17,43 @@ module elastic_constants
     module procedure unvgt_one, unvgt_two, unvgt_three
   end interface unvoigt
   contains
+    !> returns the number of linearly independent 2nd and 3rd order elastic constants given crystal symmetry keyword 'sym'
+    subroutine number_of_elasticC(sym,lencij,lencijk)
+      character(*), intent(in) :: sym
+      integer, intent(out) :: lencij, lencijk
+      select case (trim(sym))
+        case ("iso")
+          lencij = 2
+          lencijk = 3
+        case ("cubic", "fcc", "bcc")
+          lencij = 3
+          lencijk = 6
+        case ("hcp")
+          lencij = 5
+          lencijk = 10
+        case ("tetr")
+          lencij = 6
+          lencijk = 12
+        case ("trig")
+          lencij = 6
+          lencijk = 14
+        case ("tetr2")
+          lencij = 7
+          lencijk = 16
+        case ("orth","ortho")
+          lencij = 9
+          lencijk = 20
+        case ("mono")
+          lencij = 13
+          lencijk = 32
+        case ("tric")
+          lencij = 21
+          lencijk = 56
+        case default
+          print*,symkwerror
+          return
+      end select
+    end subroutine number_of_elasticC
     !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC2(cij,sym,vc)
       use parameters, only : sel
@@ -93,7 +132,7 @@ module elastic_constants
           end if
           xij = cij
         case default
-          print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
+          print*,symkwerror
           return
       end select
       do i=1,6
@@ -215,7 +254,7 @@ module elastic_constants
           end if
           xijk = cijk
         case default
-          print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
+          print*,symkwerror
           return
       end select
       do concurrent (i=1:6)! local(j,k,ii,jj,kk) shared(vc,xijk) local_init(iind)

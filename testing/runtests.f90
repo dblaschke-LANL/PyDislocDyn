@@ -1,10 +1,10 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Apr. 18, 2026
+! Date: Mar. 25, 2026 - May 5, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module checks
-  use parameters, only: sel
+  use parameters, only: sel, rzero
   implicit none
   contains
   subroutine testtrue(equal,string,count_pass,count_fail)
@@ -78,15 +78,15 @@ module checks
       rank(2)
         call voigt(x,z1)
         call unvoigt(z1,y2)
-        b = all(x==y2)
+        b = all(abs(x-y2)<rzero)
       rank(4)
         call voigt(x,z2)
         call unvoigt(z2,y4)
-        b = all(x==y4)
+        b = all(abs(x-y4)<rzero)
       rank(6)
         call voigt(x,z3)
         call unvoigt(z3,y6)
-        b = all(x==y6)
+        b = all(abs(x-y6)<rzero)
       rank default
         print*,"ERROR: rank must be 2,4, or 6"
         b = .false.

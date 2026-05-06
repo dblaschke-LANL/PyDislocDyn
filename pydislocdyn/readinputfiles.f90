@@ -1,8 +1,9 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 5, 2026
+! Date: Apr. 10, 2026 - May 6, 2026
 module readinputfiles
-  use parameters, only : sel ! defined in subroutines.f90
+  use parameters, only : sel, rzero ! defined in subroutines.f90
+  use elastic_constants, only : symkwerror, number_of_elasticC
   use dislocations ! defined in dislocations.f90
   implicit none
   !>data structure to store the input deck information
@@ -77,7 +78,7 @@ module readinputfiles
       if (.not.allocated(sim_plan%beta)) then
         allocate(sim_plan%beta(sim_plan%nbeta))
         call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
-      else if (all(sim_plan%beta == 0)) then
+      else if (all(abs(sim_plan%beta)<rzero)) then
         if (allocated(sim_plan%beta)) deallocate(sim_plan%beta); allocate(sim_plan%beta(sim_plan%nbeta))
         call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
       end if
@@ -90,7 +91,7 @@ module readinputfiles
       character(*), intent(in) :: filename
       type(disloc), intent(out) :: disl
       ! local variables
-      integer :: ios
+      integer :: ios, lencij, lencijk, j
       character(32) :: key, metal, sym
       character(256) :: line, values, dummy
       real(sel) :: c11, c12, c13, c33, c44, c66
@@ -104,7 +105,8 @@ module readinputfiles
       do
         read(42,'(a)',iostat=ios) line
         if (ios/=0) exit
-        if ((line /= " ") .and. (line(1:1) /= "#")) then
+        key="" ! reset the key
+        if ((line /= " ") .and. (line /= "") .and. (line(1:1) /= "#")) then
           read(line,*) key,dummy,values
           if (trim(dummy) /= "=") then
             key = " "
@@ -118,6 +120,10 @@ module readinputfiles
         if (key=='sym') then
           read(values,*)sym
           disl%sym = trim(sym)
+          call number_of_elasticC(disl%sym,lencij,lencijk)
+          if (allocated(disl%cij)) deallocate(disl%cij)
+          if (allocated(disl%cijk)) deallocate(disl%cijk)
+          allocate(disl%cij(lencij),disl%cijk(lencijk))
         end if
         !! TODO: remove commas in line before reading arrays and find a way to read fractions!
 !~         if (key=='Millerb') read(line,*) key,dummy,(disl%b(j), j=1,3) ! cubic only, TODO: generalize
@@ -126,6 +132,11 @@ module readinputfiles
         if (key=='a') read(values,*)disl%lat_a(1)
         if (key=='lcb') read(values,*)disl%lat_a(2) ! b already used for Burgers vector
         if (key=='c') read(values,*)disl%lat_a(3)
+!~         if (key=='lat_a') read(line,*) key,dummy,(disl%lat_a(j), j=1,3) ! allow reading all lattice vectors from one line
+!~         if (key=='lat_angles') read(line,*) key,dummy,(disl%lat_angles(j), j=1,3)
+        if (key=='alpha') read(values,*)disl%lat_angles(1)
+        if (key=='beta') read(values,*)disl%lat_angles(2)
+        if (key=='gamma') read(values,*)disl%lat_angles(3)
         if (key=='rho') read(values,*)disl%rho
         ! read SOEC
         if (key=='c11') read(values,*)c11
@@ -136,6 +147,7 @@ module readinputfiles
         if (key=='c66') read(values,*)c66
         if (key=='lam') read(values,*)disl%lam
         if (key=='mu') read(values,*)disl%mu
+        if (key=='cij') read(line,*) key,dummy,(disl%cij(j), j=1,lencij)
         ! read TOEC
         if (key=='c111') read(values,*)c111
         if (key=='c112') read(values,*)c112
@@ -150,7 +162,7 @@ module readinputfiles
         if (key=='c344') read(values,*)c344
         if (key=='c366') read(values,*)c366
         if (key=='c456') read(values,*)c456
-        ! TODO: support lower symmetries
+        if (key=='cijk') read(line,*) key,dummy,(disl%cijk(j), j=1,lencijk)
       
       end do ! read file
       close(unit=42)
@@ -169,9 +181,6 @@ module readinputfiles
         case ("tetr")
           disl%cij = [c11,c12,c13,c33,c44,c66]
           disl%cijk = [c111,c112,c113,c123,c133,c144,c155,c166,c333,c344,c366,c456]
-        case default
-          print*,"Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
-          return
       end select
       
     end subroutine read_materialfile
