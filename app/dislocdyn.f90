@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 5, 2026
+! Date: Apr. 10, 2026 - May 6, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use parameters, only : sel, rzero, pi, prog_version=>version
@@ -88,6 +88,7 @@ program dislocdyn
     if (sim_plan%ntheta>2) then
       disl%ntheta = sim_plan%ntheta
     end if
+    sim_plan%b = sim_plan%b/sim_plan%Millernorm
     call disl(i)%init(Millerb=sim_plan%b,Millern0=sim_plan%n0)
     if (sim_plan%echoinput) then
       print '(a, a, a10, f10.2, a10, f10.2, a)',"sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"

@@ -175,7 +175,7 @@ module dislocations
           v = matmul(T,millerv)
         end if
       else
-        if (n==4 .and. abs(sum(millerv(:3)))<rzero) then
+        if (n==4 .and. abs(sum(millerv(:3)))<1.d-3) then
           v = matmul(T,[millerv(1)-millerv(3),millerv(2)-millerv(3),millerv(4)])
         else
           v = matmul(T,millerv)

@@ -9,7 +9,7 @@ module readinputfiles
   !>data structure to store the input deck information
   type, public :: inputdeck
     character(:), allocatable :: sim_type, logfile ! choose between 'drag' (others not yet implemented)
-    real(sel) :: betamin, betamax
+    real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
     integer :: nbeta, ntheta
     logical :: echoinput
@@ -35,6 +35,7 @@ module readinputfiles
       sim_plan%ntheta = 2
       sim_plan%betamin = 0.01d0
       sim_plan%betamax = 0.99d0
+      sim_plan%Millernorm = 1.d0 ! will divide Millerb by this number so as to avoid having things like 0.333333 in the inputdeck
       sim_plan%echoinput = .true.
       sim_plan%logfile = 'dislocdyn.log'
       n = 3 ! expect 3 Miller indices for each b and n0 in the file
@@ -64,16 +65,17 @@ module readinputfiles
         if (key=='sim_type') sim_plan%sim_type = trim(values)
         if (key=='logfile') sim_plan%logfile = trim(values)
         if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
-        if (key=='b') read(line,*) key,dummy,sim_plan%b(1),sim_plan%b(2),sim_plan%b(3)
-        if (key=='n0') read(line,*) key,dummy,sim_plan%n0(1),sim_plan%n0(2),sim_plan%n0(3)
+        if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,(sim_plan%b(j), j=1,n)
+        if (key=='n0' .or. key=='Millern0') read(line,*) key,dummy,(sim_plan%n0(j), j=1,n)
         if (key=='betamin') read(line,*) key,dummy,sim_plan%betamin
         if (key=='betamax') read(line,*) key,dummy,sim_plan%betamax
+        if (key=='Millernorm') read(line,*) key,dummy,sim_plan%Millernorm
         if (key=='nbeta') then
           read(line,*) key,dummy,sim_plan%nbeta
           allocate(sim_plan%beta(sim_plan%nbeta))
           sim_plan%beta = 0.d0
         end if
-!~         if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
+        if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
         if (key=='ntheta') read(line,*) key,dummy,sim_plan%ntheta
       
       end do ! read file
@@ -133,8 +135,8 @@ module readinputfiles
         if (key=='a') read(values,*)disl%lat_a(1)
         if (key=='lcb') read(values,*)disl%lat_a(2) ! b already used for Burgers vector
         if (key=='c') read(values,*)disl%lat_a(3)
-!~         if (key=='lat_a') read(line,*) key,dummy,(disl%lat_a(j), j=1,3) ! allow reading all lattice vectors from one line
-!~         if (key=='lat_angles') read(line,*) key,dummy,(disl%lat_angles(j), j=1,3)
+        if (key=='lat_a') read(line,*) key,dummy,(disl%lat_a(j), j=1,3) ! allow reading all lattice vectors from one line
+        if (key=='lat_angles') read(line,*) key,dummy,(disl%lat_angles(j), j=1,3)
         if (key=='alpha') read(values,*)disl%lat_angles(1)
         if (key=='beta') read(values,*)disl%lat_angles(2)
         if (key=='gamma') read(values,*)disl%lat_angles(3)
