@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 6, 2026
+! Date: Apr. 10, 2026 - May 7, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use parameters, only : sel, rzero, pi, prog_version=>version
@@ -61,8 +61,6 @@ program dislocdyn
   
   instructionfile = trim(args(num_args))
   allocate(disl(num_args-1))
-  write(123,*) proginfo
-  write(123,*) threadinfo
   
   call cpu_time(start_time)
   ! loop over material files, using the same instruction file for each one
@@ -72,6 +70,8 @@ program dislocdyn
     if (i==1) then
       call read_inputdeck(instructionfile,sim_plan,disl(i)%sym) ! need to know how many Miller indices to expect based on 'sym'
       open(unit=123, file=sim_plan%logfile, status='replace') ! open log file
+      write(123,*) proginfo
+      write(123,*) threadinfo
     end if
     print*,new_line('a') // "name: ",disl(i)%metal
     write(123,*) new_line('a') // "name: ",disl(i)%metal
