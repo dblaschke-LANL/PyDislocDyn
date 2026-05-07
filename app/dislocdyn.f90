@@ -89,6 +89,7 @@ program dislocdyn
       disl%ntheta = sim_plan%ntheta
     end if
     sim_plan%b = sim_plan%b/sim_plan%Millernorm
+    sim_plan%n0 = sim_plan%n0/sim_plan%Millernorm
     call disl(i)%init(Millerb=sim_plan%b,Millern0=sim_plan%n0)
     if (sim_plan%echoinput) then
       print '(a, a, a10, f10.2, a10, f10.2, a)',"sym=", disl(i)%sym,", rho= ", disl(i)%rho,"kg/m^3, T= ", disl(i)%Temp," K"

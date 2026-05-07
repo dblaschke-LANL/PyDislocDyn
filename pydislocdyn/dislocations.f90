@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - May 6, 2026
+! Date: Mar. 31, 2026 - May 7, 2026
 module dislocations
   use parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -159,9 +159,9 @@ module dislocations
       if (b<rzero) b=a
       if (c<rzero) c=a
       d = c*(cos(mat%lat_angles(1))-cos(mat%lat_angles(3))*cos(mat%lat_angles(2)))/sin(mat%lat_angles(3))
-      T = reshape([a,b*cos(mat%lat_angles(3)),c*cos(mat%lat_angles(2)), &
-                   0.d0,b*sin(mat%lat_angles(3)),d, &
-                   0.d0,0.d0,sqrt((c*sin(mat%lat_angles(2)))**2-d**2)],[3,3])
+      T(1,:) = [a,b*cos(mat%lat_angles(3)),c*cos(mat%lat_angles(2))]
+      T(2,:) = [0.d0,b*sin(mat%lat_angles(3)),d]
+      T(3,:) = [0.d0,0.d0,sqrt((c*sin(mat%lat_angles(2)))**2-d**2)]
       if (any(["iso","fcc","bcc"]==trim(mat%sym)) .or. trim(mat%sym)=="cubic") then
         v=Millerv*a
       else if (rezi) then
@@ -170,12 +170,12 @@ module dislocations
         R(:,2) = (T(:,3).cross.T(:,1))/RV
         R(:,3) = (T(:,1).cross.T(:,2))/RV
         if (n==4 .and. abs(sum(millerv(:3)))<rzero) then
-          v = matmul(T,[millerv(1)+millerv(3),millerv(2)-millerv(3),millerv(4)])
+          v = matmul(R,[millerv(1)+millerv(3),millerv(2)-millerv(3),millerv(4)])
         else
-          v = matmul(T,millerv)
+          v = matmul(R,millerv)
         end if
       else
-        if (n==4 .and. abs(sum(millerv(:3)))<1.d-3) then
+        if (n==4) then
           v = matmul(T,[millerv(1)-millerv(3),millerv(2)-millerv(3),millerv(4)])
         else
           v = matmul(T,millerv)

@@ -2,14 +2,14 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 5, 2026
+! Date: July 23, 2018 - May 7, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260505
+  integer,parameter :: version = 20260507
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -659,11 +659,8 @@ module phononwind_subroutines
       do p=1,Nphi
         tmask = (t>limit(p))
         NBtmp = count(tmask)
-        if (allocated(t1)) deallocate(t1); if (allocated(Btmp)) deallocate(Btmp)
-        allocate(t1(NBtmp),Btmp(NBtmp))
         t1 = pack(t,tmask)
         Btmp = pack(B(:,p),tmask)
-!~         NBtmp = size(Btmp)
         Bt(p) = 0.d0
         if (NBtmp>1) then
           Btmp(1) = 2.d0*Btmp(1)
@@ -702,11 +699,8 @@ module phononwind_subroutines
       do p=1,Nphi
         tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
         NBtmp = count(tmask)
-        if (allocated(qt)) deallocate(qt); if (allocated(Btmp)) deallocate(Btmp)
-        allocate(qt(NBtmp),Btmp(NBtmp))
         qt = pack(qtilde,tmask)
         Btmp = pack(B(:,p),tmask)
-!~         NBtmp = size(Btmp)
         Bt(p) = 0.d0
         if (NBtmp>1) then
           Btmp(1) = 2.d0*Btmp(1)

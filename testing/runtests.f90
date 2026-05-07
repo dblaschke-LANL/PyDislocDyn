@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - May 5, 2026
+! Date: Mar. 25, 2026 - May 7, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module checks
   use parameters, only: sel, rzero
@@ -104,25 +104,21 @@ module tests
       use elastic_constants
       use dislocations
       integer, intent(inout) :: count_pass,count_fail
-      type(disloc) :: Cu
+      type(disloc) :: Cu, Ti
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3)
       real(sel), allocatable :: zeros(:), Etot(:), B(:,:)
       logical :: istrue
 !~       integer :: i
       
-!~       Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,b=3.6146d-10*[0.5d0,0.5d0,0.d0],n0=[-1.d0,1.d0,-1.d0])
-      Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
-      Cu%b=3.6146d-10*[0.5d0,0.5d0,0.d0]; Cu%n0=[-1.d0,1.d0,-1.d0]
-      Cu%lat_a = [3.6146d-10,0.d0,0.d0]
+      Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,lat_a = [3.6146d-10,0.d0,0.d0])
+!~       Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
+!~       Cu%lat_a = [3.6146d-10,0.d0,0.d0]
       Cu%cij = [168.3d9, 121.2d9, 75.7d9]
       Cu%cijk = [-1271.d9, -814.d9, -50.d9, -3.d9, -780.d9, -95.d9]
-      call Cu%init() ! attempts to inver Cu%burgers from Cu%b if not normalized
+      call Cu%init(Millerb=[0.5d0,0.5d0,0.d0],Millern0=[-1.d0,1.d0,-1.d0]) ! infers Cu%burgers from Millerb
 !~       do i=1,6
 !~         print*,Cu%C2(i,:)/1.d9
 !~         print*,Cu%C3(2,i,:)/1.d9
-!~       end do
-!~       do i=1,3
-!~         print*,Cu%rot(i,:,1),Cu%rot(i,:,2)
 !~       end do
       call testzero(Cu%rot(1,3,1)+Cu%rot(1,3,2)+0.81649658,"disloc_Cu_rot",1.d-6,count_pass,count_fail)
       call testzero(sum(Cu%C2)/1.d12-1.4592d0+sum(Cu%C3)/1.d12+33.402d0,"disloc_Cu_C2_C3",1.d-12,count_pass,count_fail)
@@ -149,6 +145,15 @@ module tests
       
       call phonondrag(B,Cu,[0.1d0,0.5d0])
       call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-6,count_pass,count_fail)
+      
+      Ti = disloc(sym="hcp",metal="Ti",rho=4506.d0,lat_a = [2.9506d-10,0.d0,4.6835d-10])
+      Ti%cij = [1.624d11, 9.2d10, 6.9d10, 1.807d11, 4.67d10]
+      Ti%cijk = [-1.358d12, -1.105d12, 1.7d10, -1.62d11, -3.83d11, -2.63d11, 1.17d11, -2.306d12, -1.617d12, -3.83d11]
+      Ti%ntheta = 3 ! test with one mixed disloc.
+      call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
+      call phonondrag(B,Ti,[0.5d0])
+      call testzero(sum(B)-0.02938656,"disloc_Ti_drag",1.d-6,count_pass,count_fail)
+      
     end subroutine test_disloc
 end module tests
 
