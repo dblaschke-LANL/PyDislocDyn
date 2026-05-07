@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 10, 2026
+# Date: Nov. 7, 2017 - May 7, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -548,10 +548,10 @@ class metal_props:
             R[:,0] = np.cross(T[:,1],T[:,2])/V
             R[:,1] = np.cross(T[:,2],T[:,0])/V
             R[:,2] = np.cross(T[:,0],T[:,1])/V
-            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-12: v = [v[0]+v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+            if len(v)==4: v = [v[0]+v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
             out = np.dot(R,v)
         else:
-            if len(v)==4 and abs(v[0]+v[1]+v[2])<1e-12: v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
+            if len(v)==4: v = [v[0]-v[2],v[1]-v[2],v[3]] ## convert from 4 to 3 indices
             out = np.dot(T,v)
         accuracy = 1e-15
         if normalize:
