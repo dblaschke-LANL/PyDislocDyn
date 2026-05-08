@@ -2,7 +2,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 10, 2026
+# Date: Nov. 7, 2017 - May 7, 2026
 '''This module contains functions to generate elastic constant and compliance tensors,
    as well as a class to help with calculating elastic constants.
    In particular, it contains the following functions:
@@ -286,7 +286,7 @@ def CheckVoigt(tensor):
 def CheckReflectionSymmetry(elasticC2,strict=False):
     '''Check for reflection symmetry of the z-plane assuming the tensor of second order elastic constants provided has been rotated into
      the coordinates to be checked. By default, we check for the slightly weaker condition where non-vanishing c34 and c35 are allowed
-     (since they drop out of the differential equations for screw/edge dislocations. Set strict=True to check for true reflection symmetry.'''
+     since they drop out of the differential equations for screw/edge dislocations. Set strict=True to check for true reflection symmetry.'''
     if len(elasticC2)==3:
         C2=Voigt(elasticC2)
     else:

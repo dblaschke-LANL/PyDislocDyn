@@ -1,13 +1,14 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - May 6, 2026
+! Date: Mar. 30, 2026 - May 7, 2026
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
   character(110), parameter :: symkwerror = &
                 "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
   private VoigtIndices, UnVoigtIndices ! f2py-incompatibilities prevent us from making more stuff private
-  public symkwerror, voigt, unvoigt, elasticC2, voigtaverage, reussaverage, hillaverage
+  public symkwerror, voigt, unvoigt, elasticC2, elasticC3, CheckReflectionSymmetry, number_of_elasticC, &
+          voigtaverage, reussaverage, hillaverage
   !> converts the input to Voigt notation
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six
@@ -317,6 +318,20 @@ module elastic_constants
       real(kind=sel), intent(out) :: y(3,3,3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices,UnVoigtIndices),(/3,3,3,3,3,3/))
     end subroutine unvgt_three
+    !-------------------------
+    !>Check for reflection symmetry of the z-plane assuming the tensor of second order elastic constants provided in Voigt notation,
+    !>C2 has been rotated into the coordinates to be checked. In fact, we check for the slightly weaker condition where
+    !>non-vanishing c34 and c35 are allowed since they drop out of the differential equations for screw/edge dislocations.
+    pure function CheckReflectionSymmetry(C2)
+      use parameters, only : sel
+      real(sel), intent(in) :: C2(6,6)
+      logical :: CheckReflectionSymmetry
+      real(sel) :: test(6,6), testsum
+      test = abs(C2/C2(4,4))
+      testsum = test(1,4)+test(2,4)+test(1,5)+test(2,5)+test(6,4)+test(6,5)
+      CheckReflectionSymmetry = .false.
+      if (testsum < 1.d-12) CheckReflectionSymmetry = .true.
+    end function CheckReflectionSymmetry
     !-------------------------
     !> Computes the Voigt average of 2nd order elastic constants
     subroutine voigtaverage(C2,lambda,mu)

@@ -105,12 +105,12 @@ module tests
       use dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti
-      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3)
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e
       real(sel), allocatable :: zeros(:), Etot(:), B(:,:)
       logical :: istrue
 !~       integer :: i
       
-      Cu = disloc(sym="cubic",metal="Cu",rho=8960.d0,lat_a = [3.6146d-10,0.d0,0.d0])
+      Cu = disloc(sym="fcc",metal="Cu",rho=8960.d0,lat_a = [3.6146d-10,0.d0,0.d0])
 !~       Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
 !~       Cu%lat_a = [3.6146d-10,0.d0,0.d0]
       Cu%cij = [168.3d9, 121.2d9, 75.7d9]
@@ -145,6 +145,11 @@ module tests
       
       call phonondrag(B,Cu,[0.1d0,0.5d0])
       call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-6,count_pass,count_fail)
+      call testtrue((CheckReflectionSymmetry(Cu%C2aligned(:,:,1)) .and. &
+                .not.CheckReflectionSymmetry(Cu%C2aligned(:,:,Cu%ntheta))),"reflection-sym, Cu screw/edge",count_pass,count_fail)
+      call Cu%computevcrit_screw(vlim_s)
+      call Cu%computevcrit_edge(vlim_e)
+      call testzero(vlim_s+vlim_e-3825.924891d0,"disloc_Cu_vlim screw/edge",1.d-6,count_pass,count_fail)
       
       Ti = disloc(sym="hcp",metal="Ti",rho=4506.d0,lat_a = [2.9506d-10,0.d0,4.6835d-10])
       Ti%cij = [1.624d11, 9.2d10, 6.9d10, 1.807d11, 4.67d10]
@@ -152,7 +157,13 @@ module tests
       Ti%ntheta = 3 ! test with one mixed disloc.
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
       call phonondrag(B,Ti,[0.5d0])
-      call testzero(sum(B)-0.02938656,"disloc_Ti_drag",1.d-6,count_pass,count_fail)
+      call testzero(sum(B)-0.02938656,"disloc_Tipyr_drag",1.d-6,count_pass,count_fail)
+      call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,0.d0]) ! switch to prismatic slip
+      call testtrue((CheckReflectionSymmetry(Ti%C2aligned(:,:,1)) .and. &
+                CheckReflectionSymmetry(Ti%C2aligned(:,:,Ti%ntheta))),"reflection-sym, Ti screw/edge",count_pass,count_fail)
+      call Ti%computevcrit_screw(vlim_s)
+      call Ti%computevcrit_edge(vlim_e)
+      call testzero(vlim_s+vlim_e-6014.271264d0,"disloc_Tipris_vlim screw/edge",1.d-6,count_pass,count_fail)
       
     end subroutine test_disloc
 end module tests

@@ -40,7 +40,7 @@ module dislocations
     real(sel) :: beta=0.d0  !< ratio of gliding velocity over transverse sound speed
     integer :: ntheta=2 !< number of character angles between 0 and pi/2
     integer :: nphi=500 !< resolution in polar angle phi
-    real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:)
+    real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:), C2aligned(:,:,:)
     real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
     real(sel), allocatable :: uij(:,:,:,:)
     contains
@@ -50,8 +50,10 @@ module dislocations
       procedure :: update_rot => computerot
       procedure :: init => init_disloc
       procedure :: update_uij => compute_uij
+      procedure :: computevcrit_screw => computevcrit_screw
+      procedure :: computevcrit_edge => computevcrit_edge
   end type
-  public :: volume_unitcell, set_character_angles, computerot, phonondrag
+  public :: volume_unitcell, set_character_angles, computerot, phonondrag, computevcrit_screw, computevcrit_edge, Miller_to_Cart
   !-------------------------
   contains
     !> computes the unit cell volume
@@ -205,7 +207,8 @@ module dislocations
       class(disloc), intent(inout) :: disl
       ! todo: use select case to determine whether or not we need negative theta as well
       if (allocated(disl%theta)) deallocate(disl%theta)
-      allocate(disl%theta(disl%ntheta))
+      if (allocated(disl%C2aligned)) deallocate(disl%C2aligned)
+      allocate(disl%theta(disl%ntheta),disl%C2aligned(6,6,disl%ntheta))
       call linspace(0.d0,pi/2.d0,disl%ntheta,disl%theta)
     end subroutine set_character_angles
     !> computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals
@@ -221,16 +224,31 @@ module dislocations
       call strohgeometry(disl%b,disl%n0,disl%t,disl%m0,disl%M,disl%N,disl%Cv,disl%theta,disl%phi,disl%ntheta,disl%nphi)
     end subroutine computestroh
     !>determines the rotation matrices necessary to align each dislocation of character angle theta with z 
-    !>and its slip plane normal with y
+    !>and its slip plane normal with y; then rotates the tensor of elastic constants C2 to align with each dislocation
+    !>the latter array of aligne C2s is saved in Voigt notation as %C2aligned
     subroutine computerot(disl)
       class(disloc), intent(inout) :: disl
-      integer :: th
+      real(sel) :: C2(3,3,3,3), C2aligned(3,3,3,3), rot(3,3)
+      integer :: th, i, ii, j, jj
       if (allocated(disl%rot)) deallocate(disl%rot)
       allocate(disl%rot(3,3,disl%ntheta))
+      call unvgt_two(disl%C2,C2)
       do th=1,disl%ntheta
-        disl%rot(1,:,th) = disl%n0 .cross. disl%t(:,th)
-        disl%rot(2,:,th) = disl%n0
-        disl%rot(3,:,th) = disl%t(:,th)
+        rot(1,:) = disl%n0 .cross. disl%t(:,th)
+        rot(2,:) = disl%n0
+        rot(3,:) = disl%t(:,th)
+        disl%rot(:,:,th) = rot
+        C2aligned = 0.d0
+        do ii=1,3
+          do i=1,3
+            do jj=1,3
+              do j=1,3
+                C2aligned(:,:,j,i) = C2aligned(:,:,j,i) + matmul(matmul(rot,C2(:,:,jj,ii)),transpose(rot))*rot(j,jj)*rot(i,ii)
+              end do
+            end do
+          end do
+        end do
+        call vgt_four(C2aligned,disl%C2aligned(:,:,th))
       end do
     end subroutine computerot
     !-------------------------
@@ -270,6 +288,43 @@ module dislocations
       allocate(disl%uij(disl%nphi,3,3,disl%ntheta))
       call computeuij(disl%beta,disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,disl%uij)
     end subroutine compute_uij
+    !-------------------------
+    !>Calculate the limiting velocity for a pure screw dislocation assuming the plane perpendicular to the dislocation line
+    !>is a reflection plane; Note: the reflection plane property must be checked separately, this function will not.
+    subroutine computevcrit_screw(disl,vlim)
+      class(disloc), intent(in) :: disl
+      real(sel), intent(out) :: vlim
+      vlim = sqrt((disl%C2aligned(5,5,1)-4.d0*disl%C2aligned(4,5,1)**2/(4.d0*disl%C2aligned(4,4,1)))/disl%rho)
+    end subroutine computevcrit_screw
+    !-------------------------
+    !>Compute the limiting velocity of a pure edge dislocation analytically, assuming the slip plane is a reflection plane .
+    !>Note: the reflection plane property must be checked separately, this function will not.
+    subroutine computevcrit_edge(disl,vlim)
+      class(disloc), intent(in) :: disl
+      real(sel), intent(out) :: vlim
+      real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim
+      c11=disl%C2aligned(1,1,disl%ntheta)
+      c22=disl%C2aligned(2,2,disl%ntheta)
+      c66=disl%C2aligned(6,6,disl%ntheta)
+      c12=disl%C2aligned(1,2,disl%ntheta)
+      c16=disl%C2aligned(1,6,disl%ntheta)
+      c26=disl%C2aligned(2,6,disl%ntheta)
+      vlim  = -1.d0 ! if this is returned, something went wrong below (e.g. C2 did not have the required properties)
+      if (disl%sym=="fcc") then
+        vlim = sqrt(min(disl%C2(4,4),0.5d0*(disl%C2(1,1)-disl%C2(1,2)))/disl%rho)
+      else if (abs(c16/disl%C2(4,4))+abs(c26/disl%C2(4,4)) < 1.d-12) then
+        vlim = sqrt(min(c66,c11)/disl%rho)
+        if ((((c11*c22-c12**2-2.d0*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66))<0) then
+          ! analytic solution to Re(lambda=0) in eq. (39) (with sp.solve); sqrt below is real because of if statement above:
+          tmpvlim = (2.d0*sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2.d0*c12*c66 + c22*c66))*(c12 + c66) - &
+                    (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2.d0*c12*c22*c66 + 2.d0*c12*c66**2 + &
+                     2.d0*c22*c66**2))/((c22 - c66)**2)
+          vlim = min(vlim,sqrt(tmpvlim/disl%rho))
+        end if
+      else
+        print*,"ERROR: not implemented for non-vanishing c16 or c26!"
+      end if
+    end subroutine computevcrit_edge
     !-------------------------
     !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation 'disl' 
     !>and gliding velocities 'beta'=v/ct
