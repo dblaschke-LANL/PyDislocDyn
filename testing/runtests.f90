@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - May 7, 2026
+! Date: Mar. 25, 2026 - May 8, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module checks
   use parameters, only: sel, rzero
@@ -177,16 +177,16 @@ program runtests
   use tests
   implicit none
   
-  real(kind=sel) :: tmpintegral, array1(5),array2(5), start_time, finish_time
+  real(kind=sel) :: tmpintegral, array1(5),array2(5)
   real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],[3,3])
   real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21)
   real(kind=sel), allocatable, dimension(:) :: x, func, integral
   logical :: istrue
-  integer :: resol, nthreads, count_fail=0, count_pass=0
+  integer :: resol, nthreads, count_fail=0, count_pass=0, start_time, finish_time, countrate
   character(32) :: exe_name
   resol = 10000
   allocate(x(resol), func(resol), integral(resol))
-  call cpu_time(start_time)
+  call system_clock(start_time,countrate)
   
   ! check for openmp
   call get_command_argument(0, exe_name)
@@ -251,9 +251,9 @@ program runtests
   
   call test_disloc(count_pass,count_fail)
   
-  call cpu_time(finish_time)
+  call system_clock(finish_time)
   print*,"------------------------------------------------------------"
   print*,"SUMMARY:", count_pass," passed and ",count_fail," failed"
-  print*,"time: ",(finish_time-start_time)/real(nthreads, kind=sel), "s"
+  print*,"time: ",real(finish_time-start_time)/real(countrate), "s"
   
 end program runtests

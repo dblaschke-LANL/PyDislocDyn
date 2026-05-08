@@ -2,23 +2,24 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 7, 2026
+! Date: Apr. 10, 2026 - May 8, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
   use parameters, only : sel, rzero, pi, prog_version=>version
   use utilities, only : ompinfo, linspace
+  use elastic_constants, only : CheckReflectionSymmetry
   use dislocations
   use readinputfiles
   implicit none
   
-  integer :: nthreads, i, j, k, num_args, un(3)
+  integer :: nthreads, i, j, k, p, num_args, un(3), start_time, finish_time, countrate
   character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, proginfo, threadinfo, usageinfo
   character(256), dimension(:), allocatable :: args
   type(disloc), dimension(:), allocatable :: disl
   type(inputdeck) :: sim_plan
   real(sel), allocatable :: B(:,:)
-  real(kind=sel) :: start_time, finish_time
+  real(sel) :: vlimscrew, vlimedge
   un = [output_unit, 123, error_unit]
   
   write(proginfo, '(I0)') prog_version
@@ -64,7 +65,7 @@ program dislocdyn
   instructionfile = trim(args(num_args))
   allocate(disl(num_args-1))
   
-  call cpu_time(start_time)
+  call system_clock(start_time,countrate)
   ! loop over material files, using the same instruction file for each one
   do i=1,num_args-1
     materialfile = trim(args(i))
@@ -105,28 +106,43 @@ program dislocdyn
         write(un(k),'(a, *(f10.2))') "cijk [GPa]: ", disl(i)%cijk/1.d9
         write(un(k),'(a, f10.8, a)') "Vc=", disl(i)%Vc*1.d27, " nm^3"
         write(un(k),'(a, f10.6, a)') "burgers=", disl(i)%burgers*1.d10, " Angstroem"
-        write(un(k),*) "slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0, new_line('a')
+        write(un(k),*) "slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0
       end if
     end do
     
-    if (sim_plan%sim_type=='drag') then
-      call phonondrag(B,disl(i),sim_plan%beta)
-      do k=1,2
-        write(un(k),*) "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
-        write(un(k),'(*(f10.4))') disl(i)%theta/pi
-        write(un(k),*) "beta // drag coefficient B(beta,theta) in units of mPas:"
-        do j=1,size(sim_plan%beta)
-          write(un(k),'(f10.4, *(f10.6))') sim_plan%beta(j), B(:,j)
+    do p=1,sim_plan%nsims
+      if (sim_plan%sim_type(p)%str=='drag') then
+        call phonondrag(B,disl(i),sim_plan%beta)
+        do k=1,2
+          write(un(k),*) new_line('a')//"character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
+          write(un(k),'(*(f10.4))') disl(i)%theta/pi
+          write(un(k),*) "beta // drag coefficient B(beta,theta) in units of mPas:"
+          do j=1,size(sim_plan%beta)
+            write(un(k),'(f10.4, *(f10.6))') sim_plan%beta(j), B(:,j)
+          end do
         end do
-      end do
-    else
-      write(un(2),*) new_line('a') // "ERROR: sim_type="//sim_plan%sim_type//" not implemented"
-      error stop new_line('a') // "sim_type="//sim_plan%sim_type//" not implemented"
-    end if
+      else if (sim_plan%sim_type(p)%str=='vlimit') then
+        do k=1,2
+          vlimscrew = 0.d0
+          vlimedge = 0.d0
+          if (CheckReflectionSymmetry(disl(i)%C2aligned(:,:,1))) then
+            call disl(i)%computevcrit_screw(vlimscrew)
+          end if
+          if (CheckReflectionSymmetry(disl(i)%C2aligned(:,:,disl(i)%ntheta)) .or. disl(i)%sym=="fcc") then
+            call disl(i)%computevcrit_edge(vlimedge)
+          end if
+          write(un(k),*) new_line('a')//"vlim_screw / vlim_edge in m/s:"
+          write(un(k),'(*(f10.2))') vlimscrew, vlimedge
+        end do
+      else
+        write(un(2),*) new_line('a') // "ERROR: sim_type="//sim_plan%sim_type(p)%str//" not implemented"
+        error stop new_line('a') // "sim_type="//sim_plan%sim_type(p)%str//" not implemented"
+      end if
+    end do
   end do
 
-  call cpu_time(finish_time)
-  print*,new_line('a') // "time: ",(finish_time-start_time)/real(nthreads, kind=sel), "s" // new_line('a')
+  call system_clock(finish_time)
+  print*,new_line('a') // "time: ",real(finish_time-start_time)/real(countrate), "s" // new_line('a')
   close(unit=un(2)) ! close log file
 
 end program dislocdyn

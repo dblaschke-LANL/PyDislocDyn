@@ -1,22 +1,27 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 6, 2026
+! Date: Apr. 10, 2026 - May 8, 2026
 module readinputfiles
   use parameters, only : sel, rzero ! defined in subroutines.f90
   use elastic_constants, only : symkwerror, number_of_elasticC
   use dislocations ! defined in dislocations.f90
   implicit none
+  private
+  type :: string_t
+    character(:), allocatable :: str
+  end type string_t
   !>data structure to store the input deck information
   type, public :: inputdeck
-    character(:), allocatable :: sim_type, logfile ! choose between 'drag' (others not yet implemented)
+    type(string_t), allocatable :: sim_type(:) ! choose between 'drag' and 'vlimit'
+    character(:), allocatable :: logfile
     real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
-    integer :: nbeta, ntheta
+    integer :: nbeta, ntheta, nsims
     logical :: echoinput
   end type inputdeck
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+  public :: read_inputdeck, read_materialfile
   contains
     !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
     subroutine read_inputdeck(filename,sim_plan,sym)
@@ -26,11 +31,14 @@ module readinputfiles
       type(inputdeck), intent(out) :: sim_plan
       character(*), optional :: sym
       ! local variables
-      integer :: ios, j, n
+      integer :: ios, j, n, p
       character(32) :: key
       character(256) :: line, values, dummy
+      p = 1
       ! default values:
-      sim_plan%sim_type = '' !'drag'
+      sim_plan%nsims = 1
+      allocate(sim_plan%sim_type(1))
+      sim_plan%sim_type(1)%str = ''
       sim_plan%nbeta = 1
       sim_plan%ntheta = 2
       sim_plan%betamin = 0.01d0
@@ -62,7 +70,16 @@ module readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key=='sim_type') sim_plan%sim_type = trim(values)
+        if (key=='nsims') then
+          read(line,*) key,dummy,sim_plan%nsims
+          deallocate(sim_plan%sim_type)
+          allocate(sim_plan%sim_type(sim_plan%nsims))
+        end if
+        if (key=='sim_type') then
+          if (p>sim_plan%nsims) error stop "too many sim_types in file; set nsims first!"
+          sim_plan%sim_type(p)%str = trim(values)
+          p = p+1
+        end if
         if (key=='logfile') sim_plan%logfile = trim(values)
         if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
         if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,(sim_plan%b(j), j=1,n)

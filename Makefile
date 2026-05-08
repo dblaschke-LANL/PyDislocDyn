@@ -68,10 +68,13 @@ shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
 	$(FC) -o $(EXEC)_sh.x dislocdyn.o $(LDFLAGS) -l$(SHARED) -L.
 	## on linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x)
 
+static: build
+	ar rcs libdislocdyn.a subroutines.o elasticconstants.o dislocations.o readinputfiles.o
+
 clean: 
 	rm -f subroutines.o elasticconstants.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
 	parameters.mod utilities.mod various_subroutines.mod phononwind.mod phononwind_subroutines.mod \
 	elastic_constants.mod dislocations.mod readinputfiles.mod checks.mod tests.mod
 
 cleanall: clean
-	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so
+	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so libdislocdyn.a
