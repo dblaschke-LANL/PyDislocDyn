@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 8, 2026
+! Date: Apr. 10, 2026 - May 11, 2026
 module readinputfiles
   use parameters, only : sel, rzero ! defined in subroutines.f90
   use elastic_constants, only : symkwerror, number_of_elasticC
@@ -16,7 +16,7 @@ module readinputfiles
     character(:), allocatable :: logfile
     real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
-    integer :: nbeta, ntheta, nsims
+    integer :: nbeta, ntheta, nphi, nsims
     logical :: echoinput
   end type inputdeck
   
@@ -41,6 +41,7 @@ module readinputfiles
       sim_plan%sim_type(1)%str = ''
       sim_plan%nbeta = 1
       sim_plan%ntheta = 2
+      sim_plan%nphi = 500
       sim_plan%betamin = 0.01d0
       sim_plan%betamax = 0.99d0
       sim_plan%Millernorm = 1.d0 ! will divide Millerb by this number so as to avoid having things like 0.333333 in the inputdeck
@@ -94,6 +95,7 @@ module readinputfiles
         end if
         if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
         if (key=='ntheta') read(line,*) key,dummy,sim_plan%ntheta
+        if (key=='nphi') read(line,*) key,dummy,sim_plan%nphi
       
       end do ! read file
       close(unit=42)

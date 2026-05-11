@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 8, 2026
+! Date: Apr. 10, 2026 - May 11, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -18,8 +18,7 @@ program dislocdyn
   character(256), dimension(:), allocatable :: args
   type(disloc), dimension(:), allocatable :: disl
   type(inputdeck) :: sim_plan
-  real(sel), allocatable :: B(:,:)
-  real(sel) :: vlimscrew, vlimedge
+  real(sel), allocatable :: B(:,:), vlim(:,:)
   un = [output_unit, 123, error_unit]
   
   write(proginfo, '(I0)') prog_version
@@ -77,7 +76,8 @@ program dislocdyn
       write(un(2),*) threadinfo
     end if
     do k=1,2
-      write(un(k),*) new_line('a') // "name: ",disl(i)%metal
+      write(un(k),*) new_line('a') // "--- Crystal / Dislocation properties ---"
+      write(un(k),*) "name: ",disl(i)%metal
     end do
     if (all(abs(sim_plan%b)<rzero) .and. all(abs(sim_plan%n0)<rzero)) then
       if (trim(disl(i)%sym)=='fcc' .or. trim(disl(i)%sym)=='iso') then 
@@ -92,6 +92,9 @@ program dislocdyn
     end if
     if (sim_plan%ntheta>2) then
       disl%ntheta = sim_plan%ntheta
+    end if
+    if (sim_plan%nphi/=500) then
+      disl%nphi = sim_plan%nphi
     end if
     sim_plan%b = sim_plan%b/sim_plan%Millernorm
     sim_plan%n0 = sim_plan%n0/sim_plan%Millernorm
@@ -114,7 +117,8 @@ program dislocdyn
       if (sim_plan%sim_type(p)%str=='drag') then
         call phonondrag(B,disl(i),sim_plan%beta)
         do k=1,2
-          write(un(k),*) new_line('a')//"character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
+          write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind ---"
+          write(un(k),*) "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
           write(un(k),'(*(f10.4))') disl(i)%theta/pi
           write(un(k),*) "beta // drag coefficient B(beta,theta) in units of mPas:"
           do j=1,size(sim_plan%beta)
@@ -122,17 +126,15 @@ program dislocdyn
           end do
         end do
       else if (sim_plan%sim_type(p)%str=='vlimit') then
+        if (allocated(vlim)) deallocate(vlim)
+        allocate(vlim(disl(i)%ntheta,3))
+        call disl(i)%computevcrit(vlim)
         do k=1,2
-          vlimscrew = 0.d0
-          vlimedge = 0.d0
-          if (CheckReflectionSymmetry(disl(i)%C2aligned(:,:,1))) then
-            call disl(i)%computevcrit_screw(vlimscrew)
-          end if
-          if (CheckReflectionSymmetry(disl(i)%C2aligned(:,:,disl(i)%ntheta)) .or. disl(i)%sym=="fcc") then
-            call disl(i)%computevcrit_edge(vlimedge)
-          end if
-          write(un(k),*) new_line('a')//"vlim_screw / vlim_edge in m/s:"
-          write(un(k),'(*(f10.2))') vlimscrew, vlimedge
+          write(un(k),*) new_line('a')//"--- Limiting dislocation velocities ---"
+          write(un(k),*) "theta [pi] / vlimit in m/s; lowest, 2nd, and highest"
+          do j=1,disl(i)%ntheta
+            write(un(k),'(f10.4,*(f10.2))') disl(i)%theta(j)/pi,vlim(j,:)
+          end do
         end do
       else
         write(un(2),*) new_line('a') // "ERROR: sim_type="//sim_plan%sim_type(p)%str//" not implemented"
@@ -142,7 +144,8 @@ program dislocdyn
   end do
 
   call system_clock(finish_time)
-  print*,new_line('a') // "time: ",real(finish_time-start_time)/real(countrate), "s" // new_line('a')
+  print*,new_line('a') // "------------"
+  print*,"time: ",real(finish_time-start_time)/real(countrate), "s" // new_line('a')
   close(unit=un(2)) ! close log file
 
 end program dislocdyn

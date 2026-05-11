@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - May 7, 2026
+! Date: Mar. 31, 2026 - May 11, 2026
 module dislocations
   use parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -52,8 +52,11 @@ module dislocations
       procedure :: update_uij => compute_uij
       procedure :: computevcrit_screw => computevcrit_screw
       procedure :: computevcrit_edge => computevcrit_edge
+      procedure :: computevcrit_barnett => computevcrit_barnett
+      procedure :: computevcrit => computevcrit
   end type
-  public :: volume_unitcell, set_character_angles, computerot, phonondrag, computevcrit_screw, computevcrit_edge, Miller_to_Cart
+  public :: volume_unitcell, set_character_angles, computerot, phonondrag, computevcrit_screw, computevcrit_edge, &
+            computevcrit_barnett, computevcrit, Miller_to_Cart
   !-------------------------
   contains
     !> computes the unit cell volume
@@ -310,9 +313,7 @@ module dislocations
       c16=disl%C2aligned(1,6,disl%ntheta)
       c26=disl%C2aligned(2,6,disl%ntheta)
       vlim  = -1.d0 ! if this is returned, something went wrong below (e.g. C2 did not have the required properties)
-      if (disl%sym=="fcc") then
-        vlim = sqrt(min(disl%C2(4,4),0.5d0*(disl%C2(1,1)-disl%C2(1,2)))/disl%rho)
-      else if (abs(c16/disl%C2(4,4))+abs(c26/disl%C2(4,4)) < 1.d-12) then
+      if (abs(c16/disl%C2(4,4))+abs(c26/disl%C2(4,4)) < 1.d-12) then
         vlim = sqrt(min(c66,c11)/disl%rho)
         if ((((c11*c22-c12**2-2.d0*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66))<0) then
           ! analytic solution to Re(lambda=0) in eq. (39) (with sp.solve); sqrt below is real because of if statement above:
@@ -325,6 +326,83 @@ module dislocations
         print*,"ERROR: not implemented for non-vanishing c16 or c26!"
       end if
     end subroutine computevcrit_edge
+    !-------------------------
+    !> Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
+    pure subroutine computevcrit_barnett(disl,th,vlim)
+      use utilities, only : elbrak1d
+      use elastic_constants, only : unvoigt
+      class(disloc), intent(in) :: disl
+      integer, intent(in) :: th !< index of the character angle disl%theta(th)
+      real(sel), intent(out) :: vlim(3) !< 3 branches to consider, the lowest value is the (lowest) limiting velocity
+      real(sel) :: M(disl%nphi,3),MM(disl%nphi,3,3), MM2(disl%nphi,3,3), norm, C2(3,3,3,3), tmp
+      real(sel), dimension(disl%nphi) :: P,Q,R,a,d,gam,tmpout
+      integer :: i, j
+      ! TODO: write a subroutine that is a fct of phi befor minimizing with external package
+      ! this first pass uses the nphi=500 fixed resolution and therefore will only find a crude approximation of vlim
+      M = disl%M(:,:,th)
+      call unvoigt(disl%C2/disl%C2(4,4),C2)
+      call elbrak1d(M,M,C2,disl%nphi,MM)
+      norm=(disl%C2(4,4)/disl%rho)
+      P = 0.d0
+      do i=1,3
+        P = P - MM(:,i,i)
+      end do
+      Q = 0.5d0*P**2
+      do concurrent (i=1:disl%nphi)
+        MM2(i,:,:) = 0.5d0*matmul(MM(i,:,:),MM(i,:,:))
+      end do
+      do i=1,3
+        Q = Q - MM2(:,i,i)
+      end do
+      R = -(MM(:,1,1)*MM(:,2,2)*MM(:,3,3) + MM(:,1,3)*MM(:,2,1)*MM(:,3,2)+MM(:,1,2)*MM(:,2,3)*MM(:,3,1) &
+              -MM(:,1,3)*MM(:,2,2)*MM(:,3,1) - MM(:,1,1)*MM(:,2,3)*MM(:,3,2) - MM(:,1,2)*MM(:,2,1)*MM(:,3,3))
+      a = Q - P**2/3.d0
+      d = 2.d0*P**3/27.d0-Q*P/3.d0+R
+      gam = -0.5*d/sqrt(-a**3/27.d0)
+      where(gam>1) gam=1.d0
+      where(gam<-1) gam=-1.d0
+      gam = acos(gam)
+      do i=1,3
+        tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0
+        vlim(i) = minval(abs(sqrt(tmpout*norm)/cos(disl%phi)))
+      end do
+      do i = 1, 2
+        do j = i + 1, 3
+          if (vlim(i) > vlim(j)) then
+            ! print*,"sorting barnett result"
+            tmp = vlim(i)
+            vlim(i) = vlim(j)
+            vlim(j) = tmp
+          end if
+        end do
+      end do
+    end subroutine computevcrit_barnett
+    !-------------------------
+    !> Computes all limiting velocities for all dislocation character angles
+    !> In the special case of reflection symmetry for the screw or edge dislocation, the appropriate values from the 
+    !> general numerical algorithm computevcrit_barnett() will be replaced by the analytic results of computevcrit screw/edge
+    !> the results are assembled into a 2-dim array where each row represents the 3 branches (lowest, 2nd and highest vlim) for
+    !> a character angle theta = [0,...,disl%ntheta]
+    subroutine computevcrit(disl,vlim)
+      class(disloc), intent(in) :: disl
+      real(sel), intent(out) :: vlim(disl%ntheta,3)
+      real(sel) :: tmp
+      integer th
+      do concurrent (th=1:disl%ntheta)
+        call computevcrit_barnett(disl,th,vlim(th,:))
+      end do
+      tmp = 0.d0
+      if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
+        call disl%computevcrit_screw(tmp)
+        vlim(1,:) = tmp
+      end if
+      if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
+        call disl%computevcrit_edge(tmp)
+        vlim(disl%ntheta,:2) = tmp
+      !else if (disl%sym=="fcc") then  ! would need to check the slip system as well and computevcrit_barnett() is accurate enough
+      !  vlim(1) = sqrt(min(disl%C2(4,4),0.5d0*(disl%C2(1,1)-disl%C2(1,2)))/disl%rho)
+      end if
+    end subroutine computevcrit
     !-------------------------
     !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation 'disl' 
     !>and gliding velocities 'beta'=v/ct

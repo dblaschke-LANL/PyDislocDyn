@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - May 7, 2026
+! Date: Mar. 30, 2026 - May 11, 2026
 module elastic_constants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
@@ -271,7 +271,7 @@ module elastic_constants
     end subroutine elasticC3
     ! -----------------------------
     !> subroutine of voigt()
-    subroutine vgt_two(x,y)
+    pure subroutine vgt_two(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3)
       real(kind=sel), intent(out) :: y(6)
@@ -280,7 +280,7 @@ module elastic_constants
       y = z(VoigtIndices)
     end subroutine vgt_two
     !> subroutine of voigt()
-    subroutine vgt_four(x,y)
+    pure subroutine vgt_four(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6)
@@ -289,7 +289,7 @@ module elastic_constants
       y = z(VoigtIndices,VoigtIndices)
     end subroutine vgt_four
     !> subroutine of voigt()
-    subroutine vgt_six(x,y)
+    pure subroutine vgt_six(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6,6)
@@ -298,21 +298,21 @@ module elastic_constants
       y = z(VoigtIndices,VoigtIndices,VoigtIndices)
     end subroutine vgt_six
     !> subroutine of unvoigt()
-    subroutine unvgt_one(x,y)
+    pure subroutine unvgt_one(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(6)
       real(kind=sel), intent(out) :: y(3,3)
       y = reshape(x(UnVoigtIndices),(/3,3/))
     end subroutine unvgt_one
     !> subroutine of unvoigt()
-    subroutine unvgt_two(x,y)
+    pure subroutine unvgt_two(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices),(/3,3,3,3/))
     end subroutine unvgt_two
     !> subroutine of unvoigt()
-    subroutine unvgt_three(x,y)
+    pure subroutine unvgt_three(x,y)
       use parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3,3,3)
@@ -334,7 +334,7 @@ module elastic_constants
     end function CheckReflectionSymmetry
     !-------------------------
     !> Computes the Voigt average of 2nd order elastic constants
-    subroutine voigtaverage(C2,lambda,mu)
+    pure subroutine voigtaverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
@@ -343,7 +343,7 @@ module elastic_constants
     mu = (C2(1,1)-C2(1,2)-C2(1,3)+C2(2,2)-C2(2,3)+C2(3,3)+3.d0*C2(4,4)+3.d0*C2(5,5)+3.d0*C2(6,6))/15.d0
     end subroutine voigtaverage
     !> Computes the Reuss average of 2nd order elastic constants
-    subroutine reussaverage(C2,lambda,mu)
+    pure subroutine reussaverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
@@ -368,7 +368,7 @@ module elastic_constants
          - 8.d0*C2(1,2)*C2(1,3)*C2(4,4)*C2(6,6) + 4.d0*C2(1,2)*C2(3,3)*C2(4,4)*C2(6,6) - 12.d0*C2(1,3)**2*C2(4,4)*C2(6,6))
     end subroutine reussaverage
     !> Computes the Hill average of 2nd order elastic constants
-    subroutine hillaverage(C2,lambda,mu)
+    pure subroutine hillaverage(C2,lambda,mu)
     use parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu

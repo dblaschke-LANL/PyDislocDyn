@@ -19,6 +19,8 @@ jobs:
         exclude:
           - os: macos-latest
             python-version: '3.9'
+          - os: windows-latest
+            python-version: '3.9'
         include:
           - python-version: '3.9'
             module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8 pandas==1.5 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.58.1 meson ninja pytest"

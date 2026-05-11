@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - May 8, 2026
+! Date: Mar. 25, 2026 - May 11, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module checks
   use parameters, only: sel, rzero
@@ -106,7 +106,7 @@ module tests
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e
-      real(sel), allocatable :: zeros(:), Etot(:), B(:,:)
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:)
       logical :: istrue
 !~       integer :: i
       
@@ -139,7 +139,7 @@ module tests
       zeros = 0.d0
       call testequalarray(Cu%uij(:,1,1,1)+Cu%uij(:,2,2,1)+Cu%uij(:,3,3,1),zeros,Cu%nphi,&
                           "disloc_Cu_uij-screw_zero-trace",1.d-12,count_pass,count_fail)
-      allocate(Etot(Cu%ntheta))
+      allocate(Etot(Cu%ntheta),vlim(Cu%ntheta,3))
       call computeEtot(Cu%uij,Cu%beta,Cu%C2norm,Cu%Cv,Cu%phi,Cu%ntheta,Cu%nphi,Etot)
       call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
       
@@ -148,8 +148,9 @@ module tests
       call testtrue((CheckReflectionSymmetry(Cu%C2aligned(:,:,1)) .and. &
                 .not.CheckReflectionSymmetry(Cu%C2aligned(:,:,Cu%ntheta))),"reflection-sym, Cu screw/edge",count_pass,count_fail)
       call Cu%computevcrit_screw(vlim_s)
-      call Cu%computevcrit_edge(vlim_e)
-      call testzero(vlim_s+vlim_e-3825.924891d0,"disloc_Cu_vlim screw/edge",1.d-6,count_pass,count_fail)
+      call Cu%computevcrit(vlim)
+      vlim_e = vlim(Cu%ntheta,1)
+      call testzero(vlim_s+vlim_e-3825.924891d0 + sum(vlim)-16102.217647d0,"disloc_Cu_vlim screw/edge",1.d-6,count_pass,count_fail)
       
       Ti = disloc(sym="hcp",metal="Ti",rho=4506.d0,lat_a = [2.9506d-10,0.d0,4.6835d-10])
       Ti%cij = [1.624d11, 9.2d10, 6.9d10, 1.807d11, 4.67d10]
@@ -163,7 +164,10 @@ module tests
                 CheckReflectionSymmetry(Ti%C2aligned(:,:,Ti%ntheta))),"reflection-sym, Ti screw/edge",count_pass,count_fail)
       call Ti%computevcrit_screw(vlim_s)
       call Ti%computevcrit_edge(vlim_e)
-      call testzero(vlim_s+vlim_e-6014.271264d0,"disloc_Tipris_vlim screw/edge",1.d-6,count_pass,count_fail)
+      deallocate(vlim)
+      allocate(vlim(Ti%ntheta,3))
+      call Ti%computevcrit(vlim)
+      call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disl_Tipris_vlim screw/edge",1.d-6,count_pass,count_fail)
       
     end subroutine test_disloc
 end module tests
@@ -255,5 +259,7 @@ program runtests
   print*,"------------------------------------------------------------"
   print*,"SUMMARY:", count_pass," passed and ",count_fail," failed"
   print*,"time: ",real(finish_time-start_time)/real(countrate), "s"
+  
+  if (count_fail>0) error stop "some tests failed"
   
 end program runtests
