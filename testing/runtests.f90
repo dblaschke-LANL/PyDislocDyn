@@ -167,7 +167,7 @@ module tests
       deallocate(vlim)
       allocate(vlim(Ti%ntheta,3))
       call Ti%computevcrit(vlim)
-      call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disl_Tipris_vlim screw/edge",1.d-6,count_pass,count_fail)
+      call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disloc_Tipris_vlimit",1.d-6,count_pass,count_fail)
       
     end subroutine test_disloc
 end module tests
@@ -194,6 +194,7 @@ program runtests
   
   ! check for openmp
   call get_command_argument(0, exe_name)
+  print*,"Testing DislocDyn version", version
   call ompinfo(nthreads)
   if (nthreads>0) then
     print*,exe_name, " compiled with openmp support, using ",nthreads," threads"

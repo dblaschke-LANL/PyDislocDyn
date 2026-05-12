@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - May 11, 2026
+! Date: Mar. 31, 2026 - May 12, 2026
 module dislocations
   use parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -278,7 +278,7 @@ module dislocations
         end if
       end if
       if (abs(dot_product(disl%b,disl%n0))>1.d-9) then
-        print*,"ERROR: invalid slip system; b and n0 must be normal!"
+        error stop "invalid slip system; b and n0 must be normal!"
       end if
       call disl%update_stroh()
       call disl%update_rot()
@@ -303,9 +303,13 @@ module dislocations
     !>Compute the limiting velocity of a pure edge dislocation analytically, assuming the slip plane is a reflection plane .
     !>Note: the reflection plane property must be checked separately, this function will not.
     subroutine computevcrit_edge(disl,vlim)
+      use utilities, only : elbrak1d
       class(disloc), intent(in) :: disl
       real(sel), intent(out) :: vlim
-      real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim
+      real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim, norm
+      real(sel) :: M(disl%nphi,3),MM(disl%nphi,3,3)
+      real(sel) :: C2(3,3,3,3), Q(disl%nphi), R(disl%nphi), tmpout1(disl%nphi), tmpout2(disl%nphi)
+      integer :: i
       c11=disl%C2aligned(1,1,disl%ntheta)
       c22=disl%C2aligned(2,2,disl%ntheta)
       c66=disl%C2aligned(6,6,disl%ntheta)
@@ -323,14 +327,26 @@ module dislocations
           vlim = min(vlim,sqrt(tmpvlim/disl%rho))
         end if
       else
-        print*,"ERROR: not implemented for non-vanishing c16 or c26!"
+        call unvoigt(disl%C2aligned(:,:,disl%ntheta)/disl%C2(4,4),C2)
+        M(:,1) = cos(disl%phi)
+        M(:,2) = sin(disl%phi)
+        M(:,3) = 0.d0
+        call elbrak1d(M,M,C2,disl%nphi,MM)
+        norm=(disl%C2(4,4)/disl%rho)
+        Q = 0.d0
+        do i=1,2
+          Q = Q + MM(:,i,i)
+        end do
+        R = MM(:,1,1)*MM(:,2,2) - MM(:,1,2)*MM(:,2,1)
+        tmpout1 = 0.5d0*Q + sqrt(0.25d0*Q**2-R)
+        tmpout2 = 0.5d0*Q - sqrt(0.25d0*Q**2-R)
+        vlim = min(minval(abs(sqrt(tmpout1*norm)/cos(disl%phi))),minval(abs(sqrt(tmpout2*norm)/cos(disl%phi))))
       end if
     end subroutine computevcrit_edge
     !-------------------------
     !> Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
     pure subroutine computevcrit_barnett(disl,th,vlim)
       use utilities, only : elbrak1d
-      use elastic_constants, only : unvoigt
       class(disloc), intent(in) :: disl
       integer, intent(in) :: th !< index of the character angle disl%theta(th)
       real(sel), intent(out) :: vlim(3) !< 3 branches to consider, the lowest value is the (lowest) limiting velocity

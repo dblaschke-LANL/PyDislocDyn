@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 9, 2026
+# Date: Nov. 3, 2017 - May 12, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -135,8 +135,13 @@ class Dislocation(StrohGeometry,metal_props):
             self.vcrit_screw = sqrt((A-B**2/(4*C))/self.rho)
         return self.vcrit_screw
     
-    def computevcrit_edge(self):
-        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.'''
+    def computevcrit_edge(self,return_all=False,legacy=False):
+        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.
+           option 'legacy' control which method is used for the slightly more general case of non-vanishing elastic constants c16,c26.
+           set legacy=True to use the much slower routine following Teutonico's paper, otherwise we use a much faster method loosely following
+           Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, but adapted to the decoupled 2-dimensional special case.
+           The latter method is also employed if option "return_all=True" in which case not onlye the lowest limting velocity, but
+           also the higher limiting velocity is returned (implies legacy=False).'''
         if self.C2_aligned is None:
             self.alignC2()
         self.C2_aligned_edge = self.C2_aligned[self.findedgescrewindices()[1]]
@@ -146,7 +151,7 @@ class Dislocation(StrohGeometry,metal_props):
             c66=self.C2_aligned_edge[5,5]
             c12=self.C2_aligned_edge[0,1]
             test = np.abs(self.C2_aligned_edge/self.C2[3,3]) ## check for additional symmetry requirements
-            if test[0,5] + test[1,5] < 1e-12:
+            if test[0,5] + test[1,5] < 1e-12 and not return_all:
                 self.vcrit_edge = np.sqrt(min(c66,c11)/self.rho)
                 ## cover case of q<0 (cf. Teutonico 1961 paper, eq (39); line above was only for q>0):
                 if ((c11*c22-c12**2-2*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66)<0:
@@ -154,7 +159,7 @@ class Dislocation(StrohGeometry,metal_props):
                     minval = (2*np.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)
                     # print(self.name,"q is negative",np.sqrt(minval/self.rho),np.sqrt(np.array([c66,c11])/self.rho))
                     self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
-            else:
+            elif legacy and not return_all:
                 c16 = self.C2_aligned_edge[0,5]
                 c26 = self.C2_aligned_edge[1,5]
                 def theroot(y,rv2):
@@ -172,6 +177,38 @@ class Dislocation(StrohGeometry,metal_props):
                         self.vcrit_edge = np.sqrt(rv2limit[0]/self.rho)
                     else:
                         print(f'Warning: {self.name}.computevcrit_edge() (resp. scipy.optimize.root()) failed, debug info: {rv2limit_sol=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
+            else:
+                norm=(self.C2[3,3]/self.rho)
+                C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
+                # since we rotated our coordinates to align with the edge dislocation, x=slip direction y=slip plane normal:
+                m0 = np.array([1,0,0])
+                n0 = np.array([0,1,0])
+                tmpout = np.zeros((2))
+                def findvlim(phi,i):
+                    M = (m0*np.cos(phi) + n0*np.sin(phi))
+                    MM = np.dot(M,np.dot(C2,M))[:2,:2]
+                    Q = np.trace(MM)
+                    # R = np.linalg.det(MM)
+                    R = (MM[0,0]*MM[1,1] - MM[0,1]*MM[1,0])
+                    # solve quadratic equation: y**2+Qy+R=0:
+                    # y = -Q/2 \pm sqrt(Q*2/4 - R)
+                    tmpout = Q/2 + (-1)**i*np.sqrt(Q**2/4-R)
+                    return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
+                for i in range(2):
+                    ## neither default minimizer nor bounded method always find the smallest value, so run both:
+                    with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
+                        minresult = optimize.minimize_scalar(findvlim,args=i)
+                        minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results
+                    if not (minresult.success and minresult2.success):
+                        print(f"Warning ({self.name}, edge):\n{minresult}\n{minresult2}\n\n")
+                    ## always take the smaller result, ignore nan:
+                    if minresult2.fun < minresult.fun or np.isnan(minresult.fun):
+                        minresult = minresult2
+                    tmpout[i] = minresult.fun
+                self.vcrit_edge = min(tmpout)
+                if return_all:
+                    return tmpout
+
         return self.vcrit_edge
 
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True,return_all=False):
