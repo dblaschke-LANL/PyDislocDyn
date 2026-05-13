@@ -300,8 +300,11 @@ module dislocations
       vlim = sqrt((disl%C2aligned(5,5,1)-4.d0*disl%C2aligned(4,5,1)**2/(4.d0*disl%C2aligned(4,4,1)))/disl%rho)
     end subroutine computevcrit_screw
     !-------------------------
-    !>Compute the limiting velocity of a pure edge dislocation analytically, assuming the slip plane is a reflection plane .
+    !>Compute the limiting velocity of a pure edge dislocation, assuming the slip plane is a reflection plane.
     !>Note: the reflection plane property must be checked separately, this function will not.
+    !>If elastic constants c16 and c26 are zero, we use the analytic solution of L. J. Teutonico 1961, Phys. Rev. 124:1039.
+    !>Otherwise, we adapt the method of Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, to the present decoupled 2D
+    !>special case.
     subroutine computevcrit_edge(disl,vlim)
       use utilities, only : elbrak1d
       class(disloc), intent(in) :: disl

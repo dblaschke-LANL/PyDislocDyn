@@ -71,7 +71,7 @@ class Dislocation(StrohGeometry,metal_props):
             else:
                 self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
     
-    def computevcrit_barnett(self, theta_list=None, setvcrit=True, verbose=False):
+    def computevcrit_barnett(self, theta_list=None, setvcrit=True):
         '''Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
            All parameters are optional: unless a list of character angles is passed explicitly via theta_list,
            we calculate limiting velocities for all character angles in self.theta.
@@ -101,21 +101,16 @@ class Dislocation(StrohGeometry,metal_props):
                       - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
                 a = Q - P**2/3
                 d = (2*P**3-9*Q*P+27*R)/27
-                gamma = np.arccos(-0.5*d/np.sqrt(-a**3/27))
+                gamma = -0.5*d/np.sqrt(-a**3/27)
+                gamma = np.arccos(gamma.clip(min=-1,max=1))
                 tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
                 return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
             for i in range(3):
-                ## neither default minimizer nor bounded method always find the smallest value, so run both:
-                with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                    minresult = optimize.minimize_scalar(findvlim,args=i)
-                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results
-                if verbose and not (minresult.success and minresult2.success):
-                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult}\n{minresult2}\n\n")
-                ## always take the smaller result, ignore nan:
-                if minresult2.fun < minresult.fun or np.isnan(minresult.fun):
-                    minresult = minresult2
+                def findvlimi(phi):
+                    return findvlim(phi,i)
+                minresult = optimize.direct(findvlimi,bounds=optimize.Bounds(0,np.pi))
                 out[0,th,i] = minresult.fun
-                out[1,th,i] = minresult.x
+                out[1,th,i] = minresult.x[0]
         if setvcrit: self.vcrit_barnett = out
         return out[0]
         
@@ -137,10 +132,10 @@ class Dislocation(StrohGeometry,metal_props):
     
     def computevcrit_edge(self,return_all=False,legacy=False):
         '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.
-           option 'legacy' control which method is used for the slightly more general case of non-vanishing elastic constants c16,c26.
-           set legacy=True to use the much slower routine following Teutonico's paper, otherwise we use a much faster method loosely following
+           Option 'legacy' controls which method is used for the slightly more general case of non-vanishing elastic constants c16,c26.
+           Set legacy=True to use the much slower routine following Teutonico's paper, otherwise we use a much faster method loosely following
            Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, but adapted to the decoupled 2-dimensional special case.
-           The latter method is also employed if option "return_all=True" in which case not onlye the lowest limting velocity, but
+           The latter method is also employed if option "return_all=True" in which case not only the lowest limting velocity, but
            also the higher limiting velocity is returned (implies legacy=False).'''
         if self.C2_aligned is None:
             self.alignC2()
@@ -195,15 +190,9 @@ class Dislocation(StrohGeometry,metal_props):
                     tmpout = Q/2 + (-1)**i*np.sqrt(Q**2/4-R)
                     return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
                 for i in range(2):
-                    ## neither default minimizer nor bounded method always find the smallest value, so run both:
-                    with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                        minresult = optimize.minimize_scalar(findvlim,args=i)
-                        minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results
-                    if not (minresult.success and minresult2.success):
-                        print(f"Warning ({self.name}, edge):\n{minresult}\n{minresult2}\n\n")
-                    ## always take the smaller result, ignore nan:
-                    if minresult2.fun < minresult.fun or np.isnan(minresult.fun):
-                        minresult = minresult2
+                    def findvlimi(phi):
+                        return findvlim(phi,i)
+                    minresult = optimize.direct(findvlimi,bounds=optimize.Bounds(0,np.pi))
                     tmpout[i] = minresult.fun
                 self.vcrit_edge = min(tmpout)
                 if return_all:
