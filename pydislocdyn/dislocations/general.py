@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Apr. 9, 2026
+# Date: Nov. 3, 2017 - May 13, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -71,7 +71,7 @@ class Dislocation(StrohGeometry,metal_props):
             else:
                 self.C2_aligned[th] = Voigt(np.dot(self.rot[th],np.dot(self.rot[th],np.dot(self.rot[th],np.dot(UnVoigt(self.C2),self.rot[th].T)))))
     
-    def computevcrit_barnett(self, theta_list=None, setvcrit=True, verbose=False):
+    def computevcrit_barnett(self, theta_list=None, setvcrit=True):
         '''Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
            All parameters are optional: unless a list of character angles is passed explicitly via theta_list,
            we calculate limiting velocities for all character angles in self.theta.
@@ -92,30 +92,30 @@ class Dislocation(StrohGeometry,metal_props):
         out = np.zeros((2,Ntheta,3))
         for th in range(Ntheta):
             def findvlim(phi,i):
-                M = m0[th]*np.cos(phi) + self.n0*np.sin(phi)
-                MM = np.dot(M,np.dot(C2,M))
-                P = -np.trace(MM)
-                Q = 0.5*(P**2-np.trace((MM @ MM)))
+                cosph = np.cos(phi)
+                M = np.asarray([m0[th]*cosph + self.n0*np.sin(phi)])
+                # MM = np.dot(M,np.dot(C2,M))
+                MM = elbrak1d(M,M,C2)[0]
+                P3 = -np.trace(MM)/3 ## = P/3 in notation of Barnett
+                Q = 0.5*(9*P3**2-np.trace((MM @ MM)))
                 # R = -np.linalg.det(MM)
                 R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
                       - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
-                a = Q - P**2/3
-                d = (2*P**3-9*Q*P+27*R)/27
-                gamma = np.arccos(-0.5*d/np.sqrt(-a**3/27))
-                tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
-                return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
+                sqrta = np.sqrt(P3**2-Q/3) ## =sqrt(-a/3) in notation of Barnett
+                d = (2*P3**3-Q*P3+R)
+                gamma = -0.5*d/sqrta**3
+                gamma = np.arccos(gamma.clip(min=-1,max=1))
+                tmpout = -P3 + 2*sqrta*np.cos((gamma+2*i*np.pi)/3)
+                return np.abs(np.sqrt(tmpout*norm)/cosph)
             for i in range(3):
-                ## neither default minimizer nor bounded method always find the smallest value, so run both:
-                with np.errstate(invalid='ignore'): ## don't need to know about arccos producing nan while optimizing
-                    minresult = optimize.minimize_scalar(findvlim,args=i)
-                    minresult2 = optimize.minimize_scalar(findvlim,method='bounded',bounds=(0,2.04*np.pi),args=i) # slightly enlarge interval for better results
-                if verbose and not (minresult.success and minresult2.success):
-                    print(f"Warning ({self.name}, theta={theta[th]}):\n{minresult}\n{minresult2}\n\n")
-                ## always take the smaller result, ignore nan:
-                if minresult2.fun < minresult.fun or np.isnan(minresult.fun):
-                    minresult = minresult2
+                minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                 out[0,th,i] = minresult.fun
-                out[1,th,i] = minresult.x
+                out[1,th,i] = minresult.x[0]
+                bounds=(minresult.x[0]-0.1,minresult.x[0]+0.1)
+                minresult2 = optimize.minimize_scalar(lambda x: findvlim(x,i),method='bounded',bounds=bounds)
+                if minresult2.success and minresult2.fun<minresult.fun:
+                    out[0,th,i] = minresult2.fun
+                    out[1,th,i] = minresult2.x
         if setvcrit: self.vcrit_barnett = out
         return out[0]
         
@@ -135,8 +135,13 @@ class Dislocation(StrohGeometry,metal_props):
             self.vcrit_screw = sqrt((A-B**2/(4*C))/self.rho)
         return self.vcrit_screw
     
-    def computevcrit_edge(self):
-        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.'''
+    def computevcrit_edge(self,return_all=False,legacy=False):
+        '''Compute the limiting velocity of a pure edge dislocation analytically, provided the slip plane is a reflection plane (cf. L. J. Teutonico 1961, Phys. Rev. 124:1039), use computevcrit() otherwise.
+           Option 'legacy' controls which method is used for the slightly more general case of non-vanishing elastic constants c16,c26.
+           Set legacy=True to use the much slower routine following Teutonico's paper, otherwise we use a much faster method loosely following
+           Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, but adapted to the decoupled 2-dimensional special case.
+           The latter method is also employed if option "return_all=True" in which case not only the lowest limting velocity, but
+           also the higher limiting velocity is returned (implies legacy=False).'''
         if self.C2_aligned is None:
             self.alignC2()
         self.C2_aligned_edge = self.C2_aligned[self.findedgescrewindices()[1]]
@@ -146,7 +151,7 @@ class Dislocation(StrohGeometry,metal_props):
             c66=self.C2_aligned_edge[5,5]
             c12=self.C2_aligned_edge[0,1]
             test = np.abs(self.C2_aligned_edge/self.C2[3,3]) ## check for additional symmetry requirements
-            if test[0,5] + test[1,5] < 1e-12:
+            if test[0,5] + test[1,5] < 1e-12 and not return_all:
                 self.vcrit_edge = np.sqrt(min(c66,c11)/self.rho)
                 ## cover case of q<0 (cf. Teutonico 1961 paper, eq (39); line above was only for q>0):
                 if ((c11*c22-c12**2-2*c12*c66) - (c22+c66)*min(c66,c11))/(c22*c66)<0:
@@ -154,7 +159,7 @@ class Dislocation(StrohGeometry,metal_props):
                     minval = (2*np.sqrt(c22*c66*(-c11*c22 + c11*c66 + c12**2 + 2*c12*c66 + c22*c66))*(c12 + c66) - (-c11*c22**2 + c11*c22*c66 + c12**2*c22 + c12**2*c66 + 2*c12*c22*c66 + 2*c12*c66**2 + 2*c22*c66**2))/((c22 - c66)**2)
                     # print(self.name,"q is negative",np.sqrt(minval/self.rho),np.sqrt(np.array([c66,c11])/self.rho))
                     self.vcrit_edge = min(self.vcrit_edge,np.sqrt(minval/self.rho))
-            else:
+            elif legacy and not return_all:
                 c16 = self.C2_aligned_edge[0,5]
                 c26 = self.C2_aligned_edge[1,5]
                 def theroot(y,rv2):
@@ -172,6 +177,38 @@ class Dislocation(StrohGeometry,metal_props):
                         self.vcrit_edge = np.sqrt(rv2limit[0]/self.rho)
                     else:
                         print(f'Warning: {self.name}.computevcrit_edge() (resp. scipy.optimize.root()) failed, debug info: {rv2limit_sol=}, {np.sqrt(rv2limit[0]/self.rho)=}, {f(rv2limit)=}')
+            else:
+                norm=(self.C2[3,3]/self.rho)
+                C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
+                # since we rotated our coordinates to align with the edge dislocation, x=slip direction y=slip plane normal:
+                m0 = np.array([[1,0,0]]) ## need M to be shape (1,3) below so that we can use elbrak1d
+                n0 = np.array([[0,1,0]])
+                signs = [1,-1]
+                tmpout = np.zeros((2))
+                def findvlim(phi,i):
+                    cosph = np.cos(phi)
+                    M = (m0*cosph + n0*np.sin(phi))
+                    # MM = np.dot(M,np.dot(C2,M))[:2,:2]
+                    # Q = np.trace(MM)
+                    # R = np.linalg.det(MM)
+                    MM = elbrak1d(M,M,C2)
+                    Q = MM[0,0,0]+MM[0,1,1]
+                    R = (MM[0,0,0]*MM[0,1,1] - MM[0,0,1]*MM[0,1,0])
+                    # solve quadratic equation: y**2+Qy+R=0:
+                    # y = -Q/2 \pm sqrt(Q*2/4 - R)
+                    tmpout = Q/2 + signs[i]*np.sqrt(Q**2/4-R)
+                    return np.abs(np.sqrt(tmpout*norm)/cosph)
+                for i in range(2):
+                    minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
+                    tmpout[i] = minresult.fun
+                    bounds=(minresult.x[0]-0.1,minresult.x[0]+0.1)
+                    minresult2 = optimize.minimize_scalar(lambda x: findvlim(x,i),method='bounded',bounds=bounds)
+                    if minresult2.success and minresult2.fun<minresult.fun:
+                        tmpout[i] = minresult2.fun
+                self.vcrit_edge = min(tmpout)
+                if return_all:
+                    return tmpout
+
         return self.vcrit_edge
 
     def computevcrit(self,theta=None,set_screwedge=True,setvcrit=True,return_all=False):
@@ -312,9 +349,14 @@ class Dislocation(StrohGeometry,metal_props):
                 return Rayleighcond(integrate.trapezoid(B,x=self.phi,axis=0)/(4*np.pi**2))
             bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
             result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
-            # if result.fun>1e-3: print(f"{self.name},{bounds}\n{result}") # usually a sign of Nphi being too small, result nonetheless close enough usually
-            if result.fun>2e-2 or not result.success: 
-                print(f"Failed: Rayleigh not found in {bounds}. Try with larger Nphi in Dislocation class? (current value: Nphi={len(self.phi)})\n")
+            if result.fun>2e-2 or not result.success:
+                # allow some tolerance in upper bound and try again
+                result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=(0,1.001*bounds[-1]),options={'xatol':1e-12})
+                if result.fun>2e-2 or not result.success:
+                    print(f"Failed for {self.name}, {th=}: Rayleigh not found; {result.fun=}, {bounds=}, {result.x=}\n")
+                else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
+                if Rayleigh[th]>vcrit[th]: ## if our algorithm slighlty overshoots, correct (we have 1 per mille tolerance in fall-back bounds above)
+                    Rayleigh[th]=vcrit[th]
             else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
         self.Rayleigh = Rayleigh
         return Rayleigh

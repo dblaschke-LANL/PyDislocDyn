@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.5 (wip)
+## 1.3.5-rc1 (2026-05-13)
 
 Features and improvements:
 
@@ -8,6 +8,7 @@ Features and improvements:
 (Note some changed syntax: options `--use_iso`, `--allplots`, and `--skip_plots` no longer take an argument)
  - ported the test suite to pytest, optimized its defaults for faster completion, and added more unit tests
  - changed some defaults for faster dislocation drag calculations
+ - improved computevcrit() and findRayleigh(): more robust and faster computevcrit_edge() if c16,c26 non-vanishing
 
 Fix:
 

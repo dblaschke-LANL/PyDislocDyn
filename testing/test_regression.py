@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Mar. 29, 2026
+# Date: Mar. 6, 2023 - May 13, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -17,12 +17,12 @@ dir_path = pathlib.Path(__file__).resolve().parents[1] / 'pydislocdyn'
 
 from pydislocdyn.metal_data import fcc_metals, tetr_metals, ISO_l, c111, all_metals, expand_slipsystems
 from pydislocdyn.utilities import isclose, usefortran
-from pydislocdyn import read_2dresults, Ncores, Voigt, strain_poly, writeallinputfiles, readinputfile
+from pydislocdyn import read_2dresults, Ncores, Ncpus, Voigt, strain_poly, writeallinputfiles, readinputfile
 from pydislocdyn.dragcoeff_semi_iso import metal as all_drag_metals
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
 import sympy as sp
 import pandas as pd
-if Ncores>1:
+if Ncpus>1:
     from joblib import Parallel, delayed
     
 cwd =pathlib.Path.cwd()
@@ -69,7 +69,7 @@ def diff(f1,f2,verbose=True):
             print(line.strip("\n"))
     return equal
 
-def round_list(lst,ndigits=2):
+def round_list(lst,ndigits=0):
     '''rounds all floats in a nested list'''
     if isinstance(lst,float):
         return float(round(lst,ndigits))
@@ -360,11 +360,12 @@ def test_acc_edge(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo
         assert isclose(f1,f2,verbose=verbose)
     os.chdir(new)
 
-def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti Sn',**kwargs):
+def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='all',**kwargs):
     '''implements various regression tests for the dislocation class,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True} # defaults for this test
+    opts['Ncores'] = Ncpus
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
@@ -372,29 +373,30 @@ def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Al Mo Ti 
     if not skip_calcs:
         print("\nrunning test 'misc' ...")
         tmppydislocdyn = prepare_inputfiles()
-        Y = {}
-        print(f"calculating limiting velocities, Rayleigh speeds, and radiation-free velocities for {metal_list}")
-        for X in metal_list:
-            Y[X] = readinputfile(pathlib.Path(tmppydislocdyn,X),Ntheta=5)
-            Y[X].computevcrit()
-            Y[X].findvcrit_smallest()
-            Y[X].findRayleigh()
-            Y[X].find_vRF(fast=opts['vRF_fast'],resolution=opts['vRF_resolution'])
+        print(f"calculating limiting velocities, Rayleigh speeds, radiation-free velocities, and dislocation fields for {metal_list}")
+        def maincomputations(X):
+            Y = readinputfile(pathlib.Path(tmppydislocdyn,X),Ntheta=5)
+            Y.computevcrit()
+            Y.findvcrit_smallest()
+            Y.findRayleigh()
+            Y.find_vRF(fast=opts['vRF_fast'],resolution=opts['vRF_resolution'])
             with open(X+"props.txt", "w", encoding="utf8") as logfile:
-                np.set_printoptions(precision=2,suppress=True)
-                logfile.write(repr(Y[X]))
+                np.set_printoptions(precision=1,suppress=True)
+                logfile.write(repr(Y))
                 logfile.write("\n\ntheta:\n")
-                logfile.write('\n'.join(map("{:.6f}".format,Y[X].theta)))
-                logfile.write(f'\nvcrit(theta)={Y[X].vcrit_all[1]}')
-                logfile.write(f'\nvcrit_smallest={Y[X].vcrit_smallest:.2f}')
-                logfile.write(f'\nvRayleigh(theta)={Y[X].Rayleigh}')
-                logfile.write(f'\nvRF={round_list(Y[X].vRF)}')
-        print("calculating various dislocation fields")
-        for X in metal_list:
-            Y[X].plotdisloc(0.5,nogradient=True,component=2,savefig=False)
-            Y[X].computeuij(0.5,r=Y[X].r)
-            Y[X].alignuij()
-            np.savez_compressed(f"u_{X}.npz",uk_05small=Y[X].uk_aligned[:,:,::10,::10],uij_05small=Y[X].uij_aligned[:,:,:,::10,::10])
+                logfile.write('\n'.join(map("{:.6f}".format,Y.theta)))
+                logfile.write(f'\nvcrit(theta)={Y.vcrit_all[1]}')
+                logfile.write(f'\nvcrit_smallest={Y.vcrit_smallest:.2f}')
+                logfile.write(f'\nvRayleigh(theta)={Y.Rayleigh}')
+                logfile.write(f'\nvRF={round_list(Y.vRF)}')
+            Y.plotdisloc(0.5,nogradient=True,component=2,savefig=False)
+            Y.computeuij(0.5,r=Y.r)
+            Y.alignuij()
+            np.savez_compressed(f"u_{X}.npz",uk_05small=Y.uk_aligned[:,:,::10,::10],uij_05small=Y.uij_aligned[:,:,:,::10,::10])
+        if opts['Ncores']>1:
+            Parallel(n_jobs=opts['Ncores'])(delayed(maincomputations)(X) for X in metal_list)
+        else:
+            [maincomputations(X) for X in metal_list]
     else: print("\nskipping tests 'misc' as requested")
     print("\ncomparing misc results\n")
     for X in metal_list:
@@ -416,7 +418,7 @@ def test_strainpoly(old=baseln,new=cwd,skip_calcs=False,verbose=True,**kwargs):
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'P':0,'volpres':False} # defaults for this test
-    opts['Ncores'] = Ncores
+    opts['Ncores'] = Ncpus
     opts.update(kwargs)
     crystalsyms = ['iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric']
     if not skip_calcs:
