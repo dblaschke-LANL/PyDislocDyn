@@ -24,7 +24,6 @@ import sympy as sp
 import pandas as pd
 if Ncores>1:
     from joblib import Parallel, delayed
-Kcores = max(Ncores,int(Ncpus/2)) ## use this for parts of the code where openmp is not supported
     
 cwd =pathlib.Path.cwd()
 # all available metals (to be used if user requests 'all' in one of the tests below):
@@ -366,7 +365,7 @@ def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='all',**kw
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'bccslip':'all','hcpslip':'all','fastapprox':True,'vRF_resolution':50,'vRF_fast':True} # defaults for this test
-    opts['Ncores'] = Kcores
+    opts['Ncores'] = Ncpus
     opts.update(kwargs)
     if metals=='all':
         metals = all_metals
@@ -419,7 +418,7 @@ def test_strainpoly(old=baseln,new=cwd,skip_calcs=False,verbose=True,**kwargs):
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
     opts = {'P':0,'volpres':False} # defaults for this test
-    opts['Ncores'] = Kcores
+    opts['Ncores'] = Ncpus
     opts.update(kwargs)
     crystalsyms = ['iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric']
     if not skip_calcs:

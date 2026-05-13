@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 12, 2026
+# Date: Nov. 3, 2017 - May 13, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -92,25 +92,30 @@ class Dislocation(StrohGeometry,metal_props):
         out = np.zeros((2,Ntheta,3))
         for th in range(Ntheta):
             def findvlim(phi,i):
-                M = m0[th]*np.cos(phi) + self.n0*np.sin(phi)
-                MM = np.dot(M,np.dot(C2,M))
-                P = -np.trace(MM)
-                Q = 0.5*(P**2-np.trace((MM @ MM)))
+                cosph = np.cos(phi)
+                M = np.asarray([m0[th]*cosph + self.n0*np.sin(phi)])
+                # MM = np.dot(M,np.dot(C2,M))
+                MM = elbrak1d(M,M,C2)[0]
+                P3 = -np.trace(MM)/3 ## = P/3 in notation of Barnett
+                Q = 0.5*(9*P3**2-np.trace((MM @ MM)))
                 # R = -np.linalg.det(MM)
                 R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
                       - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
-                a = Q - P**2/3
-                d = (2*P**3-9*Q*P+27*R)/27
-                gamma = -0.5*d/np.sqrt(-a**3/27)
+                sqrta = np.sqrt(P3**2-Q/3) ## =sqrt(-a/3) in notation of Barnett
+                d = (2*P3**3-Q*P3+R)
+                gamma = -0.5*d/sqrta**3
                 gamma = np.arccos(gamma.clip(min=-1,max=1))
-                tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
-                return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
+                tmpout = -P3 + 2*sqrta*np.cos((gamma+2*i*np.pi)/3)
+                return np.abs(np.sqrt(tmpout*norm)/cosph)
             for i in range(3):
-                def findvlimi(phi):
-                    return findvlim(phi,i)
-                minresult = optimize.direct(findvlimi,bounds=optimize.Bounds(0,np.pi))
+                minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                 out[0,th,i] = minresult.fun
                 out[1,th,i] = minresult.x[0]
+                bounds=(minresult.x[0]-0.1,minresult.x[0]+0.1)
+                minresult2 = optimize.minimize_scalar(lambda x: findvlim(x,i),method='bounded',bounds=bounds)
+                if minresult2.success and minresult2.fun<minresult.fun:
+                    out[0,th,i] = minresult2.fun
+                    out[1,th,i] = minresult2.x
         if setvcrit: self.vcrit_barnett = out
         return out[0]
         
@@ -176,24 +181,30 @@ class Dislocation(StrohGeometry,metal_props):
                 norm=(self.C2[3,3]/self.rho)
                 C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
                 # since we rotated our coordinates to align with the edge dislocation, x=slip direction y=slip plane normal:
-                m0 = np.array([1,0,0])
-                n0 = np.array([0,1,0])
+                m0 = np.array([[1,0,0]]) ## need M to be shape (1,3) below so that we can use elbrak1d
+                n0 = np.array([[0,1,0]])
+                signs = [1,-1]
                 tmpout = np.zeros((2))
                 def findvlim(phi,i):
-                    M = (m0*np.cos(phi) + n0*np.sin(phi))
-                    MM = np.dot(M,np.dot(C2,M))[:2,:2]
-                    Q = np.trace(MM)
+                    cosph = np.cos(phi)
+                    M = (m0*cosph + n0*np.sin(phi))
+                    # MM = np.dot(M,np.dot(C2,M))[:2,:2]
+                    # Q = np.trace(MM)
                     # R = np.linalg.det(MM)
-                    R = (MM[0,0]*MM[1,1] - MM[0,1]*MM[1,0])
+                    MM = elbrak1d(M,M,C2)
+                    Q = MM[0,0,0]+MM[0,1,1]
+                    R = (MM[0,0,0]*MM[0,1,1] - MM[0,0,1]*MM[0,1,0])
                     # solve quadratic equation: y**2+Qy+R=0:
                     # y = -Q/2 \pm sqrt(Q*2/4 - R)
-                    tmpout = Q/2 + (-1)**i*np.sqrt(Q**2/4-R)
-                    return np.abs(np.sqrt(tmpout*norm)/np.cos(phi))
+                    tmpout = Q/2 + signs[i]*np.sqrt(Q**2/4-R)
+                    return np.abs(np.sqrt(tmpout*norm)/cosph)
                 for i in range(2):
-                    def findvlimi(phi):
-                        return findvlim(phi,i)
-                    minresult = optimize.direct(findvlimi,bounds=optimize.Bounds(0,np.pi))
+                    minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                     tmpout[i] = minresult.fun
+                    bounds=(minresult.x[0]-0.1,minresult.x[0]+0.1)
+                    minresult2 = optimize.minimize_scalar(lambda x: findvlim(x,i),method='bounded',bounds=bounds)
+                    if minresult2.success and minresult2.fun<minresult.fun:
+                        tmpout[i] = minresult2.fun
                 self.vcrit_edge = min(tmpout)
                 if return_all:
                     return tmpout
