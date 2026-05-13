@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - May 12, 2026
+# Date: Mar. 6, 2023 - May 13, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -22,7 +22,7 @@ from pydislocdyn.dragcoeff_semi_iso import metal as all_drag_metals
 import numpy as np ## import pydislocdyn first as it will set the openmp thread number
 import sympy as sp
 import pandas as pd
-if Ncores>1:
+if Ncpus>1:
     from joblib import Parallel, delayed
     
 cwd =pathlib.Path.cwd()
