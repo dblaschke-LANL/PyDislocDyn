@@ -1,6 +1,21 @@
 # Changelog
 
-## 1.3.5 (wip)
+## 1.4.0 (wip)
+
+Features and improvements:
+
+ - a new standalone Fortran library and frontend implementing a subset of PyDislocDyn features
+
+Fix:
+
+Other:
+
+ - removed deprecated keyword Nchunks from phonondrag()
+ - replace setuptools with hatchling as build-backend in pyproject.toml
+ - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules);
+   this has implications for other version requirements (e.g. numba)
+
+## 1.3.5-rc1 (2026-05-13)
 
 Features and improvements:
 
@@ -8,6 +23,7 @@ Features and improvements:
 (Note some changed syntax: options `--use_iso`, `--allplots`, and `--skip_plots` no longer take an argument)
  - ported the test suite to pytest, optimized its defaults for faster completion, and added more unit tests
  - changed some defaults for faster dislocation drag calculations
+ - improved computevcrit() and findRayleigh(): more robust and faster computevcrit_edge() if c16,c26 non-vanishing
 
 Fix:
 
@@ -16,11 +32,7 @@ Fix:
 Other:
 
  - use pathlib for paths
- - removed deprecated keyword Nchunks from phonondrag()
- - replace setuptools with hatchling as build-backend in pyproject.toml
  - refactored the Fortran code for better readability and `version` is now an integer instead of a fct
- - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules);
-   this has implications for other version requirements (e.g. numba)
 
 ## 1.3.4 (2025-11-18)
 

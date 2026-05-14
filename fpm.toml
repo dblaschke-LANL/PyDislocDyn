@@ -1,15 +1,10 @@
 name = "PyDislocDyn_subroutines"
-version = "20260508"
+version = "20260512"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
 copyright = "Copyright 2018, Triad National Security, LLC"
 homepage = "https://github.com/dblaschke-LANL/PyDislocDyn"
-
-[fortran]
-## need this mainly for compiling subroutines.f90, which does not use modules
-## throughout in order to maintain compatibility with numpy.f2py
-implicit-external = true
 
 [dependencies]
 #stdlib = "*"
@@ -24,7 +19,6 @@ type = ["shared", "static"]
 source-dir = "pydislocdyn"
 
 [[executable]]
-## this frontend is still incomplete and therefore just a short demo for now
 name = "dislocdyn"
 source-dir = "app"
 main = "dislocdyn.f90"
@@ -36,3 +30,10 @@ main = "runtests.f90"
 
 [install]
 library = true
+
+[extra.ford]
+project = "PyDislocDyn_subroutines"
+year = "2018-2026"
+summary  = 'A Fortran library/program to calculate dislocation drag from phonon wind as well as dislocation limiting velocities.'
+project_github  = "https://github.com/dblaschke-LANL/PyDislocDyn"
+src_dir = ["./pydislocdyn","./app"]

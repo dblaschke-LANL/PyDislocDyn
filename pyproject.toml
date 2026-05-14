@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "PyDislocDyn"
-version = "1.3.4+dev"
+version = "1.3.5+dev"
 authors = [
   { name="Daniel N. Blaschke", email="40176390+dblaschke-LANL@users.noreply.github.com" },
 ]

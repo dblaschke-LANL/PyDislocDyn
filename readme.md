@@ -50,6 +50,8 @@ A helper function, pydislocdyn.utilities.compilefortranmodule(), is included to 
 * [numba](https://numba.pydata.org/) >=0.58.1 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
+* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) or GNU Make to build the standalone Fortran frontend and library 
+* Doxygen or Ford to build the documentation of the Fortran version
 
 ## Documentation
 
@@ -76,6 +78,11 @@ If compilation was successful, the following command will print 'True':</br>
 `python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule(clean=True)'`</br>
 `pip uninstall pydislocdyn`</br></br>
 Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compiled Fortran module and if it is omitted, the compiled Fortran module has to be deleted manually upon uninstalling (and pip will let the user know its location).
+
+* to compile the standalone Fortran library and frontend, either run</br>
+`make`
+(Linux and MacOS only), or use the Fortran package manager:
+`fpm build --profile release`
 
 ## PyDislocDyn consists of:
 

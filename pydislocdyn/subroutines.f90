@@ -897,7 +897,7 @@ module phononwind
         end do
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
-      !!!
+      !-------------------------
       do concurrent (i=1:lenph)
         do j=1,lent
           do k=1,3
@@ -912,7 +912,7 @@ module phononwind
           sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
         end do !j
       end do !i
-      !!!
+      !-------------------------
       if (size(A3,7)==1) then
         ! no need to call bottleneck parathesum() more than once in the isotropic limit
         a3sm = real(A3(:,:,:,:,:,:,1), kind=selsm)
@@ -1062,7 +1062,7 @@ module phononwind
         end do
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
-      !!!
+      !-------------------------
       do concurrent (i=1:lenph)
         do j=1,lent
           do k=1,3
@@ -1077,7 +1077,7 @@ module phononwind
           sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
         end do !j
       end do !i
-      !!!
+      !-------------------------
       if (size(A3,7)==1) then
         ! no need to call bottleneck parathesum() more than once in the isotropic limit
         a3sm = real(A3(:,:,:,:,:,:,1), kind=selsm)

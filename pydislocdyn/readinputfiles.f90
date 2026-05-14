@@ -20,7 +20,7 @@ module readinputfiles
     logical :: echoinput
   end type inputdeck
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !-------------------------
   public :: read_inputdeck, read_materialfile
   contains
     !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
@@ -109,7 +109,7 @@ module readinputfiles
       end if
     end subroutine
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-------------------------
     !>reads a material file and stores the information in 'disl' of derived type 'disloc'
     subroutine read_materialfile(filename,disl)
       ! populates an instance of the dislocation derived type using data read from filename
