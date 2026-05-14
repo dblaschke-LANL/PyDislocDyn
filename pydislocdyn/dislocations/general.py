@@ -349,9 +349,14 @@ class Dislocation(StrohGeometry,metal_props):
                 return Rayleighcond(integrate.trapezoid(B,x=self.phi,axis=0)/(4*np.pi**2))
             bounds=(0.0,vcrit[th]*np.sqrt(self.rho/norm))
             result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=bounds,options={'xatol':1e-12})
-            # if result.fun>1e-3: print(f"{self.name},{bounds}\n{result}") # usually a sign of Nphi being too small, result nonetheless close enough usually
-            if result.fun>2e-2 or not result.success: 
-                print(f"Failed: Rayleigh not found in {bounds}. Try with larger Nphi in Dislocation class? (current value: Nphi={len(self.phi)})\n")
+            if result.fun>2e-2 or not result.success:
+                # allow some tolerance in upper bound and try again
+                result = optimize.minimize_scalar(findrayleigh,method='bounded',bounds=(0,1.001*bounds[-1]),options={'xatol':1e-12})
+                if result.fun>2e-2 or not result.success:
+                    print(f"Failed for {self.name}, {th=}: Rayleigh not found; {result.fun=}, {bounds=}, {result.x=}\n")
+                else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
+                if Rayleigh[th]>vcrit[th]: ## if our algorithm slighlty overshoots, correct (we have 1 per mille tolerance in fall-back bounds above)
+                    Rayleigh[th]=vcrit[th]
             else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
         self.Rayleigh = Rayleigh
         return Rayleigh
