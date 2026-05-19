@@ -12,10 +12,11 @@ Other:
 
  - removed deprecated keyword Nchunks from phonondrag()
  - replace setuptools with hatchling as build-backend in pyproject.toml
- - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules);
+ - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules), as well as meson;
    this has implications for other version requirements (e.g. numba)
+ - changed defaults in functions `elasticC2/-C3/-S2/-S3` (output with `voigt=True` instead of `False`)
 
-## 1.3.5-rc1 (2026-05-13)
+## 1.3.5 (2026-05-18)
 
 Features and improvements:
 
