@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.5-rc1 (2026-05-13)
+## 1.3.5 (2026-05-18)
 
 Features and improvements:
 
