@@ -1,0 +1,266 @@
+! standalone test suite for Fortran routines of pydislocdyn
+! Author: Daniel N. Blaschke
+! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
+! Date: Mar. 25, 2026 - May 11, 2026
+! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
+module checks
+  use parameters, only: sel, rzero
+  implicit none
+  contains
+  subroutine testtrue(equal,string,count_pass,count_fail)
+    logical, intent(in) :: equal
+    integer :: count_pass,count_fail
+    character(*), intent(in) :: string
+    if (equal) then
+      count_pass = count_pass+1
+      print*,"test " // string//": "//char(9)//"PASSED"
+    else
+      count_fail = count_fail+1
+      print*,"test " // string//": "//char(9)//"FAILED"
+    end if
+  end subroutine testtrue
+  subroutine testequal(A,B,n,m,string,tolerance,count_pass,count_fail)
+  !  Check if two NxM matrices are equal (with some tolerance), and print 'test <string> PASSED/FAILED'
+    implicit none
+    integer, intent(in)  :: n, m
+    real(kind=sel), intent(in)  :: tolerance
+    real(kind=sel), dimension(n,m), intent(in)  :: A, B
+    character(*), intent(in) :: string
+    integer :: count_pass,count_fail
+    logical :: equal
+    
+    equal = all(abs(A-B) <= tolerance)
+    if (equal) then
+      count_pass = count_pass+1
+      print*,"test " // string//": "//char(9)//"PASSED"
+    else
+      count_fail = count_fail+1
+      print*,"test " // string//": "//char(9)//"FAILED"
+    end if
+  end subroutine testequal
+
+  SUBROUTINE testequalarray(A,B,n,string,tolerance,count_pass,count_fail)
+  !  Check if two arrays are equal (with some tolerance), and print 'test <string> PASSED/FAILED'
+    implicit none
+    integer, intent(in)  :: n
+    real(kind=sel), intent(in)  :: tolerance
+    real(kind=sel), dimension(n), intent(in)  :: A, B
+    character(*), intent(in) :: string
+    integer :: count_pass,count_fail
+    logical :: equal
+    
+    equal = all(abs(A-B) <= tolerance)
+    if (equal) then
+      count_pass = count_pass+1
+      print*,"test " // string//": "//char(9)//"PASSED"
+    else
+      count_fail = count_fail+1
+      print*,"test " // string//": "//char(9)//"FAILED"
+    end if
+  end subroutine testequalarray
+
+  subroutine testzero(A,string,tolerance,count_pass,count_fail)
+  ! check if A=0 (with some tolerance), and print 'test <string> PASSED/FAILED'
+    implicit none
+    real(kind=sel), intent(in)  :: tolerance, A
+    character(*), intent(in) :: string
+    integer :: count_pass,count_fail
+    call testequalarray([A],[0.d0],1,string,tolerance,count_pass,count_fail)
+  end subroutine testzero
+  !-------------------------------------
+  subroutine checkvoigt(x,b)
+    use elastic_constants
+    real(kind=sel), intent(in) :: x(..)
+    logical, intent(out) :: b
+    real(kind=sel) :: y2(3,3), y4(3,3,3,3), y6(3,3,3,3,3,3)
+    real(kind=sel) :: z1(6), z2(6,6), z3(6,6,6)
+    select rank(x)
+      rank(2)
+        call voigt(x,z1)
+        call unvoigt(z1,y2)
+        b = all(abs(x-y2)<rzero)
+      rank(4)
+        call voigt(x,z2)
+        call unvoigt(z2,y4)
+        b = all(abs(x-y4)<rzero)
+      rank(6)
+        call voigt(x,z3)
+        call unvoigt(z3,y6)
+        b = all(abs(x-y6)<rzero)
+      rank default
+        print*,"ERROR: rank must be 2,4, or 6"
+        b = .false.
+      end select
+  end subroutine checkvoigt
+end module checks
+
+module tests
+  use parameters, only: sel, pi
+  use checks
+  implicit none
+  contains
+    subroutine test_disloc(count_pass,count_fail)
+      use various_subroutines, only : computeEtot
+      use elastic_constants
+      use dislocations
+      integer, intent(inout) :: count_pass,count_fail
+      type(disloc) :: Cu, Ti
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:)
+      logical :: istrue
+!~       integer :: i
+      
+      Cu = disloc(sym="fcc",metal="Cu",rho=8960.d0,lat_a = [3.6146d-10,0.d0,0.d0])
+!~       Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
+!~       Cu%lat_a = [3.6146d-10,0.d0,0.d0]
+      Cu%cij = [168.3d9, 121.2d9, 75.7d9]
+      Cu%cijk = [-1271.d9, -814.d9, -50.d9, -3.d9, -780.d9, -95.d9]
+      call Cu%init(Millerb=[0.5d0,0.5d0,0.d0],Millern0=[-1.d0,1.d0,-1.d0]) ! infers Cu%burgers from Millerb
+!~       do i=1,6
+!~         print*,Cu%C2(i,:)/1.d9
+!~         print*,Cu%C3(2,i,:)/1.d9
+!~       end do
+      call testzero(Cu%rot(1,3,1)+Cu%rot(1,3,2)+0.81649658,"disloc_Cu_rot",1.d-6,count_pass,count_fail)
+      call testzero(sum(Cu%C2)/1.d12-1.4592d0+sum(Cu%C3)/1.d12+33.402d0,"disloc_Cu_C2_C3",1.d-12,count_pass,count_fail)
+      call unvoigt(Cu%C2,C2)
+      call checkvoigt(C2,istrue)
+      call testtrue(istrue,"disloc_Cu_checkvoigt_C2",count_pass,count_fail)
+      call unvoigt(Cu%C3,C3)
+      call checkvoigt(C3,istrue)
+      call testtrue(istrue,"disloc_Cu_checkvoigt_C3",count_pass,count_fail)
+      call testzero(Cu%Vc*1.d29-4.7225953240136,"disloc_Cu_Vc",1.d-6,count_pass,count_fail)
+      call testzero(sum(Cu%theta)-pi/2.d0,"disloc_Cu_theta",1.d-6,count_pass,count_fail)
+      call testzero(sum(Cu%lat_angles)-1.5d0*pi,"disloc_Cu_lat_angles",1.d-6,count_pass,count_fail)
+      call testzero(dot_product(Cu%b,Cu%b)+dot_product(Cu%n0,Cu%n0)+dot_product(Cu%b,Cu%n0)+dot_product(Cu%t(:,1),Cu%b)-3.d0 &
+             +dot_product(Cu%t(:,2),Cu%b)+1.d10*(Cu%burgers-3.6146d-10/sqrt(2.d0)),"disloc_Cu_b_n0_t",1.d-6,count_pass,count_fail)
+      Cu%beta = 0.5d0
+      call Cu%update_uij()
+      allocate(zeros(Cu%nphi))
+      zeros = 0.d0
+      call testequalarray(Cu%uij(:,1,1,1)+Cu%uij(:,2,2,1)+Cu%uij(:,3,3,1),zeros,Cu%nphi,&
+                          "disloc_Cu_uij-screw_zero-trace",1.d-12,count_pass,count_fail)
+      allocate(Etot(Cu%ntheta),vlim(Cu%ntheta,3))
+      call computeEtot(Cu%uij,Cu%beta,Cu%C2norm,Cu%Cv,Cu%phi,Cu%ntheta,Cu%nphi,Etot)
+      call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
+      
+      call phonondrag(B,Cu,[0.1d0,0.5d0])
+      call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-6,count_pass,count_fail)
+      call testtrue((CheckReflectionSymmetry(Cu%C2aligned(:,:,1)) .and. &
+                .not.CheckReflectionSymmetry(Cu%C2aligned(:,:,Cu%ntheta))),"reflection-sym, Cu screw/edge",count_pass,count_fail)
+      call Cu%computevcrit_screw(vlim_s)
+      call Cu%computevcrit(vlim)
+      vlim_e = vlim(Cu%ntheta,1)
+      call testzero(vlim_s+vlim_e-3825.924891d0 + sum(vlim)-16102.217647d0,"disloc_Cu_vlim screw/edge",1.d-6,count_pass,count_fail)
+      
+      Ti = disloc(sym="hcp",metal="Ti",rho=4506.d0,lat_a = [2.9506d-10,0.d0,4.6835d-10])
+      Ti%cij = [1.624d11, 9.2d10, 6.9d10, 1.807d11, 4.67d10]
+      Ti%cijk = [-1.358d12, -1.105d12, 1.7d10, -1.62d11, -3.83d11, -2.63d11, 1.17d11, -2.306d12, -1.617d12, -3.83d11]
+      Ti%ntheta = 3 ! test with one mixed disloc.
+      call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
+      call phonondrag(B,Ti,[0.5d0])
+      call testzero(sum(B)-0.02938656,"disloc_Tipyr_drag",1.d-6,count_pass,count_fail)
+      call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,0.d0]) ! switch to prismatic slip
+      call testtrue((CheckReflectionSymmetry(Ti%C2aligned(:,:,1)) .and. &
+                CheckReflectionSymmetry(Ti%C2aligned(:,:,Ti%ntheta))),"reflection-sym, Ti screw/edge",count_pass,count_fail)
+      call Ti%computevcrit_screw(vlim_s)
+      call Ti%computevcrit_edge(vlim_e)
+      deallocate(vlim)
+      allocate(vlim(Ti%ntheta,3))
+      call Ti%computevcrit(vlim)
+      call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disloc_Tipris_vlimit",1.d-6,count_pass,count_fail)
+      
+    end subroutine test_disloc
+end module tests
+
+program runtests
+  use parameters
+  use utilities, only : ompinfo, linspace, operator(.inv.), trapz, cumtrapz
+  use phononwind_subroutines
+  use elastic_constants
+  use checks
+  use tests
+  implicit none
+  
+  real(kind=sel) :: tmpintegral, array1(5),array2(5)
+  real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],[3,3])
+  real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21)
+  real(kind=sel), allocatable, dimension(:) :: x, func, integral
+  logical :: istrue
+  integer :: resol, nthreads, count_fail=0, count_pass=0, start_time, finish_time, countrate
+  character(32) :: exe_name
+  resol = 10000
+  allocate(x(resol), func(resol), integral(resol))
+  call system_clock(start_time,countrate)
+  
+  ! check for openmp
+  call get_command_argument(0, exe_name)
+  print*,"Testing DislocDyn version", version
+  call ompinfo(nthreads)
+  if (nthreads>0) then
+    print*,exe_name, " compiled with openmp support, using ",nthreads," threads"
+  else
+    print*,exe_name, " compiled without openmp support"
+    nthreads = 1
+  end if
+  
+  ! test linspace
+  call linspace(0.2d0,1.d0,5,array1)
+  array2 = [0.2d0,0.4d0,0.6d0,0.8d0,1.d0]
+  call testequalarray(array1,array2,5,"linspace",1.d-15,count_pass,count_fail)
+  
+  ! test cumtrapz / trapz
+  call linspace(1.d-15, 100.d0, resol, x)
+  func(:) = sin(pi*x(:)/25.d0) + x(:)**3 / (exp(x(:))-1.d0)
+  call cumtrapz(func,x,resol,integral)
+  call testzero(pi**4/15.d0 - integral(resol),"cumtrapz",1.d-6,count_pass,count_fail)
+  call trapz(func,x,resol,tmpintegral)
+  call testzero(tmpintegral - integral(resol),"trapz",1.d-13,count_pass,count_fail)
+  
+  ! test inv
+  CALL RANDOM_NUMBER(A)
+  B = .inv. A
+  call testequal(one,matmul(A,B),3,3,"inv",1.d-12,count_pass,count_fail)
+  
+  ! test voigt
+  call random_number(A)
+  A = A+transpose(A)
+  call checkvoigt(A,istrue)
+  call testtrue(istrue,"checkvoigt_2D",count_pass,count_fail)
+  call random_number(b2)
+  call unvoigt(b2,a4)
+  call checkvoigt(a4,istrue)
+  call testtrue(istrue,"checkvoigt_4D",count_pass,count_fail)
+  call random_number(b3)
+  call unvoigt(b3,a6)
+  call checkvoigt(a6,istrue)
+  call testtrue(istrue,"checkvoigt_6D",count_pass,count_fail)
+  call random_number(b1)
+  call checkvoigt(b1,istrue)
+  call testtrue(.not. istrue,"checkvoigt_asym (intended error printing in above line)",count_pass,count_fail)
+  
+  ! test C2
+!~   call elasticC2((/1.d0,2.d0,3.d0/),'cubic',b2)
+!~   do i=1,6
+!~     print*,b2(i,:)
+!~   end do
+!~   call elasticC2((/1.d0,2.d0/),'iso',b2)
+!~   do i=1,6
+!~     print*,b2(i,:)
+!~   end do
+  call linspace(1.d0,21.d0,21,xtric)
+  call elasticC2(xtric,'tric',b2)
+!~   do i=1,6
+!~     print*,b2(i,:)
+!~   end do
+  call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
+  
+  call test_disloc(count_pass,count_fail)
+  
+  call system_clock(finish_time)
+  print*,"------------------------------------------------------------"
+  print*,"SUMMARY:", count_pass," passed and ",count_fail," failed"
+  print*,"time: ",real(finish_time-start_time)/real(countrate), "s"
+  
+  if (count_fail>0) error stop "some tests failed"
+  
+end program runtests

@@ -112,18 +112,9 @@ def compilefortranmodule(buildopts='',clean=False):
        Keyword 'buildopts' may be used to pass additional options to f2py.
        To delete files created by this function, set "clean"=True.'''
     cwd =pathlib.Path.cwd()
-    compilerflags = '' ## when in doubt, build without OpenMP support
+    compilerflags = '--dep=openmp'
     if sys.version_info[:2]<=(3,11):
-        import setuptools
-        if setuptools.__version__ < '70' and np.__version__<'2.0':
-            if shutil.which('gfortran'):
-                compilerflags = '--f90flags=-fopenmp -lgomp' # flags specific to gfortran, require f2py with (old) distutils backend
-        elif np.__version__>='1.26':
-            compilerflags = '--dep=openmp --backend=meson' # requires meson to be installed
-        else:
-            raise Exception("I need either (setuptools <= 69) or (numpy>=1.26 and meson) to compile.")
-    elif sys.version_info[:2]>=(3,12):
-        compilerflags = '--dep=openmp' # requires f2py with new meson backend (default in numpy>=2.0 and python>=3.12)
+        compilerflags += ' --backend=meson'
     if buildopts != '':
         compilerflags += f" {buildopts}"
     os.chdir(pathlib.Path(__file__).parent)
@@ -136,16 +127,14 @@ def compilefortranmodule(buildopts='',clean=False):
                     os.remove(f)
         os.chdir(cwd)
         return 0
-    error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 -m subroutines')
+    error = os.system(f'python -m numpy.f2py {compilerflags} -c subroutines.f90 elasticconstants.f90 -m subroutines')
     fname  = f"fmoderror_py{sys.version_info[0]}.{sys.version_info[1]}.txt"
     if error != 0:
         with open(fname,"w", encoding="utf8") as f1:
             f1.write(f"{error}")
         print(f"\nERROR: compilefortranmodule() failed using {compilerflags=}")
-        print("make sure a Fortran compiler that is supported by numpy.f2py is installed")
-        if '--dep' in compilerflags:
-            print("as well as meson;")
-            print("additional options (if necessary), such as e.g. '--build-dir', may be passed via my 'buildopts' keyword.")
+        print("make sure a Fortran compiler that is supported by numpy.f2py as well as meson are installed")
+        print("additional options (if necessary), such as e.g. '--build-dir', may be passed via my 'buildopts' keyword.")
     elif os.path.isfile(fname):
         os.remove(fname)
     os.chdir(cwd)

@@ -2,14 +2,14 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 7, 2026
+! Date: July 23, 2018 - May 18, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260507
+  integer,parameter :: version = 20260512
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -20,6 +20,13 @@ end module parameters
 !>this module contains a number of helper functions
 module utilities
   implicit none
+  interface operator(.cross.)
+    module procedure cross
+  end interface
+  interface operator(.inv.)
+    module procedure inv
+  end interface
+  public :: ompinfo, elbrak, elbrak1d, cross, operator(.cross.), trapz, cumtrapz, inv, operator(.inv.), linspace
   contains
     !>returns the number of threads used for OpenMP parallelization (or 0 if compiled without OpenMP support)
     subroutine ompinfo(nthreads)
@@ -64,7 +71,7 @@ module utilities
     END SUBROUTINE elbrak
 
     !> Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
-    SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
+    pure SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -92,20 +99,20 @@ module utilities
     !!**********************************************************************
 
     !> computes the cross product of two 3-dim vectors x and y
-    subroutine cross(x,y,z)
+    pure function cross(x,y) result(z)
       use parameters, only : sel
       implicit none
       real(sel), dimension(3), intent(in)  :: x, y
-      real(sel), dimension(3), intent(out)  :: z
+      real(sel), dimension(3)  :: z
       z(1) = x(2)*y(3) - x(3)*y(2)
       z(2) = x(3)*y(1) - x(1)*y(3)
       z(3) = x(1)*y(2) - x(2)*y(1)
-    end subroutine cross
+    end function cross
 
     !!**********************************************************************
 
     !> integrate using the trapezoidal rule
-    SUBROUTINE trapz(f,x,n,intf)
+    pure SUBROUTINE trapz(f,x,n,intf)
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -120,7 +127,7 @@ module utilities
     !!**********************************************************************
 
     !> cumulatively integrate using the trapezoidal rule
-    SUBROUTINE cumtrapz(f,x,n,intf)
+    pure SUBROUTINE cumtrapz(f,x,n,intf)
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -142,13 +149,13 @@ module utilities
     !!**********************************************************************
 
     !> invert 3x3 matrix A
-    SUBROUTINE inv(A,invA)
+    pure function inv(A) result(invA)
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN), DIMENSION(3,3)  :: A
-      REAL(KIND=sel), INTENT(OUT), DIMENSION(3,3)  :: invA
+      REAL(KIND=sel), DIMENSION(3,3)  :: invA
       REAL(KIND=sel) :: det !, eps(3,3,3)
     !~   INTEGER :: i, j, k, l, m, n
     !~   eps = 0.d0
@@ -180,12 +187,12 @@ module utilities
       invA(1,3) = A(1,2)*A(2,3) - A(2,2)*A(1,3)
       
       invA = invA/det
-    END SUBROUTINE inv
+    END function inv
 
     !!**********************************************************************
 
     !> fortran implementation of np.linspace() for real numbers
-    SUBROUTINE linspace(start,finish,num,output)
+    pure SUBROUTINE linspace(start,finish,num,output)
     !-----------------------------------------------------------------------
       use parameters, only : sel
       IMPLICIT NONE
@@ -201,7 +208,7 @@ module utilities
         output = start
       else
         step = (finish - start) / (num-1.d0)
-        output = (/(start + (i-1)*step, i=1,num)/)
+        output = [(start + (i-1)*step, i=1,num)]
       end if
     END SUBROUTINE linspace
 
@@ -211,8 +218,9 @@ end module utilities
 
 module various_subroutines
   implicit none
+  public :: accscrew_xyintegrand, computeEtot, strohgeometry, computeuk, computeuij
   contains
-    !> subroutine of computeuij_acc_screw
+    !> subroutine of python function computeuij_acc_screw(), see PyDislocDyn docs
     SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
     !-----------------------------------------------------------------------
       use parameters, only : sel
@@ -286,9 +294,9 @@ module various_subroutines
     !!**********************************************************************
     !> computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals
     !> using the integral version of the Stroh method
-    subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
+    pure subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
       use parameters, only : sel
-      use utilities, only : cross
+      use utilities, only : operator(.cross.)
       implicit none
       integer, intent(in) :: ntheta, nphi
       real(sel), intent(in) :: b(3), n0(3)
@@ -299,10 +307,10 @@ module various_subroutines
       real(sel), dimension(3) :: x
       integer i,j,k,th,ph
       Cv = 0.d0
-      call cross(b,n0,x)
-      do th=1, ntheta
+      x = b .cross. n0
+      do concurrent (th=1:ntheta)
         t(:,th) = cos(theta(th))*b + x*sin(theta(th))
-        call cross(n0,t(:,th),m0(:,th))
+        m0(:,th) = n0 .cross. t(:,th)
         do i=1,3
           do j=1,3
             do k=1,3
@@ -322,7 +330,7 @@ module various_subroutines
     SUBROUTINE computeuk(beta, C2, Cv, b, M, N, phi, r, Ntheta, Nphi, Nr, uk)
     !-----------------------------------------------------------------------
       use parameters, only : sel, pi2
-      use utilities, only : elbrak1d, inv, trapz, cumtrapz
+      use utilities, only : elbrak1d, operator(.inv.), trapz, cumtrapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
@@ -351,7 +359,7 @@ module various_subroutines
       call elbrak1d(N(:,:,th),M(:,:,th),tmpC,Nphi,NM)
       call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
       do ph=1,Nphi
-        call inv(NN(ph,:,:),NNinv(ph,:,:))
+        NNinv(ph,:,:) = .inv. NN(ph,:,:)
       end do
       do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
         Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
@@ -387,7 +395,7 @@ module various_subroutines
     SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
     !-----------------------------------------------------------------------
       use parameters, only : sel, pi2
-      use utilities, only : elbrak1d, inv, trapz
+      use utilities, only : elbrak1d, operator(.inv.), trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
@@ -414,7 +422,7 @@ module various_subroutines
       call elbrak1d(N(:,:,th),M(:,:,th),tmpC,Nphi,NM)
       call elbrak1d(N(:,:,th),N(:,:,th),tmpC,Nphi,NN)
       do ph=1,Nphi
-        call inv(NN(ph,:,:),NNinv(ph,:,:))
+        NNinv(ph,:,:) = .inv. NN(ph,:,:)
       end do
       do j=1,3; do k=1,3; do i=1,3; do ph=1,Nphi
         Sphi(ph,i,j) = Sphi(ph,i,j) - NNinv(ph,i,k)*NM(ph,k,j)
@@ -446,6 +454,8 @@ end module various_subroutines
 !> this module contains subroutines for phononwind_xx() and phononwind_xy()
 module phononwind_subroutines
   implicit none
+  private :: thesum
+  public :: phonondistri, parathesum, dragintegrand, integratetphi, integrateqtildephi
   contains
     SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
       use parameters, only : sel, hbar, kb
@@ -648,9 +658,9 @@ module phononwind_subroutines
       !$OMP PARALLEL DO default(shared), private(p,tmask,t1,Btmp,NBtmp)
       do p=1,Nphi
         tmask = (t>limit(p))
+        NBtmp = count(tmask)
         t1 = pack(t,tmask)
         Btmp = pack(B(:,p),tmask)
-        NBtmp = size(Btmp)
         Bt(p) = 0.d0
         if (NBtmp>1) then
           if ((updatet.eqv..True.).or.(kthchk==0)) then
@@ -691,9 +701,9 @@ module phononwind_subroutines
       !$OMP PARALLEL DO default(shared), private(p,tmask,qt,Btmp,NBtmp)
       do p=1,Nphi
         tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
+        NBtmp = count(tmask)
         qt = pack(qtilde,tmask)
         Btmp = pack(B(:,p),tmask)
-        NBtmp = size(Btmp)
         Bt(p) = 0.d0
         if (NBtmp>1) then
           if ((updatet.eqv..True.).or.(kthchk==0)) then
@@ -716,6 +726,7 @@ end module phononwind_subroutines
 !> this module contains various subroutines for phonondrag() (both Fortran and Python implementations)
 module phononwind
   implicit none
+  public :: phononwind_xx, phononwind_xy, elasticA3, fourieruij_sincos, fourieruij_nocut
   contains
     !> Returns the tensor of elastic constants as it enters the interaction of dislocations with phonons.
     !> Required inputs are the tensors of SOEC and TOEC.
@@ -726,10 +737,23 @@ module phononwind
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN)  :: C2(3,3,3,3), C3(3,3,3,3,3,3)
       REAL(KIND=sel), INTENT(OUT) :: A3(3,3,3,3,3,3)
-      INTEGER :: i
+      INTEGER :: i,j,k,l
       REAL(KIND=sel), DIMENSION(3,3,3,3) :: C2swap
       
-      C2swap = reshape(C2, (/ 3, 3, 3, 3/), order = (/2,3,1,4/) )
+      C2swap = reshape(C2, [3, 3, 3, 3], order = [2,3,1,4])
+      if (sum(abs(C2swap-C2))<1.d-9) then
+        print*,"ERROR: compiler does not support reshape intrinsic with optional 'order' parameter!!"
+        print*,"using fall back code instead"
+        do i=1,3
+          do j=1,3
+            do k=1,3
+              do l=1,3
+                C2swap(i,j,k,l) = C2(j,k,i,l)
+              end do
+            end do
+          end do
+        end do
+      end if
       A3 = C3
       do i=1,3
         A3(:,:,i,:,i,:) = A3(:,:,i,:,i,:) + C2
@@ -790,7 +814,7 @@ module phononwind
 
     !!**********************************************************************
 
-    !> this is a subroutine of phonondrag() (TT and LL modes)
+    !> this is a subroutine of phonondrag() (TT and LL modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
     !-----------------------------------------------------------------------
       use parameters, only : sel, selsm, hbar, kb, pi
@@ -859,16 +883,16 @@ module phononwind
         end if
       end if
       
-      do i=1,lenph
+      do concurrent (i=1:lenph)
         qtilde(:,i) = 2.d0*(t-beta*ctovcl*csphi(i))/(1.d0-(beta*ctovcl*cos(phi(i)))**2) + tiny(1.)
         prefac(:,i) = prefac1*csphi(i)/(1.d0-(beta*ctovcl*csphi(i))**2)/qtilde(:,i)
         OneMinBtqcosph1(:,i) = 1.d0 - beta*ctovcl*qtilde(:,i)*csphi(i)
       end do
       
-      ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
+      !> if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       if (debye) then
         hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
-        do j=1,lenph1
+        do concurrent (j=1:lenph1)
           betafactor = OneMinBtqcosph1(:,j)
           prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta*ctovcl/2.d0)*qtilde(:,j)*csphi(j)/betafactor &
                   +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
@@ -879,9 +903,9 @@ module phononwind
         call phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
-        ! include cutoff if r0cut>0:
+        !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do i=1,(lenq1-1)
+          do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
             end do
@@ -894,8 +918,8 @@ module phononwind
         end do
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
-      !!!
-      do i=1,lenph
+      !-------------------------
+      do concurrent (i=1:lenph)
         do j=1,lent
           do k=1,3
             qv((j-1)*lenph+i,k) = real(qtilde(j,i)*qvec(i,k), kind=selsm)
@@ -909,7 +933,7 @@ module phononwind
           sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
         end do !j
       end do !i
-      !!!
+      !-------------------------
       if (size(A3,7)==1) then
         ! no need to call bottleneck parathesum() more than once in the isotropic limit
         a3sm = real(A3(:,:,:,:,:,:,1), kind=selsm)
@@ -937,7 +961,7 @@ module phononwind
 
     !!**********************************************************************
 
-    !> this is a subroutine of phonondrag() (mixed modes)
+    !> this is a subroutine of phonondrag() (mixed modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
     !-----------------------------------------------------------------------
       use parameters, only : sel, selsm, hbar, kb, pi
@@ -1014,17 +1038,17 @@ module phononwind
         end if
       end if
       
-      do i=1,lenph
+      do concurrent (i=1:lenph)
         t(:,i) = (qtilde+(1.d0-cx**2/cy**2)/qtilde)/2.d0 + (cx*beta2/cy)*csphi(i) - qtilde*(beta2*csphi(i))**2/2.d0
         prefac(:,i) = prefac1*csphi(i)/qtilde
         OneMinBtqcosph1(:,i) = 1.d0 - beta1*qtilde*csphi(i)
       end do
       
-      ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
+      !> if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
       if (debye) then
         hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
-        do j=1,lenph1
+        do concurrent (j=1:lenph1)
           betafactor = OneMinBtqcosph1(:,j)
           if (cx>cy) then
             qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
@@ -1045,9 +1069,9 @@ module phononwind
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
         distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
-        ! include cutoff if r0cut>0:
+        !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do i=1,(lenq1-1)
+          do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
             end do
@@ -1056,7 +1080,7 @@ module phononwind
         ! if cx>cy, we need to limit the integration range of q1<=(cy/cx)/(1-beta1*qtilde*csphi) in addition to q1<=1
         if (cx>cy) then
           q1limit = ctovcl/OneMinBtqcosph1
-          do i=1,(lenq1-1)
+          do concurrent (i=1:(lenq1-1))
             do j=1,lenph1
               do k=1,lent
                 if (q1(i)>q1limit(k,j)) then
@@ -1073,8 +1097,8 @@ module phononwind
         end do
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
-      !!!
-      do i=1,lenph
+      !-------------------------
+      do concurrent (i=1:lenph)
         do j=1,lent
           do k=1,3
             qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
@@ -1088,7 +1112,7 @@ module phononwind
           sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
         end do !j
       end do !i
-      !!!
+      !-------------------------
       if (size(A3,7)==1) then
         ! no need to call bottleneck parathesum() more than once in the isotropic limit
         a3sm = real(A3(:,:,:,:,:,:,1), kind=selsm)

@@ -1,0 +1,8 @@
+# Difference with default Doxyfile 1.13.2
+PROJECT_NAME           = DislocDyn
+OPTIMIZE_FOR_FORTRAN   = YES
+EXTENSION_MAPPING      = f90=Fortran
+EXTRACT_ALL            = YES
+FILE_PATTERNS          = *.f90
+RECURSIVE              = YES
+FILTER_PATTERNS        = *.f90

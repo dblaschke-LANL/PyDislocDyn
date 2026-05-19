@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 17, 2026
+# Date: Nov. 5, 2017 - May 13, 2026
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -21,13 +21,12 @@ if dir_path not in sys.path:
     sys.path.append(dir_path)
 ##
 from pydislocdyn import metal_data as data
-from pydislocdyn.utilities import ompthreads, printthreadinfo, _separate_options, str2bool, Ncores, Ncpus, read_2dresults, \
+from pydislocdyn.utilities import printthreadinfo, _separate_options, str2bool, Ncores, Ncpus, read_2dresults, \
     plt, fntsettings, AutoMinorLocator, gridspec, make_axes_locatable, pd ## matplotlib stuff
 from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, init_drag_parser
-if Ncores>1:
+if Ncpus>1:
     from joblib import Parallel, delayed
-Kcores = max(Ncores,int(min(Ncpus/2,Ncores*ompthreads()/2))) ## use this for parts of the code where openmp is not supported
 metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
 parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
@@ -499,10 +498,10 @@ if __name__ == '__main__':
         plt.close()
         return (B_of_sig,sigma,B0,vc)
     
-    if Kcores ==1:
+    if Ncpus ==1:
         B_of_sig_results = [plotall_B_of_sigma(character) for character in ['aver', 'screw', 'edge']]
     else:
-        B_of_sig_results = Parallel(max_nbytes=None, n_jobs=Kcores)(delayed(plotall_B_of_sigma)(character) for character in ['aver', 'screw', 'edge'])
+        B_of_sig_results = Parallel(max_nbytes=None, n_jobs=Ncpus)(delayed(plotall_B_of_sigma)(character) for character in ['aver', 'screw', 'edge'])
     B_of_sig,sigma,B0,vc = B_of_sig_results[0]
     for i in [1,2]:
         B_of_sig.update(B_of_sig_results[i][0])

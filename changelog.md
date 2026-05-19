@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.0 (wip)
+
+Features and improvements:
+
+ - a new standalone Fortran library and frontend implementing a subset of PyDislocDyn features
+
+Fix:
+
+Other:
+
+ - replace setuptools with hatchling as build-backend in pyproject.toml
+ - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules), as well as meson;
+   this has implications for other version requirements (e.g. numba)
+ - changed defaults in functions `elasticC2/-C3/-S2/-S3` (output with `voigt=True` instead of `False`)
+
 ## 1.3.5 (2026-05-18)
 
 Features and improvements:
