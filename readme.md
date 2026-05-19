@@ -44,7 +44,8 @@ The LANL development team asks that any forks or derivative works include approp
 
 * a Fortran 2018 capable compiler and meson
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
-A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.
+A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
+Note: on Linux with gfortran and numpy>=2.1, the best performance is achieved by passing the additional option `pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")`
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
 * [threadpoolctl](https://github.com/joblib/threadpoolctl) (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.58.1 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
