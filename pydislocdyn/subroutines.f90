@@ -2,14 +2,14 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 18, 2026
+! Date: July 23, 2018 - May 21, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260512
+  integer,parameter :: version = 20260521
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -830,7 +830,7 @@ module phononwind
       real(kind=sel), intent(in), dimension(lenph,3,3,lentheta) :: dij
       real(kind=sel), intent(out), dimension(lentheta) :: dragb
     !----------- local vars ------------------------------------------------
-      real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), t(lent), q1h4(lenq1-1), betafactor(lent)
+      real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), t(lent), q1h4(lenq1-1), betafactor(lent), otherfactor(lent)
       real(kind=sel) :: qvec(lenph,3), csphi(lenph), distri(lent,lenph,lenq1-1)
       real(kind=sel) :: qtilde(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph)
       real(kind=sel) :: dt, tmin, tmax, prefac1, ctovcl, cqBZ, hbarcsqBZ_TkB
@@ -861,7 +861,7 @@ module phononwind
           delta(i,i) = 1.d0
         end do
       end if
-      prefac1 = (1.d3*pi*hbar*qBZ*burgers**2*ctovcl**3/(2*beta*(2*pi)**5))
+      prefac1 = (1.d3*pi*hbar*qBZ*burgers**2*ctovcl**3/(2*(2*pi)**5))
       dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
       ph1 = real(phi1(1:lenph1-1), kind=selsm)
       
@@ -892,21 +892,33 @@ module phononwind
       !> if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       if (debye) then
         hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
-        do concurrent (j=1:lenph1)
-          betafactor = OneMinBtqcosph1(:,j)
-          prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta*ctovcl/2.d0)*qtilde(:,j)*csphi(j)/betafactor &
-                  +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
-                  -(hbarcsqBZ_TkB**4/(30.d0*4.d0*24.d0))*(1.d0-(betafactor)**3) &
-                  +(hbarcsqBZ_TkB**6/(42.d0*5.d0*720.d0))*(1.d0-(betafactor)**5))
-        end do
+        if (abs(beta)<1.d-12) then
+          do concurrent (j=1:lenph)
+            betafactor = OneMinBtqcosph1(:,j)
+            otherfactor = ctovcl*qtilde(:,j)*csphi(j)
+            prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
+                    +(hbarcsqBZ_TkB**2/36.d0)*otherfactor &
+                    -(hbarcsqBZ_TkB**4/(2.88d3))*(3*otherfactor) &
+                    +(hbarcsqBZ_TkB**6/(1.512d5))*5*otherfactor)
+          end do
+        else
+          do concurrent (j=1:lenph)
+            betafactor = OneMinBtqcosph1(:,j)
+            otherfactor = ctovcl*qtilde(:,j)*csphi(j)
+            prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
+                    +(hbarcsqBZ_TkB**2/36.d0)*otherfactor &
+                    -(hbarcsqBZ_TkB**4/(2.88d3))*(1.d0-(betafactor)**3)/beta &
+                    +(hbarcsqBZ_TkB**6/(1.512d5))*(1.d0-(betafactor)**5)/beta)
+          end do
+        end if
       else
-        call phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
+        call phonondistri(prefac/beta,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do concurrent (i=1:(lenq1-1))
-            do j=1,lenph1
+            do j=1,lenph
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
             end do
           end do
@@ -977,7 +989,7 @@ module phononwind
       real(kind=sel), intent(in), dimension(lenph,3,3,lentheta) :: dij
       real(kind=sel), intent(out), dimension(lentheta) :: dragb
     !----------- local vars ------------------------------------------------
-      real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), qtilde(lent), q1h4(lenq1-1), betafactor(lent)
+      real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), qtilde(lent), q1h4(lenq1-1), betafactor(lent), otherfactor(lent)
       real(kind=sel) :: qvec(lenph,3), csphi(lenph), distri(lent,lenph,lenq1-1), q1limit(lent,lenph), qlimitratio(lent)
       real(kind=sel) :: t(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph)
       real(kind=sel) :: dt, subqtmin, subqtmax, prefac1, ctovcl, cqBZ, beta1, beta2, qt_min, qt_max, hbarcsqBZ_TkB
@@ -1016,7 +1028,7 @@ module phononwind
         end do
       end if
       qt_min = abs(1-cx/cy)/(1+beta2)
-      prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4*beta1*(2*pi)**5))
+      prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4*(2*pi)**5))
       dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
       ph1 = real(phi1(1:lenph1-1), kind=selsm)
       
@@ -1048,31 +1060,52 @@ module phononwind
       ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
       if (debye) then
         hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
-        do concurrent (j=1:lenph1)
-          betafactor = OneMinBtqcosph1(:,j)
-          if (cx>cy) then
-            qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
-            prefac(:,j) = prefac(:,j)*qlimitratio**2*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*( &
-                  -(beta1/2.d0)*qtilde*csphi(j)/betafactor &
-                  +(qlimitratio*hbarcsqBZ_TkB/36.d0)*(beta1*qtilde*csphi(j)) &
-                  -(qlimitratio**2*hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
-                  +(qlimitratio**3*hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
-          else
-            prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta1/2.d0)*qtilde*csphi(j)/betafactor &
-                  +(hbarcsqBZ_TkB/36.d0)*(beta1*qtilde*csphi(j)) &
-                  -(hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
-                  +(hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
-          end if
-        end do
+        if (abs(beta1)<1.d-12) then
+          do concurrent (j=1:lenph)
+            betafactor = OneMinBtqcosph1(:,j)
+            otherfactor = qtilde*csphi(j)
+            if (cx>cy) then
+              qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
+              prefac(:,j) = prefac(:,j)*qlimitratio**2*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*( &
+                    -0.5d0*otherfactor/betafactor &
+                    +(qlimitratio*hbarcsqBZ_TkB/36.d0)*otherfactor &
+                    -(qlimitratio**2*hbarcsqBZ_TkB**2/2.88d3)*3*otherfactor &
+                    +(qlimitratio**3*hbarcsqBZ_TkB**3/1.512d5)*5*otherfactor)
+            else
+              prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
+                    +(hbarcsqBZ_TkB/36.d0)*otherfactor &
+                    -(hbarcsqBZ_TkB**2/2.88d3)*3*otherfactor &
+                    +(hbarcsqBZ_TkB**3/1.512d5)*5*otherfactor)
+            end if
+          end do
+        else
+          do concurrent (j=1:lenph)
+            betafactor = OneMinBtqcosph1(:,j)
+            otherfactor = qtilde*csphi(j)
+            if (cx>cy) then
+              qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
+              prefac(:,j) = prefac(:,j)*qlimitratio**2*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*( &
+                    -0.5d0*otherfactor/betafactor &
+                    +(qlimitratio*hbarcsqBZ_TkB/36.d0)*otherfactor &
+                    -(qlimitratio**2*hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
+                    +(qlimitratio**3*hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
+            else
+              prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
+                    +(hbarcsqBZ_TkB/36.d0)*otherfactor &
+                    -(hbarcsqBZ_TkB**2/2.88d3)*(1.d0-(betafactor)**3) &
+                    +(hbarcsqBZ_TkB**3/1.512d5)*(1.d0-(betafactor)**5))
+            end if
+          end do
+        end if
       else
-        call phonondistri(prefac,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
+        call phonondistri(prefac/beta1,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
         distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do concurrent (i=1:(lenq1-1))
-            do j=1,lenph1
+            do j=1,lenph
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
             end do
           end do
@@ -1081,7 +1114,7 @@ module phononwind
         if (cx>cy) then
           q1limit = ctovcl/OneMinBtqcosph1
           do concurrent (i=1:(lenq1-1))
-            do j=1,lenph1
+            do j=1,lenph
               do k=1,lent
                 if (q1(i)>q1limit(k,j)) then
                   distri(k,j,i) = 0.d0
