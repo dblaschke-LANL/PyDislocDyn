@@ -2,14 +2,14 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 7, 2026
+! Date: July 23, 2018 - May 21, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260507
+  integer,parameter :: version = 20260520
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -868,7 +868,7 @@ module phononwind
       ! if debye, use a high temperature expansion of the Debye-fcts instead of (slower) integration over q1
       if (debye) then
         hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
-        do j=1,lenph1
+        do j=1,lenph
           betafactor = OneMinBtqcosph1(:,j)
           prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-(beta*ctovcl/2.d0)*qtilde(:,j)*csphi(j)/betafactor &
                   +(hbarcsqBZ_TkB**2/36.d0)*(beta*ctovcl*qtilde(:,j)*csphi(j)) &
@@ -882,7 +882,7 @@ module phononwind
         ! include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do i=1,(lenq1-1)
-            do j=1,lenph1
+            do j=1,lenph
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
             end do
           end do
@@ -1024,7 +1024,7 @@ module phononwind
       ! Note: for cx>cy the integration range is reduced (see below) and this expansion is not valid, skip in that case
       if (debye) then
         hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
-        do j=1,lenph1
+        do j=1,lenph
           betafactor = OneMinBtqcosph1(:,j)
           if (cx>cy) then
             qlimitratio = (min(1.d0,ctovcl/OneMinBtqcosph1(:,j)))**2
@@ -1048,7 +1048,7 @@ module phononwind
         ! include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do i=1,(lenq1-1)
-            do j=1,lenph1
+            do j=1,lenph
               distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
             end do
           end do
@@ -1057,7 +1057,7 @@ module phononwind
         if (cx>cy) then
           q1limit = ctovcl/OneMinBtqcosph1
           do i=1,(lenq1-1)
-            do j=1,lenph1
+            do j=1,lenph
               do k=1,lent
                 if (q1(i)>q1limit(k,j)) then
                   distri(k,j,i) = 0.d0
