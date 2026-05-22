@@ -2,14 +2,14 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 21, 2026
+! Date: July 23, 2018 - May 22, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260521
+  integer,parameter :: version = 20260522
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -507,59 +507,35 @@ module phononwind_subroutines
     qtshift = qt - qv
 
     A3qt2(:,:,:,:,:) = 0.0
-    do kk = 1,3
-       do k = 1,3
-          do j = 1,3
-             do i = 1,3
-                do jj = 1,3
-                   do ii = 1,3
-                      A3qt2(:,i,j,k,kk) = A3qt2(:,i,j,k,kk) + qt(:,ii)*qtshift(:,jj)*A3(i,ii,j,jj,k,kk)
-                   end do
-                end do
-             end do
-          end do
-       end do
+    do concurrent (kk = 1:3, k = 1:3, j = 1:3, i = 1:3)! local(jj,ii) shared(qt,qtshift,A3) reduce(+:A3qt2)
+      do jj = 1,3
+        do ii = 1,3
+          A3qt2(:,i,j,k,kk) = A3qt2(:,i,j,k,kk) + qt(:,ii)*qtshift(:,jj)*A3(i,ii,j,jj,k,kk)
+        end do
+      end do
     end do
 
     part1(:,:,:,:,:) = 0.0
-    do kk = 1,3
-       do k = 1,3
-          do j = 1,3
-             do l = 1,3
-                do i = 1,3
-                   part1(:,l,j,k,kk) = part1(:,l,j,k,kk) + (delta1(i,l) - qt(:,l)*qt(:,i))*A3qt2(:,i,j,k,kk)
-                end do
-             end do
-          end do
-       end do
+    do concurrent (kk = 1:3, k = 1:3, j = 1:3, l = 1:3)! local(i) shared(A3qt2,qt,delta1) reduce(+:part1)
+      do i = 1,3
+         part1(:,l,j,k,kk) = part1(:,l,j,k,kk) + (delta1(i,l) - qt(:,l)*qt(:,i))*A3qt2(:,i,j,k,kk)
+      end do
     end do
 
     part2(:,:,:,:,:) = 0.0
-    do nn = 1,3
-       do n = 1,3
-          do j = 1,3
-             do m = 1,3
-                do l = 1,3
-                   part2(:,l,j,n,nn) = part2(:,l,j,n,nn) + (delta2(j,m) - qtshift(:,j)*qtshift(:,m)/mag)*A3qt2(:,l,m,n,nn)
-                end do
-             end do
-          end do
-       end do
+    do concurrent (nn = 1:3, n = 1:3, j = 1:3, l = 1:3)! local(m) shared(A3qt2,qtshift,mag,delta2) reduce(+:part2)
+      do m = 1,3
+       part2(:,l,j,n,nn) = part2(:,l,j,n,nn) + (delta2(j,m) - qtshift(:,j)*qtshift(:,m)/mag)*A3qt2(:,l,m,n,nn)
+      end do
     end do
     part2(:,:,:,:,:) = part2(:,:,:,:,:)*dphi1(p)
 
-    do nn = 1,3
-       do n = 1,3
-          do kk = 1,3
-             do k = 1,3
-                do j = 1,3
-                   do l = 1,3
-                      output(:,k,kk,n,nn) = output(:,k,kk,n,nn) + part1(:,l,j,k,kk)*part2(:,l,j,n,nn)
-                   end do
-                end do
-             end do
-          end do
-       end do
+    do concurrent (nn = 1:3, n = 1:3, kk = 1:3, k = 1:3)! local(j,l) shared(part1,part2) reduce(+:output)
+      do j = 1,3
+         do l = 1,3
+            output(:,k,kk,n,nn) = output(:,k,kk,n,nn) + part1(:,l,j,k,kk)*part2(:,l,j,n,nn)
+         end do
+      end do
     end do
 
     end do
@@ -619,11 +595,9 @@ module phononwind_subroutines
       do n=1,3
         do kk=1,3
           do k=1,3
-            do j = 1,lenph
-              do i = 1,lent
-                ij = (i-1)*lenph+j
-                output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
-              end do
+            do concurrent (j = 1:lenph, i = 1:lent)! local(ij) shared(dij,flatpoly) reduce(+:output)
+              ij = (i-1)*lenph+j
+              output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
             end do
           end do
         end do
@@ -744,14 +718,8 @@ module phononwind
       if (sum(abs(C2swap-C2))<1.d-9) then
         print*,"ERROR: compiler does not support reshape intrinsic with optional 'order' parameter!!"
         print*,"using fall back code instead"
-        do i=1,3
-          do j=1,3
-            do k=1,3
-              do l=1,3
-                C2swap(i,j,k,l) = C2(j,k,i,l)
-              end do
-            end do
-          end do
+        do concurrent (i=1:3, j=1:3, k=1:3, l=1:3)
+          C2swap(i,j,k,l) = C2(j,k,i,l)
         end do
       end if
       A3 = C3
@@ -777,11 +745,9 @@ module phononwind
       integer i,j
       real(kind=sel) :: cosphimph
       
-      do j=1,phres
-        do i=1,phixres
+      do concurrent (j=1:phres, i=1:phixres)! local(cosphimph) shared(phix,ph,q,ra,rb,nq)
           cosphimph = cos(phix(i)-ph(j))
           sincos(i,j) = sum(cos(q*ra*cosphimph)-cos(q*rb*cosphimph))/cosphimph/nq
-        end do
       end do
       
     END SUBROUTINE fourieruij_sincos
@@ -800,14 +766,8 @@ module phononwind
       REAL(KIND=sel), INTENT(OUT) :: fourieruij(phres,3,3,ntheta)
       integer i,j,th,ph
       
-      do th=1,ntheta
-        do j=1,3
-          do i=1,3
-            do ph=1,phres
-              call trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres,fourieruij(ph,i,j,th))
-            end do
-          end do
-        end do
+      do concurrent (th=1:ntheta, j=1:3, i=1:3, ph=1:phres)
+        call trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres,fourieruij(ph,i,j,th))
       end do
       
     END SUBROUTINE fourieruij_nocut
@@ -917,10 +877,8 @@ module phononwind
         distri(:,:,1) = 2.d0*distri(:,:,1)
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do concurrent (i=1:(lenq1-1))
-            do j=1,lenph
-              distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
-            end do
+          do concurrent (i=1:(lenq1-1), j=1:lenph)
+            distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
           end do
         end if
         prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
@@ -931,11 +889,10 @@ module phononwind
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
       !-------------------------
-      do concurrent (i=1:lenph)
-        do j=1,lent
+      do concurrent (i=1:lenph, j=1:lent)
           do k=1,3
             qv((j-1)*lenph+i,k) = real(qtilde(j,i)*qvec(i,k), kind=selsm)
-          end do !k
+          end do
           k = (j-1)*lenph+i
           mag(k) = real(1.d0 + qtilde(j,i)**2 - 2.d0*t(j)*qtilde(j,i), kind=selsm)
           sqrtt(k) = real(sqrt(1.d0-t(j)**2), kind=selsm)
@@ -943,8 +900,7 @@ module phononwind
           sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
           tsinphi(k) = real(t(j)*sin(phi(i)), kind=selsm)
           sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
-        end do !j
-      end do !i
+      end do
       !-------------------------
       if (size(A3,7)==1) then
         ! no need to call bottleneck parathesum() more than once in the isotropic limit
@@ -1104,23 +1060,17 @@ module phononwind
         distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do concurrent (i=1:(lenq1-1))
-            do j=1,lenph
-              distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
-            end do
+          do concurrent (i=1:(lenq1-1), j=1:lenph)
+            distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
           end do
         end if
         ! if cx>cy, we need to limit the integration range of q1<=(cy/cx)/(1-beta1*qtilde*csphi) in addition to q1<=1
         if (cx>cy) then
           q1limit = ctovcl/OneMinBtqcosph1
-          do concurrent (i=1:(lenq1-1))
-            do j=1,lenph
-              do k=1,lent
-                if (q1(i)>q1limit(k,j)) then
-                  distri(k,j,i) = 0.d0
-                end if
-              end do !k
-            end do !j
+          do concurrent (i=1:(lenq1-1), j=1:lenph, k=1:lent)
+            if (q1(i)>q1limit(k,j)) then
+              distri(k,j,i) = 0.d0
+            end if
           end do !i
         end if
         prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
@@ -1131,20 +1081,18 @@ module phononwind
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
       !-------------------------
-      do concurrent (i=1:lenph)
-        do j=1,lent
-          do k=1,3
-            qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
-          end do !k
-          k = (j-1)*lenph+i
-          mag(k) = real(1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j), kind=selsm)
-          sqrtt(k) = real(sqrt(abs(1.d0-t(j,i)**2)), kind=selsm)
-          tcosphi(k) = real(t(j,i)*cos(phi(i)), kind=selsm)
-          sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
-          tsinphi(k) = real(t(j,i)*sin(phi(i)), kind=selsm)
-          sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
-        end do !j
-      end do !i
+      do concurrent (i=1:lenph, j=1:lent)
+        do k=1,3
+          qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
+        end do
+        k = (j-1)*lenph+i
+        mag(k) = real(1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j), kind=selsm)
+        sqrtt(k) = real(sqrt(abs(1.d0-t(j,i)**2)), kind=selsm)
+        tcosphi(k) = real(t(j,i)*cos(phi(i)), kind=selsm)
+        sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
+        tsinphi(k) = real(t(j,i)*sin(phi(i)), kind=selsm)
+        sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
+      end do
       !-------------------------
       if (size(A3,7)==1) then
         ! no need to call bottleneck parathesum() more than once in the isotropic limit

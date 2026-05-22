@@ -8,6 +8,9 @@ Features and improvements:
 
 Fix:
 
+ - fixed a segfault in the Fortran subroutines when setting non-default different values for Nphi and Nphi1
+   (regression since 1.3.3)
+
 Other:
 
  - replace setuptools with hatchling as build-backend in pyproject.toml

@@ -258,15 +258,11 @@ module elastic_constants
           print*,symkwerror
           return
       end select
-      do concurrent (i=1:6)! local(j,k,ii,jj,kk) shared(vc,xijk) local_init(iind)
-        do j=1,6
-          do k=1,6
-            ii = min(i,j,k)
-            jj = min(max(i,j),max(i,k),max(j,k))
-            kk = max(i,j,k)
-            vc(i,j,k) = xijk(kk-jj+1+int((14-jj)*(jj-1)/2)+iind(ii))
-          end do
-        end do
+      do concurrent (i=1:6, j=1:6, k=1:6)! local(ii,jj,kk) shared(vc,xijk) local_init(iind)
+        ii = min(i,j,k)
+        jj = min(max(i,j),max(i,k),max(j,k))
+        kk = max(i,j,k)
+        vc(i,j,k) = xijk(kk-jj+1+int((14-jj)*(jj-1)/2)+iind(ii))
       end do
     end subroutine elasticC3
     ! -----------------------------
