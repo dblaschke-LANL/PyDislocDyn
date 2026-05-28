@@ -38,41 +38,44 @@ runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
         pydislocdyn/dislocations.f90 testing/runtests.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	# Link
-	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o dislocations.o runtests.o $(LDFLAGS)
+	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o phononwind.o dislocations.o runtests.o $(LDFLAGS)
 
 build: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
        pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90 app/dislocdyn.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/readinputfiles.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link
-	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o dislocations.o readinputfiles.o dislocdyn.o $(LDFLAGS)
+	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o phononwind.o dislocations.o readinputfiles.o dislocdyn.o $(LDFLAGS)
 	
 shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 \
         pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/elasticconstants.f90
+	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/phononwind.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/readinputfiles.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link for linux
-	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o dislocations.o readinputfiles.o $(LD_SH)
+	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o phononwind.o dislocations.o readinputfiles.o $(LD_SH)
 	$(FC) -o $(EXEC_tests)_sh.x runtests.o $(LDFLAGS) -l$(SHARED) -L.
 	## on linux run with: LD_LIBRARY_PATH="." ./runtests_sh.x)
 	$(FC) -o $(EXEC)_sh.x dislocdyn.o $(LDFLAGS) -l$(SHARED) -L.
 	## on linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x)
 
 static: build
-	ar rcs libdislocdyn.a subroutines.o elasticconstants.o dislocations.o readinputfiles.o
+	ar rcs libdislocdyn.a subroutines.o elasticconstants.o phononwind.o dislocations.o readinputfiles.o
 
 clean: 
-	rm -f subroutines.o elasticconstants.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
+	rm -f subroutines.o elasticconstants.o phononwind.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
 	parameters.mod utilities.mod various_subroutines.mod phononwind.mod phononwind_subroutines.mod \
 	elastic_constants.mod dislocations.mod readinputfiles.mod checks.mod tests.mod
 

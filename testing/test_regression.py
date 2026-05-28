@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - May 13, 2026
+# Date: Mar. 6, 2023 - May 28, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -146,7 +146,7 @@ def test_dragiso(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='Cu Fe'
     '''implements regression tests for isotropic phonon drag calculations via frontend script dragcoeff_iso.py,
        where folder "old" contains the baseline results; set to "None" to initialize a new baseline.'''
     testfolder, old = prepare_testfolder(old,new,verbose)
-    opts = {'Nbeta':7, 'use_exp_Lame':True, 'phononwind_opts': {'maxrec':2, 'target_accuracy':0.01}, 'NT':1} # defaults for this test
+    opts = {'Nbeta':15, 'use_exp_Lame':True, 'phononwind_opts': {'maxrec':2, 'target_accuracy':0.01}, 'NT':1} # defaults for this test
     opts['Ncores'] = Ncores
     if not usefortran: # change some defaults if we're falling back to slower numba-jit routines
         opts['phononwind_opts'].update({'maxrec':0, 'Nchunks':10})
