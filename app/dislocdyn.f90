@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 11, 2026
+! Date: Apr. 10, 2026 - June 15, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -13,7 +13,7 @@ program dislocdyn
   use readinputfiles
   implicit none
   
-  integer :: nthreads, i, j, k, p, num_args, un(3), start_time, finish_time, countrate
+  integer :: nthreads, i, j, k, p, num_args, un(3), start_time, finish_time, countrate, nsims
   character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, proginfo, threadinfo, usageinfo
   character(256), dimension(:), allocatable :: args
   type(disloc), dimension(:), allocatable :: disl
@@ -70,7 +70,8 @@ program dislocdyn
     materialfile = trim(args(i))
     call read_materialfile(materialfile,disl(i))
     if (i==1) then
-      call read_inputdeck(instructionfile,sim_plan,disl(i)%sym) ! need to know how many Miller indices to expect based on 'sym'
+      call scan_inputdeck(instructionfile,nsims)
+      call read_inputdeck(instructionfile,sim_plan,disl(i)%sym,nsims) ! need to know how many Miller indices to expect based on 'sym'
       open(unit=un(2), file=sim_plan%logfile, status='replace') ! open log file
       write(un(2),*) proginfo
       write(un(2),*) threadinfo
@@ -113,7 +114,7 @@ program dislocdyn
       end if
     end do
     
-    do p=1,sim_plan%nsims
+    do p=1,nsims
       if (sim_plan%sim_type(p)%str=='drag') then
         call phonondrag(B,disl(i),sim_plan%beta)
         do k=1,2

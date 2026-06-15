@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - May 11, 2026
+! Date: Apr. 10, 2026 - June 15, 2026
 module readinputfiles
   use parameters, only : sel, rzero ! defined in subroutines.f90
   use elastic_constants, only : symkwerror, number_of_elasticC
@@ -16,18 +16,49 @@ module readinputfiles
     character(:), allocatable :: logfile
     real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
-    integer :: nbeta, ntheta, nphi, nsims
+    integer :: nbeta, ntheta, nphi
     logical :: echoinput
   end type inputdeck
   
   !-------------------------
-  public :: read_inputdeck, read_materialfile
+  public :: scan_inputdeck, read_inputdeck, read_materialfile
   contains
-    !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
-    subroutine read_inputdeck(filename,sim_plan,sym)
-      use utilities, only: linspace
-      ! reads an inputdeck from filename, and stores all values in 'sim_plan' of derived type 'inputdeck'
+    !>counts the number of lines starting with 'sim_type' in an input deck file
+    subroutine scan_inputdeck(filename,nsims)
       character(*), intent(in) :: filename
+      integer, intent(out) :: nsims
+      ! local variables
+      integer :: ios
+      character(32) :: key
+      character(256) :: line, values
+      nsims = 0
+      
+      open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
+      if (ios/=0) then
+        close(unit=42)
+        error stop "File not found: " // filename
+      end if
+      do
+        read(42,'(a)',iostat=ios) line
+        if (ios/=0) exit
+        if ((line /= " ") .and. (line(1:1) /= "#")) then
+          read(line,*) key,values
+        else
+          ! skip empty lines
+          key = trim(line)
+        end if
+        if (key=='sim_type') then
+          nsims = nsims + 1
+        end if
+      end do ! read file
+      close(unit=42)
+!~       print*,"found",nsims,"sims"
+    end subroutine scan_inputdeck
+    !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
+    subroutine read_inputdeck(filename,sim_plan,sym,nsims)
+      use utilities, only: linspace
+      character(*), intent(in) :: filename
+      integer, intent(in) :: nsims
       type(inputdeck), intent(out) :: sim_plan
       character(*), optional :: sym
       ! local variables
@@ -36,8 +67,7 @@ module readinputfiles
       character(256) :: line, values, dummy
       p = 1
       ! default values:
-      sim_plan%nsims = 1
-      allocate(sim_plan%sim_type(1))
+      allocate(sim_plan%sim_type(nsims))
       sim_plan%sim_type(1)%str = ''
       sim_plan%nbeta = 1
       sim_plan%ntheta = 2
@@ -71,13 +101,8 @@ module readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key=='nsims') then
-          read(line,*) key,dummy,sim_plan%nsims
-          deallocate(sim_plan%sim_type)
-          allocate(sim_plan%sim_type(sim_plan%nsims))
-        end if
         if (key=='sim_type') then
-          if (p>sim_plan%nsims) error stop "too many sim_types in file; set nsims first!"
+          if (p>nsims) error stop "too many sim_types in file"
           sim_plan%sim_type(p)%str = trim(values)
           p = p+1
         end if
@@ -107,7 +132,7 @@ module readinputfiles
         if (allocated(sim_plan%beta)) deallocate(sim_plan%beta); allocate(sim_plan%beta(sim_plan%nbeta))
         call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
       end if
-    end subroutine
+    end subroutine read_inputdeck
 
     !-------------------------
     !>reads a material file and stores the information in 'disl' of derived type 'disloc'
