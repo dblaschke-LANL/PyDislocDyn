@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - June 15, 2026
+! Date: Apr. 10, 2026 - June 16, 2026
 module readinputfiles
   use parameters, only : sel, rzero ! defined in subroutines.f90
   use elastic_constants, only : symkwerror, number_of_elasticC
@@ -21,7 +21,7 @@ module readinputfiles
   end type inputdeck
   
   !-------------------------
-  public :: scan_inputdeck, read_inputdeck, read_materialfile
+  public :: read_inputdeck, read_materialfile
   contains
     !>counts the number of lines starting with 'sim_type' in an input deck file
     subroutine scan_inputdeck(filename,nsims)
@@ -55,17 +55,17 @@ module readinputfiles
 !~       print*,"found",nsims,"sims"
     end subroutine scan_inputdeck
     !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
-    subroutine read_inputdeck(filename,sim_plan,sym,nsims)
+    subroutine read_inputdeck(filename,sim_plan,sym)
       use utilities, only: linspace
       character(*), intent(in) :: filename
-      integer, intent(in) :: nsims
       type(inputdeck), intent(out) :: sim_plan
       character(*), optional :: sym
       ! local variables
-      integer :: ios, j, n, p
+      integer :: ios, j, n, p, nsims
       character(32) :: key
       character(256) :: line, values, dummy
       p = 1
+      call scan_inputdeck(filename,nsims)
       ! default values:
       allocate(sim_plan%sim_type(nsims))
       sim_plan%sim_type(1)%str = ''
