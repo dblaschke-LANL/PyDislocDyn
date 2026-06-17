@@ -70,10 +70,8 @@ Note: installation is optional, i.e. pydislocdyn can also be run locally (in whi
 
 * then compile the Fortran submodule (optional) via</br>
 `python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()'` </br></br>
-Note: on Linux with gfortran and numpy>=2.1, the best performance is achieved by passing the additional option
-</br>
-`pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")`
-</br>
+Note: on Linux with gfortran and numpy>=2.1, the best performance is achieved by passing the additional option</br>
+`pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")`</br>
 Also, if you have chosen not to install PyDislocDyn, run the compilation command from within the PyDislocDyn folder, </br>
 otherwise if PyDislocDyn is installed, make sure to change your current working directory so that it is <i>not</i> the one you ran 'pip install .' from.</br>
 (Otherwise the local version will be imported instead of the installed one.)</br>
