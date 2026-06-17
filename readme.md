@@ -46,7 +46,6 @@ The LANL development team asks that any forks or derivative works include approp
 * a Fortran 2018 capable compiler and meson
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
-Note: on Linux with gfortran and numpy>=2.1, the best performance is achieved by passing the additional option `pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")`
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
 * [threadpoolctl](https://github.com/joblib/threadpoolctl) (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.58.1 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
@@ -71,7 +70,11 @@ Note: installation is optional, i.e. pydislocdyn can also be run locally (in whi
 
 * then compile the Fortran submodule (optional) via</br>
 `python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()'` </br></br>
-Note: if you have chosen not to install PyDislocDyn, run the above command from within the PyDislocDyn folder, </br>
+Note: on Linux with gfortran and numpy>=2.1, the best performance is achieved by passing the additional option
+</br>
+`pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")`
+</br>
+Also, if you have chosen not to install PyDislocDyn, run the compilation command from within the PyDislocDyn folder, </br>
 otherwise if PyDislocDyn is installed, make sure to change your current working directory so that it is <i>not</i> the one you ran 'pip install .' from.</br>
 (Otherwise the local version will be imported instead of the installed one.)</br>
 If compilation was successful, the following command will print 'True':</br>
@@ -80,7 +83,8 @@ If compilation was successful, the following command will print 'True':</br>
 * to uninstall PyDislocDyn, run</br>
 `python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule(clean=True)'`</br>
 `pip uninstall pydislocdyn`</br></br>
-Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compiled Fortran module and if it is omitted, the compiled Fortran module has to be deleted manually upon uninstalling (and pip will let the user know its location).
+Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compiled Fortran module and if it is omitted, the compiled Fortran module has to be deleted manually upon uninstalling
+(in which case pip will let the user know its location).
 
 * to compile the standalone Fortran library and frontend, either run</br>
 `make shared`</br>
