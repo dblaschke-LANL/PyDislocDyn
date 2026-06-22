@@ -15,8 +15,11 @@ openmp = "*"
 #test-drive.tag = "v0.6.0"
 
 [features]
-release.gfortran.flags = "-O3 -march=native"
-release.flang.flags = "-O3 -march=native"
+baseline.gfortran.flags = "-march=native"
+baseline.flang.flags = "-march=native"
+
+[profiles]
+default = ["baseline"]
 
 [library]
 type = ["shared", "static"]
