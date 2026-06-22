@@ -49,11 +49,11 @@ A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included t
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
 * [threadpoolctl](https://github.com/joblib/threadpoolctl) (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.58.1 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
-* hatchling >= 1.26 (to install via pip)
+* hatchling >=1.26 (to install via pip)
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
-* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) or GNU Make to build the standalone Fortran frontend and library 
-* [Doxygen](https://www.doxygen.nl/) or [Ford](https://forddocs.readthedocs.io/en/stable/)>=7 to build the documentation of the Fortran library
+* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make to build the standalone Fortran frontend and library 
+* [Doxygen](https://www.doxygen.nl/) or [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build the documentation of the Fortran library
 
 ## Documentation
 

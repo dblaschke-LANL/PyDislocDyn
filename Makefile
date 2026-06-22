@@ -12,7 +12,7 @@ else ifeq ($(FC),flang)
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
   FC = gfortran -fimplicit-none# -flto -ffree-line-length-225
-  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native
+  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native# -funroll-loops
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
 endif
