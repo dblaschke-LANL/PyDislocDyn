@@ -78,15 +78,15 @@ module checks
       rank(2)
         call voigt(x,z1)
         call unvoigt(z1,y2)
-        b = all(abs(x-y2)<rzero)
+        b = all(abs(x(:,:)-y2(:,:))<rzero)
       rank(4)
         call voigt(x,z2)
         call unvoigt(z2,y4)
-        b = all(abs(x-y4)<rzero)
+        b = all(abs(x(:,:,:,:)-y4(:,:,:,:))<rzero)
       rank(6)
         call voigt(x,z3)
         call unvoigt(z3,y6)
-        b = all(abs(x-y6)<rzero)
+        b = all(abs(x(:,:,:,:,:,:)-y6(:,:,:,:,:,:))<rzero)
       rank default
         print*,"ERROR: rank must be 2,4, or 6"
         b = .false.

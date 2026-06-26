@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - June 16, 2026
+! Date: Apr. 10, 2026 - June 26, 2026
 module readinputfiles
   use parameters, only : sel, rzero ! defined in subroutines.f90
   use elastic_constants, only : symkwerror, number_of_elasticC
@@ -108,8 +108,8 @@ module readinputfiles
         end if
         if (key=='logfile') sim_plan%logfile = trim(values)
         if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
-        if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,(sim_plan%b(j), j=1,n)
-        if (key=='n0' .or. key=='Millern0') read(line,*) key,dummy,(sim_plan%n0(j), j=1,n)
+        if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,sim_plan%b(1:n)
+        if (key=='n0' .or. key=='Millern0') read(line,*) key,dummy,sim_plan%n0(1:n)
         if (key=='betamin') read(line,*) key,dummy,sim_plan%betamin
         if (key=='betamax') read(line,*) key,dummy,sim_plan%betamax
         if (key=='Millernorm') read(line,*) key,dummy,sim_plan%Millernorm
@@ -118,7 +118,7 @@ module readinputfiles
           allocate(sim_plan%beta(sim_plan%nbeta))
           sim_plan%beta = 0.d0
         end if
-        if (key=='beta') read(line,*) key,dummy,(sim_plan%beta(j), j=1,sim_plan%nbeta)
+        if (key=='beta') read(line,*) key,dummy,sim_plan%beta(1:sim_plan%nbeta)
         if (key=='ntheta') read(line,*) key,dummy,sim_plan%ntheta
         if (key=='nphi') read(line,*) key,dummy,sim_plan%nphi
       
@@ -179,8 +179,8 @@ module readinputfiles
         if (key=='a') read(values,*)disl%lat_a(1)
         if (key=='lcb') read(values,*)disl%lat_a(2) ! b already used for Burgers vector
         if (key=='c') read(values,*)disl%lat_a(3)
-        if (key=='lat_a') read(line,*) key,dummy,(disl%lat_a(j), j=1,3) ! allow reading all lattice vectors from one line
-        if (key=='lat_angles') read(line,*) key,dummy,(disl%lat_angles(j), j=1,3)
+        if (key=='lat_a') read(line,*) key,dummy,disl%lat_a(1:3) ! allow reading all lattice vectors from one line
+        if (key=='lat_angles') read(line,*) key,dummy,disl%lat_angles(1:3)
         if (key=='alpha') read(values,*)disl%lat_angles(1)
         if (key=='beta') read(values,*)disl%lat_angles(2)
         if (key=='gamma') read(values,*)disl%lat_angles(3)
@@ -194,7 +194,7 @@ module readinputfiles
         if (key=='c66') read(values,*)c66
         if (key=='lam') read(values,*)disl%lam
         if (key=='mu') read(values,*)disl%mu
-        if (key=='cij') read(line,*) key,dummy,(disl%cij(j), j=1,lencij)
+        if (key=='cij') read(line,*) key,dummy,disl%cij(1:lencij)
         ! read TOEC
         if (key=='c111') read(values,*)c111
         if (key=='c112') read(values,*)c112
@@ -209,7 +209,7 @@ module readinputfiles
         if (key=='c344') read(values,*)c344
         if (key=='c366') read(values,*)c366
         if (key=='c456') read(values,*)c456
-        if (key=='cijk') read(line,*) key,dummy,(disl%cijk(j), j=1,lencijk)
+        if (key=='cijk') read(line,*) key,dummy,disl%cijk(1:lencijk)
       
       end do ! read file
       close(unit=42)
