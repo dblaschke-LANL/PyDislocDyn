@@ -61,7 +61,7 @@ module readinputfiles
       type(inputdeck), intent(out) :: sim_plan
       character(*), optional :: sym
       ! local variables
-      integer :: ios, j, n, p, nsims
+      integer :: ios, n, p, nsims
       character(32) :: key
       character(256) :: line, values, dummy
       p = 1
@@ -141,7 +141,7 @@ module readinputfiles
       character(*), intent(in) :: filename
       type(disloc), intent(out) :: disl
       ! local variables
-      integer :: ios, lencij, lencijk, j
+      integer :: ios, lencij, lencijk
       character(32) :: key, metal, sym
       character(256) :: line, values, dummy
       real(sel) :: c11, c12, c13, c33, c44, c66

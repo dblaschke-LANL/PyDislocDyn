@@ -1,5 +1,5 @@
 name = "PyDislocDyn_Fortranlibrary"
-version = "20260528"
+version = "20260626"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
@@ -17,6 +17,7 @@ openmp = "*"
 [features]
 baseline.gfortran.flags = "-march=native"
 baseline.flang.flags = "-march=native"
+baseline.lfortran.flags = "--fast --realloc-lhs-arrays"
 
 [profiles]
 default = ["baseline"]
