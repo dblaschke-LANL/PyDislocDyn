@@ -29,6 +29,9 @@ jobs:
             toolchain: {compiler: intel, version: 'latest'}
           - os: windows-latest
             toolchain: {compiler: intel, version: 'latest'}
+          - os: ubuntu-latest
+            python-version: '3.9'
+            toolchain: {compiler: intel, version: 'latest'}
         include:
           - python-version: '3.9'
             module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8 pandas==1.5 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.58.1 meson ninja pytest"
@@ -55,14 +58,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install ${{ matrix.module-versions }}
           pip install .
-      - name: Run tests
+      - name: Run tests Linux
         run: |
           ulimit -s unlimited
           fpm test
           make
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
-        if: runner.os != 'Windows'
+        if: runner.os  == 'MacOS'
+      - name: Run tests MacOS
+        run: |
+          fpm test
+          make
+          ./runtests.x
+          yes 2>/dev/null | pytest -s --durations=0 testing/
+        if: runner.os  == 'MacOS'
       - name: Run tests windows
         run: echo 'N' | pytest -s --durations=0 testing/
         if: runner.os == 'Windows'
