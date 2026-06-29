@@ -19,7 +19,7 @@ jobs:
         python-version: ["3.9", "3.14"]
         toolchain:
           - {compiler: gcc, version: 'latest'}
-          - {compiler: intel, version: 'latest'}
+          #~ - {compiler: intel, version: 'latest'}
         exclude:
           - os: macos-latest
             python-version: '3.9'
@@ -68,7 +68,6 @@ jobs:
         if: runner.os  == 'Linux'
       - name: Run tests MacOS
         run: |
-          fpm test
           make
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/

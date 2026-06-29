@@ -149,7 +149,7 @@ module tests
       call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
       
       call phonondrag(B,Cu,[0.1d0,0.5d0])
-      call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-4,count_pass,count_fail)
+      call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-5,count_pass,count_fail)
       call testtrue((CheckReflectionSymmetry(Cu%C2aligned(:,:,1)) .and. &
                 .not.CheckReflectionSymmetry(Cu%C2aligned(:,:,Cu%ntheta))),"reflection-sym, Cu screw/edge",count_pass,count_fail)
       call Cu%computevcrit_screw(vlim_s)
@@ -163,7 +163,7 @@ module tests
       Ti%ntheta = 3 ! test with one mixed disloc.
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
       call phonondrag(B,Ti,[0.5d0])
-      call testzero(sum(B)-0.0293866,"disloc_Tipyr_drag",1.d-4,count_pass,count_fail)
+      call testzero(sum(B)-0.0293866,"disloc_Tipyr_drag",1.d-5,count_pass,count_fail)
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,0.d0]) ! switch to prismatic slip
       call testtrue((CheckReflectionSymmetry(Ti%C2aligned(:,:,1)) .and. &
                 CheckReflectionSymmetry(Ti%C2aligned(:,:,Ti%ntheta))),"reflection-sym, Ti screw/edge",count_pass,count_fail)
