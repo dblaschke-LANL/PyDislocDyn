@@ -25,6 +25,10 @@ jobs:
             python-version: '3.9'
           - os: windows-latest
             python-version: '3.9'
+          - os: macos-latest
+            toolchain: {compiler: intel, version: 'latest'}
+          - os: windows-latest
+            toolchain: {compiler: intel, version: 'latest'}
         include:
           - python-version: '3.9'
             module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8 pandas==1.5 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.58.1 meson ninja pytest"
@@ -37,7 +41,7 @@ jobs:
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
-        #~ if: runner.os == 'MacOS'
+        if: runner.os != 'Windows'
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
@@ -53,6 +57,7 @@ jobs:
           pip install .
       - name: Run tests
         run: |
+          ulimit -s unlimited
           fpm test
           make
           ./runtests.x
