@@ -65,7 +65,7 @@ jobs:
           make
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
-        if: runner.os  == 'MacOS'
+        if: runner.os  == 'Linux'
       - name: Run tests MacOS
         run: |
           fpm test
