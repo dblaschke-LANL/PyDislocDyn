@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - May 7, 2026
+# Date: Nov. 7, 2017 - July 9, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -649,7 +649,8 @@ class metal_props:
             self.n0=np.asarray(inputparams['n0'].split(','),dtype=float)
             self.n0 = self.n0/np.sqrt(np.dot(self.n0,self.n0))
         if abs(np.dot(self.b,self.n0))>1e-15:
-            print("ERROR: Burgers vector does not lie in the slip plane; .b and .n0 must be normal to each other!")
+            print(f"{self.b=}\n{self.n0=}")
+            raise ValueError("ERROR: Burgers vector does not lie in the slip plane; .b and .n0 must be normal to each other!")
         if self.burgers<0 or self.burgers > 100*self.ac:
             print("ERROR: Burgers vector length is much larger than lattice constant a, check units!")
         if 'alpha_a' in keys:

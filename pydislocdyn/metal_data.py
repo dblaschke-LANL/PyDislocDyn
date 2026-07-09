@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 16, 2026
+# Date: Nov. 3, 2017 - July 9, 2026
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
 
 References for the data included in these dictionaries (see the manual and its bibliography for further details):
@@ -191,7 +191,7 @@ def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
             out.append(X)
     return out
 
-def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False):
+def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False,Millerb=None,Millern0=None):
     '''Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
        Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.
        To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
@@ -239,6 +239,12 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
             ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
             ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
             ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
+        if Millerb is not None:
+            outf.write("# replacing Millerb above with user value:\nMillerb = ")
+            outf.write(", ".join(map("{}".format,Millerb))+"\n\n")
+        if Millern0 is not None:
+            outf.write("# replacing Millern0 above with user value:\nMillern0 = ")
+            outf.write(", ".join(map("{}".format,Millern0))+"\n\n")
         outf.write("# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
         outf.write(f"T = 300\na = {CRC_a[X]}\n")
         if X in CRC_c:
