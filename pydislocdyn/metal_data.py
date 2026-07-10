@@ -192,13 +192,17 @@ def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
     return out
 
 def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False,Millerb=None,Millern0=None):
-    '''Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
-       Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.
-       To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
-       'prismatic', or 'pyramidal'.
-       By setting 'alt_soec=True', one may swap out the CRC handbook values of SOECs for some fcc metals with alternative ones (see THLPG dictionaries).
-       Likewise, 'alt_rho=True' will use the CRC_rho_sc dictionary instead of the CRC_rho one.'''
-    if fname=='auto': fname = X
+    '''
+    Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
+    Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.
+    To choose between various predefined slip systems, use options 'bccslip'='110' (default), '112', or '123' and 'hcpslip'='basal' (default),
+    'prismatic', or 'pyramidal'.
+    By setting 'alt_soec=True', one may swap out the CRC handbook values of SOECs for some fcc metals with alternative ones (see THLPG dictionaries).
+    Likewise, 'alt_rho=True' will use the CRC_rho_sc dictionary instead of the CRC_rho one.
+    Pre-defined slip systems can be overridden by explicitly passing the Burgers vector and slip plane normal via the Millerb and Millern0 keywords.
+    '''
+    if fname=='auto':
+        fname = X
     with open(fname,"w", encoding="utf8") as outf:
         outf.write(f"# this input file requires PyDislocDyn >=1.2.7\n# input parameters for {X} at ambient conditions\n\n")
         outf.write(f"name = {fname}\n")
