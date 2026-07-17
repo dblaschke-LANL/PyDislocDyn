@@ -96,14 +96,12 @@ class Dislocation(StrohGeometry,metal_props):
         if usefortran and self.C2_aligned is None:
             self.alignC2()
         for th in range(Ntheta):
-            def findvlim(phi,i):
-                return vlim_of_phi(phi,i,C2,norm,m0[th],self.n0)
             for i in range(3):
-                minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
+                minresult = optimize.direct(lambda x: vlim_of_phi(x,i,C2,norm,m0[th],self.n0),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                 out[0,th,i] = minresult.fun
                 out[1,th,i] = minresult.x[0]
                 bounds=(minresult.x[0]-0.1,minresult.x[0]+0.1)
-                minresult2 = optimize.minimize_scalar(lambda x: findvlim(x,i),method='bounded',bounds=bounds)
+                minresult2 = optimize.minimize_scalar(lambda x: vlim_of_phi(x,i,C2,norm,m0[th],self.n0),method='bounded',bounds=bounds)
                 if minresult2.success and minresult2.fun<minresult.fun:
                     out[0,th,i] = minresult2.fun
                     out[1,th,i] = minresult2.x
@@ -173,13 +171,11 @@ class Dislocation(StrohGeometry,metal_props):
                 C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
                 signs = [1,-1]
                 tmpout = np.zeros((2))
-                def findvlim(phi,i):
-                    return edgevlim_of_phi(phi,signs[i],C2,norm)
                 for i in range(2):
-                    minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
+                    minresult = optimize.direct(lambda x: edgevlim_of_phi(x,signs[i],C2,norm),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                     tmpout[i] = minresult.fun
                     bounds=(minresult.x[0]-0.1,minresult.x[0]+0.1)
-                    minresult2 = optimize.minimize_scalar(lambda x: findvlim(x,i),method='bounded',bounds=bounds)
+                    minresult2 = optimize.minimize_scalar(lambda x: edgevlim_of_phi(x,signs[i],C2,norm),method='bounded',bounds=bounds)
                     if minresult2.success and minresult2.fun<minresult.fun:
                         tmpout[i] = minresult2.fun
                 self.vcrit_edge = min(tmpout)

@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Sept. 15, 2025
+# Date: Sept. 15, 2025 - July 17, 2026
 '''This submodule contains various subroutines that are accelerated using just-in-time compiler numba.
    For the Fortran-implementation of these subroutines, see subroutines.f90.'''
 

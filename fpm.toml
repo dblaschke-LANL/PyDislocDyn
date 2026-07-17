@@ -1,5 +1,5 @@
 name = "PyDislocDyn_Fortranlibrary"
-version = "20260626"
+version = "20260717"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
