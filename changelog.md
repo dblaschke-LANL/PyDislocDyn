@@ -5,11 +5,12 @@
 Features and improvements:
 
  - a new standalone Fortran library and frontend implementing a subset of PyDislocDyn features
- - new option in writeinputfile() lets the user override pre-defined slip systems
+ - new option in `writeinputfile()` lets the user override pre-defined slip systems
+ - `pydislocdyn.readinputfile()` will now fall back to returning an instance of the `metal_props` class if no slip plane is defined in the file
 
 Fix:
 
- - fixed a segfault in the Fortran subroutines when setting non-default different values for Nphi and Nphi1
+ - fixed a segfault in the Fortran subroutines when setting non-default different values for `Nphi` and `Nphi1`
    (regression since 1.3.3)
 
 Other:
@@ -18,7 +19,7 @@ Other:
  - numpy>=1.26 is now required (older versions cannot handle `private` statements in fortran modules), as well as meson;
    this has implications for other version requirements (e.g. numba)
  - changed defaults in functions `elasticC2/-C3/-S2/-S3` (output with `voigt=True` instead of `False`)
- - if Burgers vector and slip plane normal in an input file are not normal, PyDislcDyn will now through a ValueError (previously just warned)
+ - if Burgers vector and slip plane normal in an input file are not normal, PyDislcDyn will now throw a ValueError (previously just warned)
 
 ## 1.3.5 (2026-05-18)
 

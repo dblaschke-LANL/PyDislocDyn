@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - May 13, 2026
+# Date: Nov. 3, 2017 - July 16, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -15,6 +15,7 @@ import pandas as pd
 from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
+from ..crystals import readinputfile as _readcrystalinputfile
 from .steadystate import StrohGeometry, elbrak1d
 
 if usefortran:
@@ -733,7 +734,8 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
        The latter keyword can also be read from file 'fname'.
        If option isotropify is set to True, we calculate isotropic averages of the elastic constants and return an instance of the Dislocation class
        with sym=iso and using those averages.
-       Finally, include_extra adds two character angles at the edges (needed for linetension calcs since those involve 2 derivatives wrt theta).'''
+       Finally, include_extra adds two character angles at the edges (needed for linetension calcs since those involve 2 derivatives wrt theta).
+       If the slip system is not defined in the input file, we fall back to returning an instance of the metal_props class.'''
     inputparams = loadinputfile(fname)
     sym = inputparams['sym']
     name = inputparams.get('name',str(fname))
@@ -742,9 +744,12 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
         temp.populate_from_dict(inputparams)
         b = temp.b
         n0 = temp.n0
-    else:
+    elif 'b' in inputparams or 'n0' in inputparams:
         b = np.asarray(inputparams['b'].split(','),dtype=float)
         n0 = np.asarray(inputparams['n0'].split(','),dtype=float)
+    else:
+        # fall back to metal_props version if no slip system was provided
+        return _readcrystalinputfile(fname=fname,init=init)
     if theta is None:
         symmetric = inputparams.get('symmetric',symmetric)
         if symmetric is True or symmetric == 'True' or Ntheta<=2:
