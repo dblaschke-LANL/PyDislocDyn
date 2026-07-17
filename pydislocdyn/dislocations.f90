@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - May 18, 2026
+! Date: Mar. 31, 2026 - July 17, 2026
 module dislocations
   use parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -311,7 +311,7 @@ module dislocations
       real(sel), intent(out) :: vlim
       real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim, norm
       real(sel) :: M(disl%nphi,3),MM(disl%nphi,3,3)
-      real(sel) :: C2(3,3,3,3), Q(disl%nphi), R(disl%nphi), tmpout1(disl%nphi), tmpout2(disl%nphi)
+      real(sel) :: C2(3,3,3,3), Q(disl%nphi), R(disl%nphi), tmpout2(disl%nphi)!, tmpout1(disl%nphi)
       integer :: i
       c11=disl%C2aligned(1,1,disl%ntheta)
       c22=disl%C2aligned(2,2,disl%ntheta)
@@ -341,9 +341,10 @@ module dislocations
           Q = Q + MM(:,i,i)
         end do
         R = MM(:,1,1)*MM(:,2,2) - MM(:,1,2)*MM(:,2,1)
-        tmpout1 = 0.5d0*Q + sqrt(0.25d0*Q**2-R)
+!~         tmpout1 = 0.5d0*Q + sqrt(0.25d0*Q**2-R)
         tmpout2 = 0.5d0*Q - sqrt(0.25d0*Q**2-R)
-        vlim = min(minval(abs(sqrt(tmpout1*norm)/cos(disl%phi))),minval(abs(sqrt(tmpout2*norm)/cos(disl%phi))))
+!~         vlim = min(minval(abs(sqrt(tmpout1*norm)/cos(disl%phi))),minval(abs(sqrt(tmpout2*norm)/cos(disl%phi))))
+        vlim = minval(abs(sqrt(tmpout2*norm)/cos(disl%phi)))
       end if
     end subroutine computevcrit_edge
     !-------------------------

@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 16, 2026
+# Date: Nov. 3, 2017 - July 17, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -91,23 +91,30 @@ class Dislocation(StrohGeometry,metal_props):
             t = np.outer(np.cos(theta),self.b) + np.outer(np.sin(theta),np.cross(self.b,self.n0))
             m0 = np.cross(self.n0,t)
         out = np.zeros((2,Ntheta,3))
+        if usefortran and self.C2_aligned is None:
+            self.alignC2()
         for th in range(Ntheta):
-            def findvlim(phi,i):
-                cosph = np.cos(phi)
-                M = np.asarray([m0[th]*cosph + self.n0*np.sin(phi)])
-                # MM = np.dot(M,np.dot(C2,M))
-                MM = elbrak1d(M,M,C2)[0]
-                P3 = -np.trace(MM)/3 ## = P/3 in notation of Barnett
-                Q = 0.5*(9*P3**2-np.trace((MM @ MM)))
-                # R = -np.linalg.det(MM)
-                R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
-                      - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
-                sqrta = np.sqrt(P3**2-Q/3) ## =sqrt(-a/3) in notation of Barnett
-                d = (2*P3**3-Q*P3+R)
-                gamma = -0.5*d/sqrta**3
-                gamma = np.arccos(gamma.clip(min=-1,max=1))
-                tmpout = -P3 + 2*sqrta*np.cos((gamma+2*i*np.pi)/3)
-                return np.abs(np.sqrt(tmpout*norm)/cosph)
+            if usefortran and theta_list is None: # the faster fortran version currently does not work with custom theta lists
+                C2 = UnVoigt(self.C2_aligned[th]/self.C2[3,3])
+                def findvlim(phi,i):
+                    return various_subroutines.vlim_of_phi(phi,i,C2,norm)
+            else:
+                def findvlim(phi,i):
+                    cosph = np.cos(phi)
+                    M = np.asarray([m0[th]*cosph + self.n0*np.sin(phi)])
+                    # MM = np.dot(M,np.dot(C2,M))
+                    MM = elbrak1d(M,M,C2)[0]
+                    P3 = -np.trace(MM)/3 ## = P/3 in notation of Barnett
+                    Q = 0.5*(9*P3**2-np.trace((MM @ MM)))
+                    # R = -np.linalg.det(MM)
+                    R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
+                          - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
+                    sqrta = np.sqrt(P3**2-Q/3) ## =sqrt(-a/3) in notation of Barnett
+                    d = (2*P3**3-Q*P3+R)
+                    gamma = -0.5*d/sqrta**3
+                    gamma = np.arccos(gamma.clip(min=-1,max=1))
+                    tmpout = -P3 + 2*sqrta*np.cos((gamma+2*i*np.pi)/3)
+                    return np.abs(np.sqrt(tmpout*norm)/cosph)
             for i in range(3):
                 minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                 out[0,th,i] = minresult.fun
@@ -186,19 +193,23 @@ class Dislocation(StrohGeometry,metal_props):
                 n0 = np.array([[0,1,0]])
                 signs = [1,-1]
                 tmpout = np.zeros((2))
-                def findvlim(phi,i):
-                    cosph = np.cos(phi)
-                    M = (m0*cosph + n0*np.sin(phi))
-                    # MM = np.dot(M,np.dot(C2,M))[:2,:2]
-                    # Q = np.trace(MM)
-                    # R = np.linalg.det(MM)
-                    MM = elbrak1d(M,M,C2)
-                    Q = MM[0,0,0]+MM[0,1,1]
-                    R = (MM[0,0,0]*MM[0,1,1] - MM[0,0,1]*MM[0,1,0])
-                    # solve quadratic equation: y**2+Qy+R=0:
-                    # y = -Q/2 \pm sqrt(Q*2/4 - R)
-                    tmpout = Q/2 + signs[i]*np.sqrt(Q**2/4-R)
-                    return np.abs(np.sqrt(tmpout*norm)/cosph)
+                if usefortran:
+                    def findvlim(phi,i):
+                        return various_subroutines.edgevlim_of_phi(phi,signs[i],C2,norm)
+                else:
+                    def findvlim(phi,i):
+                        cosph = np.cos(phi)
+                        M = (m0*cosph + n0*np.sin(phi))
+                        # MM = np.dot(M,np.dot(C2,M))[:2,:2]
+                        # Q = np.trace(MM)
+                        # R = np.linalg.det(MM)
+                        MM = elbrak1d(M,M,C2)
+                        Q = MM[0,0,0]+MM[0,1,1]
+                        R = (MM[0,0,0]*MM[0,1,1] - MM[0,0,1]*MM[0,1,0])
+                        # solve quadratic equation: y**2+Qy+R=0:
+                        # y = -Q/2 \pm sqrt(Q*2/4 - R)
+                        tmpout = Q/2 + signs[i]*np.sqrt(Q**2/4-R)
+                        return np.abs(np.sqrt(tmpout*norm)/cosph)
                 for i in range(2):
                     minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                     tmpout[i] = minresult.fun
@@ -219,20 +230,24 @@ class Dislocation(StrohGeometry,metal_props):
         If option 'return_all' is set to True, a pandas.DataFrame of all 3 branches is returned instead of .vcrit_all[1].
         Option set_screwedge=True guarantees that attributes .vcrit_screw and .vcrit_edge will be set, and 'setvrit=True' will overwrite self.vcrit_barnett.'''
         if theta is None:
-            theta=self.theta
+            _theta=self.theta
             if self.C2.dtype==object:
                 return self._computevcrit_object()
-        indices = self.findedgescrewindices(theta)
-        self.vcrit_all = np.empty((4,len(theta)))
-        self.vcrit_all[0] = theta
+        else:
+            _theta = theta
+        indices = self.findedgescrewindices(_theta)
+        self.vcrit_all = np.empty((4,len(_theta)))
+        self.vcrit_all[0] = _theta
         if self.sym=='iso':
             self.computevcrit_screw()
             self.vcrit_all[1:] = self.vcrit_screw
             if self.cl==0:
                 self.init_all()
             self.vcrit_all[3] = self.cl
+        elif theta is None:
+            self.vcrit_all[1:] = np.sort(self.computevcrit_barnett(setvcrit=setvcrit),axis=1).T
         else:
-            self.vcrit_all[1:] = np.sort(self.computevcrit_barnett(theta_list=np.asarray(theta),setvcrit=setvcrit),axis=1).T
+            self.vcrit_all[1:] = np.sort(self.computevcrit_barnett(theta_list=np.asarray(_theta),setvcrit=setvcrit),axis=1).T
         if indices[0] is not None:
             self.computevcrit_screw()
             if CheckReflectionSymmetry(self.C2_aligned_screw):

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 28, 2026
+# Date: Nov. 5, 2017 - July 17, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -85,7 +85,7 @@ def ompthreads():
     return 0
 try:
     import pydislocdyn.subroutines as fsub
-    if  hasattr(fsub.parameters,'version') and fsub.parameters.version>=20260409:
+    if  hasattr(fsub.parameters,'version') and fsub.parameters.version>=20260717:
         usefortran = True
         ompthreads = fsub.utilities.ompinfo
         fsub.version = int(fsub.parameters.version)

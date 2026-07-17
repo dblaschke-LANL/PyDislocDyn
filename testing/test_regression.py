@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - May 28, 2026
+# Date: Mar. 6, 2023 - July 17, 2026
 '''This script implements regression testing for PyDislocDyn and is meant to be run with pytest.'''
 import os
 import sys
@@ -388,7 +388,7 @@ def test_misc(old=baseln,new=cwd,skip_calcs=False,verbose=True,metals='all',**kw
                 logfile.write(f'\nvcrit(theta)={Y.vcrit_all[1]}')
                 logfile.write(f'\nvcrit_smallest={Y.vcrit_smallest:.2f}')
                 logfile.write(f'\nvRayleigh(theta)={Y.Rayleigh}')
-                logfile.write(f'\nvRF={round_list(Y.vRF)}')
+                logfile.write(f'\nvRF={round_list(Y.vRF,-1)}') ## default low-res search used in this test is not very accurate
             Y.plotdisloc(0.5,nogradient=True,component=2,savefig=False)
             Y.computeuij(0.5,r=Y.r)
             Y.alignuij()

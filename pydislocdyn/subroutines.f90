@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - June 26, 2026
+! Date: July 23, 2018 - July 17, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260626
+  integer,parameter :: version = 20260717
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -444,5 +444,68 @@ module various_subroutines
       !$OMP END PARALLEL DO
 
     END SUBROUTINE computeuij
+
+    !!**********************************************************************
+    !>Subroutine for computing the limiting velocity of an edge dislocation with reflection symmetry;
+    !>C2 must be provided in Cartesian coordinates, rotated to align with the dislocation, and normalized by e.g. c44
+    !>in which case one must provide also norm=c44/rho
+    pure function edgevlim_of_phi(phi,i,C2,norm) result(vlim)
+      use parameters, only : sel
+      use utilities, only : elbrak1d
+      implicit none
+      real(sel), intent(in) :: phi, C2(3,3,3,3), norm
+      integer, intent(in) :: i
+      real(sel) :: vlim
+      ! local variables
+      real(sel) :: M(1,3), MM(1,3,3), Q, R, tmpout, cosph
+      integer :: j
+      cosph = cos(phi)
+      M(1,:) = [cosph,sin(phi),0.d0]
+      call elbrak1d(M,M,C2,1,MM)
+      Q = 0.d0
+      do j=1,2
+        Q = Q + MM(1,j,j)
+      end do
+      R = MM(1,1,1)*MM(1,2,2) - MM(1,1,2)*MM(1,2,1)
+      tmpout = 0.5d0*Q + i*sqrt(0.25d0*Q**2-R)
+      vlim = abs(sqrt(tmpout*norm)/cosph)
+    end function edgevlim_of_phi 
+
+    !!**********************************************************************
+    !>Subroutine for computing limiting velocities of a dislocation;
+    !>C2 must be provided in Cartesian coordinates, rotated to align with the dislocation, and normalized by e.g. c44
+    !>in which case one must provide also norm=c44/rho
+    pure function vlim_of_phi(phi,i,C2,norm) result(vlim)
+      use parameters, only : sel, pi
+      use utilities, only : elbrak1d
+      implicit none
+      real(sel), intent(in) :: phi, C2(3,3,3,3), norm
+      integer, intent(in) :: i
+      real(sel) :: vlim
+      ! local variables
+      real(sel) :: M(1,3), MM(1,3,3), MM2(3,3), P, Q, R, a, d, gam, tmpout, cosph
+      integer :: j
+      cosph = cos(phi)
+      M(1,:) = [cosph,sin(phi),0.d0]
+      call elbrak1d(M,M,C2,1,MM)
+      P = 0.d0
+      do j=1,3
+        P = P - MM(1,j,j)
+      end do
+      Q = 0.5d0*P**2
+      MM2(:,:) = 0.5d0*matmul(MM(1,:,:),MM(1,:,:))
+      do j=1,3
+        Q = Q - MM2(j,j)
+      end do
+      R = -(MM(1,1,1)*MM(1,2,2)*MM(1,3,3) + MM(1,1,3)*MM(1,2,1)*MM(1,3,2)+MM(1,1,2)*MM(1,2,3)*MM(1,3,1) &
+              -MM(1,1,3)*MM(1,2,2)*MM(1,3,1) - MM(1,1,1)*MM(1,2,3)*MM(1,3,2) - MM(1,1,2)*MM(1,2,1)*MM(1,3,3))
+      a = Q - P**2/3.d0
+      d = 2.d0*P**3/27.d0-Q*P/3.d0+R
+      gam = -0.5*d/sqrt(-a**3/27.d0)
+      gam = max(-1.d0,min(1.d0,gam))
+      gam = acos(gam)
+      tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0
+      vlim = abs(sqrt(tmpout*norm)/cosph)
+    end function vlim_of_phi 
 
 end module various_subroutines
