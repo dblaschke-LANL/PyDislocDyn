@@ -5,7 +5,7 @@
 Features and improvements:
 
  - a new standalone Fortran library and frontend implementing a subset of PyDislocDyn features
- - speedup `computevcrit()` if the Fortran subroutines are compiled
+ - speedup `computevcrit()` and `findvcrit_smallest()`
  - new option in `writeinputfile()` lets the user override pre-defined slip systems
  - `pydislocdyn.readinputfile()` will now fall back to returning an instance of the `metal_props` class if no slip plane is defined in the file
 

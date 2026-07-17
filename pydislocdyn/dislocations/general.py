@@ -21,8 +21,10 @@ from .steadystate import StrohGeometry, elbrak1d
 if usefortran:
     from ..subroutines import various_subroutines
     accscrew_xyintegrand = various_subroutines.accscrew_xyintegrand
+    edgevlim_of_phi = various_subroutines.edgevlim_of_phi
+    vlim_of_phi = various_subroutines.vlim_of_phi
 else:
-    from .numba_subroutines import accscrew_xyintegrand
+    from .numba_subroutines import accscrew_xyintegrand, vlim_of_phi, edgevlim_of_phi
 
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.
@@ -94,27 +96,8 @@ class Dislocation(StrohGeometry,metal_props):
         if usefortran and self.C2_aligned is None:
             self.alignC2()
         for th in range(Ntheta):
-            if usefortran and theta_list is None: # the faster fortran version currently does not work with custom theta lists
-                C2 = UnVoigt(self.C2_aligned[th]/self.C2[3,3])
-                def findvlim(phi,i):
-                    return various_subroutines.vlim_of_phi(phi,i,C2,norm)
-            else:
-                def findvlim(phi,i):
-                    cosph = np.cos(phi)
-                    M = np.asarray([m0[th]*cosph + self.n0*np.sin(phi)])
-                    # MM = np.dot(M,np.dot(C2,M))
-                    MM = elbrak1d(M,M,C2)[0]
-                    P3 = -np.trace(MM)/3 ## = P/3 in notation of Barnett
-                    Q = 0.5*(9*P3**2-np.trace((MM @ MM)))
-                    # R = -np.linalg.det(MM)
-                    R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
-                          - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
-                    sqrta = np.sqrt(P3**2-Q/3) ## =sqrt(-a/3) in notation of Barnett
-                    d = (2*P3**3-Q*P3+R)
-                    gamma = -0.5*d/sqrta**3
-                    gamma = np.arccos(gamma.clip(min=-1,max=1))
-                    tmpout = -P3 + 2*sqrta*np.cos((gamma+2*i*np.pi)/3)
-                    return np.abs(np.sqrt(tmpout*norm)/cosph)
+            def findvlim(phi,i):
+                return vlim_of_phi(phi,i,C2,norm,m0[th],self.n0)
             for i in range(3):
                 minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                 out[0,th,i] = minresult.fun
@@ -188,28 +171,10 @@ class Dislocation(StrohGeometry,metal_props):
             else:
                 norm=(self.C2[3,3]/self.rho)
                 C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
-                # since we rotated our coordinates to align with the edge dislocation, x=slip direction y=slip plane normal:
-                m0 = np.array([[1,0,0]]) ## need M to be shape (1,3) below so that we can use elbrak1d
-                n0 = np.array([[0,1,0]])
                 signs = [1,-1]
                 tmpout = np.zeros((2))
-                if usefortran:
-                    def findvlim(phi,i):
-                        return various_subroutines.edgevlim_of_phi(phi,signs[i],C2,norm)
-                else:
-                    def findvlim(phi,i):
-                        cosph = np.cos(phi)
-                        M = (m0*cosph + n0*np.sin(phi))
-                        # MM = np.dot(M,np.dot(C2,M))[:2,:2]
-                        # Q = np.trace(MM)
-                        # R = np.linalg.det(MM)
-                        MM = elbrak1d(M,M,C2)
-                        Q = MM[0,0,0]+MM[0,1,1]
-                        R = (MM[0,0,0]*MM[0,1,1] - MM[0,0,1]*MM[0,1,0])
-                        # solve quadratic equation: y**2+Qy+R=0:
-                        # y = -Q/2 \pm sqrt(Q*2/4 - R)
-                        tmpout = Q/2 + signs[i]*np.sqrt(Q**2/4-R)
-                        return np.abs(np.sqrt(tmpout*norm)/cosph)
+                def findvlim(phi,i):
+                    return edgevlim_of_phi(phi,signs[i],C2,norm)
                 for i in range(2):
                     minresult = optimize.direct(lambda x: findvlim(x,i),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                     tmpout[i] = minresult.fun

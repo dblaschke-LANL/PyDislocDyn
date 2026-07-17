@@ -473,20 +473,21 @@ module various_subroutines
 
     !!**********************************************************************
     !>Subroutine for computing limiting velocities of a dislocation;
-    !>C2 must be provided in Cartesian coordinates, rotated to align with the dislocation, and normalized by e.g. c44
+    !>C2 must be provided in Cartesian coordinates and normalized by e.g. c44
     !>in which case one must provide also norm=c44/rho
-    pure function vlim_of_phi(phi,i,C2,norm) result(vlim)
+    !>if C2 has been rotated to align with the dislocation, pass m0=[1,0,0] and n0=[0,1,0]
+    pure function vlim_of_phi(phi,i,C2,norm,m0,n0) result(vlim)
       use parameters, only : sel, pi
       use utilities, only : elbrak1d
       implicit none
-      real(sel), intent(in) :: phi, C2(3,3,3,3), norm
+      real(sel), intent(in) :: phi, C2(3,3,3,3), norm, m0(3), n0(3)
       integer, intent(in) :: i
       real(sel) :: vlim
       ! local variables
       real(sel) :: M(1,3), MM(1,3,3), MM2(3,3), P, Q, R, a, d, gam, tmpout, cosph
       integer :: j
       cosph = cos(phi)
-      M(1,:) = [cosph,sin(phi),0.d0]
+      M(1,:) = m0*cosph + n0*sin(phi)
       call elbrak1d(M,M,C2,1,MM)
       P = 0.d0
       do j=1,3
