@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 17, 2026
+# Date: Nov. 3, 2017 - July 21, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -93,8 +93,6 @@ class Dislocation(StrohGeometry,metal_props):
             t = np.outer(np.cos(theta),self.b) + np.outer(np.sin(theta),np.cross(self.b,self.n0))
             m0 = np.cross(self.n0,t)
         out = np.zeros((2,Ntheta,3))
-        if usefortran and self.C2_aligned is None:
-            self.alignC2()
         for th in range(Ntheta):
             for i in range(3):
                 minresult = optimize.direct(lambda x: vlim_of_phi(x,i,C2,norm,m0[th],self.n0),bounds=optimize.Bounds(0,np.pi),maxiter=10)
