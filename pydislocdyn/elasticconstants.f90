@@ -1,7 +1,7 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - May 11, 2026
-module elastic_constants
+! Date: Mar. 30, 2026 - July 21, 2026
+module dislocdyn_elasticconstants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
   character(110), parameter :: symkwerror = &
@@ -57,7 +57,7 @@ module elastic_constants
     end subroutine number_of_elasticC
     !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC2(cij,sym,vc)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(sel), intent(in) :: cij(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6)
@@ -147,7 +147,7 @@ module elastic_constants
     !-------------------------
     !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC3(cijk,sym,vc)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(sel), intent(in) :: cijk(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6,6)
@@ -268,7 +268,7 @@ module elastic_constants
     ! -----------------------------
     !> subroutine of voigt()
     pure subroutine vgt_two(x,y)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3)
       real(kind=sel), intent(out) :: y(6)
       real(kind=sel) :: z(9)
@@ -277,7 +277,7 @@ module elastic_constants
     end subroutine vgt_two
     !> subroutine of voigt()
     pure subroutine vgt_four(x,y)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6)
       real(kind=sel) :: z(9,9)
@@ -286,7 +286,7 @@ module elastic_constants
     end subroutine vgt_four
     !> subroutine of voigt()
     pure subroutine vgt_six(x,y)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6,6)
       real(kind=sel) :: z(9,9,9)
@@ -295,21 +295,21 @@ module elastic_constants
     end subroutine vgt_six
     !> subroutine of unvoigt()
     pure subroutine unvgt_one(x,y)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(6)
       real(kind=sel), intent(out) :: y(3,3)
       y = reshape(x(UnVoigtIndices),(/3,3/))
     end subroutine unvgt_one
     !> subroutine of unvoigt()
     pure subroutine unvgt_two(x,y)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices),(/3,3,3,3/))
     end subroutine unvgt_two
     !> subroutine of unvoigt()
     pure subroutine unvgt_three(x,y)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices,UnVoigtIndices),(/3,3,3,3,3,3/))
@@ -319,7 +319,7 @@ module elastic_constants
     !>C2 has been rotated into the coordinates to be checked. In fact, we check for the slightly weaker condition where
     !>non-vanishing c34 and c35 are allowed since they drop out of the differential equations for screw/edge dislocations.
     pure function CheckReflectionSymmetry(C2)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       real(sel), intent(in) :: C2(6,6)
       logical :: CheckReflectionSymmetry
       real(sel) :: test(6,6), testsum
@@ -331,7 +331,7 @@ module elastic_constants
     !-------------------------
     !> Computes the Voigt average of 2nd order elastic constants
     pure subroutine voigtaverage(C2,lambda,mu)
-    use parameters, only: sel
+    use dislocdyn_parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
     ! expressions derived using PyDislocDyn (python implementation using a symbolic calculation with sym='tric')
@@ -340,7 +340,7 @@ module elastic_constants
     end subroutine voigtaverage
     !> Computes the Reuss average of 2nd order elastic constants
     pure subroutine reussaverage(C2,lambda,mu)
-    use parameters, only: sel
+    use dislocdyn_parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
     ! expressions derived using PyDislocDyn (python implementation using a symbolic calculation with sym='tric')
@@ -365,7 +365,7 @@ module elastic_constants
     end subroutine reussaverage
     !> Computes the Hill average of 2nd order elastic constants
     pure subroutine hillaverage(C2,lambda,mu)
-    use parameters, only: sel
+    use dislocdyn_parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
     real(sel) :: lv,mv,lr,mr
@@ -378,7 +378,7 @@ module elastic_constants
     !> Computes the Kroener average of 2nd order elastic constants.
     !! Warning: use for cubic crystals only - we do not check C2 for cubic symmetry in this routine!
     subroutine kroeneraverage(C2,lambda,mu)
-    use parameters, only: sel
+    use dislocdyn_parameters, only: sel
     real(sel), intent(in) :: C2(6,6)
     real(sel), intent(out) :: lambda, mu
     real(sel) :: C11, C12, C44
@@ -402,4 +402,4 @@ module elastic_constants
     mu = m3%re
     lambda = (C2(1,1) + 2.d0*C2(1,2) - 2.d0*mu)/3.d0
     end subroutine kroeneraverage
-end module elastic_constants
+end module dislocdyn_elasticconstants

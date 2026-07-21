@@ -1,22 +1,22 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 17, 2026
+! Date: July 23, 2018 - July 21, 2026
 
 !>defines various constants to be used elsewhere in the code
-module parameters
+module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260717
+  integer,parameter :: version = 20260721
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
   real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) !< number Pi
   real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 !< Pi squared
-end module parameters
+end module dislocdyn_parameters
 
 !>this module contains a number of helper functions
-module utilities
+module dislocdyn_utilities
   implicit none
   interface operator(.cross.)
     module procedure cross
@@ -41,7 +41,7 @@ module utilities
     !> All three variables have an additional disloc. character dependence.
     SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Ntheta,Nphi
@@ -71,7 +71,7 @@ module utilities
     !> Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
     pure SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Nphi
@@ -98,7 +98,7 @@ module utilities
 
     !> computes the cross product of two 3-dim vectors x and y
     pure function cross(x,y) result(z)
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       implicit none
       real(sel), dimension(3), intent(in)  :: x, y
       real(sel), dimension(3)  :: z
@@ -112,7 +112,7 @@ module utilities
     !> integrate using the trapezoidal rule
     pure SUBROUTINE trapz(f,x,n,intf)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: n
@@ -127,7 +127,7 @@ module utilities
     !> cumulatively integrate using the trapezoidal rule
     pure SUBROUTINE cumtrapz(f,x,n,intf)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: n
@@ -149,7 +149,7 @@ module utilities
     !> invert 3x3 matrix A
     pure function inv(A) result(invA)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN), DIMENSION(3,3)  :: A
@@ -192,7 +192,7 @@ module utilities
     !> fortran implementation of np.linspace() for real numbers
     pure SUBROUTINE linspace(start,finish,num,output)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       real(kind=sel), intent(in) :: start, finish
@@ -210,18 +210,18 @@ module utilities
       end if
     END SUBROUTINE linspace
 
-end module utilities
+end module dislocdyn_utilities
 
 !!**********************************************************************
 
-module various_subroutines
+module dislocdyn_subroutines
   implicit none
   public :: accscrew_xyintegrand, computeEtot, strohgeometry, computeuk, computeuij
   contains
     !> subroutine of python function computeuij_acc_screw(), see PyDislocDyn docs
     SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       logical, intent(in) :: xcomp
@@ -255,8 +255,8 @@ module various_subroutines
     !> Computes the self energy of a straight dislocation uij moving at velocity beta.
     SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
-      use utilities, only : trapz
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_utilities, only : trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Ntheta, Nphi
@@ -293,8 +293,8 @@ module various_subroutines
     !> computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals
     !> using the integral version of the Stroh method
     pure subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
-      use parameters, only : sel
-      use utilities, only : operator(.cross.)
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_utilities, only : operator(.cross.)
       implicit none
       integer, intent(in) :: ntheta, nphi
       real(sel), intent(in) :: b(3), n0(3)
@@ -327,8 +327,8 @@ module various_subroutines
     !> Computes the dislocation displacement field uk.
     SUBROUTINE computeuk(beta, C2, Cv, b, M, N, phi, r, Ntheta, Nphi, Nr, uk)
     !-----------------------------------------------------------------------
-      use parameters, only : sel, pi2
-      use utilities, only : elbrak1d, operator(.inv.), trapz, cumtrapz
+      use dislocdyn_parameters, only : sel, pi2
+      use dislocdyn_utilities, only : elbrak1d, operator(.inv.), trapz, cumtrapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
@@ -392,8 +392,8 @@ module various_subroutines
     !>Computes the dislocation displacement gradient field uij according to the integral method
     SUBROUTINE computeuij(beta, C2, Cv, b, M, N, phi, Ntheta, Nphi, uij)
     !-----------------------------------------------------------------------
-      use parameters, only : sel, pi2
-      use utilities, only : elbrak1d, operator(.inv.), trapz
+      use dislocdyn_parameters, only : sel, pi2
+      use dislocdyn_utilities, only : elbrak1d, operator(.inv.), trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
@@ -450,8 +450,8 @@ module various_subroutines
     !>C2 must be provided in Cartesian coordinates, rotated to align with the dislocation, and normalized by e.g. c44
     !>in which case one must provide also norm=c44/rho
     pure function edgevlim_of_phi(phi,i,C2,norm) result(vlim)
-      use parameters, only : sel
-      use utilities, only : elbrak1d
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_utilities, only : elbrak1d
       implicit none
       real(sel), intent(in) :: phi, C2(3,3,3,3), norm
       integer, intent(in) :: i
@@ -477,8 +477,8 @@ module various_subroutines
     !>in which case one must provide also norm=c44/rho
     !>if C2 has been rotated to align with the dislocation, pass m0=[1,0,0] and n0=[0,1,0]
     pure function vlim_of_phi(phi,i,C2,norm,m0,n0) result(vlim)
-      use parameters, only : sel, pi
-      use utilities, only : elbrak1d
+      use dislocdyn_parameters, only : sel, pi
+      use dislocdyn_utilities, only : elbrak1d
       implicit none
       real(sel), intent(in) :: phi, C2(3,3,3,3), norm, m0(3), n0(3)
       integer, intent(in) :: i
@@ -509,4 +509,4 @@ module various_subroutines
       vlim = abs(sqrt(tmpout*norm)/cosph)
     end function vlim_of_phi 
 
-end module various_subroutines
+end module dislocdyn_subroutines

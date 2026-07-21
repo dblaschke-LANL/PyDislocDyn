@@ -1,10 +1,10 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - June 26, 2026
-module readinputfiles
-  use parameters, only : sel, rzero ! defined in subroutines.f90
-  use elastic_constants, only : symkwerror, number_of_elasticC
-  use dislocations ! defined in dislocations.f90
+! Date: Apr. 10, 2026 - July 21, 2026
+module dislocdyn_readinputfiles
+  use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
+  use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
+  use dislocdyn_dislocations ! defined in dislocations.f90
   implicit none
   private
   type :: string_t
@@ -56,7 +56,7 @@ module readinputfiles
     end subroutine scan_inputdeck
     !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
     subroutine read_inputdeck(filename,sim_plan,sym)
-      use utilities, only: linspace
+      use dislocdyn_utilities, only: linspace
       character(*), intent(in) :: filename
       type(inputdeck), intent(out) :: sim_plan
       character(*), optional :: sym
@@ -233,4 +233,4 @@ module readinputfiles
       end if
       
     end subroutine read_materialfile
-end module readinputfiles
+end module dislocdyn_readinputfiles

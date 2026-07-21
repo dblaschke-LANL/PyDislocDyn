@@ -2,15 +2,15 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - June 16, 2026
+! Date: Apr. 10, 2026 - July 21, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
-  use parameters, only : sel, rzero, pi, prog_version=>version
-  use utilities, only : ompinfo, linspace
-  use elastic_constants, only : CheckReflectionSymmetry
-  use dislocations
-  use readinputfiles
+  use dislocdyn_parameters, only : sel, rzero, pi, prog_version=>version
+  use dislocdyn_utilities, only : ompinfo, linspace
+  use dislocdyn_elasticconstants, only : CheckReflectionSymmetry
+  use dislocdyn_dislocations
+  use dislocdyn_readinputfiles
   implicit none
   
   integer :: nthreads, i, j, k, p, num_args, un(3), start_time, finish_time, countrate

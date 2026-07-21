@@ -1,15 +1,15 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 28, 2026
+! Date: July 23, 2018 - July 21, 2026
 
 !> this module contains subroutines for phononwind_xx() and phononwind_xy()
-module phononwind_subroutines
+module dislocdyn_phononwind_subroutines
   implicit none
   private :: thesum
   public :: phonondistri, parathesum, dragintegrand, integratetphi, integrateqtildephi
   contains
     SUBROUTINE phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi,distri)
-      use parameters, only : sel, hbar, kb
+      use dislocdyn_parameters, only : sel, hbar, kb
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: lenq1,lent,lenphi
@@ -33,7 +33,7 @@ module phononwind_subroutines
     !!**********************************************************************
 
     subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
-    use parameters, only : selsm
+    use dislocdyn_parameters, only : selsm
     implicit none
     integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
     integer, intent(in) :: lentph, lenph1
@@ -100,8 +100,8 @@ module phononwind_subroutines
     subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
                           lenp,lent,lenph1,lentph)
     !$   Use omp_lib
-    use parameters, only : selsm
-    use utilities, only : ompinfo
+    use dislocdyn_parameters, only : selsm
+    use dislocdyn_utilities, only : ompinfo
     implicit none
 
     integer, intent(in) :: lentph, lenph1, lenp, lent
@@ -131,7 +131,7 @@ module phononwind_subroutines
     !!**********************************************************************
     
     subroutine dragintegrand(output,prefactor,dij,flatpoly,lent,lenph)
-    use parameters, only : selsm
+    use dislocdyn_parameters, only : selsm
     implicit none
 
     integer :: i, j, ij, k, kk, n, nn
@@ -162,8 +162,8 @@ module phononwind_subroutines
     !!**********************************************************************
 
     SUBROUTINE integratetphi(B,beta,t,phi,updatet,kthchk,Nphi,Nt,Bresult)
-      use parameters, only : sel
-      use utilities, only : trapz
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_utilities, only : trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Nphi, Nt, kthchk
@@ -205,8 +205,8 @@ module phononwind_subroutines
     !!**********************************************************************
 
     SUBROUTINE integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks,Nphi,Nt,Bresult)
-      use parameters, only : sel
-      use utilities, only : trapz
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_utilities, only : trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Nphi, Nt, kthchk, Nchunks
@@ -245,11 +245,11 @@ module phononwind_subroutines
       
     END SUBROUTINE integrateqtildephi
 
-end module phononwind_subroutines
+end module dislocdyn_phononwind_subroutines
 
 !!**********************************************************************
 !> this module contains various subroutines for phonondrag() (both Fortran and Python implementations)
-module phononwind
+module dislocdyn_phononwind
   implicit none
   public :: phononwind_xx, phononwind_xy, elasticA3, fourieruij_sincos, fourieruij_nocut
   contains
@@ -257,7 +257,7 @@ module phononwind
     !> Required inputs are the tensors of SOEC and TOEC.
     SUBROUTINE elasticA3(C2, C3, A3)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN)  :: C2(3,3,3,3), C3(3,3,3,3,3,3)
@@ -287,7 +287,7 @@ module phononwind
     !> subroutine for one of the inputs of fourieruij_nocut()
     SUBROUTINE fourieruij_sincos(sincos,ra,rb,phix,q,ph,phixres,nq,phres)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
+      use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: phixres,nq,phres
@@ -308,8 +308,8 @@ module phononwind
     !> Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)
     SUBROUTINE fourieruij_nocut(fourieruij,uij,phix,sincos,ntheta,phres,phixres)
     !-----------------------------------------------------------------------
-      use parameters, only : sel
-      use utilities, only : trapz
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_utilities, only : trapz
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: ntheta,phixres,phres
@@ -328,9 +328,9 @@ module phononwind
     !> this is a subroutine of phonondrag() (TT and LL modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
     !-----------------------------------------------------------------------
-      use parameters, only : sel, selsm, hbar, kb, pi
-      use utilities, only : linspace
-      use phononwind_subroutines
+      use dislocdyn_parameters, only : sel, selsm, hbar, kb, pi
+      use dislocdyn_utilities, only : linspace
+      use dislocdyn_phononwind_subroutines
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
@@ -483,9 +483,9 @@ module phononwind
     !> this is a subroutine of phonondrag() (mixed modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
     !-----------------------------------------------------------------------
-      use parameters, only : sel, selsm, hbar, kb, pi
-      use utilities, only : linspace
-      use phononwind_subroutines
+      use dislocdyn_parameters, only : sel, selsm, hbar, kb, pi
+      use dislocdyn_utilities, only : linspace
+      use dislocdyn_phononwind_subroutines
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
@@ -669,4 +669,4 @@ module phononwind
       end if
       
     END SUBROUTINE phononwind_xy
-end module phononwind
+end module dislocdyn_phononwind

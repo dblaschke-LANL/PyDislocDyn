@@ -1,10 +1,10 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - May 20, 2026
+! Date: Mar. 25, 2026 - July 21, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
-module checks
-  use parameters, only: sel, rzero
+module dislocdyn_checks
+  use dislocdyn_parameters, only: sel, rzero
   implicit none
   contains
   subroutine testtrue(equal,string,count_pass,count_fail)
@@ -69,7 +69,7 @@ module checks
   end subroutine testzero
   !-------------------------------------
   subroutine checkvoigt(x,b)
-    use elastic_constants
+    use dislocdyn_elasticconstants
     real(kind=sel), intent(in) :: x(..)
     logical, intent(out) :: b
     real(kind=sel) :: y2(3,3), y4(3,3,3,3), y6(3,3,3,3,3,3)
@@ -92,17 +92,17 @@ module checks
         b = .false.
       end select
   end subroutine checkvoigt
-end module checks
+end module dislocdyn_checks
 
-module tests
-  use parameters, only: sel, pi
-  use checks
+module dislocdyn_tests
+  use dislocdyn_parameters, only: sel, pi
+  use dislocdyn_checks
   implicit none
   contains
     subroutine test_disloc(count_pass,count_fail)
-      use various_subroutines, only : computeEtot
-      use elastic_constants
-      use dislocations
+      use dislocdyn_subroutines, only : computeEtot
+      use dislocdyn_elasticconstants
+      use dislocdyn_dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e
@@ -170,15 +170,15 @@ module tests
       call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disloc_Tipris_vlimit",1.d-6,count_pass,count_fail)
       
     end subroutine test_disloc
-end module tests
+end module dislocdyn_tests
 
 program runtests
-  use parameters
-  use utilities, only : ompinfo, linspace, operator(.inv.), trapz, cumtrapz
-  use phononwind_subroutines
-  use elastic_constants
-  use checks
-  use tests
+  use dislocdyn_parameters
+  use dislocdyn_utilities, only : ompinfo, linspace, operator(.inv.), trapz, cumtrapz
+  use dislocdyn_phononwind_subroutines
+  use dislocdyn_elasticconstants
+  use dislocdyn_checks
+  use dislocdyn_tests
   implicit none
   
   real(kind=sel) :: tmpintegral, array1(5),array2(5)

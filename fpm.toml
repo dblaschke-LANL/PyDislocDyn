@@ -1,5 +1,5 @@
-name = "PyDislocDyn_Fortranlibrary"
-version = "20260717"
+name = "dislocdynlib"
+version = "20260721"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
@@ -12,7 +12,7 @@ openmp = "*"
 
 #[dev-dependencies]
 #test-drive.git = "https://github.com/fortran-lang/test-drive"
-#test-drive.tag = "v0.6.0"
+#test-drive.tag = "v0.6.1"
 
 [features]
 baseline.gfortran.flags = "-march=native"

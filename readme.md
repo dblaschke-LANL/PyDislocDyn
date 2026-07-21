@@ -89,6 +89,12 @@ Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compil
 (Linux and MacOS only), or use the Fortran package manager:</br>
 `fpm build --profile release`
 
+* to use the standalone Fortran library `dislocdynlib` within your fpm project, add the following to your `fpm.toml` file:</br>
+```toml
+[dependencies]
+dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
+```
+
 ## PyDislocDyn consists of:
 
 ### Python module

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 17, 2026
+# Date: Nov. 5, 2017 - July 21, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -85,10 +85,10 @@ def ompthreads():
     return 0
 try:
     import pydislocdyn.subroutines as fsub
-    if  hasattr(fsub.parameters,'version') and fsub.parameters.version>=20260717:
+    if  hasattr(fsub,'dislocdyn_parameters') and hasattr(fsub.dislocdyn_parameters,'version') and fsub.dislocdyn_parameters.version>=20260721:
         usefortran = True
-        ompthreads = fsub.utilities.ompinfo
-        fsub.version = int(fsub.parameters.version)
+        ompthreads = fsub.dislocdyn_utilities.ompinfo
+        fsub.version = int(fsub.dislocdyn_parameters.version)
     else:
         print("Error: the subroutines module is outdated, please re-compile by calling pydislocdy.utilities.compilefortranmodule() and reloading pydislocdyn")
 except ImportError:

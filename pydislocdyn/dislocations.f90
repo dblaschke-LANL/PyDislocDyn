@@ -1,11 +1,11 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - July 17, 2026
-module dislocations
-  use parameters, only : sel, rzero, pi ! defined in subroutines.f90
-  use utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
-  use various_subroutines, only : strohgeometry, computeuij ! defined in subroutines.f90
-  use elastic_constants ! defined in elasticconstants.f90
+! Date: Mar. 31, 2026 - July 21, 2026
+module dislocdyn_dislocations
+  use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
+  use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
+  use dislocdyn_subroutines, only : strohgeometry, computeuij ! defined in subroutines.f90
+  use dislocdyn_elasticconstants ! defined in elasticconstants.f90
   implicit none
   private
   !> The 'crystal' derived type is used to store material information for a crystal.
@@ -306,7 +306,7 @@ module dislocations
     !>Otherwise, we adapt the method of Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, to the present decoupled 2D
     !>special case.
     subroutine computevcrit_edge(disl,vlim)
-      use utilities, only : elbrak1d
+      use dislocdyn_utilities, only : elbrak1d
       class(disloc), intent(in) :: disl
       real(sel), intent(out) :: vlim
       real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim, norm
@@ -350,7 +350,7 @@ module dislocations
     !-------------------------
     !> Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
     pure subroutine computevcrit_barnett(disl,th,vlim)
-      use utilities, only : elbrak1d
+      use dislocdyn_utilities, only : elbrak1d
       class(disloc), intent(in) :: disl
       integer, intent(in) :: th !< index of the character angle disl%theta(th)
       real(sel), intent(out) :: vlim(3) !< 3 branches to consider, the lowest value is the (lowest) limiting velocity
@@ -427,7 +427,7 @@ module dislocations
     !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation 'disl' 
     !>and gliding velocities 'beta'=v/ct
     subroutine phonondrag(drag,disl,beta,nphi,nq)
-      use phononwind
+      use dislocdyn_phononwind
       class(disloc), intent(in) :: disl
       real(sel), intent(in) :: beta(:)
       real(sel), intent(out), allocatable :: drag(:,:)
@@ -504,4 +504,4 @@ module dislocations
         drag(:,bt) = dragTT+dragLL+dragTL+dragLT
       end do
     end subroutine phonondrag
-end module dislocations
+end module dislocdyn_dislocations

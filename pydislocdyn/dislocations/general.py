@@ -19,10 +19,10 @@ from ..crystals import readinputfile as _readcrystalinputfile
 from .steadystate import StrohGeometry, elbrak1d
 
 if usefortran:
-    from ..subroutines import various_subroutines
-    accscrew_xyintegrand = various_subroutines.accscrew_xyintegrand
-    edgevlim_of_phi = various_subroutines.edgevlim_of_phi
-    vlim_of_phi = various_subroutines.vlim_of_phi
+    from ..subroutines import dislocdyn_subroutines
+    accscrew_xyintegrand = dislocdyn_subroutines.accscrew_xyintegrand
+    edgevlim_of_phi = dislocdyn_subroutines.edgevlim_of_phi
+    vlim_of_phi = dislocdyn_subroutines.vlim_of_phi
 else:
     from .numba_subroutines import accscrew_xyintegrand, vlim_of_phi, edgevlim_of_phi
 
