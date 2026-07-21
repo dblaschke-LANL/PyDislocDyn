@@ -1,5 +1,5 @@
 # Difference with default Doxyfile 1.13.2
-PROJECT_NAME           = DislocDyn
+PROJECT_NAME           = dislocdynlib
 OPTIMIZE_FOR_FORTRAN   = YES
 EXTENSION_MAPPING      = f90=Fortran
 EXTRACT_ALL            = YES
