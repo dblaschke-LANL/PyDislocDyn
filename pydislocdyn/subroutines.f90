@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 21, 2026
+! Date: July 23, 2018 - July 22, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
@@ -502,7 +502,7 @@ module dislocdyn_subroutines
               -MM(1,1,3)*MM(1,2,2)*MM(1,3,1) - MM(1,1,1)*MM(1,2,3)*MM(1,3,2) - MM(1,1,2)*MM(1,2,1)*MM(1,3,3))
       a = Q - P**2/3.d0
       d = 2.d0*P**3/27.d0-Q*P/3.d0+R
-      gam = -0.5*d/sqrt(-a**3/27.d0)
+      gam = -0.5d0*d/sqrt(-a**3/27.d0)
       gam = max(-1.d0,min(1.d0,gam))
       gam = acos(gam)
       tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0

@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - July 21, 2026
+! Date: Mar. 25, 2026 - July 22, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -120,7 +120,7 @@ module dislocdyn_tests
 !~         print*,Cu%C2(i,:)/1.d9
 !~         print*,Cu%C3(2,i,:)/1.d9
 !~       end do
-      call testzero(Cu%rot(1,3,1)+Cu%rot(1,3,2)+0.81649658,"disloc_Cu_rot",1.d-6,count_pass,count_fail)
+      call testzero(Cu%rot(1,3,1)+Cu%rot(1,3,2)+0.81649658d0,"disloc_Cu_rot",1.d-6,count_pass,count_fail)
       call testzero(sum(Cu%C2)/1.d12-1.4592d0+sum(Cu%C3)/1.d12+33.402d0,"disloc_Cu_C2_C3",1.d-12,count_pass,count_fail)
       call unvoigt(Cu%C2,C2)
       call checkvoigt(C2,istrue)
@@ -128,7 +128,7 @@ module dislocdyn_tests
       call unvoigt(Cu%C3,C3)
       call checkvoigt(C3,istrue)
       call testtrue(istrue,"disloc_Cu_checkvoigt_C3",count_pass,count_fail)
-      call testzero(Cu%Vc*1.d29-4.7225953240136,"disloc_Cu_Vc",1.d-6,count_pass,count_fail)
+      call testzero(Cu%Vc*1.d29-4.7225953240136d0,"disloc_Cu_Vc",1.d-6,count_pass,count_fail)
       call testzero(sum(Cu%theta)-pi/2.d0,"disloc_Cu_theta",1.d-6,count_pass,count_fail)
       call testzero(sum(Cu%lat_angles)-1.5d0*pi,"disloc_Cu_lat_angles",1.d-6,count_pass,count_fail)
       call testzero(dot_product(Cu%b,Cu%b)+dot_product(Cu%n0,Cu%n0)+dot_product(Cu%b,Cu%n0)+dot_product(Cu%t(:,1),Cu%b)-3.d0 &

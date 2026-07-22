@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 21, 2026
+! Date: July 23, 2018 - July 22, 2026
 
 !> this module contains subroutines for phononwind_xx() and phononwind_xy()
 module dislocdyn_phononwind_subroutines
@@ -409,8 +409,8 @@ module dislocdyn_phononwind
             otherfactor = ctovcl*qtilde(:,j)*csphi(j)
             prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
                     +(hbarcsqBZ_TkB**2/36.d0)*otherfactor &
-                    -(hbarcsqBZ_TkB**4/(2.88d3))*(3*otherfactor) &
-                    +(hbarcsqBZ_TkB**6/(1.512d5))*5*otherfactor)
+                    -(hbarcsqBZ_TkB**4/(2.88d3))*(3.d0*otherfactor) &
+                    +(hbarcsqBZ_TkB**6/(1.512d5))*5.d0*otherfactor)
           end do
         else
           do concurrent (j=1:lenph)
@@ -535,7 +535,7 @@ module dislocdyn_phononwind
         end do
       end if
       qt_min = abs(1-cx/cy)/(1+beta2)
-      prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4*(2*pi)**5))
+      prefac1 = -(1.d3*pi*hbar*qBZ*burgers**2*ctovcl**2/(4.d0*(2.d0*pi)**5))
       dphi1 = real(phi1(2:lenph1) - phi1(1:lenph1-1), kind=selsm)
       ph1 = real(phi1(1:lenph1-1), kind=selsm)
       
@@ -576,13 +576,13 @@ module dislocdyn_phononwind
               prefac(:,j) = prefac(:,j)*qlimitratio**2*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*( &
                     -0.5d0*otherfactor/betafactor &
                     +(qlimitratio*hbarcsqBZ_TkB/36.d0)*otherfactor &
-                    -(qlimitratio**2*hbarcsqBZ_TkB**2/2.88d3)*3*otherfactor &
-                    +(qlimitratio**3*hbarcsqBZ_TkB**3/1.512d5)*5*otherfactor)
+                    -(qlimitratio**2*hbarcsqBZ_TkB**2/2.88d3)*3.d0*otherfactor &
+                    +(qlimitratio**3*hbarcsqBZ_TkB**3/1.512d5)*5.d0*otherfactor)
             else
               prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
                     +(hbarcsqBZ_TkB/36.d0)*otherfactor &
-                    -(hbarcsqBZ_TkB**2/2.88d3)*3*otherfactor &
-                    +(hbarcsqBZ_TkB**3/1.512d5)*5*otherfactor)
+                    -(hbarcsqBZ_TkB**2/2.88d3)*3.d0*otherfactor &
+                    +(hbarcsqBZ_TkB**3/1.512d5)*5.d0*otherfactor)
             end if
           end do
         else
@@ -608,7 +608,7 @@ module dislocdyn_phononwind
         call phonondistri(prefac/beta1,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
-        distri(:,:,lenq1-1) = 2*distri(:,:,lenq1-1) ! see python code for explanation
+        distri(:,:,lenq1-1) = 2.d0*distri(:,:,lenq1-1) ! see python code for explanation
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
           do concurrent (i=1:(lenq1-1), j=1:lenph)
