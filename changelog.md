@@ -1,4 +1,14 @@
 # Changelog
+## 1.3.5.1 (wip)
+
+Fix:
+
+ - fixed a segfault in the Fortran subroutines when setting non-default different values for `Nphi` and `Nphi1`
+   (regression since 1.3.3)
+
+Other:
+
+ - increase resolution of test_dragiso in regression test suite for more consistent curve fits across scipy versions
 
 ## 1.3.5 (2026-05-18)
 
