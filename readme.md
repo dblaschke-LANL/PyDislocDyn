@@ -33,7 +33,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Requirements
 
-* Python >=3.9,</br>
+* Python >=3.10,</br>
 * [numpy](https://numpy.org/doc/stable/user/) >=1.26,</br>
 * [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.10,</br>
 * [sympy](https://www.sympy.org) >=1.12,</br>

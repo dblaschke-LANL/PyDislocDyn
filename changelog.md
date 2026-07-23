@@ -21,6 +21,7 @@ Other:
    this has implications for other version requirements (e.g. numba)
  - changed defaults in functions `elasticC2/-C3/-S2/-S3` (output with `voigt=True` instead of `False`)
  - if Burgers vector and slip plane normal in an input file are not normal, PyDislcDyn will now throw a ValueError (previously just warned)
+ - now require python 3.10 or higher
 
 ## 1.3.5 (2026-05-18)
 
