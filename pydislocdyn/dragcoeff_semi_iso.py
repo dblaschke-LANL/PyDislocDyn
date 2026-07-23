@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - May 13, 2026
+# Date: Nov. 5, 2017 - July 22, 2026
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -416,23 +416,24 @@ if __name__ == '__main__':
         ax.set_ylabel(r'$B$[mPa$\,$s]',**fntsettings)
         ax.set_title(figtitle,**fntsettings)
         for X in metal_list:
-            if filename=="edge":
-                vcrit = Y[X].vcrit_edge/Y[X].ct
-                popt = popt_edge[X]
-                cutat = 1.001*vcrit ## vcrit is often rounded, so may want to plot one more point in some cases
-                B = Y[X].Broom.iloc[beta<cutat,-1].to_numpy()
-            elif filename=="screw":
-                vcrit = Y[X].vcrit_screw/Y[X].ct
-                popt = popt_screw[X]
-                cutat = 1.0*vcrit
-                B = Y[X].Broom.iloc[beta<cutat,Y[X].scrind].to_numpy()
-            elif filename=="aver":
-                vcrit = Y[X].vcrit_smallest/Y[X].ct
-                popt = popt_aver[X]
-                cutat = 1.007*vcrit
-                B = Y[X].Baver[beta<cutat]
-            else:
-                raise ValueError(f"keyword {filename=} undefined.")
+            match filename:
+                case "edge":
+                    vcrit = Y[X].vcrit_edge/Y[X].ct
+                    popt = popt_edge[X]
+                    cutat = 1.001*vcrit ## vcrit is often rounded, so may want to plot one more point in some cases
+                    B = Y[X].Broom.iloc[beta<cutat,-1].to_numpy()
+                case "screw":
+                    vcrit = Y[X].vcrit_screw/Y[X].ct
+                    popt = popt_screw[X]
+                    cutat = 1.0*vcrit
+                    B = Y[X].Broom.iloc[beta<cutat,Y[X].scrind].to_numpy()
+                case "aver":
+                    vcrit = Y[X].vcrit_smallest/Y[X].ct
+                    popt = popt_aver[X]
+                    cutat = 1.007*vcrit
+                    B = Y[X].Baver[beta<cutat]
+                case _:
+                    raise ValueError(f"keyword {filename=} undefined.")
             if X in metalcolors:
                 ax.plot(beta[beta<cutat],B,color=metalcolors[X],label=X)
             else:

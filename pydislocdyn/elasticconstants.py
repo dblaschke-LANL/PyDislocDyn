@@ -2,7 +2,7 @@
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - May 7, 2026
+# Date: Nov. 7, 2017 - July 22, 2026
 '''This module contains functions to generate elastic constant and compliance tensors,
    as well as a class to help with calculating elastic constants.
    In particular, it contains the following functions:
@@ -106,37 +106,40 @@ def elasticC2(c12=None, c44=None, c11=None, c13=None, c33=None, c66=None, c22=No
     in cij, i.e. cij=(c11, c12, c13, ...); see D. C. Wallace, Solid State Physics 25 (1970) 301 and K. Brugger, J. Appl. Phys. 36 (1965) 759.
     Boolean option 'voigt' determines whether the output is generated in Voigt or Cartesian (default) notation.'''
     if cij is None:
-        if c22 is None or c23 is None or c55 is None:
-            if c13 is None or c33 is None:
-                if c11 is None:
-                    c11 = c12+2*c44
-                c13=c12
-                c33=c11
-                c66=c44
-            elif c66 is None:
-                c66 = (c11-c12)/2
-            c22=c11
-            c23=c13
-            c55=c44
-        Cdict = {'C11':c11, 'C12':c12, 'C13':c13, 'C14':0, 'C15':0, 'C16':0, 'C22':c22, 'C23':c23, 'C24':0, 'C25':0, 'C26':0,
-                 'C33':c33, 'C34':0, 'C35':0, 'C36':0, 'C44':c44, 'C45':0, 'C46':0, 'C55':c55, 'C56':0, 'C66':c66}
-    elif len(cij)==21:
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':cij[4], 'C16':cij[5], 'C22':cij[6], 'C23':cij[7], 'C24':cij[8], 'C25':cij[9], 'C26':cij[10],
+        cij = []
+    match len(cij):
+        case 0:
+            if c22 is None or c23 is None or c55 is None:
+                if c13 is None or c33 is None:
+                    if c11 is None:
+                        c11 = c12+2*c44
+                    c13=c12
+                    c33=c11
+                    c66=c44
+                elif c66 is None:
+                    c66 = (c11-c12)/2
+                c22=c11
+                c23=c13
+                c55=c44
+            Cdict = {'C11':c11, 'C12':c12, 'C13':c13, 'C14':0, 'C15':0, 'C16':0, 'C22':c22, 'C23':c23, 'C24':0, 'C25':0, 'C26':0,
+                     'C33':c33, 'C34':0, 'C35':0, 'C36':0, 'C44':c44, 'C45':0, 'C46':0, 'C55':c55, 'C56':0, 'C66':c66}
+        case 21:
+            Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':cij[4], 'C16':cij[5], 'C22':cij[6], 'C23':cij[7], 'C24':cij[8], 'C25':cij[9], 'C26':cij[10],
                  'C33':cij[11], 'C34':cij[12], 'C35':cij[13], 'C36':cij[14], 'C44':cij[15], 'C45':cij[16], 'C46':cij[17], 'C55':cij[18], 'C56':cij[19], 'C66':cij[20]}
-    elif len(cij)==13:
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':cij[3], 'C16':0, 'C22':cij[4], 'C23':cij[5], 'C24':0, 'C25':cij[6], 'C26':0,
+        case 13:
+            Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':cij[3], 'C16':0, 'C22':cij[4], 'C23':cij[5], 'C24':0, 'C25':cij[6], 'C26':0,
                  'C33':cij[7], 'C34':0, 'C35':cij[8], 'C36':0, 'C44':cij[9], 'C45':0, 'C46':cij[10], 'C55':cij[11], 'C56':0, 'C66':cij[12]}
-    elif len(cij)==9:
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':0, 'C22':cij[3], 'C23':cij[4], 'C24':0, 'C25':0, 'C26':0,
+        case 9:
+            Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':0, 'C22':cij[3], 'C23':cij[4], 'C24':0, 'C25':0, 'C26':0,
                  'C33':cij[5], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[6], 'C45':0, 'C46':0, 'C55':cij[7], 'C56':0, 'C66':cij[8]}
-    elif len(cij)==7: ## tetragonal II
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':cij[3], 'C22':cij[0], 'C23':cij[2], 'C24':0, 'C25':0, 'C26':-cij[3],
+        case 7: ## tetragonal II
+            Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':0, 'C15':0, 'C16':cij[3], 'C22':cij[0], 'C23':cij[2], 'C24':0, 'C25':0, 'C26':-cij[3],
                  'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':0, 'C66':cij[6]}
-    elif len(cij)==6: ## trigonal (rhombohedral) I
-        Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':0, 'C16':0, 'C22':cij[0], 'C23':cij[2], 'C24':-cij[3], 'C25':0, 'C26':0,
+        case 6: ## trigonal (rhombohedral) I
+            Cdict = {'C11':cij[0], 'C12':cij[1], 'C13':cij[2], 'C14':cij[3], 'C15':0, 'C16':0, 'C22':cij[0], 'C23':cij[2], 'C24':-cij[3], 'C25':0, 'C26':0,
                  'C33':cij[4], 'C34':0, 'C35':0, 'C36':0, 'C44':cij[5], 'C45':0, 'C46':0, 'C55':cij[5], 'C56':cij[3], 'C66':(cij[0]-cij[1])/2}
-    else:
-        raise ValueError(f"len(cij)={len(cij)}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), 7 (tetragonal II), or 6 (trigonal/rhombohedral I) values")
+        case _:
+            raise ValueError(f"len(cij)={len(cij)}, expected 21 (triclinic), 13 (monoclinic), 9 (orthorhombic), 7 (tetragonal II), or 6 (trigonal/rhombohedral I) values")
     if isinstance(sum(Cdict.values()),sp.Expr):
         C2 = np.empty((6,6), dtype=object)
     else:
@@ -198,36 +201,39 @@ def elasticC3(c111=None, c112=None, c113=None, c123=None, c133=None, c144=None, 
     elif cijk is None:
         raise ValueError("ERROR: not implemented.")
     if cijk is None:
-        Cdict = {'C111':c111, 'C112':c112, 'C113':c113, 'C114':0, 'C115':0, 'C116':0, 'C122':c122, 'C123':c123, 'C124':0, 'C125':0, 'C126':0, 'C133':c133, 'C134':0, 'C135':0, 'C136':0, 'C144':c144, 'C145':0, 'C146':0, 'C155':c155, 'C156':0, 'C166':c166,
+        cijk = []
+    match len(cijk):
+        case 0:
+            Cdict = {'C111':c111, 'C112':c112, 'C113':c113, 'C114':0, 'C115':0, 'C116':0, 'C122':c122, 'C123':c123, 'C124':0, 'C125':0, 'C126':0, 'C133':c133, 'C134':0, 'C135':0, 'C136':0, 'C144':c144, 'C145':0, 'C146':0, 'C155':c155, 'C156':0, 'C166':c166,
                  'C222':c222, 'C223':c223, 'C224':0, 'C225':0, 'C226':0, 'C233':c233, 'C234':0, 'C235':0, 'C236':0, 'C244':c244, 'C245':0, 'C246':0, 'C255':c255, 'C256':0, 'C266':c266,
                  'C333':c333, 'C334':0, 'C335':0, 'C336':0, 'C344':c344, 'C345':0, 'C346':0, 'C355':c355, 'C356':0, 'C366':c366, 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':c456, 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0}
-    elif len(cijk)==56:
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':cijk[4], 'C116':cijk[5], 'C122':cijk[6], 'C123':cijk[7], 'C124':cijk[8], 'C125':cijk[9], 'C126':cijk[10], 'C133':cijk[11], 'C134':cijk[12], 'C135':cijk[13],
+        case 56:
+            Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':cijk[4], 'C116':cijk[5], 'C122':cijk[6], 'C123':cijk[7], 'C124':cijk[8], 'C125':cijk[9], 'C126':cijk[10], 'C133':cijk[11], 'C134':cijk[12], 'C135':cijk[13],
                  'C136':cijk[14], 'C144':cijk[15], 'C145':cijk[16], 'C146':cijk[17], 'C155':cijk[18], 'C156':cijk[19], 'C166':cijk[20], 'C222':cijk[21], 'C223':cijk[22], 'C224':cijk[23], 'C225':cijk[24], 'C226':cijk[25], 'C233':cijk[26], 'C234':cijk[27],
                  'C235':cijk[28], 'C236':cijk[29], 'C244':cijk[30], 'C245':cijk[31], 'C246':cijk[32], 'C255':cijk[33], 'C256':cijk[34], 'C266':cijk[35], 'C333':cijk[36], 'C334':cijk[37], 'C335':cijk[38], 'C336':cijk[39], 'C344':cijk[40], 'C345':cijk[41],
                  'C346':cijk[42], 'C355':cijk[43], 'C356':cijk[44], 'C366':cijk[45], 'C444':cijk[46], 'C445':cijk[47], 'C446':cijk[48], 'C455':cijk[49], 'C456':cijk[50], 'C466':cijk[51], 'C555':cijk[52], 'C556':cijk[53], 'C566':cijk[54], 'C666':cijk[55]}
-    elif len(cijk)==32:
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':cijk[3], 'C116':0, 'C122':cijk[4], 'C123':cijk[5], 'C124':0, 'C125':cijk[6], 'C126':0, 'C133':cijk[7], 'C134':0, 'C135':cijk[8],
+        case 32:
+            Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':cijk[3], 'C116':0, 'C122':cijk[4], 'C123':cijk[5], 'C124':0, 'C125':cijk[6], 'C126':0, 'C133':cijk[7], 'C134':0, 'C135':cijk[8],
                  'C136':0, 'C144':cijk[9], 'C145':0, 'C146':cijk[10], 'C155':cijk[11], 'C156':0, 'C166':cijk[12], 'C222':cijk[13], 'C223':cijk[14], 'C224':0, 'C225':cijk[15], 'C226':0, 'C233':cijk[16], 'C234':0,
                  'C235':cijk[17], 'C236':0, 'C244':cijk[18], 'C245':0, 'C246':cijk[19], 'C255':cijk[20], 'C256':0, 'C266':cijk[21], 'C333':cijk[22], 'C334':0, 'C335':cijk[23], 'C336':0, 'C344':cijk[24], 'C345':0,
                  'C346':cijk[25], 'C355':cijk[26], 'C356':0, 'C366':cijk[27], 'C444':0, 'C445':cijk[28], 'C446':0, 'C455':0, 'C456':cijk[29], 'C466':0, 'C555':cijk[30], 'C556':0, 'C566':cijk[31], 'C666':0}
-    elif len(cijk)==20:
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':0, 'C122':cijk[3], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0,
+        case 20:
+            Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':0, 'C122':cijk[3], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0,
                  'C136':0, 'C144':cijk[6], 'C145':0, 'C146':0, 'C155':cijk[7], 'C156':0, 'C166':cijk[8], 'C222':cijk[9], 'C223':cijk[10], 'C224':0, 'C225':0, 'C226':0, 'C233':cijk[11], 'C234':0,
                  'C235':0, 'C236':0, 'C244':cijk[12], 'C245':0, 'C246':0, 'C255':cijk[13], 'C256':0, 'C266':cijk[14], 'C333':cijk[15], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[16], 'C345':0,
                  'C346':0, 'C355':cijk[17], 'C356':0, 'C366':cijk[18], 'C444':0, 'C445':0, 'C446':0, 'C455':0, 'C456':cijk[19], 'C466':0, 'C555':0, 'C556':0, 'C566':0, 'C666':0}
-    elif len(cijk)==16: ## tetragonal II
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':cijk[3], 'C122':cijk[1], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0,
+        case 16: ## tetragonal II
+            Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':0, 'C115':0, 'C116':cijk[3], 'C122':cijk[1], 'C123':cijk[4], 'C124':0, 'C125':0, 'C126':0, 'C133':cijk[5], 'C134':0, 'C135':0,
                  'C136':cijk[6], 'C144':cijk[7], 'C145':cijk[8], 'C146':0, 'C155':cijk[9], 'C156':0, 'C166':cijk[10], 'C222':cijk[0], 'C223':cijk[2], 'C224':0, 'C225':0, 'C226':-cijk[3], 'C233':cijk[5], 'C234':0,
                  'C235':0, 'C236':-cijk[6], 'C244':cijk[9], 'C245':-cijk[8], 'C246':0, 'C255':cijk[7], 'C256':0, 'C266':cijk[10], 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0,
                  'C346':0, 'C355':cijk[12], 'C356':0, 'C366':cijk[13], 'C444':0, 'C445':0, 'C446':cijk[14], 'C455':0, 'C456':cijk[15], 'C466':0, 'C555':0, 'C556':-cijk[14], 'C566':0, 'C666':0}
-    elif len(cijk)==14: ## trigonal (rhombohedral) I
-        Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':0, 'C116':0, 'C122':(cijk[0]+cijk[1]-cijk[10]), 'C123':cijk[4], 'C124':cijk[5], 'C125':0, 'C126':0, 'C133':cijk[6], 'C134':cijk[7], 'C135':0,
+        case 14: ## trigonal (rhombohedral) I
+            Cdict = {'C111':cijk[0], 'C112':cijk[1], 'C113':cijk[2], 'C114':cijk[3], 'C115':0, 'C116':0, 'C122':(cijk[0]+cijk[1]-cijk[10]), 'C123':cijk[4], 'C124':cijk[5], 'C125':0, 'C126':0, 'C133':cijk[6], 'C134':cijk[7], 'C135':0,
                  'C136':0, 'C144':cijk[8], 'C145':0, 'C146':0, 'C155':cijk[9], 'C156':(cijk[3]+3*cijk[5])/2, 'C166':(3*cijk[10]-2*cijk[0]-cijk[1])/4, 'C222':cijk[10], 'C223':cijk[2], 'C224':(-cijk[3]-2*cijk[5]), 'C225':0, 'C226':0, 'C233':cijk[6], 'C234':(-cijk[7]),
                  'C235':0, 'C236':0, 'C244':cijk[9], 'C245':0, 'C246':0, 'C255':cijk[8], 'C256':(cijk[3]-cijk[5])/2, 'C266':(2*cijk[0]-cijk[1]-cijk[10])/4, 'C333':cijk[11], 'C334':0, 'C335':0, 'C336':0, 'C344':cijk[12], 'C345':0,
                  'C346':0, 'C355':cijk[12], 'C356':cijk[7], 'C366':(cijk[2]-cijk[4])/2, 'C444':cijk[13], 'C445':0, 'C446':0, 'C455':(-cijk[13]), 'C456':(cijk[9]-cijk[8])/2, 'C466':cijk[5], 'C555':0, 'C556':0, 'C566':0, 'C666':0}
-    else:
-        raise ValueError(f"len(cijk)={len(cijk)}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), 16 (tetragonal II), or 14 (trigonal/rhombohedral I) values")
+        case _:
+            raise ValueError(f"len(cijk)={len(cijk)}, expected 56 (triclinic), 32 (monoclinic), 20 (orthorhombic), 16 (tetragonal II), or 14 (trigonal/rhombohedral I) values")
     if isinstance(sum(Cdict.values()),sp.Expr):
         C3 = np.empty((6,6,6), dtype=object)
     else:
@@ -249,32 +255,34 @@ def Voigt(elasticC):
     '''Converts Voigt-symmetric tensors of ranks 2, 4, 6, and 8 (such as strain/stress tensors or 2nd, 3rd, and 4th order elastic constants) into Voigt notation.
     Both input and output are numpy arrays. Warning: this function does not check the input for Voigt symmetry, use CheckVoigt() instead.'''
     CVoigt = np.asarray(elasticC)
-    if CVoigt.ndim == 2:
-        CVoigt = np.reshape(CVoigt,(9))[VoigtIndices]
-    elif CVoigt.ndim == 4:
-        CVoigt = np.reshape(CVoigt,(9,9))[VoigtIndices][:,VoigtIndices]
-    elif CVoigt.ndim == 6:
-        CVoigt = np.reshape(CVoigt,(9,9,9))[VoigtIndices][:,VoigtIndices][:,:,VoigtIndices]
-    elif CVoigt.ndim == 8:
-        CVoigt = np.reshape(CVoigt,(9,9,9,9))[VoigtIndices][:,VoigtIndices][:,:,VoigtIndices][:,:,:,VoigtIndices]
-    else:
-        print(f'not implemented for array of dimension {CVoigt.ndim}, returning input')
+    match CVoigt.ndim:
+        case 2:
+            CVoigt = np.reshape(CVoigt,(9))[VoigtIndices]
+        case 4:
+            CVoigt = np.reshape(CVoigt,(9,9))[VoigtIndices][:,VoigtIndices]
+        case 6:
+            CVoigt = np.reshape(CVoigt,(9,9,9))[VoigtIndices][:,VoigtIndices][:,:,VoigtIndices]
+        case 8:
+            CVoigt = np.reshape(CVoigt,(9,9,9,9))[VoigtIndices][:,VoigtIndices][:,:,VoigtIndices][:,:,:,VoigtIndices]
+        case _:
+            print(f'not implemented for array of dimension {CVoigt.ndim}, returning input')
     return CVoigt
 
 def UnVoigt(CVoigt):
     '''Converts tensors of ranks 1, 2, 3, and 4 (such as strain/stress tensors or 2nd, 3rd, and 4th order elastic constants) from Voigt to conventional tensor notation.
     Both input and output are numpy arrays.'''
     elasticC = np.asarray(CVoigt)
-    if elasticC.ndim == 1:
-        elasticC = np.reshape(elasticC[UnVoigtIndices],(3,3))
-    elif elasticC.ndim == 2:
-        elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices],(3,3,3,3))
-    elif elasticC.ndim == 3:
-        elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices][:,:,UnVoigtIndices],(3,3,3,3,3,3))
-    elif elasticC.ndim == 4:
-        elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices][:,:,UnVoigtIndices][:,:,:,UnVoigtIndices],(3,3,3,3,3,3,3,3))
-    else:
-        print(f'not implemented for array of dimension {elasticC.ndim}, returning input')
+    match elasticC.ndim:
+        case 1:
+            elasticC = np.reshape(elasticC[UnVoigtIndices],(3,3))
+        case 2:
+            elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices],(3,3,3,3))
+        case 3:
+            elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices][:,:,UnVoigtIndices],(3,3,3,3,3,3))
+        case 4:
+            elasticC = np.reshape(elasticC[UnVoigtIndices][:,UnVoigtIndices][:,:,UnVoigtIndices][:,:,:,UnVoigtIndices],(3,3,3,3,3,3,3,3))
+        case _:
+            print(f'not implemented for array of dimension {elasticC.ndim}, returning input')
     return elasticC
     
 ## check for Voigt symmetry
@@ -364,37 +372,38 @@ class strain_poly:
         self.sym = sym
         C11, C12, C44, C13, C33, C66 = sp.symbols('C11 C12 C44 C13 C33 C66',real=True)
         C111, C112, C123, C144, C166, C456, C113, C133, C155, C222, C333, C344, C366 = sp.symbols('C111 C112 C123 C144 C166 C456 C113 C133 C155 C222 C333 C344 C366',real=True)
-        if sym=='iso':
-            self.C2 = elasticC2(c12=C12,c44=C44,voigt=True)
-            self.C3 = elasticC3(c123=C123,c144=C144,c456=C456,voigt=True)
-        elif sym in ('cubic', 'fcc', 'bcc'):
-            self.C2 = elasticC2(c11=C11,c12=C12,c44=C44,voigt=True)
-            self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c166=C166,c456=C456,voigt=True)
-        elif sym == 'hcp':
-            self.C2 = elasticC2(c11=C11,c12=C12,c44=C44, c13=C13, c33=C33,voigt=True)
-            self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c113=C113,c133=C133,c155=C155,c222=C222,c333=C333,c344=C344,voigt=True)
-        elif sym == 'tetr':
-            self.C2 = elasticC2(c11=C11,c12=C12,c44=C44, c13=C13, c33=C33, c66=C66,voigt=True)
-            self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c166=C166,c456=C456,c113=C113,c133=C133,c155=C155,c333=C333,c344=C344, c366=C366,voigt=True)
-        elif sym=='trig':
-            self.cij = sp.symbols('C11,C12,C13,C14,C33,C44',real=True)
-            self.cijk = sp.symbols('C111,C112,C113,C114,C123,C124,C133,C134,C144,C155,C222,C333,C344,C444',real=True)
-        elif sym=='tetr2':
-            self.cij = sp.symbols('C11,C12,C13,C16,C33,C44,C66',real=True)
-            self.cijk = sp.symbols('C111,C112,C113,C116,C123,C133,C136,C144,C145,C155,C166,C333,C344,C366,C446,C456',real=True)
-        elif sym=='orth':
-            self.cij = sp.symbols('C11,C12,C13,C22,C23,C33,C44,C55,C66',real=True)
-            self.cijk = sp.symbols('C111,C112,C113,C122,C123,C133,C144,C155,C166,C222,C223,C233,C244,C255,C266,C333,C344,C355,C366,C456',real=True)
-        elif self.sym=='mono':
-            self.cij = sp.symbols('C11,C12,C13,C15,C22,C23,C25,C33,C35,C44,C46,C55,C66',real=True)
-            self.cijk = sp.symbols('C111,C112,C113,C115,C122,C123,C125,C133,C135,C144,C146,C155,C166,C222,C223,C225,C233,C235,C244,C246,\
+        match sym:
+            case 'iso':
+                self.C2 = elasticC2(c12=C12,c44=C44,voigt=True)
+                self.C3 = elasticC3(c123=C123,c144=C144,c456=C456,voigt=True)
+            case 'cubic' | 'fcc' | 'bcc':
+                self.C2 = elasticC2(c11=C11,c12=C12,c44=C44,voigt=True)
+                self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c166=C166,c456=C456,voigt=True)
+            case 'hcp':
+                self.C2 = elasticC2(c11=C11,c12=C12,c44=C44, c13=C13, c33=C33,voigt=True)
+                self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c113=C113,c133=C133,c155=C155,c222=C222,c333=C333,c344=C344,voigt=True)
+            case 'tetr':
+                self.C2 = elasticC2(c11=C11,c12=C12,c44=C44, c13=C13, c33=C33, c66=C66,voigt=True)
+                self.C3 = elasticC3(c111=C111,c112=C112,c123=C123,c144=C144,c166=C166,c456=C456,c113=C113,c133=C133,c155=C155,c333=C333,c344=C344, c366=C366,voigt=True)
+            case 'trig':
+                self.cij = sp.symbols('C11,C12,C13,C14,C33,C44',real=True)
+                self.cijk = sp.symbols('C111,C112,C113,C114,C123,C124,C133,C134,C144,C155,C222,C333,C344,C444',real=True)
+            case 'tetr2':
+                self.cij = sp.symbols('C11,C12,C13,C16,C33,C44,C66',real=True)
+                self.cijk = sp.symbols('C111,C112,C113,C116,C123,C133,C136,C144,C145,C155,C166,C333,C344,C366,C446,C456',real=True)
+            case 'orth':
+                self.cij = sp.symbols('C11,C12,C13,C22,C23,C33,C44,C55,C66',real=True)
+                self.cijk = sp.symbols('C111,C112,C113,C122,C123,C133,C144,C155,C166,C222,C223,C233,C244,C255,C266,C333,C344,C355,C366,C456',real=True)
+            case 'mono':
+                self.cij = sp.symbols('C11,C12,C13,C15,C22,C23,C25,C33,C35,C44,C46,C55,C66',real=True)
+                self.cijk = sp.symbols('C111,C112,C113,C115,C122,C123,C125,C133,C135,C144,C146,C155,C166,C222,C223,C225,C233,C235,C244,C246,\
                                    C255,C266,C333,C335,C344,C346,C355,C366,C445,C456,C555,C566',real=True)
-        elif self.sym=='tric':
-            self.cij = sp.symbols('C11,C12,C13,C14,C15,C16,C22,C23,C24,C25,C26,C33,C34,C35,C36,C44,C45,C46,C55,C56,C66',real=True)
-            self.cijk = sp.symbols('C111,C112,C113,C114,C115,C116,C122,C123,C124,C125,C126,C133,C134,C135,C136,C144,C145,C146,C155,C156,C166,C222,C223,C224,C225,C226,C233,C234,C235,\
+            case 'tric':
+                self.cij = sp.symbols('C11,C12,C13,C14,C15,C16,C22,C23,C24,C25,C26,C33,C34,C35,C36,C44,C45,C46,C55,C56,C66',real=True)
+                self.cijk = sp.symbols('C111,C112,C113,C114,C115,C116,C122,C123,C124,C125,C126,C133,C134,C135,C136,C144,C145,C146,C155,C156,C166,C222,C223,C224,C225,C226,C233,C234,C235,\
                                    C236,C244,C245,C246,C255,C256,C266,C333,C334,C335,C336,C344,C345,C346,C355,C356,C366,C444,C445,C446,C455,C456,C466,C555,C556,C566,C666',real=True)
-        else:
-            raise ValueError(f"sym={self.sym} not implemented")
+            case _:
+                raise ValueError(f"sym={self.sym} not implemented")
         if sym in ('tetr2', 'trig', 'orth', 'mono', 'tric'):
             self.C2 = elasticC2(cij=self.cij,voigt=True)
             self.C3 = elasticC3(cijk=self.cijk,voigt=True)

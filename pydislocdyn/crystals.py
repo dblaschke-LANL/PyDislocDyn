@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 9, 2026
+# Date: Nov. 7, 2017 - July 22, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -316,22 +316,23 @@ class metal_props:
             self.lam = round(float(self.lam),roundto)
             self.mu = round(float(self.mu),roundto)
         if include_TOEC and self.sym != 'iso':
-            if scheme=='voigt':
-                self.Murl = aver.voigt[Murl]
-                self.Murm = aver.voigt[Murm]
-                self.Murn = aver.voigt[Murn]
-            elif scheme=='reuss':
-                self.Murl = aver.reuss[Murl]
-                self.Murm = aver.reuss[Murm]
-                self.Murn = aver.reuss[Murn]
-            elif scheme=='blaschke':
-                self.Murl = ImprovedAv[Murl]
-                self.Murm = ImprovedAv[Murm]
-                self.Murn = ImprovedAv[Murn]
-            else:
-                self.Murl = HillAverage[Murl]
-                self.Murm = HillAverage[Murm]
-                self.Murn = HillAverage[Murn]
+            match scheme:
+                case 'voigt':
+                    self.Murl = aver.voigt[Murl]
+                    self.Murm = aver.voigt[Murm]
+                    self.Murn = aver.voigt[Murn]
+                case 'reuss':
+                    self.Murl = aver.reuss[Murl]
+                    self.Murm = aver.reuss[Murm]
+                    self.Murn = aver.reuss[Murn]
+                case 'blaschke':
+                    self.Murl = ImprovedAv[Murl]
+                    self.Murm = ImprovedAv[Murm]
+                    self.Murn = ImprovedAv[Murn]
+                case _:
+                    self.Murl = HillAverage[Murl]
+                    self.Murm = HillAverage[Murm]
+                    self.Murn = HillAverage[Murn]
             if roundto is not None and not C2.dtype==object:
                 self.Murl = round(float(self.Murl),roundto)
                 self.Murm = round(float(self.Murm),roundto)

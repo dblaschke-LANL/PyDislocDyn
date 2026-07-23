@@ -16,16 +16,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.9", "3.14"]
+        python-version: ["3.10", "3.14"]
         toolchain:
           - {compiler: gcc, version: 'latest'}
         exclude:
           - os: macos-latest
-            python-version: '3.9'
+            python-version: '3.10'
           - os: windows-latest
-            python-version: '3.9'
+            python-version: '3.10'
         include:
-          - python-version: '3.9'
+          - python-version: '3.10'
             module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8 pandas==1.5 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.58.1 meson ninja pytest"
           - python-version: '3.14'
             module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest"
