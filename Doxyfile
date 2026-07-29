@@ -3,6 +3,9 @@ PROJECT_NAME           = dislocdynlib
 OPTIMIZE_FOR_FORTRAN   = YES
 EXTENSION_MAPPING      = f90=Fortran
 EXTRACT_ALL            = YES
-FILE_PATTERNS          = *.f90
+EXCLUDE_PATTERNS       = *.py
+INPUT                  = pydislocdyn \
+                         app \
+                         ford.md
 RECURSIVE              = YES
 FILTER_PATTERNS        = *.f90
