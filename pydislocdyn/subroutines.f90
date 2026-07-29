@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 22, 2026
+! Date: July 23, 2018 - July 27, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260721
+  integer,parameter :: version = 20260727
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -216,7 +216,7 @@ end module dislocdyn_utilities
 
 module dislocdyn_subroutines
   implicit none
-  public :: accscrew_xyintegrand, computeEtot, strohgeometry, computeuk, computeuij
+  public :: accscrew_xyintegrand, computeEtot, strohgeometry, computeuk, computeuij, vlim_of_phi, edgevlim_of_phi
   contains
     !> subroutine of python function computeuij_acc_screw(), see PyDislocDyn docs
     SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)

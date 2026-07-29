@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - July 21, 2026
+! Date: Mar. 31, 2026 - July 28, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -306,13 +306,13 @@ module dislocdyn_dislocations
     !>Otherwise, we adapt the method of Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, to the present decoupled 2D
     !>special case.
     subroutine computevcrit_edge(disl,vlim)
+      use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
+      use dislocdyn_subroutines, only : edgevlim_of_phi
       class(disloc), intent(in) :: disl
       real(sel), intent(out) :: vlim
       real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim, norm
-      real(sel) :: M(disl%nphi,3),MM(disl%nphi,3,3)
-      real(sel) :: C2(3,3,3,3), Q(disl%nphi), R(disl%nphi), tmpout2(disl%nphi)!, tmpout1(disl%nphi)
-      integer :: i
+      real(sel) :: C2(3,3,3,3)
       c11=disl%C2aligned(1,1,disl%ntheta)
       c22=disl%C2aligned(2,2,disl%ntheta)
       c66=disl%C2aligned(6,6,disl%ntheta)
@@ -331,71 +331,62 @@ module dislocdyn_dislocations
         end if
       else
         call unvoigt(disl%C2aligned(:,:,disl%ntheta)/disl%C2(4,4),C2)
-        M(:,1) = cos(disl%phi)
-        M(:,2) = sin(disl%phi)
-        M(:,3) = 0.d0
-        call elbrak1d(M,M,C2,disl%nphi,MM)
         norm=(disl%C2(4,4)/disl%rho)
-        Q = 0.d0
-        do i=1,2
-          Q = Q + MM(:,i,i)
-        end do
-        R = MM(:,1,1)*MM(:,2,2) - MM(:,1,2)*MM(:,2,1)
-!~         tmpout1 = 0.5d0*Q + sqrt(0.25d0*Q**2-R)
-        tmpout2 = 0.5d0*Q - sqrt(0.25d0*Q**2-R)
-!~         vlim = min(minval(abs(sqrt(tmpout1*norm)/cos(disl%phi))),minval(abs(sqrt(tmpout2*norm)/cos(disl%phi))))
-        vlim = minval(abs(sqrt(tmpout2*norm)/cos(disl%phi)))
+        vlim = f_edge_l(minimize_simple(f_edge_l,-0.5d0*pi,0.5d0*pi,2,1.d-4,int(disl%nphi/5),20))
       end if
+      contains
+        pure function f_edge_l(x) result(y)
+          real(sel), intent(in) :: x
+          real(sel) :: y
+          y = edgevlim_of_phi(x,-1,C2,norm)
+        end function f_edge_l
     end subroutine computevcrit_edge
     !-------------------------
     !> Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
     pure subroutine computevcrit_barnett(disl,th,vlim)
+      use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
+      use dislocdyn_subroutines, only : vlim_of_phi
       class(disloc), intent(in) :: disl
       integer, intent(in) :: th !< index of the character angle disl%theta(th)
       real(sel), intent(out) :: vlim(3) !< 3 branches to consider, the lowest value is the (lowest) limiting velocity
-      real(sel) :: M(disl%nphi,3),MM(disl%nphi,3,3), MM2(disl%nphi,3,3), norm, C2(3,3,3,3), tmp
-      real(sel), dimension(disl%nphi) :: P,Q,R,a,d,gam,tmpout
+      real(sel) :: norm, C2(3,3,3,3), tmp, ub, lb
       integer :: i, j
-      ! TODO: write a subroutine that is a fct of phi befor minimizing with external package
-      ! this first pass uses the nphi=500 fixed resolution and therefore will only find a crude approximation of vlim
-      M = disl%M(:,:,th)
       call unvoigt(disl%C2/disl%C2(4,4),C2)
-      call elbrak1d(M,M,C2,disl%nphi,MM)
       norm=(disl%C2(4,4)/disl%rho)
-      P = 0.d0
-      do i=1,3
-        P = P - MM(:,i,i)
-      end do
-      Q = 0.5d0*P**2
-      do concurrent (i=1:disl%nphi)
-        MM2(i,:,:) = 0.5d0*matmul(MM(i,:,:),MM(i,:,:))
-      end do
-      do i=1,3
-        Q = Q - MM2(:,i,i)
-      end do
-      R = -(MM(:,1,1)*MM(:,2,2)*MM(:,3,3) + MM(:,1,3)*MM(:,2,1)*MM(:,3,2)+MM(:,1,2)*MM(:,2,3)*MM(:,3,1) &
-              -MM(:,1,3)*MM(:,2,2)*MM(:,3,1) - MM(:,1,1)*MM(:,2,3)*MM(:,3,2) - MM(:,1,2)*MM(:,2,1)*MM(:,3,3))
-      a = Q - P**2/3.d0
-      d = 2.d0*P**3/27.d0-Q*P/3.d0+R
-      gam = -0.5*d/sqrt(-a**3/27.d0)
-      where(gam>1) gam=1.d0
-      where(gam<-1) gam=-1.d0
-      gam = acos(gam)
-      do i=1,3
-        tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0
-        vlim(i) = minval(abs(sqrt(tmpout*norm)/cos(disl%phi)))
-      end do
-      do i = 1, 2
-        do j = i + 1, 3
-          if (vlim(i) > vlim(j)) then
-            ! print*,"sorting barnett result"
-            tmp = vlim(i)
-            vlim(i) = vlim(j)
-            vlim(j) = tmp
-          end if
+      lb = -0.5d0*pi
+      ub = 0.5d0*pi
+      vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+      vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+      vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+      if (.not. ((vlim(1)<=vlim(2)) .and. (vlim(2)<=vlim(3)))) then
+        do i = 1, 2
+          do j = i + 1, 3
+            if (vlim(i) > vlim(j)) then
+              ! print*,"sorting barnett result"
+              tmp = vlim(i)
+              vlim(i) = vlim(j)
+              vlim(j) = tmp
+            end if
+          end do
         end do
-      end do
+      end if
+      contains
+        pure function f1(x) result(y)
+          real(sel), intent(in) :: x
+          real(sel) :: y
+          y = vlim_of_phi(x,1,C2,norm,disl%m0(:,th),disl%n0)
+        end function f1
+        pure function f2(x) result(y)
+          real(sel), intent(in) :: x
+          real(sel) :: y
+          y = vlim_of_phi(x,2,C2,norm,disl%m0(:,th),disl%n0)
+        end function f2
+        pure function f3(x) result(y)
+          real(sel), intent(in) :: x
+          real(sel) :: y
+          y = vlim_of_phi(x,3,C2,norm,disl%m0(:,th),disl%n0)
+        end function f3
     end subroutine computevcrit_barnett
     !-------------------------
     !> Computes all limiting velocities for all dislocation character angles
@@ -408,9 +399,11 @@ module dislocdyn_dislocations
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp
       integer th
-      do concurrent (th=1:disl%ntheta)
+      !$OMP PARALLEL DO IF(disl%ntheta > 2)
+      do th=1,disl%ntheta
         call computevcrit_barnett(disl,th,vlim(th,:))
       end do
+      !$OMP END PARALLEL DO
       tmp = 0.d0
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
         call disl%computevcrit_screw(tmp)
