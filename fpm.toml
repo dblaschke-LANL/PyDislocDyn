@@ -1,5 +1,5 @@
 name = "dislocdynlib"
-version = "20260721"
+version = "20260729"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"

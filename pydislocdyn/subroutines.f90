@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 27, 2026
+! Date: July 23, 2018 - July 29, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260727
+  integer,parameter :: version = 20260729
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -52,7 +52,7 @@ module dislocdyn_utilities
     !-----------------------------------------------------------------------
       integer l,o,k,p,i
       AB(:,:,:,:) = 0.d0
-      !$OMP PARALLEL DO IF(Ntheta > 20) DEFAULT(SHARED) PRIVATE(i,p,o,l,k)
+      !$OMP PARALLEL DO PRIVATE(i,p,o,l,k)
       do i=1, Ntheta
         do p=1,3
           do o=1,3
@@ -271,7 +271,7 @@ module dislocdyn_subroutines
       INTEGER :: th, k, l, o, p
      
       Wtot = 0.d0
-      !$OMP PARALLEL DO IF(Ntheta > 20) DEFAULT(SHARED) PRIVATE(th,p,o,l,k,Wdensity)
+      !$OMP PARALLEL DO PRIVATE(th,p,o,l,k,Wdensity)
       do th=1,Ntheta
         Wdensity = 0.d0
         do p=1,3
@@ -346,8 +346,7 @@ module dislocdyn_subroutines
       real(kind=sel), dimension(3) :: Sb, BBb
       real(kind=sel) :: uiphi(Nphi,3), tmpu(Nphi,3)
       uk = 0.d0
-      !$OMP PARALLEL DO default(shared), private(th,ph,j,k,i, &
-      !$OMP                   MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb,tmpu,uiphi)
+      !$OMP PARALLEL DO private(th,ph,j,k,i,MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb,tmpu,uiphi)
       do th=1,Ntheta
       tmpu = 0.d0
       Sphi = 0.d0; Bphi = 0.d0
@@ -410,8 +409,7 @@ module dislocdyn_subroutines
       real(kind=sel), dimension(3,3) :: S, BB
       real(kind=sel), dimension(3) :: Sb, BBb
       uij = 0.d0
-      !$OMP PARALLEL DO default(shared), private(th,ph,j,k,i, &
-      !$OMP                   MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb)
+      !$OMP PARALLEL DO private(th,ph,j,k,i, MM,NN,MN,NM,NNinv,Sphi,Bphi,tmpC,S,BB,Sb,BBb)
       do th=1,Ntheta
       Sphi = 0.d0; Bphi = 0.d0
       tmpC(:,:,:,:) = C2(:,:,:,:) - beta*beta*Cv(:,:,:,:,th)

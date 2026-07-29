@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 22, 2026
+! Date: July 23, 2018 - July 29, 2026
 
 !> this module contains subroutines for phononwind_xx() and phononwind_xy()
 module dislocdyn_phononwind_subroutines
@@ -20,7 +20,7 @@ module dislocdyn_phononwind_subroutines
       REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), beta
       
       beta = hbar/(kB*T)
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,phonon1,phonon2)
+      !$OMP PARALLEL DO PRIVATE(i,phonon1,phonon2)
       do i=1,lenq1
         phonon1 = 1.d0/(exp(beta*c1qBZ*q1(i))-1.d0) 
         phonon2 = 1.d0/(exp(beta*c2qBZ*q1(i)*OneMinBtqcosph1(:,:))-1.d0) 
@@ -115,7 +115,7 @@ module dislocdyn_phononwind_subroutines
     output(:,:,:,:,:) = 0.0
     !$ call ompinfo(nthreads)
     !$ if (nthreads .ge. 2) then
-    !$OMP PARALLEL DO default(shared), private(i,j,k)
+    !$OMP PARALLEL DO private(i,j,k)
     !$ do i=1,lenp
     !$ j=(i-1)*lent+1
     !$ k=i*lent
@@ -180,7 +180,7 @@ module dislocdyn_phononwind_subroutines
       
       limit = beta*abs(cos(phi))
       Bt = 0.d0
-      !$OMP PARALLEL DO default(shared), private(p,tmask,t1,Btmp,NBtmp)
+      !$OMP PARALLEL DO private(p,tmask,t1,Btmp,NBtmp)
       do p=1,Nphi
         tmask = (t>limit(p))
         NBtmp = count(tmask)
@@ -223,7 +223,7 @@ module dislocdyn_phononwind_subroutines
       
       qtlimit = 1/(beta1*abs(cos(phi)))
       Bt = 0.d0
-      !$OMP PARALLEL DO default(shared), private(p,tmask,qt,Btmp,NBtmp)
+      !$OMP PARALLEL DO private(p,tmask,qt,Btmp,NBtmp)
       do p=1,Nphi
         tmask = (abs(t(:,p))<1).and.(qtilde(:)<qtlimit(p))
         NBtmp = count(tmask)

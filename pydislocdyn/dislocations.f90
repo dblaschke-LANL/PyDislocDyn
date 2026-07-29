@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - July 28, 2026
+! Date: Mar. 31, 2026 - July 29, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -399,7 +399,7 @@ module dislocdyn_dislocations
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp
       integer th
-      !$OMP PARALLEL DO IF(disl%ntheta > 2)
+      !$OMP PARALLEL DO
       do th=1,disl%ntheta
         call computevcrit_barnett(disl,th,vlim(th,:))
       end do
