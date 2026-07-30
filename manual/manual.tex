@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{July 22, 2026}
+\date{July 30, 2026}
 
 \begin{document}
 \maketitle
@@ -76,7 +76,7 @@ Its main features summarize as:
 \begin{itemize}
 \item compute averages of elastic constants (various methods, see \cite{Blaschke:2017Poly})
 \item compute the steady-state displacement (gradient) field of a dislocation for arbitrary character angle in an arbitrary crystal geometry \cite{Bacon:1980,Hirth:1982}; a generalization to accelerating dislocations is in progress and so far has been implemented for pure screw dislocations \cite{Blaschke:2020acc} and pure edge dislocations \cite{Blaschke:2023acc}
-\item compute theoretical limiting velocities of dislocations in arbitrary slip systems and with arbitrary character angle \cite{Blaschke:2021vcrit,Blaschke:2020MD,Teutonico:1961,Barnett:1973b}
+\item compute theoretical limiting velocities of dislocations in arbitrary slip systems and with arbitrary character angle \cite{Blaschke:2026vlim,Blaschke:2021vcrit,Blaschke:2020MD,Teutonico:1961,Barnett:1973b}
 \item compute the elastic strain energy and line tension for any dislocation \cite{Blaschke:2017lten}
 \item compute the dislocation drag coefficient $B$ from phonon wind for any dislocation at any velocity \cite{Alshits:1979,Alshits:1992,Blaschke:BpaperRpt,Blaschke:2018anis,Blaschke:2019fits,Blaschke:2019Bpap} or stress \cite{Blaschke:2019a,Blaschke:2021impact,Blaschke:2021temperature}.
 \end{itemize}
@@ -341,10 +341,8 @@ Furthermore, since numerical differentiation is involved, the array \verb|.LT| w
 
 The \verb|metal_props| class is one of the parents of the \verb|Dislocation| class.
 It lets the user who is not interested in dislocations work with elastic constants (including polycrystal averages), compute sound speeds, convert Miller indices to Cartesian indices and more.
-Instances of this class can be populated using the same input file format discussed above in section \ref{sec:inputfiles}, though keywords relating to dislocations (i.e. \verb|b|, \verb|n0|, \verb|Millerb|, \verb|Millern0|, \verb|burgers|) can be omitted.
-In order to read an input file to initialize an instance of the \verb|metal_props| class, import the following
-\footnote{In PyDislocDyn 1.3.0 the module part of `polycrystal\_averaging.py' was split off and the function to initialize the `metal\_props' class from an input file was moved to crystals.py.}:
-\\`\verb|from pydislocdyn.crystals import readinputfile|'
+Instances of this class can be populated using the same input file format discussed above in section \ref{sec:inputfiles}, though keywords relating to dislocations (i.e. \verb|b|, \verb|n0|, \verb|Millerb|, \verb|Millern0|, \verb|burgers|) must be omitted.
+In order to initialize an instance of the \verb|metal_props| class from an input file (that does not define a slip system), use function `\verb|pydislocdyn.readinputfile()|'.
 
 
 \subsubsection{The `strain\_poly' class}
@@ -369,14 +367,14 @@ The most common classes and functions can be accessed directly by importing the 
 In particular this includes the following objects:
 \begin{itemize}
 	\item \verb|Voigt| and \verb|UnVoigt| to convert tensors between Voigt notation and Cartesian coordinates.
-	\item \verb|elasticC2| and \verb|elasticC3| to generate the tensors (i.e. the multidimensional numpy arrays) of second and third order elastic constants in Cartesian coordinates (default) or in Voigt notation (set \verb|voigt=True|).
-	\item \verb|elasticS2| and \verb|elasticS3| to calculate the second and third order compliance tensors from the elastic (or stiffness) tensors.
+	\item \verb|elasticC2| and \verb|elasticC3| to generate the tensors (i.e. the multidimensional numpy arrays) of second and third order elastic constants in Voigt notation (default) or in Cartesian coordinates (set \verb|voigt=False|).
+	\item \verb|elasticS2| and \verb|elasticS3| to calculate the second and third order compliance tensors from the elastic (or stiffness) tensors in Voigt notation (default) or in Cartesian coordinates (set \verb|voigt=False|).
 	\item \verb|convert_SOECiso| and \verb|convert_TOECiso| to convert between common sets of isotropic elastic constants at second (bulk, shear, and Young's modulus, Poisson's ratio, Lam\'e constants) and third (Standard rep., Murnaghan, and Tupin/Bernstein constants) order.
 	\item the \verb|strain_poly| class as described above in Section \ref{sec:strain_poly}.
    \item helper functions \verb|writeinputfile| and \verb|writeallinputfiles|  to write data defined in the python dictionaries of sub-module \verb|metaldata| to PyDislocDyn input files.
-   \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
+   \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile()|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
    \item \verb|read_2dresults|, to read files containing results from line tension or drag coefficient calculations into a \verb|pandas.DataFrame| as described in Section \ref{sec:frontends}.
-   \item the \verb|metal_props| class, see Section \ref{sec:metal_props}; a function, \verb|readinputfile()|, to populate an instance from an input file is available from sub-module \verb|pydislocdyn.crystals|.
+   \item the \verb|metal_props| class, see Section \ref{sec:metal_props}; function \verb|readinputfile()| will fall back to populating an instance of this class from an input file if no slip system is defined in that file.
    \item function \verb|phonondrag| to calculate the drag coefficient $B$ in units of mPa\,s as a function of velocity for an instance of the Dislocation class.
    \item function \verb|B_of_sigma| to calculate the drag coefficient $B$ as a function of stress $\sigma$ from a previously determined fitting function for $B(v)$ as a function of dislocation velocity $v$.
    \item function \verb|plotuij| generates a heat map plot of a 2-dimensional dislocation field.
