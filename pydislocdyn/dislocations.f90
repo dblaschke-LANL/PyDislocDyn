@@ -57,7 +57,7 @@ module dislocdyn_dislocations
       procedure :: computevcrit => computevcrit
   end type
   public :: volume_unitcell, set_character_angles, computerot, phonondrag, computevcrit_screw, computevcrit_edge, &
-            computevcrit_barnett, computevcrit, Miller_to_Cart
+            computevcrit_barnett, computevcrit, Miller_to_Cart, computesound
   !-------------------------
   contains
     !> computes the unit cell volume
@@ -197,6 +197,10 @@ module dislocdyn_dislocations
       end do
     end subroutine Miller_to_Cart
     !------------------------------
+    !> Computes the sound speeds of the crystal propagating in the direction of unit vector v (Cartesian coordinates).
+    !> Use function Miller_to_Cart() to convert Miller indices to Cartesian coordinates prior to calling this routine.
+    !> The present numerical method is derived from Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5 for the special 
+    !> case of z=v and psi=0.
     subroutine computesound(mat,v,sound)
       use dislocdyn_parameters, only : sel, pi
       use dislocdyn_utilities, only : elbrak1d
