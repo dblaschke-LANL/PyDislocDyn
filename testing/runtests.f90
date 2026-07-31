@@ -142,8 +142,8 @@ module dislocdyn_tests
       call testequalarray(Cu%uij(:,1,1,1)+Cu%uij(:,2,2,1)+Cu%uij(:,3,3,1),zeros,Cu%nphi,&
                           "disloc_Cu_uij-screw_zero-trace",1.d-12,count_pass,count_fail)
       allocate(Etot(Cu%ntheta),vlim(Cu%ntheta,3))
-      call computeEtot(Cu%uij,Cu%beta,Cu%C2norm,Cu%Cv,Cu%phi,Cu%ntheta,Cu%nphi,Etot)
-      call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_Etot",1.d-9,count_pass,count_fail)
+      call Cu%update_elasticE(Etot)
+      call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_elasticEtot",1.d-9,count_pass,count_fail)
       
       call phonondrag(B,Cu,[0.1d0,0.5d0])
       call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-5,count_pass,count_fail)

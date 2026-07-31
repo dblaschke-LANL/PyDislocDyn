@@ -4,7 +4,7 @@
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
-  use dislocdyn_subroutines, only : strohgeometry, computeuij ! defined in subroutines.f90
+  use dislocdyn_subroutines, only : strohgeometry, computeuij, computeEtot ! defined in subroutines.f90
   use dislocdyn_elasticconstants ! defined in elasticconstants.f90
   use dislocdyn_crystals, only : crystal
   implicit none
@@ -29,6 +29,7 @@ module dislocdyn_dislocations
       procedure :: update_rot => computerot
       procedure :: init => init_disloc
       procedure :: update_uij => compute_uij
+      procedure :: update_elasticE => compute_elasticE
       procedure :: computevcrit_screw => computevcrit_screw
       procedure :: computevcrit_edge => computevcrit_edge
       procedure :: computevcrit_barnett => computevcrit_barnett
@@ -135,6 +136,13 @@ module dislocdyn_dislocations
       allocate(disl%uij(disl%nphi,3,3,disl%ntheta))
       call computeuij(disl%beta,disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,disl%uij)
     end subroutine compute_uij
+    !-------------------------
+    !> Computes the elastic self energy of a straight dislocation uij moving at velocity beta.
+    subroutine compute_elasticE(disl, Wtot)
+      class(disloc), intent(in) :: disl
+      real(sel), intent(out) :: Wtot(disl%ntheta)
+      call computeEtot(disl%uij, disl%beta, disl%C2norm, disl%Cv, disl%phi, disl%ntheta, disl%nphi, Wtot)
+    end subroutine compute_elasticE
     !-------------------------
     !>Calculate the limiting velocity for a pure screw dislocation assuming the plane perpendicular to the dislocation line
     !>is a reflection plane; Note: the reflection plane property must be checked separately, this function will not.
