@@ -105,7 +105,7 @@ module dislocdyn_tests
       use dislocdyn_dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti, Fe
-      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, vsound(3)
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, vsound(3), anisidx
       real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:)
       logical :: istrue
 !~       integer :: i
@@ -133,6 +133,8 @@ module dislocdyn_tests
       call testzero(sum(Cu%lat_angles)-1.5d0*pi,"disloc_Cu_lat_angles",1.d-6,count_pass,count_fail)
       call testzero(dot_product(Cu%b,Cu%b)+dot_product(Cu%n0,Cu%n0)+dot_product(Cu%b,Cu%n0)+dot_product(Cu%t(:,1),Cu%b)-3.d0 &
              +dot_product(Cu%t(:,2),Cu%b)+1.d10*(Cu%burgers-3.6146d-10/sqrt(2.d0)),"disloc_Cu_b_n0_t",1.d-6,count_pass,count_fail)
+      call Cu%anisotropy_index(anisidx)
+      call testzero(anisidx-0.697609702d0,"Cu_anisotropy-index",1.d-9,count_pass,count_fail)
       Cu%beta = 0.5d0
       call Cu%update_uij()
       allocate(zeros(Cu%nphi))
@@ -159,6 +161,8 @@ module dislocdyn_tests
       Ti%cijk = [-1.358d12, -1.105d12, 1.7d10, -1.62d11, -3.83d11, -2.63d11, 1.17d11, -2.306d12, -1.617d12, -3.83d11]
       Ti%ntheta = 3 ! test with one mixed disloc.
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
+      call Ti%anisotropy_index(anisidx)
+      call testzero(anisidx-0.075440166736d0,"Ti_anisotropy-index",1.d-9,count_pass,count_fail)
       call phonondrag(B,Ti,[0.5d0])
       call testzero(sum(B)-0.0293866,"disloc_Tipyr_drag",1.d-5,count_pass,count_fail)
       call Ti%computesound([1.d0,1.d0,0.d0],vsound)

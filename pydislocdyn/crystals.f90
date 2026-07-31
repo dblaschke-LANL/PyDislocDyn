@@ -29,8 +29,9 @@ module dislocdyn_crystals
       procedure :: init_crystal => init_crystal
       procedure :: Miller_to_Cart => Miller_to_Cart
       procedure :: computesound => computesound
+      procedure :: anisotropy_index => anisotropy_index
   end type crystal
-  public :: volume_unitcell, Miller_to_Cart, computesound
+  public :: volume_unitcell, Miller_to_Cart, computesound, anisotropy_index
   !-------------------------
   contains
     !> computes the unit cell volume
@@ -208,5 +209,22 @@ module dislocdyn_crystals
         sound(i) = abs(sqrt(tmpout*norm))
       end do
     end subroutine computesound
+    !------------------------------
+    !> Computes a number quantifying the anisotropy of a crystal following the
+    !> recommendation of Kube 2016. In particular, we compute a measure of the
+    !> difference between Voigt and Reuss averages of shear and bulk modulus, 
+    !> known also as the universal log-Euclidean anisotropy index:
+    !> A_L = sqrt([ln(B_V/B_R)]^2 + 5*[ln(G_V/G_R)]^2), see AIP Advances 6, 095209 (2016).
+    subroutine anisotropy_index(mat,anisidx)
+      use dislocdyn_parameters, only : sel
+      class(crystal), intent(in) :: mat
+      real(sel), intent(out) :: anisidx
+      real(sel) :: bulkV, bulkR, muV, muR, lambda
+      call voigtaverage(mat%C2,lambda,muV)
+      bulkV = lambda + 2.d0*muV/3.d0
+      call reussaverage(mat%C2,lambda,muR)
+      bulkR = lambda + 2.d0*muR/3.d0
+      anisidx = sqrt((log(bulkV/bulkR))**2 + 5.d0*(log(muV/muR))**2)
+    end subroutine anisotropy_index
 
 end module dislocdyn_crystals
