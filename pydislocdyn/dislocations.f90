@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - July 29, 2026
+! Date: Mar. 31, 2026 - July 31, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -29,6 +29,7 @@ module dislocdyn_dislocations
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
       procedure :: init_crystal => init_crystal
       procedure :: Miller_to_Cart => Miller_to_Cart
+      procedure :: computesound => computesound
   end type crystal
   !> The 'disloc' derived type extends 'crystal' by including information about a dislocation (slip plane etc.).
   !> It represents the fortran version of the Dislocation class found in PyDislocDyn, implementing a subset of the latter.
@@ -122,7 +123,9 @@ module dislocdyn_dislocations
       end select
       call volume_unitcell(mat)
       call elasticC2(mat%cij,mat%sym,mat%C2)
-      call elasticC3(mat%cijk,mat%sym,mat%C3)
+      if (allocated(mat%cijk)) then
+        call elasticC3(mat%cijk,mat%sym,mat%C3) ! skip if not set
+      end if
       if (mat%mu<1.d-9) then
         select case (trim(mat%sym))
           case ("iso")
@@ -194,6 +197,43 @@ module dislocdyn_dislocations
       end do
     end subroutine Miller_to_Cart
     !------------------------------
+    subroutine computesound(mat,v,sound)
+      use dislocdyn_parameters, only : sel, pi
+      use dislocdyn_utilities, only : elbrak1d
+      class(crystal), intent(in) :: mat
+      real(sel), intent(in) :: v(3)
+      real(sel), intent(out) :: sound(3)
+      ! local variables
+      real(sel) :: M(1,3), MM(1,3,3), MM2(3,3), C2(3,3,3,3), norm, P, Q, R, a, d, gam, tmpout
+      integer :: i
+      M(1,:) = v / sqrt(dot_product(v,v))
+      norm = (mat%C2(4,4)/mat%rho)
+      call unvoigt(mat%C2/mat%C2(4,4),C2)
+      call elbrak1d(M,M,C2,1,MM)
+      P = 0.d0
+      do i=1,3
+        P = P - MM(1,i,i)
+      end do
+      Q = 0.5d0*P**2
+      MM2(:,:) = 0.5d0*matmul(MM(1,:,:),MM(1,:,:))
+      do i=1,3
+        Q = Q - MM2(i,i)
+      end do
+      R = -(MM(1,1,1)*MM(1,2,2)*MM(1,3,3) + MM(1,1,3)*MM(1,2,1)*MM(1,3,2)+MM(1,1,2)*MM(1,2,3)*MM(1,3,1) &
+              -MM(1,1,3)*MM(1,2,2)*MM(1,3,1) - MM(1,1,1)*MM(1,2,3)*MM(1,3,2) - MM(1,1,2)*MM(1,2,1)*MM(1,3,3))
+      a = Q - P**2/3.d0
+      d = 2.d0*P**3/27.d0-Q*P/3.d0+R
+      gam = -0.5d0*d/sqrt(-a**3/27.d0)
+      gam = max(-1.d0,min(1.d0,gam))
+      gam = acos(gam)
+      do i=1,3
+        tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0
+        sound(i) = abs(sqrt(tmpout*norm))
+      end do
+    end subroutine computesound
+
+    !------------------------------
+
     subroutine update_slipplane(disl,Millerb,Millern0)
       class(disloc), intent(inout) :: disl
       real(sel), intent(in) :: Millerb(:), Millern0(:)

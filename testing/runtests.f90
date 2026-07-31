@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - July 22, 2026
+! Date: Mar. 25, 2026 - July 31, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -104,12 +104,12 @@ module dislocdyn_tests
       use dislocdyn_elasticconstants
       use dislocdyn_dislocations
       integer, intent(inout) :: count_pass,count_fail
-      type(disloc) :: Cu, Ti
-      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e
+      type(disloc) :: Cu, Ti, Fe
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, vsound(3)
       real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:)
       logical :: istrue
 !~       integer :: i
-      
+      ! in this test we validate against results of the Python code PyDislocDyn
       Cu = disloc(sym="fcc",metal="Cu",rho=8960.d0,lat_a = [3.6146d-10,0.d0,0.d0])
 !~       Cu%sym="cubic"; Cu%metal="Cu"; Cu%rho=8960.d0
 !~       Cu%lat_a = [3.6146d-10,0.d0,0.d0]
@@ -151,6 +151,8 @@ module dislocdyn_tests
       call Cu%computevcrit(vlim)
       vlim_e = vlim(Cu%ntheta,1)
       call testzero(vlim_s+vlim_e-3825.924891d0 + sum(vlim)-16102.217647d0,"disloc_Cu_vlim screw/edge",1.d-6,count_pass,count_fail)
+      call Cu%computesound([1.1d0,1.7d0,1.2d0],vsound)
+      call testzero(sum(vsound)-9475.9873498423d0,"Cu_vsound",1.d-9,count_pass,count_fail)
       
       Ti = disloc(sym="hcp",metal="Ti",rho=4506.d0,lat_a = [2.9506d-10,0.d0,4.6835d-10])
       Ti%cij = [1.624d11, 9.2d10, 6.9d10, 1.807d11, 4.67d10]
@@ -159,6 +161,8 @@ module dislocdyn_tests
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
       call phonondrag(B,Ti,[0.5d0])
       call testzero(sum(B)-0.0293866,"disloc_Tipyr_drag",1.d-5,count_pass,count_fail)
+      call Ti%computesound([1.d0,1.d0,0.d0],vsound)
+      call testzero(sum(vsound)-12017.673169952d0,"Tipyr_vsound",1.d-9,count_pass,count_fail)
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,0.d0]) ! switch to prismatic slip
       call testtrue((CheckReflectionSymmetry(Ti%C2aligned(:,:,1)) .and. &
                 CheckReflectionSymmetry(Ti%C2aligned(:,:,Ti%ntheta))),"reflection-sym, Ti screw/edge",count_pass,count_fail)
@@ -168,6 +172,14 @@ module dislocdyn_tests
       allocate(vlim(Ti%ntheta,3))
       call Ti%computevcrit(vlim)
       call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disloc_Tipris_vlimit",1.d-6,count_pass,count_fail)
+      
+      Fe = disloc(sym="bcc",metal="Fe",rho=7870.d0,lat_a = [2.8665d-10,0.d0,0.d0],ntheta=99)
+      Fe%cij = [226.0d9, 140.0d9, 116.0d9]
+      call Fe%init(Millerb=[0.5d0,-0.5d0,0.5d0],Millern0=[1.d0,-1.d0,-2.d0])
+      deallocate(vlim)
+      allocate(vlim(Fe%ntheta,3))
+      call Fe%computevcrit(vlim)
+      call testzero((sum(vlim)-1199413.936164d0)/real(Fe%ntheta,sel),"disloc_Fe112_vlimit",1.d-6,count_pass,count_fail)
       
     end subroutine test_disloc
 end module dislocdyn_tests
