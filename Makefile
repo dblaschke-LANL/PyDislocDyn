@@ -35,53 +35,58 @@ help:
 	@echo ''
 
 runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
-        pydislocdyn/dislocations.f90 testing/runtests.f90
+          pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 testing/runtests.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/optimize.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/crystals.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	# Link
-	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o optimize.o phononwind.o dislocations.o runtests.o $(LDFLAGS)
+	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o runtests.o $(LDFLAGS)
 
 build: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
-       pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90 app/dislocdyn.f90
+       pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90 app/dislocdyn.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/optimize.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/crystals.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/readinputfiles.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link
-	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o optimize.o phononwind.o dislocations.o readinputfiles.o dislocdyn.o $(LDFLAGS)
+	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \
+	dislocdyn.o $(LDFLAGS)
 	
 shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
-        pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90
+        pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/elasticconstants.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/optimize.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/phononwind.f90
+	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/crystals.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/readinputfiles.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link for linux
-	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o optimize.o phononwind.o dislocations.o readinputfiles.o $(LD_SH)
+	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o \
+	readinputfiles.o $(LD_SH)
 	$(FC) -o $(EXEC_tests)_sh.x runtests.o $(LDFLAGS) -l$(SHARED) -L.
 	## on linux run with: LD_LIBRARY_PATH="." ./runtests_sh.x)
 	$(FC) -o $(EXEC)_sh.x dislocdyn.o $(LDFLAGS) -l$(SHARED) -L.
 	## on linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x)
 
 static: build
-	ar rcs libdislocdyn.a subroutines.o elasticconstants.o optimize.o phononwind.o dislocations.o readinputfiles.o
+	ar rcs libdislocdyn.a subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o
 
 clean: 
-	rm -f subroutines.o elasticconstants.o optimize.o phononwind.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
+	rm -f subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
 	dislocdyn_parameters.mod dislocdyn_utilities.mod dislocdyn_subroutines.mod dislocdyn_opt.mod dislocdyn_phononwind.mod \
-	dislocdyn_phononwind_subroutines.mod dislocdyn_elasticconstants.mod dislocdyn_dislocations.mod dislocdyn_readinputfiles.mod \
-	dislocdyn_checks.mod dislocdyn_tests.mod
+	dislocdyn_phononwind_subroutines.mod dislocdyn_elasticconstants.mod dislocdyn_crystals.mod dislocdyn_dislocations.mod \
+	dislocdyn_readinputfiles.mod dislocdyn_checks.mod dislocdyn_tests.mod
 
 cleanall: clean
 	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so libdislocdyn.a
