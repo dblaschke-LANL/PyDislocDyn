@@ -24,7 +24,7 @@ if usefortran:
     edgevlim_of_phi = dislocdyn_subroutines.edgevlim_of_phi
     vlim_of_phi = dislocdyn_subroutines.vlim_of_phi
 else:
-    from .numba_subroutines import accscrew_xyintegrand, vlim_of_phi, edgevlim_of_phi
+    from ..numba_subroutines import accscrew_xyintegrand, vlim_of_phi, edgevlim_of_phi
 
 class Dislocation(StrohGeometry,metal_props):
     '''This class has all properties and methods of classes StrohGeometry and metal_props, as well as some additional methods: computevcrit, findvcrit_smallest, findRayleigh.

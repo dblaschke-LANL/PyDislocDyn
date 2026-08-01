@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 22, 2026
+# Date: Nov. 7, 2017 - Aug. 1, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -15,7 +15,12 @@ import pandas as pd
 ##
 from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt, \
     convert_SOECiso, convert_TOECiso, strain_poly
-from .utilities import str_to_array, loadinputfile
+from .utilities import str_to_array, loadinputfile, usefortran
+if usefortran:
+    from .subroutines import dislocdyn_subroutines
+    vlim_of_phi = dislocdyn_subroutines.vlim_of_phi
+else:
+    from .numba_subroutines import vlim_of_phi
 
 ### compute various contractions/invariants of elastic constant/compliance tensors:
 def invI1(C2):
@@ -437,24 +442,9 @@ class metal_props:
         out = np.zeros((3))
         v = np.asarray(v)
         v = v/np.sqrt(v @ v)
-        def findvel(i):
-            MM = np.dot(v,np.dot(C2,v))
-            P = -np.trace(MM)
-            Q = 0.5*(P**2-np.trace((MM @ MM)))
-            R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
-                  - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])
-            a = Q - P**2/3
-            d = (2*P**3-9*Q*P+27*R)/27
-            cosgamma = -0.5*d/np.sqrt(-a**3/27)
-            if cosgamma>1 and abs(cosgamma-1)<1e-8:
-                cosgamma = 1
-            elif cosgamma<-1 and abs(cosgamma-1)<1e-8:
-                cosgamma = -1
-            gamma = np.arccos(cosgamma)
-            tmpout = -P/3 + 2*np.sqrt(-a/3)*np.cos((gamma+2*i*np.pi)/3)
-            return np.abs(np.sqrt(tmpout*norm))
+        zero = np.array([1.,0.,0.])
         for i in range(3):
-            out[i] = findvel(i)
+            out[i] = vlim_of_phi(0.,i,C2,norm,v,zero)
         return out
     
     def find_wavespeed(self,which='l',verbose=False,accuracy=1e-4,maxiter=1000):

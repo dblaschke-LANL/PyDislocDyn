@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - July 31, 2026
+! Date: Mar. 31, 2026 - Aug. 1, 2026
 module dislocdyn_crystals
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : operator(.cross.) ! defined in subroutines.f90
@@ -176,37 +176,19 @@ module dislocdyn_crystals
     !> The present numerical method is derived from Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5 for the special 
     !> case of z=v and psi=0.
     subroutine computesound(mat,v,sound)
-      use dislocdyn_parameters, only : sel, pi
-      use dislocdyn_utilities, only : elbrak1d
+      use dislocdyn_parameters, only : sel
+      use dislocdyn_subroutines, only : vlim_of_phi
       class(crystal), intent(in) :: mat
       real(sel), intent(in) :: v(3)
       real(sel), intent(out) :: sound(3)
-      ! local variables
-      real(sel) :: M(1,3), MM(1,3,3), MM2(3,3), C2(3,3,3,3), norm, P, Q, R, a, d, gam, tmpout
+      real(sel) :: vnorm(3), zero(3), C2(3,3,3,3), norm
       integer :: i
-      M(1,:) = v / sqrt(dot_product(v,v))
+      vnorm = v / sqrt(dot_product(v,v))
+      zero = [0.d0,0.d0,0.d0]
       norm = (mat%C2(4,4)/mat%rho)
       call unvoigt(mat%C2/mat%C2(4,4),C2)
-      call elbrak1d(M,M,C2,1,MM)
-      P = 0.d0
       do i=1,3
-        P = P - MM(1,i,i)
-      end do
-      Q = 0.5d0*P**2
-      MM2(:,:) = 0.5d0*matmul(MM(1,:,:),MM(1,:,:))
-      do i=1,3
-        Q = Q - MM2(i,i)
-      end do
-      R = -(MM(1,1,1)*MM(1,2,2)*MM(1,3,3) + MM(1,1,3)*MM(1,2,1)*MM(1,3,2)+MM(1,1,2)*MM(1,2,3)*MM(1,3,1) &
-              -MM(1,1,3)*MM(1,2,2)*MM(1,3,1) - MM(1,1,1)*MM(1,2,3)*MM(1,3,2) - MM(1,1,2)*MM(1,2,1)*MM(1,3,3))
-      a = Q - P**2/3.d0
-      d = 2.d0*P**3/27.d0-Q*P/3.d0+R
-      gam = -0.5d0*d/sqrt(-a**3/27.d0)
-      gam = max(-1.d0,min(1.d0,gam))
-      gam = acos(gam)
-      do i=1,3
-        tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0
-        sound(i) = abs(sqrt(tmpout*norm))
+        sound(i) = vlim_of_phi(0.d0,i,C2,norm,vnorm,zero)
       end do
     end subroutine computesound
     !------------------------------

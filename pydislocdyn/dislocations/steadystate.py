@@ -8,7 +8,7 @@
 #################################
 import numpy as np
 import sympy as sp
-import pydislocdyn.dislocations.numba_subroutines as nsub
+import pydislocdyn.numba_subroutines as nsub
 from ..utilities import usefortran, delta, rotaround, artan
 if usefortran:
     from ..subroutines import dislocdyn_utilities, dislocdyn_phononwind, dislocdyn_subroutines
@@ -48,8 +48,8 @@ if usefortran:
             out = np.moveaxis(np.reshape(np.outer(1/r,out),(len(r),3,3,Ntheta,len(phi))),0,-2)
         return out
 else:
-    from .numba_subroutines import fourieruij_sincos, computeEtot, elbrak, elbrak1d, computeuij
-    from .numba_subroutines import fourieruij_nocut as _fourieruij_nocut
+    from ..numba_subroutines import fourieruij_sincos, computeEtot, elbrak, elbrak1d, computeuij
+    from ..numba_subroutines import fourieruij_nocut as _fourieruij_nocut
     def fourieruij_nocut(uij,phiX,sincos,Ntheta,phres):
         '''Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)'''
         return np.moveaxis(_fourieruij_nocut(uij,phiX,sincos,Ntheta,phres),-1,0)
