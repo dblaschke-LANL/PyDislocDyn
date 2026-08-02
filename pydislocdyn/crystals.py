@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 1, 2026
+# Date: Nov. 7, 2017 - Aug. 2, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -420,31 +420,24 @@ class metal_props:
         if self.C2.dtype == np.dtype('O'): ## force purely analytical calculation if C2 contains non-floats
             v = np.asarray(v,dtype=object)
             v = v/sp.sqrt(np.dot(v, v))
+            bt2 = sp.symbols('bt2')
+            c44 = self.C2[3,3]
+            thematrix = np.dot(v, np.dot(UnVoigt(self.C2/c44), v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
+            thedet = sp.det(sp.Matrix(thematrix))
+            out = sp.solve(thedet,bt2)
+            for i, si in enumerate(out):
+                si = si*c44/self.rho
+                out[i] = sp.sqrt(si)
         else:
-            return np.sort(self._computesound_fast(v))
-        bt2 = sp.symbols('bt2')
-        c44 = self.C2[3,3]
-        thematrix = np.dot(v, np.dot(UnVoigt(self.C2/c44), v)) - bt2* np.diag([1,1,1]) ## compute normalized bt2 = v^2 /( c44/rho )
-        thedet = sp.det(sp.Matrix(thematrix))
-        solution = sp.solve(thedet,bt2)
-        for i, si in enumerate(solution):
-            si = si*c44/self.rho
-            solution[i] = sp.sqrt(si)
-        return solution
-
-    def _computesound_fast(self,v):
-        '''Computes the sound speeds of the crystal propagating in the direction of unit vector v (Cartesian coordinates).
-           This is the (internal) faster purely numeric implementation; for the more general fct, use self.computesound().
-           The present numerical method is derived from Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5 for the special 
-           case of z=v and psi=0.'''
-        norm=(self.C2[3,3]/self.rho)
-        C2 = UnVoigt(self.C2/self.C2[3,3])
-        out = np.zeros((3))
-        v = np.asarray(v)
-        v = v/np.sqrt(v @ v)
-        zero = np.array([1.,0.,0.])
-        for i in range(3):
-            out[i] = vlim_of_phi(0.,i,C2,norm,v,zero)
+            norm=(self.C2[3,3]/self.rho)
+            C2 = UnVoigt(self.C2/self.C2[3,3])
+            out = np.zeros((3))
+            v = np.asarray(v)
+            v = v/np.sqrt(v @ v)
+            zero = np.array([1.,0.,0.])
+            for i in range(3):
+                out[i] = vlim_of_phi(0.,i,C2,norm,v,zero)
+            out = np.sort(out)
         return out
     
     def find_wavespeed(self,which='l',verbose=False,accuracy=1e-4,maxiter=1000):
@@ -474,7 +467,7 @@ class metal_props:
             raise ValueError("keyword which must be one of ['l','h','hs']")
         def f(x):
             v = [np.sin(x[0])*np.cos(x[1]),np.sin(x[0])*np.sin(x[1]),np.cos(x[0])]
-            return select(self._computesound_fast(v))
+            return select(self.computesound(v))
         bounds = [(0,2*np.pi),(0,2*np.pi)]
         result = optimize.direct(f,bounds,f_min_rtol=accuracy,maxiter=maxiter,maxfun=2*maxiter,vol_tol=accuracy**2,len_tol=accuracy)
         if not result.success or verbose:
