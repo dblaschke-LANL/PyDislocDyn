@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 21, 2026
+# Date: Nov. 3, 2017 - Aug. 2, 2026
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
@@ -241,7 +241,8 @@ class StrohGeometry:
         self.uk_aligned = ukrotated
         
     def computeEtot(self):
-        '''Computes the self energy of a straight dislocation uij moving at velocity beta. (Requirement: run method .computeuij(beta,C2) first.)'''
+        '''Computes the self energy logarithmic prefactor of a straight dislocation uij moving at velocity beta. (Requirement: run method .computeuij(beta,C2) first.)
+           Specifically, the self energy is Etot*ln(R/r0) where Etot is computed in this method and R and r0 are the outer and inner radius, see Phil. Mag. 98 (2018) 2397.'''
         self.Etot = computeEtot(self.uij, self.beta, self.C2norm, self.Cv, self.phi)
         
     def computeLT(self):

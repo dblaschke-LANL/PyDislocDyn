@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 29, 2026
+! Date: July 23, 2018 - Aug. 2, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260729
+  integer,parameter :: version = 20260802
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -252,7 +252,7 @@ module dislocdyn_subroutines
 
     !!**********************************************************************
 
-    !> Computes the self energy of a straight dislocation uij moving at velocity beta.
+    !> Computes the self energy logarithmic prefactor of a straight dislocation uij moving at velocity beta.
     SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel

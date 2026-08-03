@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Aug. 2, 2026
+! Date: Mar. 25, 2026 - Aug. 3, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -105,7 +105,7 @@ module dislocdyn_tests
       use dislocdyn_dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti, Fe
-      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, vsound(3), anisidx, zener
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener
       real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:), soundinvariant
       logical :: istrue
       integer :: i, j
@@ -175,12 +175,12 @@ module dislocdyn_tests
           soundinvariant = soundinvariant + C2(i,j,i,j)
         end do
       end do
-      call Ti%computesound([1.d0,0.d0,0.d0],vsound)
-      soundinvariant = soundinvariant - sum(vsound**2)*Ti%rho
-      call Ti%computesound([0.d0,1.d0,0.d0],vsound)
-      soundinvariant = soundinvariant - sum(vsound**2)*Ti%rho
-      call Ti%computesound([0.d0,0.d0,1.d0],vsound)
-      soundinvariant = soundinvariant - sum(vsound**2)*Ti%rho
+      Millerv = transpose(reshape([1.d0,0.d0,0.d0,0.d0, 0.d0,1.d0,-1.d0,0.d0, 0.d0,0.d0,0.d0,1.d0], [4,3])) ! 3 orthogonal vectors 
+      do i=1,3
+        call Ti%Miller_to_Cart(Millerv(i,:),v=v) ! by default, Miller_to_Cart will normalize Cartesian vector v
+        call Ti%computesound(v,vsound)
+        soundinvariant = soundinvariant - sum(vsound**2)*Ti%rho ! see Fitzgerald 1967 for details on this relation
+      end do
       call testzero(soundinvariant/Ti%rho,"Tipyr_vsound",1.d-7,count_pass,count_fail)
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,0.d0]) ! switch to prismatic slip
       call testtrue((CheckReflectionSymmetry(Ti%C2aligned(:,:,1)) .and. &

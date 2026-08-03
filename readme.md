@@ -56,7 +56,7 @@ A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included t
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
 * [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make to build the standalone Fortran frontend and library 
-* [Doxygen](https://www.doxygen.nl/) or [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build the documentation of the Fortran library
+* [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 (or [Doxygen](https://www.doxygen.nl/)) to build the documentation of the Fortran library
 
 ## Documentation
 
@@ -133,7 +133,7 @@ Presents some simple examples of how PyDislocDyn can be used as a module.
 
 ### Fortran library and frontend
 
-A shared library implementing a subset of PyDislocDyn features in Fortran is now available, as well as a Fortran frontend that currently can compute dislocation limiting velocities and the drag coefficient from phonon wind.
+A shared library, `dislocdynlib`, implementing a subset of PyDislocDyn features in Fortran is now available, as well as a Fortran frontend that currently can compute dislocation limiting velocities and the drag coefficient from phonon wind.
 Note that the Fortran version prioritizes computation speed over accuracy for dislocation drag.
 
 

@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - July 31, 2026
+! Date: Mar. 31, 2026 - Aug. 2, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -137,7 +137,9 @@ module dislocdyn_dislocations
       call computeuij(disl%beta,disl%C2norm,disl%Cv,disl%b,disl%M,disl%N,disl%phi,disl%ntheta,disl%nphi,disl%uij)
     end subroutine compute_uij
     !-------------------------
-    !> Computes the elastic self energy of a straight dislocation uij moving at velocity beta.
+    !> Computes the elastic self energy logarithmic prefactor of a straight dislocation uij moving at velocity beta.
+    !> Specifically, the self energy is Etot*ln(R/r0) where Etot is computed in this method
+    !> and R and r0 are the outer and inner radius, see Phil. Mag. 98 (2018) 2397.
     subroutine compute_elasticE(disl, Wtot)
       class(disloc), intent(in) :: disl
       real(sel), intent(out) :: Wtot(disl%ntheta)
