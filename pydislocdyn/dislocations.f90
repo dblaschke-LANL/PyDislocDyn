@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Aug. 2, 2026
+! Date: Mar. 31, 2026 - Aug. 5, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -210,7 +210,7 @@ module dislocdyn_dislocations
       norm=(disl%C2(4,4)/disl%rho)
       lb = -0.5d0*pi
       ub = 0.5d0*pi
-      vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+      vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),50))
       vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),20))
       vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
       if (.not. ((vlim(1)<=vlim(2)) .and. (vlim(2)<=vlim(3)))) then
