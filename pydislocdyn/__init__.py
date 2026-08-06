@@ -2,7 +2,7 @@
 # PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Jan. 8, 2024 - May 13, 2025
+# Date: Jan. 8, 2024 - Aug. 5, 2025
 '''PyDislocDyn is a suite of python programs designed to perform various calculations for basic research
    in dislocation dynamics in metals with various crystal symmetries in the continuum limit. In particular,
    one of its main purposes is to calculate dislocation drag from phonon wind. Additional features include
@@ -40,7 +40,7 @@ else:
     del fname
 
 from .metal_data import writeinputfile, writeallinputfiles
-from .utilities import usefortran, ompthreads, nonumba, Ncores, Ncpus, read_2dresults, roundcoeff, plotuij
+from .utilities import usefortran, ompthreads, nonumba, Ncores, Ncpus, read_2dresults, roundcoeff, plotuij, read_dislocdyn_output
 from .elasticconstants import Voigt, UnVoigt, CheckVoigt, strain_poly, elasticC2, elasticC3, \
     elasticS2, elasticS3, CheckReflectionSymmetry, convert_SOECiso, convert_TOECiso
 from .crystals import IsoAverages, metal_props, Miller_to_Cart

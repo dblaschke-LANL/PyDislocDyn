@@ -2,3 +2,4 @@ sim_type = vlimit
 n0 = 1, 1, 0
 b = 0.5, -0.5, 0.5
 ntheta = 99
+logfile = vlim_bcc110.log

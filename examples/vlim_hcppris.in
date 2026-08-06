@@ -2,3 +2,4 @@ sim_type = vlimit
 b = -1, 0, 0, 0
 n0 = -1, 0, 1, 0
 ntheta = 99
+logfile = vlim_hcppris.log

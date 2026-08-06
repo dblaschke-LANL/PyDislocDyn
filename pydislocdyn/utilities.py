@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 21, 2026
+# Date: Nov. 5, 2017 - Aug. 5, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -373,3 +373,40 @@ def plotuij(uij,r,phi,lim=(-1,1),showplt=True,title=None,savefig=False,fntsize=1
     if showplt:
         plt.show()
     plt.close()
+
+def read_dislocdyn_output(fname):
+    '''
+    Reads an output (log-) file "fname" of the Fortran frontent "dislocdyn"
+    and returns a dictionary containing pandas dataframes for all limiting velocities
+    and drag coefficients of all materials contained in that file.'''
+    out = {}
+    with open(fname,"r", encoding="utf8") as f1:
+        key = None
+        subkey = None
+        skiprows = 0
+        nrows = 0
+        f1lines = f1.readlines()
+        i = 0
+        for line in f1lines:
+            i += 1
+            if "name:" in line:
+                key = line.split()[1].strip()
+                out[key] = {}
+            elif key is not None and "---" in line and "Limiting" in line:
+                skiprows = i+1
+                subkey = 'vlim'
+                ind = 'theta'
+                columns = pd.Index(["1","2","3"],name="branch")
+            elif key is not None and "---" in line and "drag" in line:
+                skiprows = i+3
+                subkey = 'drag'
+                ind = 'beta'
+                columns = pd.Index(f1lines[i+1].split(),name='theta')
+            elif key is not None and skiprows>0 and (line.strip()=="" or i==len(f1lines)):
+                nrows = i-skiprows-1
+                if i==len(f1lines):
+                    nrows += 1
+                out[key][subkey] = pd.read_csv(fname,skiprows=skiprows,header=None,nrows=nrows,sep=r"\s+",index_col=0,names=columns).rename_axis(ind)
+                subkey = columns = None
+                skiprows = nrows = 0
+    return out
