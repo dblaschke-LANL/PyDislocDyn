@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{May 18, 2026}
+\date{July 29, 2026}
 
 \begin{document}
 \maketitle
@@ -76,7 +76,7 @@ Its main features summarize as:
 \begin{itemize}
 \item compute averages of elastic constants (various methods, see \cite{Blaschke:2017Poly})
 \item compute the steady-state displacement (gradient) field of a dislocation for arbitrary character angle in an arbitrary crystal geometry \cite{Bacon:1980,Hirth:1982}; a generalization to accelerating dislocations is in progress and so far has been implemented for pure screw dislocations \cite{Blaschke:2020acc} and pure edge dislocations \cite{Blaschke:2023acc}
-\item compute theoretical limiting velocities of dislocations in arbitrary slip systems and with arbitrary character angle \cite{Blaschke:2021vcrit,Blaschke:2020MD,Teutonico:1961,Barnett:1973b}
+\item compute theoretical limiting velocities of dislocations in arbitrary slip systems and with arbitrary character angle \cite{Blaschke:2026vlim,Blaschke:2021vcrit,Blaschke:2020MD,Teutonico:1961,Barnett:1973b}
 \item compute the elastic strain energy and line tension for any dislocation \cite{Blaschke:2017lten}
 \item compute the dislocation drag coefficient $B$ from phonon wind for any dislocation at any velocity \cite{Alshits:1979,Alshits:1992,Blaschke:BpaperRpt,Blaschke:2018anis,Blaschke:2019fits,Blaschke:2019Bpap} or stress \cite{Blaschke:2019a,Blaschke:2021impact,Blaschke:2021temperature}.
 \end{itemize}
@@ -372,7 +372,7 @@ In particular this includes the following objects:
 	\item \verb|convert_SOECiso| and \verb|convert_TOECiso| to convert between common sets of isotropic elastic constants at second (bulk, shear, and Young's modulus, Poisson's ratio, Lam\'e constants) and third (Standard rep., Murnaghan, and Tupin/Bernstein constants) order.
 	\item the \verb|strain_poly| class as described above in Section \ref{sec:strain_poly}.
    \item helper functions \verb|writeinputfile| and \verb|writeallinputfiles|  to write data defined in the python dictionaries of sub-module \verb|metaldata| to PyDislocDyn input files.
-   \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
+   \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile()|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
    \item \verb|read_2dresults|, to read files containing results from line tension or drag coefficient calculations into a \verb|pandas.DataFrame| as described in Section \ref{sec:frontends}.
    \item the \verb|metal_props| class, see Section \ref{sec:metal_props}; a function, \verb|readinputfile()|, to populate an instance from an input file is available from sub-module \verb|pydislocdyn.crystals|.
    \item function \verb|phonondrag| to calculate the drag coefficient $B$ in units of mPa\,s as a function of velocity for an instance of the Dislocation class.

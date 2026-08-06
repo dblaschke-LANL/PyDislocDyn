@@ -2,7 +2,7 @@
 ! run 'python -m numpy.f2py -c subroutines.f90 -m subroutines' to use
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - May 21, 2026
+! Date: July 23, 2018 - July 29, 2026
 
 !>defines various constants to be used elsewhere in the code
 module parameters
@@ -246,7 +246,7 @@ module various_subroutines
 
     !!**********************************************************************
 
-    !> Computes the self energy of a straight dislocation uij moving at velocity beta.
+    !> Computes the self energy logarithmic prefactor of a straight dislocation uij moving at velocity beta.
     SUBROUTINE computeEtot(uij, betaj, C2, Cv, phi, Ntheta, Nphi, Wtot)
     !-----------------------------------------------------------------------
       use parameters, only : sel
