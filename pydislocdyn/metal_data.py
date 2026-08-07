@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 9, 2026
+# Date: Nov. 3, 2017 - Aug. 7, 2026
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
 
 References for the data included in these dictionaries (see the manual and its bibliography for further details):
@@ -25,6 +25,7 @@ Srinivasan & Girirajan 1973 (K), Ramji Rao & Ramanan 1980 (Be), Vekilov, Krasiln
 TOEC data for Be, Pb, Sc, Ta, Zr, and W are from ab initio calculations at 0 or low pressure, all others were measured, see resp. references above.
 '''
 #################################
+from fractions import Fraction
 import numpy as np
 
 ISO_c44 = {'Ag':30.3e9, 'Al':26.1e9, 'Au':27.0e9, 'Be':132e9, 'Cd':19.2e9, 'Co':74.8e9, 'Cr':115.4e9, 'Cu':48.3e9, 'Er':28.3e9, 'Fe':81.6e9, 'Mg':17.3e9, 'Mo':124e9,
@@ -101,7 +102,9 @@ CRC_T_m = {'Ag':1234.93, 'Al':933.47, 'Au':1337.33, 'Be':1560.15, 'Cd':594.22, '
 fcc_metals = {'Ag', 'Al', 'Au', 'Cu', 'Ni', 'Pb', 'Pd', 'Pt'}
 bcc_metals = {'Cr', 'Fe', 'K', 'Mo', 'Nb', 'Ta', 'V', 'W'}
 hcp_metals = {'Be', 'Cd', 'Co', 'Er', 'Mg', 'Ti', 'Sc', 'Zn', 'Zr'}
-tetr_metals = {'In', 'Sn'}
+bct_metals = {'Sn'} # body-centered tetragonal
+fct_metals = {'In'} # face-centered tetragonal
+tetr_metals = bct_metals | fct_metals
 cubic_metals = fcc_metals | bcc_metals
 all_metals = cubic_metals | hcp_metals | tetr_metals
 
@@ -191,7 +194,31 @@ def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
             out.append(X)
     return out
 
-def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_soec=False,alt_rho=False,Millerb=None,Millern0=None):
+example_slip_planes = {'fcc':{'Millerb':[Fraction(1,2),Fraction(1,2),0],'Millern0':[-1, 1, -1]},
+                       'bcc110':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1, 1, 0]},
+                       'bcc112':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1, -1, -2]},
+                       'bcc123':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1, -2, -3]},
+                       'hcpbasal':{'Millerb':[-Fraction(2,3), Fraction(1,3), Fraction(1,3), 0],'Millern0':[0, 0, 0, 1]},
+                       'hcpprismatic':{'Millerb':[-Fraction(2,3), Fraction(1,3), Fraction(1,3), 0],'Millern0':[-1, 0, 1, 0]},
+                       'hcppyramidal':{'Millerb':[-Fraction(2,3), Fraction(1,3), Fraction(1,3), 0],'Millern0':[-1, 0, 1, 1]},
+                       ## for a list of slip systems in bct Sn, see Jpn J Appl Phys 32:3214  and Acta Mater. 192:1
+                       'bct1':{'Millerb':[0,0,1],'Millern0':[1,0,0]},
+                       'bct2':{'Millerb':[0,0,1],'Millern0':[1,1,0]},
+                       'bct3':{'Millerb':[0,1,0],'Millern0':[1,0,0]},
+                       'bct4':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1,1,0]},
+                       'bct5':{'Millerb':[1,-1,0],'Millern0':[1,1,0]},
+                       'bct6':{'Millerb':[0,1,1],'Millern0':[1,0,0]},
+                       'bct7':{'Millerb':[0,1,0],'Millern0':[0,0,1]},
+                       'bct8':{'Millerb':[1,1,0],'Millern0':[0,0,1]},
+                       'bct9':{'Millerb':[0,1,-1],'Millern0':[0,1,1]},
+                       'bct10':{'Millerb':[0,1,-1],'Millern0':[2,1,1]},
+                       ## for a list of slip systems in fct In, see Blind, George, Champier 1979, Strength of Metals and Alloys 1:175
+                       'fct1':{'Millerb':[Fraction(1,2),Fraction(1,2),0],'Millern0':[1,-1,1]},
+                       'fct2':{'Millerb':[Fraction(1,2),0,Fraction(1,2)],'Millern0':[1,1,-1]},
+                       'fct3':{'Millerb':[Fraction(1,2),0,Fraction(1,2)],'Millern0':[1,0,-1]},
+                       }
+
+def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrslip="1",alt_soec=False,alt_rho=False,Millerb=None,Millern0=None):
     '''
     Write selected data of metal X to a text file in a format key = value that can be read and understood by other parts of PyDislocDyn.
     Boolean option 'iso' is used to choose between writing single crystal values (default) and polycrystal (isotropic) averages.
@@ -203,53 +230,47 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',alt_so
     '''
     if fname=='auto':
         fname = X
+    slip = ""
     with open(fname,"w", encoding="utf8") as outf:
         outf.write(f"# this input file requires PyDislocDyn >=1.2.7\n# input parameters for {X} at ambient conditions\n\n")
         outf.write(f"name = {fname}\n")
         if X in fcc_metals:
+            slip = "fcc"
             outf.write("sym = fcc\n\n")
-            outf.write("# example slip system:\nMillerb = 1/2, 1/2, 0 \t# normalization applied automatically upon reading (after calculating 'burgers')\n")
-            outf.write(f"# burgers = {CRC_a[X]/np.sqrt(2)} \t# a/sqrt(2) (determined from Millerb above), this optional line can be used as an override\n")
-            outf.write("Millern0 = -1, 1, -1 \t# normalization 1/sqrt(3) applied automatically upon reading\n\n")
+            outf.write("# example slip system (normalization applied automatically upon reading and after calculating 'burgers')\n")
+            outf.write(f"# burgers = {CRC_a[X]/np.sqrt(2)} \t# a/sqrt(2) (determined from Millerb), this optional line can be used as an override\n")
         elif X in bcc_metals:
+            slip = 'bcc'+bccslip
             outf.write("sym = bcc\n\n")
-            outf.write("# example slip system:\nMillerb = 1/2, -1/2, 1/2 \t# normalization applied automatically upon reading (after calculating 'burgers')\n")
-            outf.write(f"# burgers = {CRC_a[X]*np.sqrt(3)/2} \t# a*sqrt(3)/2 (determined from Millerb above), this optional line can be used as an override\n")
-            if bccslip=='112':
-                outf.write("Millern0 = 1, -1, -2 \t# slip in 112 plane, normalization 1/sqrt(6) applied automatically upon reading\n\n")
-            elif bccslip=='123':
-                outf.write("Millern0 = 1, -2, -3 \t# slip in 123 plane, normalization 1/sqrt(14) applied automatically upon reading\n\n")
-            else:
-                outf.write("Millern0 = 1, 1, 0 \t# slip in 110 plane, normalization 1/sqrt(2) applied automatically upon reading\n\n")
+            outf.write("# example slip system (normalization applied automatically upon reading and after calculating 'burgers')\n")
+            outf.write(f"# burgers = {CRC_a[X]*np.sqrt(3)/2} \t# a*sqrt(3)/2 (determined from Millerb), this optional line can be used as an override\n")
         elif X in hcp_metals:
+            slip = 'hcp'+hcpslip
             outf.write("sym = hcp\n\n")
-            outf.write("# example slip systems:\n")
-            outf.write("Millerb = -2/3, 1/3, 1/3, 0\n") ## Miller indices are converted to normalized Cartesian upon reading
-            outf.write(f"# burgers = {CRC_a[X]} \t# a (determined from Millerb above), this optional line can be used as an override\n")
-            if hcpslip=='prismatic':
-                outf.write("Millern0 = -1, 0, 1, 0 \t# prismatic slip\n\n")
-            elif hcpslip=='pyramidal':
-                outf.write("Millern0 = -1, 0, 1, 1 \t# pyramidal slip, normalization applied automatically upon reading\n\n")
-            else:
-                outf.write("Millern0 = 0, 0, 0, 1 \t# basal slip\n\n")
+            outf.write("# example slip systems (Miller indices are converted to normalized Cartesian upon reading):\n")
+            outf.write(f"# burgers = {CRC_a[X]} \t# a (determined from Millerb), this optional line can be used as an override\n")
             ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
             ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
             ### therefore, may choose b parallel to x-axis
         elif X in tetr_metals:
+            slip = 'bct'+tetrslip
+            if X in fct_metals: slip = 'fct'+tetrslip
             outf.write("sym = tetr\n\n")
-            outf.write("# example slip system:\nMillerb = 0, 0, -1\n")
-            outf.write(f"# burgers = {CRC_c[X]} \t# c (determined from Millerb above), this optional line can be used as an override\n")
-            outf.write("Millern0 = 0, 1, 0\n\n")
+            outf.write("# burgers =  \t#  (determined from Millerb above), this optional line can be used as an override\n")
             ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
-            ## we choose here the simplest one with the shortest burgers vector in Sn (i.e. energetically most favorable),
+            ## simplest slip system in bct with the shortest burgers vector in Sn (i.e. energetically most favorable) is bct1 and in this case
             ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
+        if slip in example_slip_planes:
+            for key, value in example_slip_planes[slip].items():
+                outf.write(f"{key} = ")
+                outf.write(", ".join(map("{}".format,value))+"\n")
         if Millerb is not None:
             outf.write("# replacing Millerb above with user value:\nMillerb = ")
-            outf.write(", ".join(map("{}".format,Millerb))+"\n\n")
+            outf.write(", ".join(map("{}".format,Millerb))+"\n")
         if Millern0 is not None:
             outf.write("# replacing Millern0 above with user value:\nMillern0 = ")
-            outf.write(", ".join(map("{}".format,Millern0))+"\n\n")
-        outf.write("# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
+            outf.write(", ".join(map("{}".format,Millern0))+"\n")
+        outf.write("\n# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
         outf.write(f"T = 300\na = {CRC_a[X]}\n")
         if X in CRC_c:
             outf.write(f"c = {CRC_c[X]}\n")
@@ -295,13 +316,19 @@ def writeallinputfiles(iso=False,alt_soec=False,alt_rho=False):
         for X in all_metals.intersection(ISO_c44):
             writeinputfile(X,iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
     else:
-        for X in fcc_metals.union(tetr_metals):
-            writeinputfile(X,iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+        for X in fcc_metals:
+            writeinputfile(X,alt_soec=alt_soec,alt_rho=alt_rho)
+        for X in tetr_metals:
+            nslip = 3
+            if X in bct_metals: nslip=10
+            for i in range(nslip):
+                islip = str(i+1)
+                writeinputfile(X,X+islip,tetrslip=islip,alt_soec=alt_soec,alt_rho=alt_rho)
         for X in bcc_metals:
-            writeinputfile(X,X+"110",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
-            writeinputfile(X,X+"112",bccslip="112",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
-            writeinputfile(X,X+"123",bccslip="123",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"110",alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"112",bccslip="112",alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"123",bccslip="123",alt_soec=alt_soec,alt_rho=alt_rho)
         for X in hcp_metals:
-            writeinputfile(X,X+"basal",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
-            writeinputfile(X,X+"prismatic",hcpslip="prismatic",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
-            writeinputfile(X,X+"pyramidal",hcpslip="pyramidal",iso=iso,alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"basal",alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"prismatic",hcpslip="prismatic",alt_soec=alt_soec,alt_rho=alt_rho)
+            writeinputfile(X,X+"pyramidal",hcpslip="pyramidal",alt_soec=alt_soec,alt_rho=alt_rho)

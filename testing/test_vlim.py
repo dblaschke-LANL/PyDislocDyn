@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 5, 2026
+# Date: Aug. 6, 2026 - Aug. 7, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -166,28 +166,63 @@ def test_fortran_vlim_tetr(rnd=2):
     testfolder.mkdir(parents=True,exist_ok=True)
     os.chdir(testfolder)
     vlim_f_raw = {}
-    for slip in ["1","9"]:
+    # bct metals:
+    for islip in range(10):
+        slip = str(islip+1)
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.tetr_metals)):
-            command.append(tmpfolder / X)
-        command.append(example_path / f"vlim_tetr{slip}.in")
-        with open(f"vlim_tetr{slip}.log", 'w', encoding="utf8") as logfile:
+        for X in sorted(list(pydislocdyn.metal_data.bct_metals)):
+            command.append(tmpfolder / (X+slip))
+        fname = f"vlim_tetr_bct{slip}.in"
+        with open(fname,"w",encoding="utf8") as infile:
+            infile.write(f"sim_type = vlimit\nntheta = 99\nlogfile = {fname[:-2]}log\nechoinput = true\n")
+            for key, value in pydislocdyn.metal_data.example_slip_planes['bct'+slip].items():
+                infile.write(f"{key} = ")
+                value = np.array(value,dtype=float)
+                infile.write(", ".join(map("{}".format,value))+"\n")
+        command.append(testfolder / fname)
+        with open(f"{fname[:-2]}log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
                     # sys.stdout.write(line)
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_tetr{slip}.log")
+        vlim_f_raw['bct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log")
+    # fct metals:
+    for islip in range(3):
+        slip = str(islip+1)
+        command = basecommand.copy()
+        for X in sorted(list(pydislocdyn.metal_data.fct_metals)):
+            command.append(tmpfolder / (X+slip))
+        fname = f"vlim_tetr_fct{slip}.in"
+        with open(fname,"w",encoding="utf8") as infile:
+            infile.write(f"sim_type = vlimit\nntheta = 99\nlogfile = {fname[:-2]}log\nechoinput = true\n")
+            for key, value in pydislocdyn.metal_data.example_slip_planes['fct'+slip].items():
+                infile.write(f"{key} = ")
+                value = np.array(value,dtype=float)
+                infile.write(", ".join(map("{}".format,value))+"\n")
+        command.append(testfolder / fname)
+        with open(f"{fname[:-2]}log", 'w', encoding="utf8") as logfile:
+            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+                for line in subproc.stdout:
+                    # sys.stdout.write(line)
+                    logfile.write(line)
+                subproc.wait()
+        vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log")
+    # the same with python, then compare:
     for Xm in sorted(list(pydislocdyn.metal_data.tetr_metals)):
-        for slip in ["1"]:
-            X = Xm+slip
-            Y[X] = pydislocdyn.readinputfile(tmpfolder / Xm,Ntheta=99)
+        nslip = 3
+        slip = 'fct'
+        if Xm in pydislocdyn.metal_data.bct_metals:
+            nslip=10
+            slip = 'bct'
+        for islip in range(nslip):
+            X = Xm+str(islip+1)
+            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
-            # vlim_py[X].to_csv("vlim_"+X+"_py.txt",sep=" ",float_format='%.2f')
             # compare results
-            vlim_f[X] = vlim_f_raw[slip][Xm]['vlim'].reset_index()
+            vlim_f[X] = vlim_f_raw[slip+str(islip+1)][X]['vlim'].reset_index()
             vlim_f[X].columns = vlim_py[X].columns
             vlim_f[X].index.name = vlim_py[X].index.name
             assert vlim_py[X].round(rnd).eq(vlim_f[X].round(rnd)).all().all(), \
