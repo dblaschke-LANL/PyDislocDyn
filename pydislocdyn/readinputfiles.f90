@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - July 21, 2026
+! Date: Apr. 10, 2026 - Aug. 9, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -17,7 +17,7 @@ module dislocdyn_readinputfiles
     real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
     integer :: nbeta, ntheta, nphi
-    logical :: echoinput
+    logical :: echoinput, include_negative_theta
   end type inputdeck
   
   !-------------------------
@@ -76,6 +76,7 @@ module dislocdyn_readinputfiles
       sim_plan%betamax = 0.99d0
       sim_plan%Millernorm = 1.d0 ! will divide Millerb by this number so as to avoid having things like 0.333333 in the inputdeck
       sim_plan%echoinput = .true.
+      sim_plan%include_negative_theta = .false.
       sim_plan%logfile = 'dislocdyn.log'
       n = 3 ! expect 3 Miller indices for each b and n0 in the file
       if (present(sym) .and. trim(sym)=='hcp') n = 4 ! expect 4 Miller indices for each b and n0 in the file
@@ -108,6 +109,7 @@ module dislocdyn_readinputfiles
         end if
         if (key=='logfile') sim_plan%logfile = trim(values)
         if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
+        if (key=='include_negative_theta') read(line,*) key,dummy,sim_plan%include_negative_theta
         if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,sim_plan%b(1:n)
         if (key=='n0' .or. key=='Millern0') read(line,*) key,dummy,sim_plan%n0(1:n)
         if (key=='betamin') read(line,*) key,dummy,sim_plan%betamin

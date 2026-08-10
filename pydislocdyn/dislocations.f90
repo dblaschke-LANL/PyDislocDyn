@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Aug. 5, 2026
+! Date: Mar. 31, 2026 - Aug. 9, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -51,13 +51,26 @@ module dislocdyn_dislocations
     end subroutine update_slipplane
     !------------------------------
     !> initializes an array of dislocation character angles to be used in the computations
-    subroutine set_character_angles(disl)
+    !> default is to use character angles between 0 (screw) and +pi/2 (edge); set optional
+    !> parameter positive_theta = .false. to swap signs of these character angles
+    !> reason: not all slip systems are symmetric regarding positive and negative mixed
+    !> dislocation character angles; in these cases, the user can initialize two dislocations,
+    !> in two variables, one for positive theta, one for negative theta
+    subroutine set_character_angles(disl,positive_theta)
       class(disloc), intent(inout) :: disl
-      ! todo: use select case to determine whether or not we need negative theta as well
+      logical, optional :: positive_theta
+      logical :: positive_character
+      positive_character = .true.
+      if (present(positive_theta)) then
+        positive_character = positive_theta
+      end if
       if (allocated(disl%theta)) deallocate(disl%theta)
       if (allocated(disl%C2aligned)) deallocate(disl%C2aligned)
       allocate(disl%theta(disl%ntheta),disl%C2aligned(6,6,disl%ntheta))
       call linspace(0.d0,pi/2.d0,disl%ntheta,disl%theta)
+      if (.not. positive_character) then
+        disl%theta = -disl%theta
+      end if
     end subroutine set_character_angles
     !> computes several arrays to be used in the computation of a dislocation displacement gradient field for crystals
     !> using the integral version of the Stroh method
@@ -101,12 +114,17 @@ module dislocdyn_dislocations
     end subroutine computerot
     !-------------------------
     !> initializes various properties of the dislocation
-    subroutine init_disloc(disl,Millerb,Millern0)
+    subroutine init_disloc(disl,Millerb,Millern0,positive_theta)
       class(disloc), intent(inout) :: disl
       real(sel), optional :: Millerb(:), Millern0(:)
+      logical, optional :: positive_theta
       real(sel) :: tmp_len
       call disl%init_crystal()
-      call disl%update_theta()
+      if (present(positive_theta)) then
+        call disl%update_theta(positive_theta = positive_theta)
+      else
+        call disl%update_theta()
+      end if
       ! next, normalize b, n0, and decide if we need to derive burgers
       if (present(Millerb) .and. present(Millern0)) then
         call disl%update_slipplane(Millerb,Millern0)

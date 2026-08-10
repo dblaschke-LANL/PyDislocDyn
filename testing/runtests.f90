@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Aug. 4, 2026
+! Date: Mar. 25, 2026 - Aug. 9, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -199,6 +199,23 @@ module dislocdyn_tests
       allocate(vlim(Fe%ntheta,3))
       call Fe%computevcrit(vlim)
       call testzero((sum(vlim)-1199413.936164d0)/real(Fe%ntheta,sel),"disloc_Fe112_vlimit",1.d-6,count_pass,count_fail)
+      ! test init with negative theta
+      Fe%ntheta = 5
+      Fe%mu = 81.6d9
+      Fe%lam = 115.5d9
+      Fe%cijk = [-27.2d11,-6.08d11,-5.78d11,-8.36d11,-5.3d11,-7.2d11]
+      call Fe%init(Millerb=[0.5d0,-0.5d0,0.5d0],Millern0=[1.d0,1.d0,0.d0],positive_theta = .false.)
+      deallocate(vlim)
+      allocate(vlim(Fe%ntheta,3))
+      call Fe%computevcrit(vlim)
+      deallocate(B,Etot)
+      allocate(Etot(Fe%ntheta))
+      Fe%beta = 0.5d0
+      call Fe%update_uij()
+      call Fe%update_elasticE(Etot)
+      call testzero(sum(vlim)/1.d5+sum(Etot)-0.5059065d0-0.6158183d0,"disloc_Fe_neg-theta",1.d-5,count_pass,count_fail)
+      call phonondrag(B,Fe,[0.1d0,0.5d0])
+      call testzero(sum(B)-0.170316,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
       
     end subroutine test_disloc
 end module dislocdyn_tests

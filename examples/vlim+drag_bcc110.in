@@ -1,0 +1,9 @@
+sim_type = vlimit
+sim_type = drag
+include_negative_theta = .true.
+n0 = 1, 1, 0
+b = 0.5, -0.5, 0.5
+ntheta = 5
+nbeta = 3
+betamax = 0.6
+logfile = vlim+drag_bcc110.log

@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - July 21, 2026
+! Date: Apr. 10, 2026 - Aug. 9, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -16,7 +16,7 @@ program dislocdyn
   integer :: nthreads, i, j, k, p, num_args, un(3), start_time, finish_time, countrate
   character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, proginfo, threadinfo, usageinfo
   character(256), dimension(:), allocatable :: args
-  type(disloc), dimension(:), allocatable :: disl
+  type(disloc), dimension(:), allocatable :: disl, disl_neg
   type(inputdeck) :: sim_plan
   real(sel), allocatable :: B(:,:), vlim(:,:)
   un = [output_unit, 123, error_unit]
@@ -62,7 +62,7 @@ program dislocdyn
   end if
   
   instructionfile = trim(args(num_args))
-  allocate(disl(num_args-1))
+  allocate(disl(num_args-1),disl_neg(num_args-1))
   
   call system_clock(start_time,countrate)
   ! loop over material files, using the same instruction file for each one
@@ -98,6 +98,10 @@ program dislocdyn
     end if
     sim_plan%b = sim_plan%b/sim_plan%Millernorm
     sim_plan%n0 = sim_plan%n0/sim_plan%Millernorm
+    if (sim_plan%include_negative_theta) then
+      disl_neg(i) = disl(i)
+      call disl_neg(i)%init(Millerb=sim_plan%b,Millern0=sim_plan%n0,positive_theta = .false.)
+    end if
     call disl(i)%init(Millerb=sim_plan%b,Millern0=sim_plan%n0)
     do k = 1,2
       if (sim_plan%echoinput .or. k==2) then
@@ -115,6 +119,18 @@ program dislocdyn
     
     do p=1,size(sim_plan%sim_type)
       if (sim_plan%sim_type(p)%str=='drag') then
+        if (sim_plan%include_negative_theta) then
+          call phonondrag(B,disl_neg(i),sim_plan%beta)
+          do k=1,2
+            write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind, negative character angles ---"
+            write(un(k),*) "character angles in units of pi (theta=0 is pure screw, theta=-pi/2 is pure edge):"
+            write(un(k),'(*(f10.4))') disl_neg(i)%theta/pi
+            write(un(k),*) "beta // drag coefficient B(beta,theta) in units of mPas:"
+            do j=1,size(sim_plan%beta)
+              write(un(k),'(f10.4, *(f10.6))') sim_plan%beta(j), B(:,j)
+            end do
+          end do
+        end if
         call phonondrag(B,disl(i),sim_plan%beta)
         do k=1,2
           write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind ---"
@@ -128,6 +144,16 @@ program dislocdyn
       else if (sim_plan%sim_type(p)%str=='vlimit') then
         if (allocated(vlim)) deallocate(vlim)
         allocate(vlim(disl(i)%ntheta,3))
+        if (sim_plan%include_negative_theta) then
+          call disl_neg(i)%computevcrit(vlim)
+          do k=1,2
+            write(un(k),*) new_line('a')//"--- Limiting dislocation velocities, negative character angles ---"
+            write(un(k),*) "theta [pi] / vlimit in m/s; lowest, 2nd, and highest"
+            do j=1,disl_neg(i)%ntheta
+              write(un(k),'(f10.4,*(f10.2))') disl_neg(i)%theta(j)/pi,vlim(j,:)
+            end do
+          end do
+        end if
         call disl(i)%computevcrit(vlim)
         do k=1,2
           write(un(k),*) new_line('a')//"--- Limiting dislocation velocities ---"
