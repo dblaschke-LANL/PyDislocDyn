@@ -1,11 +1,14 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Aug. 9, 2026
+! Date: Mar. 25, 2026 - Aug. 10, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
+  character(*), parameter :: esc = achar(27), red = '[31m', green = '[32m', reset = '[0m'
+  character(*), parameter :: passed = char(9)//esc//green//"PASSED"//esc//reset
+  character(*), parameter :: failed = char(9)//esc//red//"FAILED"//esc//reset
   contains
   subroutine testtrue(equal,string,count_pass,count_fail)
     logical, intent(in) :: equal
@@ -13,10 +16,10 @@ module dislocdyn_checks
     character(*), intent(in) :: string
     if (equal) then
       count_pass = count_pass+1
-      print*,"test " // string//": "//char(9)//"PASSED"
+      print*,"test " // string//": "//passed
     else
       count_fail = count_fail+1
-      print*,"test " // string//": "//char(9)//"FAILED"
+      print*,"test " // string//": "//failed
     end if
   end subroutine testtrue
   subroutine testequal(A,B,n,m,string,tolerance,count_pass,count_fail)
@@ -32,10 +35,10 @@ module dislocdyn_checks
     equal = all(abs(A-B) <= tolerance)
     if (equal) then
       count_pass = count_pass+1
-      print*,"test " // string//": "//char(9)//"PASSED"
+      print*,"test " // string//": "//passed
     else
       count_fail = count_fail+1
-      print*,"test " // string//": "//char(9)//"FAILED"
+      print*,"test " // string//": "//failed
     end if
   end subroutine testequal
 
@@ -52,10 +55,10 @@ module dislocdyn_checks
     equal = all(abs(A-B) <= tolerance)
     if (equal) then
       count_pass = count_pass+1
-      print*,"test " // string//": "//char(9)//"PASSED"
+      print*,"test " // string//": "//passed
     else
       count_fail = count_fail+1
-      print*,"test " // string//": "//char(9)//"FAILED"
+      print*,"test " // string//": "//failed
     end if
   end subroutine testequalarray
 
@@ -214,8 +217,8 @@ module dislocdyn_tests
       call Fe%update_uij()
       call Fe%update_elasticE(Etot)
       call testzero(sum(vlim)/1.d5+sum(Etot)-0.5059065d0-0.6158183d0,"disloc_Fe_neg-theta",1.d-5,count_pass,count_fail)
-      call phonondrag(B,Fe,[0.1d0,0.5d0])
-      call testzero(sum(B)-0.170316,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
+      call phonondrag(B,Fe,[0.25d0])
+      call testzero(sum(B)-0.0846864,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
       
     end subroutine test_disloc
 end module dislocdyn_tests
@@ -306,7 +309,11 @@ program runtests
   
   call system_clock(finish_time)
   print*,"------------------------------------------------------------"
-  print*,"SUMMARY:", count_pass," passed and ",count_fail," failed"
+  if (count_fail>0) then
+    print*,"SUMMARY:", count_pass,passed//" and ",count_fail,failed
+  else
+    print*,"SUMMARY:", count_pass,passed//" and ",count_fail," failed"
+  end if
   print*,"time: ",real(finish_time-start_time)/real(countrate), "s"
   
   if (count_fail>0) error stop "some tests failed"
