@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Aug. 7, 2026
+# Date: Aug. 6, 2026 - Aug. 10, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -73,20 +73,16 @@ def test_fortran_vlim_fcc(rnd=2):
     with open("vlim_fcc.log", 'w', encoding="utf8") as logfile:
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
             for line in subproc.stdout:
-                # sys.stdout.write(line)
                 logfile.write(line)
             subproc.wait()
-    vlim_f_raw = read_dislocdyn_output("vlim_fcc.log")
+    vlim_f_raw = read_dislocdyn_output("vlim_fcc.log",postprocess=True)
     for X in sorted(list(pydislocdyn.metal_data.fcc_metals)):
         Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99)
         vlim_py[X] = Y[X].computevcrit(return_all=True)
         vlim_py[X].columns = vlim_py[X].columns/np.pi
         vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
-        # vlim_py[X].to_csv("vlim_"+X+"_py.txt",sep=" ",float_format='%.2f')
         # compare results
         vlim_f[X] = vlim_f_raw[X]['vlim'].reset_index()
-        vlim_f[X].columns = vlim_py[X].columns
-        vlim_f[X].index.name = vlim_py[X].index.name
         assert vlim_py[X].round(rnd).eq(vlim_f[X].round(rnd)).all().all(), \
             f"{X} differs:\n{vlim_py[X].round(rnd).compare(vlim_f[X].round(rnd))}"
 
@@ -105,18 +101,18 @@ def test_fortran_vlim_bcc(rnd=1):
         with open(f"vlim_bcc{slip}.log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
-                    # sys.stdout.write(line)
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_bcc{slip}.log")
+        vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_bcc{slip}.log",postprocess=True)
     for Xm in sorted(list(pydislocdyn.metal_data.bcc_metals)):
         for slip in ["110", "112", "123"]:
             X = Xm+slip
-            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99)
+            symmetric = True
+            if slip=='110': symmetric = False
+            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99,symmetric=symmetric)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
-            # vlim_py[X].to_csv("vlim_"+X+"_py.txt",sep=" ",float_format='%.2f')
             # compare results
             vlim_f[X] = vlim_f_raw[slip][X]['vlim'].reset_index()
             vlim_f[X].columns = vlim_py[X].columns
@@ -140,10 +136,9 @@ def test_fortran_vlim_hcp(rnd=2):
         with open(f"vlim_hcp{slip}.log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
-                    # sys.stdout.write(line)
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_hcp{slip}.log")
+        vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_hcp{slip}.log",postprocess=True)
     for Xm in sorted(list(pydislocdyn.metal_data.hcp_metals)):
         for slip, slipL in hcpslip.items():
             X = Xm+slip
@@ -151,11 +146,8 @@ def test_fortran_vlim_hcp(rnd=2):
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
-            # vlim_py[X].to_csv("vlim_"+X+"_py.txt",sep=" ",float_format='%.2f')
             # compare results
             vlim_f[X] = vlim_f_raw[slip][f"{Xm}basal"]['vlim'].reset_index()
-            vlim_f[X].columns = vlim_py[X].columns
-            vlim_f[X].index.name = vlim_py[X].index.name
             assert vlim_py[X].round(rnd).eq(vlim_f[X].round(rnd)).all().all(), \
                 f"{X} differs:\n{vlim_py[X].round(rnd).compare(vlim_f[X].round(rnd))}"
 
@@ -183,10 +175,9 @@ def test_fortran_vlim_tetr(rnd=2):
         with open(f"{fname[:-2]}log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
-                    # sys.stdout.write(line)
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw['bct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log")
+        vlim_f_raw['bct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log",postprocess=True)
     # fct metals:
     for islip in range(3):
         slip = str(islip+1)
@@ -204,10 +195,9 @@ def test_fortran_vlim_tetr(rnd=2):
         with open(f"{fname[:-2]}log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
-                    # sys.stdout.write(line)
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log")
+        vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log",postprocess=True)
     # the same with python, then compare:
     for Xm in sorted(list(pydislocdyn.metal_data.tetr_metals)):
         nslip = 3
@@ -223,7 +213,5 @@ def test_fortran_vlim_tetr(rnd=2):
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
             # compare results
             vlim_f[X] = vlim_f_raw[slip+str(islip+1)][X]['vlim'].reset_index()
-            vlim_f[X].columns = vlim_py[X].columns
-            vlim_f[X].index.name = vlim_py[X].index.name
             assert vlim_py[X].round(rnd).eq(vlim_f[X].round(rnd)).all().all(), \
                 f"{X} differs:\n{vlim_py[X].round(rnd).compare(vlim_f[X].round(rnd))}"

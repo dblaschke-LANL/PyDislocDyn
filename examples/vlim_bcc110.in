@@ -1,4 +1,5 @@
 sim_type = vlimit
+include_negative_theta = .true.
 n0 = 1, 1, 0
 b = 0.5, -0.5, 0.5
 ntheta = 99
