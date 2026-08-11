@@ -11,6 +11,11 @@ import pathlib
 import subprocess
 import shutil
 import pytest
+try:
+    from threadpoolctl import threadpool_limits
+    use_ctl = True
+except ImportError:
+    use_ctl = False
 import numpy as np
 dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
@@ -18,7 +23,7 @@ if dir_path not in sys.path:
 dir_path = pathlib.Path(__file__).resolve().parents[1]
 example_path = dir_path / "examples"
 import pydislocdyn
-from pydislocdyn import read_dislocdyn_output
+from pydislocdyn import read_dislocdyn_output, Ncpus, ompthreads
 cwd =pathlib.Path.cwd()
 from test_regression import prepare_inputfiles
 
@@ -58,6 +63,16 @@ basecommand = [executable]
 if usefpm:
     basecommand = [fpm,"run","--profile","release","--"]
 
+_ompthreads = ompthreads()
+def _reset_ompthreads():
+    '''revert OMP_NUM_THREADS to initial value'''
+    if use_ctl:
+        threadpool_limits(_ompthreads)
+def _maximize_ompthreads():
+    '''set OMP_NUM_THREADS to Ncpus'''
+    if use_ctl:
+        threadpool_limits(Ncpus)
+
 @pytest.mark.skipif(skiptests, reason=reason)
 def test_fortran_drag_fcc(rnd=6,beta=0.25,Ntheta=3):
     '''tests if the fortran and python codes agree on drag coefficients of various fcc crystals'''
@@ -67,6 +82,7 @@ def test_fortran_drag_fcc(rnd=6,beta=0.25,Ntheta=3):
     Y = {}
     drag_py = {}
     drag_f = {}
+    _maximize_ompthreads()
     command = basecommand.copy()
     for X in sorted(list(pydislocdyn.metal_data.fcc_metals)):
         command.append(tmpfolder / X)
@@ -91,6 +107,7 @@ def test_fortran_drag_fcc(rnd=6,beta=0.25,Ntheta=3):
         # compare results
         assert drag_py[X].round(rnd).eq(drag_f[X]['drag'].round(rnd)).all().all(), \
             f"{X} differs:\n{drag_py[X].round(rnd).compare(drag_f[X]['drag'].round(rnd))}"
+    _reset_ompthreads()
 
 @pytest.mark.skipif(skiptests, reason=reason)
 def test_fortran_drag_bcc(rnd=6,beta=0.25,Ntheta=3):
@@ -101,6 +118,7 @@ def test_fortran_drag_bcc(rnd=6,beta=0.25,Ntheta=3):
     Y = {}
     drag_py = {}
     drag_f = {}
+    _maximize_ompthreads()
     for slip in ["110", "112", "123"]:
         command = basecommand.copy()
         for X in sorted(list(pydislocdyn.metal_data.bcc_metals)):
@@ -136,6 +154,7 @@ def test_fortran_drag_bcc(rnd=6,beta=0.25,Ntheta=3):
             # compare results
             assert drag_py[X].round(rnd).eq(drag_f[slip][X]['drag'].round(rnd)).all().all(), \
                 f"{X} differs:\n{drag_py[X].round(rnd).compare(drag_f[slip][X]['drag'].round(rnd))}"
+    _reset_ompthreads()
 
 @pytest.mark.skipif(skiptests, reason=reason)
 def test_fortran_drag_hcp(rnd=6,beta=0.25,Ntheta=3):
@@ -147,6 +166,7 @@ def test_fortran_drag_hcp(rnd=6,beta=0.25,Ntheta=3):
     Y = {}
     drag_py = {}
     drag_f = {}
+    _maximize_ompthreads()
     for slip, slipL in hcpslip.items():
         command = basecommand.copy()
         for X in sorted(list(pydislocdyn.metal_data.hcp_metals)):
@@ -174,6 +194,7 @@ def test_fortran_drag_hcp(rnd=6,beta=0.25,Ntheta=3):
             # compare results
             assert drag_py[X].round(rnd).eq(drag_f[slip][f'{Xm}basal']['drag'].round(rnd)).all().all(), \
                 f"{X} differs:\n{drag_py[X].round(rnd).compare(drag_f[slip][f'{Xm}basal']['drag'].round(rnd))}"
+    _reset_ompthreads()
 
 @pytest.mark.skipif(skiptests, reason=reason)
 def test_fortran_drag_tetr(rnd=6,beta=0.25,Ntheta=3):
@@ -184,6 +205,7 @@ def test_fortran_drag_tetr(rnd=6,beta=0.25,Ntheta=3):
     Y = {}
     drag_py = {}
     drag_f = {}
+    _maximize_ompthreads()
     # bct metals:
     for islip in range(10):
         slip = str(islip+1)
@@ -250,3 +272,4 @@ def test_fortran_drag_tetr(rnd=6,beta=0.25,Ntheta=3):
             # compare results
             assert drag_py[X].round(rnd).eq(drag_f[slip+str(islip+1)][X]['drag'].round(rnd)).all().all(), \
                 f"{X} differs:\n{drag_py[X].round(rnd).compare(drag_f[slip+str(islip+1)][X]['drag'].round(rnd))}"
+    _reset_ompthreads()
