@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Aug. 10, 2026
+# Date: Aug. 6, 2026 - Aug. 11, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -87,7 +87,7 @@ def test_fortran_vlim_fcc(rnd=2):
             f"{X} differs:\n{vlim_py[X].round(rnd).compare(vlim_f[X].round(rnd))}"
 
 @pytest.mark.skipif(skiptests, reason=reason)
-def test_fortran_vlim_bcc(rnd=1):
+def test_fortran_vlim_bcc(rnd=2):
     '''tests if the fortran and python codes agree on limiting velocities of various bcc crystals'''
     testfolder = pathlib.Path(example_path / "bcc_metals")
     testfolder.mkdir(parents=True,exist_ok=True)
@@ -108,7 +108,8 @@ def test_fortran_vlim_bcc(rnd=1):
         for slip in ["110", "112", "123"]:
             X = Xm+slip
             symmetric = True
-            if slip=='110': symmetric = False
+            if slip in ['110','123']:
+                symmetric = False
             Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99,symmetric=symmetric)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
@@ -167,6 +168,8 @@ def test_fortran_vlim_tetr(rnd=2):
         fname = f"vlim_tetr_bct{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
             infile.write(f"sim_type = vlimit\nntheta = 99\nlogfile = {fname[:-2]}log\nechoinput = true\n")
+            if islip in [3,5,9]: # islip starts at 0, i.e. non-symmetric bct slip planes are 4,6,10
+                infile.write("include_negative_theta = true\n")
             for key, value in pydislocdyn.metal_data.example_slip_planes['bct'+slip].items():
                 infile.write(f"{key} = ")
                 value = np.array(value,dtype=float)
@@ -187,6 +190,8 @@ def test_fortran_vlim_tetr(rnd=2):
         fname = f"vlim_tetr_fct{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
             infile.write(f"sim_type = vlimit\nntheta = 99\nlogfile = {fname[:-2]}log\nechoinput = true\n")
+            if islip==1: # islip starts at 0, i.e. non-symmetric fct slip plane is 2
+                infile.write("include_negative_theta = true\n")
             for key, value in pydislocdyn.metal_data.example_slip_planes['fct'+slip].items():
                 infile.write(f"{key} = ")
                 value = np.array(value,dtype=float)
@@ -207,7 +212,10 @@ def test_fortran_vlim_tetr(rnd=2):
             slip = 'bct'
         for islip in range(nslip):
             X = Xm+str(islip+1)
-            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99)
+            symmetric = True
+            if (slip=='bct' and islip in [3,5,9]) or (slip=='fct' and islip==1):
+                symmetric = False
+            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99,symmetric=symmetric)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
