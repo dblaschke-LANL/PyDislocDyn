@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 21, 2026
+# Date: Nov. 5, 2017 - Aug. 11, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -59,7 +59,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         Debye_series = False # ensure consistent behavior between python and fortran implementations below
         print("Warning: r0cut is set, therefore ignoring 'Debye_series=True'.")
     elif Debye_series and T<debye_convergence:
-        print(f"Warning: using the high temperature expansion of the Debye functions at temperature {T=}K; result will be inaccurate. Recommend running with 'Debye_series=False'.")
+        print(f"Warning: using the high temperature expansion of the Debye functions at temperature {T=}K; result will be inaccurate. Recommend running with 'Debye_series=False' for {name} and T<{round(debye_convergence+1)}K.")
     iso = False
     if A3[0,0,0,0,0,0].shape == ():
         A3 = np.repeat(A3[None,:],1,axis=0)
