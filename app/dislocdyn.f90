@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Aug. 9, 2026
+! Date: Apr. 10, 2026 - Aug. 11, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -110,7 +110,11 @@ program dislocdyn
         write(un(k),'(a, f10.6, f10.6, f10.6)') "lattice angles [pi]: ",disl(i)%lat_angles/pi
         write(un(k),'(a, *(f10.2))') "cij [GPa]: ",disl(i)%cij/1.d9
         write(un(k),'(a, f10.2, f10.2, a)') "Lame constants: ", disl(i)%lam/1.d9, disl(i)%mu/1.d9, " GPa"
-        write(un(k),'(a, *(f10.2))') "cijk [GPa]: ", disl(i)%cijk/1.d9
+        if (allocated(disl(i)%cijk)) then
+          write(un(k),'(a, *(f10.2))') "cijk [GPa]: ", disl(i)%cijk/1.d9
+        else
+          write(un(k),'(a, *(f10.2))') "cijk [GPa]: NONE"
+        end if
         write(un(k),'(a, f10.8, a)') "Vc=", disl(i)%Vc*1.d27, " nm^3"
         write(un(k),'(a, f10.6, a)') "burgers=", disl(i)%burgers*1.d10, " Angstroem"
         write(un(k),*) "slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0
