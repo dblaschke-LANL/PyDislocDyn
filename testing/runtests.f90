@@ -1,14 +1,16 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Aug. 10, 2026
+! Date: Mar. 25, 2026 - Aug. 12, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
+  private
   character(*), parameter :: esc = achar(27), red = '[31m', green = '[32m', reset = '[0m'
   character(*), parameter :: passed = char(9)//esc//green//"PASSED"//esc//reset
   character(*), parameter :: failed = char(9)//esc//red//"FAILED"//esc//reset
+  public :: checkvoigt, testtrue, testequal, testequalarray, testzero, passed, failed
   contains
   subroutine testtrue(equal,string,count_pass,count_fail)
     logical, intent(in) :: equal
@@ -101,6 +103,8 @@ module dislocdyn_tests
   use dislocdyn_parameters, only: sel, pi
   use dislocdyn_checks
   implicit none
+  private
+  public :: test_disloc
   contains
     subroutine test_disloc(count_pass,count_fail)
       use dislocdyn_subroutines, only : computeEtot
@@ -108,8 +112,8 @@ module dislocdyn_tests
       use dislocdyn_dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti, Fe
-      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener
-      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:), soundinvariant
+      real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener, soundinvariant
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:)
       logical :: istrue
       integer :: i, j
       ! in parts of this test we validate against results of the Python code PyDislocDyn

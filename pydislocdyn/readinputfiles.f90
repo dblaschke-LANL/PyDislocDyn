@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Aug. 11, 2026
+! Date: Apr. 10, 2026 - Aug. 12, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -150,8 +150,8 @@ module dislocdyn_readinputfiles
       real(sel) :: c111, c112, c113, c123, c133, c144, c155, c166, c222, c333, c344, c366, c456
       
       c11=0.d0; c12=0.d0; c13=0.d0; c33=0.d0; c44=0.d0; c66=0.d0
-      c111=0.d0; c112=0.d0; c113=0.d0; c123=0.d0; c133=0.d0; c144=0.d0; c155=0.d0; c166=0.d0; c222=0.d0; c333=0.d0; &
-      c344=0.d0; c366=0.d0; c456=0.d0
+      c111=0.d0; c112=0.d0; c113=0.d0; c123=0.d0; c133=0.d0; c144=0.d0; c155=0.d0; c166=0.d0; c222=0.d0
+      c333=0.d0; c344=0.d0; c366=0.d0; c456=0.d0
       
       open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
       if (ios/=0) then

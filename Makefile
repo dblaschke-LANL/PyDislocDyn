@@ -10,9 +10,20 @@ else ifeq ($(FC),flang)
   FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
+else ifeq ($(FC),ftn)
+  FC = ftn
+  FFLAGS = -O3 -qopenmp
+  LDFLAGS = -qopenmp
+  LD_SH = -shared $(LDFLAGS)
+else ifeq ($(FC),ifx)
+  FC = ifx
+  FFLAGS = -O3 -stand f23 -qopenmp# -qno-openmp-simd -fp-model=precise -fno-fast-math
+  LDFLAGS = -qopenmp 
+  LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
   FC = gfortran -fimplicit-none# -flto -ffree-line-length-225
   FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native# -funroll-loops
+#  FFLAGS = -O0  -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
 endif

@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Aug. 11, 2026
+! Date: July 23, 2018 - Aug. 12, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260811
+  integer,parameter :: version = 20260812
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -306,7 +306,8 @@ module dislocdyn_subroutines
       integer i,j,k,th,ph
       Cv = 0.d0
       x = b .cross. n0
-      do concurrent (th=1:ntheta)
+      do th=1,ntheta
+      !do concurrent (th=1:ntheta) local(i,j,k,ph)
         t(:,th) = cos(theta(th))*b + x*sin(theta(th))
         m0(:,th) = n0 .cross. t(:,th)
         do i=1,3

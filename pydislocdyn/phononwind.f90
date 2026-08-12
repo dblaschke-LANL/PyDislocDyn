@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - July 29, 2026
+! Date: July 23, 2018 - Aug. 12, 2026
 
 !> this module contains subroutines for phononwind_xx() and phononwind_xy()
 module dislocdyn_phononwind_subroutines
@@ -58,36 +58,40 @@ module dislocdyn_phononwind_subroutines
     qtshift = qt - qv
 
     A3qt2(:,:,:,:,:) = 0.0
-    do concurrent (kk = 1:3, k = 1:3, j = 1:3, i = 1:3)! local(jj,ii) shared(qt,qtshift,A3) reduce(+:A3qt2)
+    do kk = 1,3; do k = 1,3; do j = 1,3; do i = 1,3
+    !do concurrent (kk = 1:3, k = 1:3, j = 1:3, i = 1:3) local(jj,ii) shared(qt,qtshift,A3) reduce(+:A3qt2)
       do jj = 1,3
         do ii = 1,3
           A3qt2(:,i,j,k,kk) = A3qt2(:,i,j,k,kk) + qt(:,ii)*qtshift(:,jj)*A3(i,ii,j,jj,k,kk)
         end do
       end do
-    end do
+    end do; end do; end do; end do
 
     part1(:,:,:,:,:) = 0.0
-    do concurrent (kk = 1:3, k = 1:3, j = 1:3, l = 1:3)! local(i) shared(A3qt2,qt,delta1) reduce(+:part1)
+    do kk = 1,3; do k = 1,3; do j = 1,3; do l = 1,3
+    !do concurrent (kk = 1:3, k = 1:3, j = 1:3, l = 1:3) local(i) shared(A3qt2,qt,delta1) reduce(+:part1)
       do i = 1,3
          part1(:,l,j,k,kk) = part1(:,l,j,k,kk) + (delta1(i,l) - qt(:,l)*qt(:,i))*A3qt2(:,i,j,k,kk)
       end do
-    end do
+    end do; end do; end do; end do
 
     part2(:,:,:,:,:) = 0.0
-    do concurrent (nn = 1:3, n = 1:3, j = 1:3, l = 1:3)! local(m) shared(A3qt2,qtshift,mag,delta2) reduce(+:part2)
+    do nn = 1,3; do n = 1,3; do j = 1,3; do l = 1,3
+    !do concurrent (nn = 1:3, n = 1:3, j = 1:3, l = 1:3) local(m) shared(A3qt2,qtshift,mag,delta2) reduce(+:part2)
       do m = 1,3
        part2(:,l,j,n,nn) = part2(:,l,j,n,nn) + (delta2(j,m) - qtshift(:,j)*qtshift(:,m)/mag)*A3qt2(:,l,m,n,nn)
       end do
-    end do
+    end do; end do; end do; end do
     part2(:,:,:,:,:) = part2(:,:,:,:,:)*dphi1(p)
 
-    do concurrent (nn = 1:3, n = 1:3, kk = 1:3, k = 1:3)! local(j,l) shared(part1,part2) reduce(+:output)
+    do nn = 1,3; do n = 1,3; do kk = 1,3; do k = 1,3
+    !do concurrent (nn = 1:3, n = 1:3, kk = 1:3, k = 1:3) local(j,l) shared(part1,part2) reduce(+:output)
       do j = 1,3
          do l = 1,3
             output(:,k,kk,n,nn) = output(:,k,kk,n,nn) + part1(:,l,j,k,kk)*part2(:,l,j,n,nn)
          end do
       end do
-    end do
+    end do; end do; end do; end do
 
     end do
     !~ !$OMP END PARALLEL DO
@@ -146,10 +150,11 @@ module dislocdyn_phononwind_subroutines
       do n=1,3
         do kk=1,3
           do k=1,3
-            do concurrent (j = 1:lenph, i = 1:lent)! local(ij) shared(dij,flatpoly) reduce(+:output)
+            do j = 1,lenph; do i = 1,lent
+            !do concurrent (j = 1:lenph, i = 1:lent) local(ij) shared(dij,flatpoly) reduce(+:output)
               ij = (i-1)*lenph+j
               output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
-            end do
+            end do; end do
           end do
         end do
       end do 
@@ -296,10 +301,11 @@ module dislocdyn_phononwind
       integer i,j
       real(kind=sel) :: cosphimph
       
-      do concurrent (j=1:phres, i=1:phixres)! local(cosphimph) shared(phix,ph,q,ra,rb,nq)
+      do j=1,phres; do i=1,phixres
+      !do concurrent (j=1:phres, i=1:phixres) local(cosphimph) shared(phix,ph,q,ra,rb,nq)
           cosphimph = cos(phix(i)-ph(j))
           sincos(i,j) = sum(cos(q*ra*cosphimph)-cos(q*rb*cosphimph))/cosphimph/nq
-      end do
+      end do; end do
       
     END SUBROUTINE fourieruij_sincos
 
@@ -404,7 +410,7 @@ module dislocdyn_phononwind
       if (debye) then
         hbarcsqBZ_TkB = hbar*cqBZ/(Temp*kB)
         if (abs(beta)<1.d-12) then
-          do concurrent (j=1:lenph)
+          do j=1,lenph
             betafactor = OneMinBtqcosph1(:,j)
             otherfactor = ctovcl*qtilde(:,j)*csphi(j)
             prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
@@ -413,7 +419,7 @@ module dislocdyn_phononwind
                     +(hbarcsqBZ_TkB**6/(1.512d5))*5.d0*otherfactor)
           end do
         else
-          do concurrent (j=1:lenph)
+          do j=1,lenph
             betafactor = OneMinBtqcosph1(:,j)
             otherfactor = ctovcl*qtilde(:,j)*csphi(j)
             prefac(:,j) = prefac(:,j)*(kB*Temp*qBZ**4/(2.d0*cqBZ*hbar))*(-0.5d0*otherfactor/betafactor &
@@ -428,8 +434,10 @@ module dislocdyn_phononwind
         distri(:,:,1) = 2.d0*distri(:,:,1)
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do concurrent (i=1:(lenq1-1), j=1:lenph)
-            distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
+          do i=1,(lenq1-1)
+            do j=1,lenph
+              distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:,j)**2)
+            end do
           end do
         end if
         prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
@@ -440,7 +448,8 @@ module dislocdyn_phononwind
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
       !-------------------------
-      do concurrent (i=1:lenph, j=1:lent)
+      do i=1,lenph
+        do j=1,lent
           do k=1,3
             qv((j-1)*lenph+i,k) = real(qtilde(j,i)*qvec(i,k), kind=selsm)
           end do
@@ -451,6 +460,7 @@ module dislocdyn_phononwind
           sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
           tsinphi(k) = real(t(j)*sin(phi(i)), kind=selsm)
           sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
+        end do
       end do
       !-------------------------
       if (size(A3,7)==1) then
@@ -568,7 +578,7 @@ module dislocdyn_phononwind
       if (debye) then
         hbarcsqBZ_TkB = (hbar*cqBZ/(Temp*kB))**2
         if (abs(beta1)<1.d-12) then
-          do concurrent (j=1:lenph)
+          do j=1,lenph
             betafactor = OneMinBtqcosph1(:,j)
             otherfactor = qtilde*csphi(j)
             if (cx>cy) then
@@ -586,7 +596,7 @@ module dislocdyn_phononwind
             end if
           end do
         else
-          do concurrent (j=1:lenph)
+          do j=1,lenph
             betafactor = OneMinBtqcosph1(:,j)
             otherfactor = qtilde*csphi(j)
             if (cx>cy) then
@@ -611,18 +621,24 @@ module dislocdyn_phononwind
         distri(:,:,lenq1-1) = 2.d0*distri(:,:,lenq1-1) ! see python code for explanation
         !> include cutoff if r0cut>0:
         if (r0cut>0.d0) then
-          do concurrent (i=1:(lenq1-1), j=1:lenph)
-            distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
+          do i=1,(lenq1-1)
+            do j=1,lenph
+              distri(:,j,i) = distri(:,j,i)/(1.d0 + (qBZ*r0cut)**2*q1(i)**2*qtilde(:)**2)
+            end do
           end do
         end if
         ! if cx>cy, we need to limit the integration range of q1<=(cy/cx)/(1-beta1*qtilde*csphi) in addition to q1<=1
         if (cx>cy) then
           q1limit = ctovcl/OneMinBtqcosph1
-          do concurrent (i=1:(lenq1-1), j=1:lenph, k=1:lent)
-            if (q1(i)>q1limit(k,j)) then
-              distri(k,j,i) = 0.d0
-            end if
-          end do !i
+          do i=1,(lenq1-1)
+            do j=1,lenph
+              do k=1,lent
+                if (q1(i)>q1limit(k,j)) then
+                  distri(k,j,i) = 0.d0
+                end if
+              end do
+            end do
+          end do
         end if
         prefac = 0.d0 ! reset and reuse variable for distri integrated over q1
         ! integrate over last axis (q1), speedup by looping over last variable instead of calling subroutine trapz
@@ -632,17 +648,19 @@ module dislocdyn_phononwind
       end if
       prefactor1 = real(prefac,kind=selsm) ! fct dragintegrand needs kind=selsm
       !-------------------------
-      do concurrent (i=1:lenph, j=1:lent)
-        do k=1,3
-          qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
+      do i=1,lenph
+        do j=1,lent
+          do k=1,3
+            qv((j-1)*lenph+i,k) = real(qtilde(j)*qvec(i,k), kind=selsm)
+          end do
+          k = (j-1)*lenph+i
+          mag(k) = real(1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j), kind=selsm)
+          sqrtt(k) = real(sqrt(abs(1.d0-t(j,i)**2)), kind=selsm)
+          tcosphi(k) = real(t(j,i)*cos(phi(i)), kind=selsm)
+          sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
+          tsinphi(k) = real(t(j,i)*sin(phi(i)), kind=selsm)
+          sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
         end do
-        k = (j-1)*lenph+i
-        mag(k) = real(1.d0 + qtilde(j)**2 - 2.d0*t(j,i)*qtilde(j), kind=selsm)
-        sqrtt(k) = real(sqrt(abs(1.d0-t(j,i)**2)), kind=selsm)
-        tcosphi(k) = real(t(j,i)*cos(phi(i)), kind=selsm)
-        sqrtsinphi(k) = real(sqrtt(k)*sin(phi(i)), kind=selsm)
-        tsinphi(k) = real(t(j,i)*sin(phi(i)), kind=selsm)
-        sqrtcosphi(k) = real(sqrtt(k)*cos(phi(i)), kind=selsm)
       end do
       !-------------------------
       if (size(A3,7)==1) then

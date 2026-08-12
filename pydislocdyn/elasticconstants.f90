@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - July 22, 2026
+! Date: Mar. 30, 2026 - Aug. 12, 2026
 module dislocdyn_elasticconstants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
@@ -258,12 +258,13 @@ module dislocdyn_elasticconstants
           print*,symkwerror
           return
       end select
-      do concurrent (i=1:6, j=1:6, k=1:6)! local(ii,jj,kk) shared(vc,xijk) local_init(iind)
+      do i=1,6; do j=1,6; do k=1,6
+      !do concurrent (i=1:6, j=1:6, k=1:6) local(ii,jj,kk) shared(vc,xijk) local_init(iind)
         ii = min(i,j,k)
         jj = min(max(i,j),max(i,k),max(j,k))
         kk = max(i,j,k)
         vc(i,j,k) = xijk(kk-jj+1+int((14-jj)*(jj-1)/2)+iind(ii))
-      end do
+      end do; end do; end do
     end subroutine elasticC3
     ! -----------------------------
     !> subroutine of voigt()
