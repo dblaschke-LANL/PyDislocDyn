@@ -12,8 +12,8 @@ else ifeq ($(FC),flang)
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),ftn)
   FC = ftn
-  FFLAGS = -O3 -qopenmp
-  LDFLAGS = -qopenmp
+  FFLAGS = -O3 -fopenmp
+  LDFLAGS = -fopenmp
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),ifx)
   FC = ifx
