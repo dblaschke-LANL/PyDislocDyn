@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in a semi-isotropic approximation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - July 22, 2026
+# Date: Nov. 5, 2017 - Aug. 25, 2026
 '''This script will calculate the drag coefficient from phonon wind for anisotropic crystals and generate nice plots;
 it is not meant to be used as a module.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -27,7 +27,7 @@ from pydislocdyn.dislocations import readinputfile
 from pydislocdyn.phononwind import phonondrag, fit_mix, mkfit_Bv, B_of_sigma, init_drag_parser
 if Ncpus>1:
     from joblib import Parallel, delayed
-metal = sorted(list(data.all_metals.intersection(data.c123.keys()))) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
+metal = sorted(data.all_metals.intersection(data.c123.keys())) ## generate a list of metals for which we have sufficient data (i.e. at least TOEC)
 
 parser = init_drag_parser(usage=f"\n{sys.argv[0]} <options> <inputfile(s)>\n\n",description=f"{__doc__}\n")
 parser.add_argument('-Ntheta','--Ntheta', type=int, default=21, help='set the resolution of the character angles (angles between disloc. line and Burgers vector) used in line tension calculations')
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     if opts.use_exp_Lame:
         isokeywd=False
     if opts.use_iso:
-        metal = sorted(list(data.all_metals.intersection(data.ISO_c44.keys()).intersection(data.ISO_l.keys())))
+        metal = sorted(data.all_metals.intersection(data.ISO_c44.keys()).intersection(data.ISO_l.keys()))
         isokeywd=True
     metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
@@ -338,7 +338,7 @@ if __name__ == '__main__':
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
         mksmallbetaplot(X,ylab=True,xlab=True,sinex=sinex)
         divider = make_axes_locatable(ax1)
-        cax = divider.append_axes("right", size="{}%".format(wspc), pad=0)
+        cax = divider.append_axes("right", size=f"{wspc}%", pad=0)
         cax.set_facecolor('none')
         for axis in ['top','bottom','left','right']:
             cax.spines[axis].set_linewidth(0)
@@ -378,7 +378,7 @@ if __name__ == '__main__':
         for X in metal:
             fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*(1/(1-x**2)**(1/2) - 1) + {3:.2f}*(1/(1-x**2)**(3/2) - 1)\n".format(*1e3*popt_aver[X]))
         fitfile.write("\n\nwhere $x=v/v_c$ with:\n\n")
-        fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
+        fitfile.write(" & "+" & ".join(metal)+r" \\\hline\hline")
         fitfile.write("\n $c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].ct:.0f}")
@@ -397,13 +397,13 @@ if __name__ == '__main__':
     def mkfitplot(metal_list,filename,figtitle,scale_plot=1):
         '''Plot the dislocation drag over velocity and show the fitting function.'''
         if len(metal_list)<5:
-            fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
+            _fig, ax = plt.subplots(1, 1, figsize=(4.,4.))
             legendops = {'loc':'upper left', 'ncol':2, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
         elif len(metal_list)<25:
-            fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
+            _fig, ax = plt.subplots(1, 1, figsize=(5.5,5.5))
             legendops = {'loc':'upper left', 'ncol':3, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
         else:
-            fig, ax = plt.subplots(1, 1, figsize=(7,7))
+            _fig, ax = plt.subplots(1, 1, figsize=(7,7))
             legendops = {'loc':'upper left', 'bbox_to_anchor':(1.01,1),'ncol':2, 'columnspacing':0.8, 'handlelength':1.2, 'frameon':True, 'shadow':False}
         plt.xticks(**fntsettings)
         plt.yticks(**fntsettings)
@@ -457,10 +457,10 @@ if __name__ == '__main__':
         B0 = {}
         vc = {}
         if len(metal)<5:
-            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
+            _fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.,4.))
             legendops={'loc':'best','ncol':1}
         else:
-            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.,5.))
+            _fig, ax = plt.subplots(1, 1, sharey=False, figsize=(5.,5.))
             legendops={'loc':'upper left','bbox_to_anchor':(1.01,1),'ncol':1}
         ax.set_xlabel(r'$\sigma b/(v_\mathrm{c}B_0)$',**fntsettings)
         ax.set_ylabel(r'$B/B_0$',**fntsettings)

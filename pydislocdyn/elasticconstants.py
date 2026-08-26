@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 # setup elastic constants and compliances, including Voigt notation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - July 22, 2026
+# Date: Nov. 7, 2017 - Aug. 25, 2026
 '''This module contains functions to generate elastic constant and compliance tensors,
    as well as a class to help with calculating elastic constants.
    In particular, it contains the following functions:
@@ -67,11 +66,10 @@ def convert_SOECiso(lam=None, mu=None,c12=None,c44=None,bulk=None,young=None,poi
             c44  = bulk*young/(3*bulk-young/3)
             c12 = bulk - 2*c44/3
             poisson = c12/(2*(c12+c44))
-    elif bulk is not None:
-        if c12 is not None:
-            c44 = 3*(bulk-c12)/2
-            poisson = c12/(2*(c12+c44))
-            young = 2*c44*(1+poisson)
+    elif bulk is not None and c12 is not None:
+        c44 = 3*(bulk-c12)/2
+        poisson = c12/(2*(c12+c44))
+        young = 2*c44*(1+poisson)
     if int(pd.Series([c12,c44,bulk,young,poisson]).isna().sum())>0:
         raise ValueError("need any 2 of these 5: [c12,c44,bulk,young,poisson] (and note that lam=c12, mu=c44)")
     c11 = c12+2*c44

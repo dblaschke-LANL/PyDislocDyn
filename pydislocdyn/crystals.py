@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 2, 2026
+# Date: Nov. 7, 2017 - Aug. 25, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -317,7 +316,7 @@ class metal_props:
             ### use Hill average for Lame constants for non-cubic metals, as we do not have a better scheme at the moment
             self.lam = HillAverage[lam]
             self.mu = HillAverage[mu]
-        if self.sym!='iso' and roundto is not None and not C2.dtype==object:
+        if self.sym!='iso' and roundto is not None and C2.dtype!=object:
             self.lam = round(float(self.lam),roundto)
             self.mu = round(float(self.mu),roundto)
         if include_TOEC and self.sym != 'iso':
@@ -338,7 +337,7 @@ class metal_props:
                     self.Murl = HillAverage[Murl]
                     self.Murm = HillAverage[Murm]
                     self.Murn = HillAverage[Murn]
-            if roundto is not None and not C2.dtype==object:
+            if roundto is not None and C2.dtype!=object:
                 self.Murl = round(float(self.Murl),roundto)
                 self.Murm = round(float(self.Murm),roundto)
                 self.Murn = round(float(self.Murn),roundto)
@@ -354,7 +353,7 @@ class metal_props:
             out |= {"c111":c111, "c112":c112, "c123":c123, "c144":c144, "c166":c166, "c456":c456}
         if simplify and self.sym!='iso' and C2.dtype==object:
             for key,val in out.items():
-                if not isinstance(out[key], list):
+                if not isinstance(val, list):
                     out[key] = sp.simplify(val)
         return pd.Series(out)
     
@@ -516,9 +515,9 @@ class metal_props:
         else:c=self.cc
         if isinstance(a+b+c, sp.Expr):
             v = np.asarray(v)
-            alphac = int(round(self.alphac*180/np.pi))
-            betac = int(round(self.betac*180/np.pi))
-            gammac = int(round(self.gammac*180/np.pi))
+            alphac = round(self.alphac*180/np.pi)
+            betac = round(self.betac*180/np.pi)
+            gammac = round(self.gammac*180/np.pi)
             return Miller_to_Cart(v,lattice=((a,b,c),(alphac,betac,gammac)),normalize=normalize,reziprocal=reziprocal)
         v = np.asarray(v).astype(dtype=float)
         d = c*(np.cos(self.alphac)-np.cos(self.gammac)*np.cos(self.betac))/np.sin(self.gammac)

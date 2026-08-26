@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Apr. 10, 2026
+# Date: Nov. 7, 2017 - Aug. 25, 2026
 '''This script will compute polycrystal averages of second and third order elastic constants;
    it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
    will be taken into account unless the user passes input files (or keywords for some of 
@@ -22,12 +22,12 @@ from pydislocdyn.elasticconstants import elasticS2, elasticS3, UnVoigt
 import pydislocdyn.metal_data as data
 from pydislocdyn.crystals import readinputfile, IsoAverages, lam, mu, Murl, Murm, Murn
 
-metal = sorted(list(data.all_metals.intersection(data.CRC_c11.keys()))) ## generate a list of those metals for which we have sufficient data
+metal = sorted(data.all_metals.intersection(data.CRC_c11.keys())) ## generate a list of those metals for which we have sufficient data
     
 def dict_to_pandas(dictionary,usekeys=False):
     '''converts a dictionary containing polycrystalline averages to a pandas DataFrame'''
     if len(dictionary)==1:
-        dictionary['dummy'] = dictionary[list(dictionary.keys())[0]]
+        dictionary['dummy'] = dictionary[next(iter(dictionary.keys()))]
     out = pd.DataFrame(dictionary,dtype=float).T
     if len(dictionary)==1: out.drop('dummy')
     if not usekeys and len(out.columns) == 2:

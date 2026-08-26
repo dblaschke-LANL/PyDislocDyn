@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Aug. 11, 2026
+# Date: Aug. 6, 2026 - Aug. 25, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -66,7 +66,7 @@ def test_fortran_vlim_fcc(rnd=2):
     vlim_py = {}
     vlim_f = {}
     command = basecommand.copy()
-    for X in sorted(list(pydislocdyn.metal_data.fcc_metals)):
+    for X in sorted(pydislocdyn.metal_data.fcc_metals):
         command.append(tmpfolder / X)
     command.append(example_path / "vlim_fcc.in")
     with open("vlim_fcc.log", 'w', encoding="utf8") as logfile:
@@ -75,7 +75,7 @@ def test_fortran_vlim_fcc(rnd=2):
                 logfile.write(line)
             subproc.wait()
     vlim_f_raw = read_dislocdyn_output("vlim_fcc.log",postprocess=True)
-    for X in sorted(list(pydislocdyn.metal_data.fcc_metals)):
+    for X in sorted(pydislocdyn.metal_data.fcc_metals):
         Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99)
         vlim_py[X] = Y[X].computevcrit(return_all=True)
         vlim_py[X].columns = vlim_py[X].columns/np.pi
@@ -97,7 +97,7 @@ def test_fortran_vlim_bcc(rnd=2):
     vlim_f_raw = {}
     for slip in ["110", "112", "123"]:
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.bcc_metals)):
+        for X in sorted(pydislocdyn.metal_data.bcc_metals):
             command.append(tmpfolder / (X+slip))
         command.append(example_path / f"vlim_bcc{slip}.in")
         with open(f"vlim_bcc{slip}.log", 'w', encoding="utf8") as logfile:
@@ -106,7 +106,7 @@ def test_fortran_vlim_bcc(rnd=2):
                     logfile.write(line)
                 subproc.wait()
         vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_bcc{slip}.log",postprocess=True)
-    for Xm in sorted(list(pydislocdyn.metal_data.bcc_metals)):
+    for Xm in sorted(pydislocdyn.metal_data.bcc_metals):
         for slip in ["110", "112", "123"]:
             X = Xm+slip
             symmetric = True
@@ -136,7 +136,7 @@ def test_fortran_vlim_hcp(rnd=2):
     vlim_f_raw = {}
     for slip in hcpslip:
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.hcp_metals)):
+        for X in sorted(pydislocdyn.metal_data.hcp_metals):
             command.append(tmpfolder / f"{X}basal")
         command.append(example_path / f"vlim_hcp{slip}.in")
         with open(f"vlim_hcp{slip}.log", 'w', encoding="utf8") as logfile:
@@ -145,7 +145,7 @@ def test_fortran_vlim_hcp(rnd=2):
                     logfile.write(line)
                 subproc.wait()
         vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_hcp{slip}.log",postprocess=True)
-    for Xm in sorted(list(pydislocdyn.metal_data.hcp_metals)):
+    for Xm in sorted(pydislocdyn.metal_data.hcp_metals):
         for slip, slipL in hcpslip.items():
             X = Xm+slip
             Y[X] = pydislocdyn.readinputfile(tmpfolder / str(Xm+slipL),Ntheta=99)
@@ -171,7 +171,7 @@ def test_fortran_vlim_tetr(rnd=2):
     for islip in range(10):
         slip = str(islip+1)
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.bct_metals)):
+        for X in sorted(pydislocdyn.metal_data.bct_metals):
             command.append(tmpfolder / (X+slip))
         fname = f"vlim_tetr_bct{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
@@ -193,7 +193,7 @@ def test_fortran_vlim_tetr(rnd=2):
     for islip in range(3):
         slip = str(islip+1)
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.fct_metals)):
+        for X in sorted(pydislocdyn.metal_data.fct_metals):
             command.append(tmpfolder / (X+slip))
         fname = f"vlim_tetr_fct{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
@@ -212,7 +212,7 @@ def test_fortran_vlim_tetr(rnd=2):
                 subproc.wait()
         vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log",postprocess=True)
     # the same with python, then compare:
-    for Xm in sorted(list(pydislocdyn.metal_data.tetr_metals)):
+    for Xm in sorted(pydislocdyn.metal_data.tetr_metals):
         nslip = 3
         slip = 'fct'
         if Xm in pydislocdyn.metal_data.bct_metals:

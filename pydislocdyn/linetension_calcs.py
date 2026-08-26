@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Feb. 20, 2026
+# Date: Nov. 3, 2017 - Aug. 25, 2026
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
@@ -42,7 +42,7 @@ allowed values: '110', '112', '123', 'all' (for all three)''')
 parser.add_argument('-hcpslip', '--hcpslip', type=str, default='all', help='''Choose among predefined bcc-slip systems when using metal_data.py (see that file for details);
 allowed values: 'basal', 'prismatic', 'pyramidal', 'all'  (for all three)''')
 
-metal = sorted(list(data.all_metals | {'ISO'})) ### input data; also test isotropic limit
+metal = sorted(data.all_metals | {'ISO'}) ### input data; also test isotropic limit
 
 if __name__ == '__main__':
     opts, args = parser.parse_known_args()
@@ -118,9 +118,9 @@ if __name__ == '__main__':
         os.chdir("..")
         metal = metal_list
         ## list of metals symmetric in +/-theta (for the predefined slip systems):
-        metal_symm = sorted(list({'ISO'}.union(data.fcc_metals).union(hcp_metals).union(data.tetr_metals).intersection(metal)))
+        metal_symm = sorted({'ISO'}.union(data.fcc_metals).union(hcp_metals).union(data.tetr_metals).intersection(metal))
     else:
-        metal_symm = set([]) ## fall back to computing for character angles of both signs if we don't know for sure that the present slip system is symmetric
+        metal_symm = set() ## fall back to computing for character angles of both signs if we don't know for sure that the present slip system is symmetric
 
     for X in metal:
         Y[X].init_C2()
@@ -173,9 +173,9 @@ if __name__ == '__main__':
             shutil.move(fname,fname[:-3]+".bak.xz")
         with lzma.open(f"LT_{X}.dat.xz","wt") as LTfile:
             LTfile.write(f"### dimensionless line tension prefactor LT(beta,theta) for {X}, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
-            LTfile.write('beta/theta[pi]\t' + '\t'.join("{:.4f}".format(thi) for thi in theta[1:-1]/np.pi) + '\n')
+            LTfile.write('beta/theta[pi]\t' + '\t'.join(f"{thi:.4f}" for thi in theta[1:-1]/np.pi) + '\n')
             for j in range(len(beta)):
-                LTfile.write(f"{beta_scaled[X][j]:.4f}\t" + '\t'.join("{:.6f}".format(thi) for thi in LT[j]) + '\n')
+                LTfile.write(f"{beta_scaled[X][j]:.4f}\t" + '\t'.join(f"{thi:.6f}" for thi in LT[j]) + '\n')
 
         return 0
         
@@ -209,12 +209,12 @@ if __name__ == '__main__':
         namestring = f"{X}"
         beta_trunc = [j for j in LT[X].index if j <=Y[X].vcrit_smallest/Y[X].ct]
         if X in metal_symm:
-            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
+            _fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,3.2))
             LT_trunc = LT[X].iloc[:len(beta_trunc),int((LT[X].shape[1]-1)/2):].to_numpy()
             y_msh, x_msh = np.meshgrid(LT[X].columns[int((LT[X].shape[1]-1)/2):],beta_trunc)
             plt.yticks([0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),**fntsettings)
         else:
-            fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,4.5))
+            _fig, ax = plt.subplots(1, 1, sharey=False, figsize=(4.5,4.5))
             LT_trunc = LT[X].iloc[:len(beta_trunc)].to_numpy()
             y_msh, x_msh = np.meshgrid(LT[X].columns,beta_trunc)
             plt.yticks([-np.pi/2,-3*np.pi/8,-np.pi/4,-np.pi/8,0,np.pi/8,np.pi/4,3*np.pi/8,np.pi/2],(r"$-\pi/2$", r"$-3\pi/8$", r"$-\pi/4$", r"$-\pi/8$", r"$0$", r"$\pi/8$", r"$\pi/4$", r"$3\pi/8$", r"$\pi/2$"),**fntsettings)
@@ -255,15 +255,14 @@ if __name__ == '__main__':
     
     ## write vcrit results to disk, then plot
     with open("vcrit.dat","w", encoding="utf8") as vcritfile:
-        vcritfile.write("theta/pi\t" + '\t'.join("{:.4f}".format(thi) for thi in np.linspace(1/2,-1/2,2*opts.Ntheta2-1)) + '\n')
+        vcritfile.write("theta/pi\t" + '\t'.join(f"{thi:.4f}" for thi in np.linspace(1/2,-1/2,2*opts.Ntheta2-1)) + '\n')
         vcritfile.write("metal / vcrit[m/s] (3 solutions per angle)\n")
-        for X in sorted(list(set(metal))):
-            for i in range(3):
-                vcritfile.write(f"{X}\t" + '\t'.join("{:.0f}".format(thi) for thi in np.flipud(Y[X].vcrit_all[i+1,:])) + '\n')
+        for X in sorted(metal):
+            vcritfile.writelines(f"{X}\t" + '\t'.join(f"{thi:.0f}" for thi in np.flipud(Y[X].vcrit_all[i+1,:])) + '\n' for i in range(3))
                 
     def mkvcritplot(X,Ntheta):
         '''Generates a plot showing the limiting (or critical) dislocation glide velocities as a function of character angle.'''
-        fig, (ax1) = plt.subplots(1, 1, sharex=True, figsize=(4.5,3.5))
+        _fig, (ax1) = plt.subplots(1, 1, sharex=True, figsize=(4.5,3.5))
         plt.tight_layout(h_pad=0.0)
         plt.xticks(**fntsettings)
         plt.yticks(**fntsettings)
@@ -285,5 +284,5 @@ if __name__ == '__main__':
         plt.savefig(f"vcrit_{X}.pdf",format='pdf',bbox_inches='tight')
         plt.close()
     
-    for X in sorted(list(set(metal))):
+    for X in sorted(metal):
         mkvcritplot(X,opts.Ntheta2)

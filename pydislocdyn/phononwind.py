@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 11, 2026
+# Date: Nov. 5, 2017 - Aug. 25, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -50,7 +49,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
        If option r0cut>0 (turned off by default), a soft dislocation core cutoff is included following Alshits 1979, i.e. multiplying the dislocation field by (1-exp(r/r0)) which leads to 1/sqrt(1-q**2/r0**2) in Fourier space
        Note: this cutoff is intended only for an isotropic dislocation field at low gliding velocity, as the shape of the cutoff is beta-dependent the way it is introduced (i.e. a circle only at beta=0).''' ##(TODO: generalize)
     Ntheta = len(dij[0,0,0])
-    theta_ind = np.arange((Ntheta)) # generate array of theta-indices for later use
+    theta_ind = np.arange(Ntheta) # generate array of theta-indices for later use
     modes_allowed = ['all', 'TT', 'LL', 'LT', 'TL', 'mix'] ## define allowed keywords for modes
     debye_convergence = hbar*cl*qBZ/(np.pi*kB) # warn if T < half the convergence limit for the longitudinal modes
     if beta <0 or beta>1:
@@ -98,7 +97,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
             A3tmp = A3[:,:,:,:,:,:,skip_theta]
         args = (dijtmp, A3tmp, qBZ, cs, beta, burgers, T)
         Ntheta = len(dijtmp[0,0,0])
-        theta_ind = np.arange((Ntheta))
+        theta_ind = np.arange(Ntheta)
         Ntauto_old = int(Nt/2)+1
         Nphi = len(dijtmp)
         if mode in ('TT','LL'):
@@ -230,7 +229,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
        DataFrame including metadata (i.e. dislocaion gliding velocities and character angles.'''
     if not isinstance(disloc,Dislocation):
         print(type(disloc),isinstance(disloc,Dislocation),Dislocation)
-        raise ValueError("'disloc' must be an instance of the Dislocation class")
+        raise TypeError("'disloc' must be an instance of the Dislocation class")
     if isinstance(beta, (float, int)):
         beta = np.asarray([beta])
     else:
@@ -298,9 +297,9 @@ def mkfit_Bv(Y,Bdrag,scale_plot=1,Bmax_fit='auto'):
        Required inputs are an instance of the Dislocation class Y, and the the drag coefficient Bdrag formatted as a Pandas DataFrame where index
        contains the normalized velocities beta= v/Y.ct and columns contains the character angles theta at velocity v for all character angles theta.'''
     if not isinstance(Y,Dislocation):
-        raise ValueError("'Y' must be an instance of the Dislocation class")
+        raise TypeError("'Y' must be an instance of the Dislocation class")
     if not isinstance(Bdrag,pd.DataFrame):
-        raise ValueError("'Bdrag' must be a Pandas DataFrame.")
+        raise TypeError("'Bdrag' must be a Pandas DataFrame.")
     Broom = Bdrag.to_numpy()
     vel = Bdrag.index.to_numpy()*Y.ct
     theta = Bdrag.columns
@@ -334,7 +333,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
        The latter is also used as fall back behavior if the computation of v(sigma) fails to converge.
        Option 'sigma_max'' is the highest stress to be considered in the present calculation. '''
     if not isinstance(Y,Dislocation):
-        raise ValueError("'Y' must be an instance of the Dislocation class")
+        raise TypeError("'Y' must be an instance of the Dislocation class")
     ftitle = f"{Y.name}, {character}"
     fname = f"B_of_sigma_{character}_{Y.name}.pdf"
     if character=='screw':
@@ -419,7 +418,7 @@ def B_of_sigma(Y,popt,character,mkplot=True,B0fit='weighted',resolution=500,indi
         if sigma[-1]>1.1*sigma_max:
             Bmax = 1.15*B_of_sig[sigma<sigma_max][-1]
     if mkplot:
-        fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
+        _fig, ax = plt.subplots(1, 1, sharey=False, figsize=(3.,2.5))
         ax.set_xlabel(r'$\sigma$[MPa]',**fntsettings)
         ax.set_ylabel(r'$B$[mPas]',**fntsettings)
         ax.set_title(ftitle,**fntsettings)

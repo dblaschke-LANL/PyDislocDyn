@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - July 21, 2026
+# Date: Nov. 3, 2017 - Aug. 25, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -330,8 +330,7 @@ class Dislocation(StrohGeometry,metal_props):
                 if result.fun>2e-2 or not result.success:
                     print(f"Failed for {self.name}, {th=}: Rayleigh not found; {result.fun=}, {bounds=}, {result.x=}\n")
                 else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
-                if Rayleigh[th]>vcrit[th]: ## if our algorithm slighlty overshoots, correct (we have 1 per mille tolerance in fall-back bounds above)
-                    Rayleigh[th]=vcrit[th]
+                Rayleigh[th] = min(Rayleigh[th], vcrit[th]) ## if our algorithm slighlty overshoots, correct (we have 1 per mille tolerance in fall-back bounds above)
             else: Rayleigh[th] = result.x * np.sqrt(norm/self.rho)
         self.Rayleigh = Rayleigh
         return Rayleigh
@@ -520,10 +519,9 @@ class Dislocation(StrohGeometry,metal_props):
                 p1 = None
                 p2 = None
                 psol = optimize.root(f,np.array([0.9,1.5]))
-                if psol.success:
-                    if len(set(np.abs(np.round(psol.x,12))))==2:
-                        p1 = abs(float(psol.x[0]))
-                        p2 = abs(float(psol.x[1]))
+                if psol.success and len(set(np.abs(np.round(psol.x,12))))==2:
+                    p1 = abs(float(psol.x[0]))
+                    p2 = abs(float(psol.x[1]))
                 if p1 is not None and p2 is not None:
                     C2Mp1 = C2M.subs({rv2:beta2,p:p1})
                     C2Mp2 = C2M.subs({rv2:beta2,p:p2})
@@ -602,9 +600,8 @@ class Dislocation(StrohGeometry,metal_props):
                 vels = np.linspace(bounds_fst[0],bounds_fst[1],resolution)
                 vRF_fst = []
                 for v in vels:
-                    if L1_of_beta2(v)<1e-9:
-                        if (L1_of_beta2(v,'all').norm())>1e-9: # make sure we found a non-trivial eigenvector
-                            vRF_fst.append(np.sqrt(v*norm/self.rho))
+                    if L1_of_beta2(v)<1e-9 and (L1_of_beta2(v,'all').norm())>1e-9: # make sure we found a non-trivial eigenvector
+                        vRF_fst.append(np.sqrt(v*norm/self.rho))
                 if len(vRF_fst)==0:
                     vRF_fst = optimize.minimize_scalar(L1_of_beta2,method='bounded',bounds=bounds_fst)
                     if (vRF_fst.success and vRF_fst.fun < 1e-9):

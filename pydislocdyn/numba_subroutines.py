@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Sept. 15, 2025 - July 17, 2026
+# Date: Sept. 15, 2025 - Aug. 25, 2026
 '''This submodule contains various subroutines that are accelerated using just-in-time compiler numba.
    For the Fortran-implementation of these subroutines, see subroutines.f90.'''
 
@@ -223,10 +223,10 @@ def accscrew_xyintegrand(x,y,t,xpr,a,B,C,Ct,ABC,cA,xcomp):
     etatilde = np.sign(x)*np.sqrt(2*abs(x)/a)*0.5*(1+xpr/x)
     tau = t - eta
     tau_min_R = np.sqrt(abs(tau**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct = (np.sign((t - eta - Rpr/(cA*np.sqrt(ABC))))+1)/2
+    stepfct = (np.sign(t - eta - Rpr/(cA*np.sqrt(ABC)))+1)/2
     tau2 = t - etatilde
     tau_min_R2 = np.sqrt(abs(tau2**2*ABC/Ct - Rpr**2/(Ct*cA**2)))
-    stepfct2 = (np.sign((t - etatilde - Rpr/(cA*np.sqrt(ABC))))+1)/2
+    stepfct2 = (np.sign(t - etatilde - Rpr/(cA*np.sqrt(ABC)))+1)/2
     if xcomp:
         integrand = stepfct*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R + tau**2*(ABC/Ct)/tau_min_R)
         integrand -= stepfct2*((x-xpr-y*B/(2*C))*y/Rpr**4)*(tau_min_R2 + tau2**2*(ABC/Ct)/tau_min_R2) ## subtract pole
@@ -244,7 +244,7 @@ def vlim_of_phi(phi,i,C2,norm,m0,n0):
     # MM = np.dot(M,np.dot(C2,M))
     MM = elbrak1d(M,M,C2)[0]
     P3 = -np.trace(MM)/3 ## = P/3 in notation of Barnett
-    Q = 0.5*(9*P3**2-np.trace((MM @ MM)))
+    Q = 0.5*(9*P3**2-np.trace(MM @ MM))
     # R = -np.linalg.det(MM)
     R = -(MM[0,0]*MM[1,1]*MM[2,2] + MM[0,2]*MM[1,0]*MM[2,1] + MM[0,1]*MM[1,2]*MM[2,0] \
           - MM[0,2]*MM[1,1]*MM[2,0] - MM[0,0]*MM[1,2]*MM[2,1] - MM[0,1]*MM[1,0]*MM[2,2])

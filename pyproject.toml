@@ -31,6 +31,12 @@ fast = [
   "joblib>=1.1",
   "threadpoolctl"
 ]
+dev = [
+  "pytest>=9.0.1"
+]
+all = [
+  "pydislocdyn[fast,dev]",
+]
 
 [project.urls]
 Homepage = "https://github.com/dblaschke-LANL/PyDislocDyn"

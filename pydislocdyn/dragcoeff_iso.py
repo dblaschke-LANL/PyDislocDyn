@@ -2,7 +2,7 @@
 # Compute the drag coefficient of a moving dislocation from phonon wind in an isotropic crystal
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Feb. 17, 2026
+# Date: Nov. 5, 2017 - Aug. 25, 2026
 '''This script will calculate the drag coefficient from phonon wind in the isotropic limit and generate nice plots;
    it is not meant to be used as a module.
    The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
@@ -47,9 +47,9 @@ if __name__ == '__main__':
     beta = np.linspace(opts.minb,opts.maxb,opts.Nbeta)
     phi = np.linspace(0,2*np.pi,opts.Nphi)
     if opts.use_exp_Lame:
-        metal = sorted(list(data.ISO_l.keys()))
+        metal = sorted(data.ISO_l.keys())
     else:
-        metal = sorted(list(data.c111.keys()))
+        metal = sorted(data.c111.keys())
     metal_kws = metal.copy()
     if len(sys.argv) > 1 and len(args)>0:
         try:
@@ -136,8 +136,7 @@ if __name__ == '__main__':
             with open(f"drag_{X}.dat","w", encoding="utf8") as Bfile:
                 Bfile.write(f"### B(beta,theta) for {X} in units of mPas, one row per beta, one column per theta; theta=0 is pure screw, theta=pi/2 is pure edge.\n")
                 Bfile.write('beta/theta[pi]\t' + '\t'.join(map("{:.4f}".format,Y[X].theta/np.pi)) + '\n')
-                for bi, bt in enumerate(beta):
-                    Bfile.write(f"{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n')
+                Bfile.writelines(f"{bt:.4f}\t" + '\t'.join(map("{:.6f}".format,Bmix[bi,:,0])) + '\n' for bi, bt in enumerate(beta))
             
         # only print temperature dependence if temperatures other than room temperature are actually computed above
         if len(highT[X])>1 and opts.Ncores !=0:
@@ -216,14 +215,14 @@ if __name__ == '__main__':
             for X in metal:
                 fitfile.write("f"+X+"(x) = {0:.2f} - {1:.2f}*x + {2:.2f}*x**2 + {3:.2f}*log(1-x**2) + {4:.2f}*(1/(1-x**2)**(1/2) - 1)\n".format(*1e3*popt_screw[X]))
         fitfile.write("\nwhere $x=v/c_{\\mathrm{t}$\n\n")
-        fitfile.write(" & "+" & ".join((metal))+r" \\\hline\hline")
+        fitfile.write(" & "+" & ".join(metal)+r" \\\hline\hline")
         fitfile.write("\n $c_{\\mathrm{t}}$")
         for X in metal:
             fitfile.write(f" & {Y[X].ct:.0f}")
 
     def mkfitplot(metal_list,filename):
         '''Plot the dislocation drag over velocity and show the fitting function.'''
-        fig, ax = plt.subplots(1, 1, figsize=(4.5,4.))
+        _fig, ax = plt.subplots(1, 1, figsize=(4.5,4.))
         plt.xticks(**fntsettings)
         plt.yticks(**fntsettings)
         ax.set_xticks(np.arange(11)/10)

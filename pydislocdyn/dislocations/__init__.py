@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 # PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Apr. 3, 2024 - Sept. 13, 2025
+# Date: Apr. 3, 2024 - Aug. 25, 2026
 '''This submodule defines the StrohGeometry class to calculate the displacement field of a steady state dislocation
    aand other properties, as well as the Dislocation class which inherits from StrohGeometry
    and metal_props of polycrystal_averaging.py. As such, it is the most complete class to compute properties
@@ -12,3 +11,6 @@
 
 from .steadystate import StrohGeometry, computeuij_iso, fourieruij_sincos, fourieruij_nocut, fourieruij_iso, elbrak, elbrak1d
 from .general import Dislocation, plotuij, readinputfile
+
+__all__ = ["StrohGeometry", "computeuij_iso", "fourieruij_sincos", "fourieruij_nocut", "fourieruij_iso", "elbrak", "elbrak1d", \
+           "Dislocation", "plotuij", "readinputfile"]

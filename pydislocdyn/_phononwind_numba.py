@@ -43,7 +43,7 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
                     
     return prefactor*result1
 
-## dragcoeff_iso_computepoly() is currently the bottle neck, as it takes of the order of a few seconds to compute and is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta
+## dragcoeff_iso_computepoly() is currently the bottle neck, and it is needed for every velocity, temperature and (in the anisotropic case) every dislocation character theta
 ## jit-compiling some of the subroutines helps somewhat
 @jit(nopython=True)
 def dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph):

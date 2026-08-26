@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 10, 2026
+# Date: Nov. 5, 2017 - Aug. 25, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import sys
@@ -59,7 +57,7 @@ if shutil.which('latex') and 'ipykernel' not in sys.modules:
         "pgf.preamble": texpreamble,
     })
 ##################
-plt.rc('font',**{'family':'serif','size':'11'})
+plt.rc('font',family='serif', size='11')
 plt.rcParams['font.serif'].insert(0,'Liberation Serif')
 plt.rcParams['font.sans-serif'].insert(0,'Liberation Sans')
 from matplotlib import gridspec
@@ -389,46 +387,44 @@ def read_dislocdyn_output(fname,postprocess=False):
         skiprows = 0
         nrows = 0
         f1lines = f1.readlines()
-        i = 0
-        for line in f1lines:
-            i += 1
+        for i, line in enumerate(f1lines):
             if "name:" in line:
                 key = line.split()[1].strip()
                 out[key] = {}
             elif key is not None and "---" in line and "Limiting" in line:
-                skiprows = i+1
+                skiprows = i+2
                 subkey = 'vlim'
                 if "negative" in line:
                     subkey += '_neg'
                 ind = 'theta'
                 columns = pd.Index(["1","2","3"],name="branch")
             elif key is not None and "---" in line and "drag" in line:
-                skiprows = i+3
+                skiprows = i+4
                 subkey = 'drag'
                 if "negative" in line:
                     subkey += '_neg'
                 ind = 'beta'
-                columns = pd.Index(f1lines[i+1].split(),name='theta',dtype=float)
-            elif key is not None and skiprows>0 and (line.strip()=="" or i==len(f1lines)):
-                nrows = i-skiprows-1
-                if i==len(f1lines):
+                columns = pd.Index(f1lines[i+2].split(),name='theta',dtype=float)
+            elif key is not None and skiprows>0 and (line.strip()=="" or i==len(f1lines)-1):
+                nrows = i-skiprows
+                if i==len(f1lines)-1:
                     nrows += 1
                 out[key][subkey] = pd.read_csv(fname,skiprows=skiprows,header=None,nrows=nrows,sep=r"\s+",index_col=0,names=columns).rename_axis(ind)
                 subkey = columns = None
                 skiprows = nrows = 0
     if not postprocess:
         return out
-    for X in out:
-        if 'drag_neg' in out[X].keys():
-            for i in range(len(out[X]['drag_neg'].columns)-1):
-                newcol = out[X]['drag_neg'].iloc[:,i+1]
+    for X, subdic in out.items():
+        if 'drag_neg' in subdic:
+            for i in range(len(subdic['drag_neg'].columns)-1):
+                newcol = subdic['drag_neg'].iloc[:,i+1]
                 out[X]['drag'].insert(0,newcol.name,newcol)
             out[X].pop('drag_neg')
-        if 'drag' in out[X].keys():
+        if 'drag' in subdic:
             out[X]['drag'].columns.name = 'theta/pi'
-        if 'vlim_neg' in out[X].keys():
-            out[X]['vlim'] = pd.concat([out[X].pop('vlim_neg').sort_index().iloc[:-1],out[X]['vlim']])
-        if 'vlim' in out[X].keys():
+        if 'vlim_neg' in subdic:
+            out[X]['vlim'] = pd.concat([out[X].pop('vlim_neg').sort_index().iloc[:-1],subdic['vlim']])
+        if 'vlim' in subdic:
             out[X]['vlim'].index.name = 'theta'
             out[X]['vlim'].columns = pd.RangeIndex(start=0, stop=3, step=1, name='branch')
     return out

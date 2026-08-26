@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Aug. 11, 2026
+# Date: Aug. 6, 2026 - Aug. 25, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -84,7 +84,7 @@ def test_fortran_drag_fcc(rnd=6,beta=0.25,Ntheta=3):
     drag_f = {}
     _maximize_ompthreads()
     command = basecommand.copy()
-    for X in sorted(list(pydislocdyn.metal_data.fcc_metals)):
+    for X in sorted(pydislocdyn.metal_data.fcc_metals):
         command.append(tmpfolder / X)
     fname = "drag_fcc.in"
     with open(fname,"w",encoding="utf8") as infile:
@@ -101,7 +101,7 @@ def test_fortran_drag_fcc(rnd=6,beta=0.25,Ntheta=3):
                 logfile.write(line)
             subproc.wait()
     drag_f = read_dislocdyn_output("drag_fcc.log",postprocess=True)
-    for X in sorted(list(pydislocdyn.metal_data.fcc_metals)):
+    for X in sorted(pydislocdyn.metal_data.fcc_metals):
         Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=Ntheta)
         drag_py[X] = pydislocdyn.phonondrag(Y[X],beta,maxrec=-1,Debye_series=True).round(frnd)
         # compare results
@@ -121,7 +121,7 @@ def test_fortran_drag_bcc(rnd=6,beta=0.25,Ntheta=3):
     _maximize_ompthreads()
     for slip in ["110", "112", "123"]:
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.bcc_metals)):
+        for X in sorted(pydislocdyn.metal_data.bcc_metals):
             command.append(tmpfolder / (X+slip))
         fname = f"drag_bcc{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
@@ -140,7 +140,7 @@ def test_fortran_drag_bcc(rnd=6,beta=0.25,Ntheta=3):
                     logfile.write(line)
                 subproc.wait()
         drag_f[slip] = read_dislocdyn_output(f"drag_bcc{slip}.log",postprocess=True)
-    for Xm in sorted(list(pydislocdyn.metal_data.bcc_metals)):
+    for Xm in sorted(pydislocdyn.metal_data.bcc_metals):
         for slip in ["110", "112", "123"]:
             X = Xm+slip
             symmetric = True
@@ -169,7 +169,7 @@ def test_fortran_drag_hcp(rnd=6,beta=0.25,Ntheta=3):
     _maximize_ompthreads()
     for slip, slipL in hcpslip.items():
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.hcp_metals)):
+        for X in sorted(pydislocdyn.metal_data.hcp_metals):
             command.append(tmpfolder / f"{X}basal")
         fname = f"drag_hcp{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
@@ -186,7 +186,7 @@ def test_fortran_drag_hcp(rnd=6,beta=0.25,Ntheta=3):
                     logfile.write(line)
                 subproc.wait()
         drag_f[slip] = read_dislocdyn_output(f"drag_hcp{slip}.log",postprocess=True)
-    for Xm in sorted(list(pydislocdyn.metal_data.hcp_metals)):
+    for Xm in sorted(pydislocdyn.metal_data.hcp_metals):
         for slip, slipL in hcpslip.items():
             X = Xm+slip
             Y[X] = pydislocdyn.readinputfile(tmpfolder / str(Xm+slipL),Ntheta=Ntheta)
@@ -210,7 +210,7 @@ def test_fortran_drag_tetr(rnd=6,beta=0.25,Ntheta=3):
     for islip in range(10):
         slip = str(islip+1)
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.bct_metals)):
+        for X in sorted(pydislocdyn.metal_data.bct_metals):
             command.append(tmpfolder / (X+slip))
         fname = f"drag_tetr_bct{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
@@ -233,7 +233,7 @@ def test_fortran_drag_tetr(rnd=6,beta=0.25,Ntheta=3):
     for islip in range(3):
         slip = str(islip+1)
         command = basecommand.copy()
-        for X in sorted(list(pydislocdyn.metal_data.fct_metals)):
+        for X in sorted(pydislocdyn.metal_data.fct_metals):
             command.append(tmpfolder / (X+slip))
         fname = f"drag_tetr_fct{slip}.in"
         with open(fname,"w",encoding="utf8") as infile:
@@ -253,7 +253,7 @@ def test_fortran_drag_tetr(rnd=6,beta=0.25,Ntheta=3):
                 subproc.wait()
         drag_f['fct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log",postprocess=True)
     # the same with python, then compare:
-    for Xm in sorted(list(pydislocdyn.metal_data.tetr_metals)):
+    for Xm in sorted(pydislocdyn.metal_data.tetr_metals):
         nslip = 3
         slip = 'fct'
         if Xm in pydislocdyn.metal_data.bct_metals:

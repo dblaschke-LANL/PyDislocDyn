@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 7, 2026
+# Date: Nov. 3, 2017 - Aug. 25, 2026
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
 
 References for the data included in these dictionaries (see the manual and its bibliography for further details):
@@ -172,8 +172,8 @@ def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
     '''takes a list of keyword-strings for metals and appends slip system names; the output matches the file names used by writeallinputfiles().'''
     if isinstance(metals, str):
         metals = metals.split(" ")
-    elif not (isinstance(metals, (list,set)) and isinstance(list(metals)[0], str)):
-        raise ValueError(f"epxected a string or list of strings but got {metals=}")
+    elif not (isinstance(metals, (list,set)) and isinstance(next(iter(metals)), str)):
+        raise TypeError(f"epxected a string or list of strings but got {metals=}")
     out = []
     if bccslip == 'all':
         slipkw_bcc = ['110', '112', '123']
