@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Aug. 11, 2026
+! Date: Apr. 10, 2026 - Aug. 31, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -97,7 +97,6 @@ program dislocdyn
       disl%nphi = sim_plan%nphi
     end if
     sim_plan%b = sim_plan%b/sim_plan%Millernorm
-    sim_plan%n0 = sim_plan%n0/sim_plan%Millernorm
     if (sim_plan%include_negative_theta) then
       disl_neg(i) = disl(i)
       call disl_neg(i)%init(Millerb=sim_plan%b,Millern0=sim_plan%n0,positive_theta = .false.)
