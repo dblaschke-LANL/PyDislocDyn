@@ -54,19 +54,19 @@ jobs:
           make
           ./runtests.x
           yes 2>/dev/null | pytest -s --collect-only testing
-          pytest -n auto -rP --durations=0 testing/
+          pytest -n 2 -rP --durations=0 testing/
         if: runner.os  == 'Linux'
       - name: Run tests MacOS
         run: |
           make
           ./runtests.x
           yes 2>/dev/null | pytest -s --collect-only testing
-          pytest -n auto -rP --durations=0 testing/
+          pytest -n 2 -rP --durations=0 testing/
         if: runner.os  == 'MacOS'
       - name: Run tests windows
         run: |
           echo 'N' | pytest -s --collect-only testing
-          pytest -n auto -rP --durations=0 testing/
+          pytest -n 2 -rP --durations=0 testing/
         if: runner.os == 'Windows'
       - name: Upload log files as artifacts
         uses: actions/upload-artifact@v7
