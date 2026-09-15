@@ -30,12 +30,12 @@ jobs:
           - python-version: '3.14'
             module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest pytest-xdist"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Fortran Compiler
         uses: fortran-lang/setup-fortran@v1
         if: runner.os == 'MacOS'
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Fortran Package Manager
