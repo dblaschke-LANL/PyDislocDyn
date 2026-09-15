@@ -28,14 +28,14 @@ jobs:
           - python-version: '3.10'
             module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8 pandas==1.5 jinja2 joblib==1.1 threadpoolctl gmpy2 numba==0.58.1 meson ninja pytest"
           - python-version: '3.14'
-            module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest"
+            module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba meson ninja pytest pytest-xdist"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Fortran Compiler
         uses: fortran-lang/setup-fortran@v1
         if: runner.os == 'MacOS'
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Fortran Package Manager
@@ -62,7 +62,9 @@ jobs:
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'MacOS'
       - name: Run tests windows
-        run: echo 'N' | pytest -s --durations=0 testing/
+        run: |
+          echo 'N' | pytest -s --collect-only testing
+          pytest -n auto -rP --durations=0 testing/
         if: runner.os == 'Windows'
       - name: Upload log files as artifacts
         uses: actions/upload-artifact@v7
