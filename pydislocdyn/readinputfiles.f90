@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Aug. 12, 2026
+! Date: Apr. 10, 2026 - Sept. 17, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -23,6 +23,24 @@ module dislocdyn_readinputfiles
   !-------------------------
   public :: read_inputdeck, read_materialfile
   contains
+    !>removes quotation marks from a string
+    subroutine removequotes(text)
+      character(*), intent(inout) :: text
+      character(256) :: newtext
+      integer :: lentxt, i, j
+      
+      lentxt = len_trim(text)
+      newtext = ""
+      j = 1
+      do i=1,lentxt
+        if ((text(i:i) /= '"') .and. (text(i:i) /= "'")) then
+          newtext(j:j) = text(i:i)
+          j = j+1
+        end if
+      end do
+      text = newtext
+    end subroutine removequotes
+
     !>counts the number of lines starting with 'sim_type' in an input deck file
     subroutine scan_inputdeck(filename,nsims)
       character(*), intent(in) :: filename
@@ -54,6 +72,7 @@ module dislocdyn_readinputfiles
       close(unit=42)
 !~       print*,"found",nsims,"sims"
     end subroutine scan_inputdeck
+
     !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
     subroutine read_inputdeck(filename,sim_plan,sym)
       use dislocdyn_utilities, only: linspace
@@ -65,6 +84,7 @@ module dislocdyn_readinputfiles
       character(32) :: key
       character(256) :: line, values, dummy
       p = 1
+      ! count number of simulations (nsims)
       call scan_inputdeck(filename,nsims)
       ! default values:
       allocate(sim_plan%sim_type(nsims))
@@ -97,6 +117,8 @@ module dislocdyn_readinputfiles
           if (trim(dummy) /= "=") then
             key = " "
             print*,"skipping ", line, " (unknown format)"
+          else
+            call removequotes(line)
           end if
         else
           ! skip empty lines
@@ -167,6 +189,8 @@ module dislocdyn_readinputfiles
           if (trim(dummy) /= "=") then
             key = " "
             print*,"skipping ", line, " (unknown format)"
+          else
+            call removequotes(line)
           end if
         end if
         if (key=='name') then
