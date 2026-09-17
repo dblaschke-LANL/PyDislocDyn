@@ -30,13 +30,13 @@ dependencies = [
 fast = [
   "numba>=0.58.1",
   "joblib>=1.1",
-  "threadpoolctl"
+  "threadpoolctl>=3.3"
 ]
 dev = [
   "pytest>=9.0.1"
 ]
 yaml = [
-  "pyyaml"
+  "pyyaml>=6.0"
 ]
 all = [
   "pydislocdyn[fast,dev,yaml]",
