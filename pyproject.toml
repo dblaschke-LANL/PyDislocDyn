@@ -36,7 +36,7 @@ dev = [
   "pytest>=9.0.1"
 ]
 yaml = [
-  "yaml"
+  "pyyaml"
 ]
 all = [
   "pydislocdyn[fast,dev,yaml]",
