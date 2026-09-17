@@ -10,6 +10,7 @@ Features and improvements:
  - new option in `writeinputfile()` lets the user override pre-defined slip systems
  - `pydislocdyn.readinputfile()` will now fall back to returning an instance of the `metal_props` class if no slip plane is defined in the file
  - added more pre-defined example slip planes for the tetragonal metals of `metal_data`; all examples are now in their own dictionary `example_slip_planes`
+ - added support for reading and writing pydislocdyn input files in toml and yaml format
 
 Fix:
 
