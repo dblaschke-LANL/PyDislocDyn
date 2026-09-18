@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{August 31, 2026}
+\date{September 18, 2026}
 
 \begin{document}
 \maketitle
@@ -95,31 +95,22 @@ where it is distributed under the BSD-3 license, (Copyright, Triad National Secu
 \item PyDislocDyn 1.4.0 and higher requires Python 3.10 or higher\footnote{
 The last version to support Python 2.7 was PyDislocDyn 1.2.0, Python 3.5 was supported up to version 1.2.3, Python 3.6 up to version 1.2.4, Python 3.8 up to version 1.2.9, and Python 3.9 up to 1.3.5.}.
 As of PyDislocDyn 1.4.0, required modules include Numpy $\ge1.26$, Scipy $\ge1.10$, Sympy $\ge1.12$, Matplotlib $\ge3.8$, Pandas $\ge1.5$ (including its optional dependency Jinja2), and mpmath (recommended optional dependency of mpmath: gmpy).
-\item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:
+On Python 3.10, tomli is an additional requirement.
+\item Optional, but highly recommended in order to conduct drag coefficient calculations with reasonable speed are:\\
 Meson\footnote{%
 Note: building the Fortran subroutines of previous PyDislocDyn 1.3.x releases with Numpy $\le1.26$ requires Setuptools $<70$.%
-} and a Fortran compiler supported by numpy.f2py to compile the optional Fortran subroutines, Joblib $\ge1.1$ (for parallelization),
-threadpoolctl (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and Numpy to avoid over-committing if Joblib is used), and 
+} and a Fortran compiler supported by numpy.f2py to compile the optional Fortran subroutines (resp. a Fortran 2018 compiler, such as gfortran>=10, for the standalone Fortran library and frontend), Joblib $\ge1.1$ (for parallelization),
+threadpoolctl>=3.3 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and Numpy to avoid over-committing if Joblib is used), and 
 Numba $\ge0.53$ (a just-in-time compiler for Python; the Fortran subroutines are faster and thus preferred however).
-%To compile the optional Fortran subroutines, run `\verb|python -m numpy.f2py -c subroutines.f90 -m subroutines|'.\\
-%Optionally, the subroutines can also be compiled with OpenMP parallelization support by passing the appropriate options for your compiler. For example, with gfortran on Linux or MacOS with Python $\leq3.11$ compile with:
-%\\`\verb|python -m numpy.f2py --f90flags=-fopenmp -lgomp -c subroutines.f90|\\\verb|-m subroutines|';\\
-%or with Python $\geq3.12$:
-%\\`\verb|python -m numpy.f2py --dep=openmp -c subroutines.f90 -m subroutines|'.
 \\
-%Note: building the Fortran subroutines with Numpy $\le1.26$ requires Setuptools $<70$, whereas building with Numpy $\ge2.0$ / Python $\ge3.12$ requires Meson (see the Numpy documentation for details).
 To compile the subroutines of PyDislocDyn $\ge1.3.0$, simply run\\
  \verb|python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()|'\\
-% (PyDislocDyn 1.3.0 or higher).
-% The Fortran submodule will then be available as submodule \verb|pydislocdyn.subroutines| the next time pydislocdyn is imported.
 See the readme file for additional information on installing PyDislocDyn and compiling its subroutine module as well as the standalone Fortran library included in PyDislocDyn >=1.4.0.
 
 OpenMP is also supported by the Fortran submodule, and the number of threads used by the subroutines is controlled by environment variable \verb|OMP_NUM_THREADS|.
 Unless set by the user prior to running Python in the terminal, PyDislocDyn will attempt to choose an optimal value\footnote{
 Note: this may fail if threadpoolctl is not installed and a recent version of numpy is imported before pydislocdyn.}.
 Furthermore, PyDislocDyn's joblib parallelization will automatically adjust its `Ncores' variable to avoid over-committing.
-%, i.e. if openmp uses all cores in the subroutines, joblib will spawn only one (higher level) python thread.
-%Best results are achieved when \verb|OMP_NUM_THREADS| is close to \verb|Ncores| while \verb|OMP_NUM_THREADS*Ncores|=the number of all available (virtual) cpu cores; the value for Ncores is set automatically by the python code, so the user just needs to set \verb|OMP_NUM_THREADS| prior to running python in the terminal.
 \end{itemize}
 
 
@@ -214,7 +205,7 @@ these can be conveniently read into a pandas dataframe by using function `\verb|
 \label{sec:inputfiles}
 
 Input files are text files assigning values to keywords known to PyDislocDyn.
-All entries adhere to the format
+All entries adhere to the format\footnote{As of PyDislocDyn 1.4.0, the .toml and .yaml formats are also supported.}
 \\\verb|keyword = value|\\
 where all numerical values must be set in SI units.
 Comments are allowed and start with `\verb|#|'.
@@ -231,16 +222,16 @@ The unit cell volume is then automatically computed.
 for lower symmetries, all values are assigned to one keyword, \verb|cij|, and must be a assembled in one line separated by commas.
 The order is ascending, i.e. c11 comes before c12 etc.; see \cite{Brugger:1965} for further details on which elastic constants need to be provided for each crystal system.
 
-\item \verb|n0| or \verb|Millern0|: requires comma separated values and denotes the slip plane normal in Cartesian coordinates or Miller indices for planes (i.e. in reciprocal space); its length is ignored, Miller indices \verb|Millern0| (if provided) are automatically converted to Cartesian coordinates \verb|n0|, and \verb|n0| is automatically normalized.
+\item \verb|Millern0|: requires comma separated values and denotes the slip plane normal in Miller indices for planes (i.e. in reciprocal space); its length is ignored, Miller indices \verb|Millern0| are automatically converted to Cartesian coordinates \verb|n0|, and \verb|n0| is automatically normalized.
 
-\item \verb|b| or \verb|Millerb|: requires comma separated values and denotes the Burgers vector direction in Cartesian coordinates or Miller indices; its length is only used to infer the Burgers vector length \verb|burgers| (unless the latter is provided explicitly in the input file, see optional keywords below).
-If provided, Miller indices \verb|Millerb| are automatically converted to Cartesian coordinates \verb|b|, and \verb|b| is automatically normalized.
+\item \verb|Millerb|: requires comma separated values and denotes the Burgers vector in Miller indices; its length is used to infer the Burgers vector length \verb|burgers|.
+Miller indices \verb|Millerb| are automatically converted to Cartesian coordinates \verb|b|, and \verb|b| is automatically normalized.
 \end{itemize}
 \noindent
-The following keywords are optional (depending on the intended use case):
+The following keywords are optional (depending on the intended use case)\footnote{Legacy keywords `\texttt{burgers}', `\texttt{b}', and `\texttt{n0}' for input files are deprecated in PydislocDyn 1.4.0, users should use Miller indices instead.}:
 \begin{itemize}
-\item \verb|burgers| defines the Burgers vector length; if omitted it is inferred from \verb|Millerb| or \verb|b| (in which case their length matters).
-
+%\item \verb|burgers| defines the Burgers vector length; if omitted it is inferred from \verb|Millerb| or \verb|b| (in which case their length matters).
+%
 \item \verb|name|: a name for your instance of the \verb|Dislocation| class; defaults to the file name of the input file.
 Though not strictly necessary it is recommended to set a name.
 
@@ -378,6 +369,8 @@ In particular this includes the following objects:
    \item function \verb|phonondrag| to calculate the drag coefficient $B$ in units of mPa\,s as a function of velocity for an instance of the Dislocation class.
    \item function \verb|B_of_sigma| to calculate the drag coefficient $B$ as a function of stress $\sigma$ from a previously determined fitting function for $B(v)$ as a function of dislocation velocity $v$.
    \item function \verb|plotuij| generates a heat map plot of a 2-dimensional dislocation field.
+   \item function \verb|read_dislocdyn_output(fname)| can be used to read an output file of the Fortran frontend, \verb|fname| (PyDislocDyn 1.4.0 and up).
+   It returns a dictionary containing pandas DataFrames for limiting velocities and/or drag coefficients for each material found in \verb|fname|.
 \end{itemize}
 
 Additional functions are available within the sub-modules:
