@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 25, 2026
+# Date: Nov. 3, 2017 - Sept. 18, 2026
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
 
 References for the data included in these dictionaries (see the manual and its bibliography for further details):
@@ -238,17 +238,14 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrsl
             slip = "fcc"
             outf.write("sym = fcc\n\n")
             outf.write("# example slip system (normalization applied automatically upon reading and after calculating 'burgers')\n")
-            outf.write(f"# burgers = {CRC_a[X]/np.sqrt(2)} \t# a/sqrt(2) (determined from Millerb), this optional line can be used as an override\n")
         elif X in bcc_metals:
             slip = 'bcc'+bccslip
             outf.write("sym = bcc\n\n")
             outf.write("# example slip system (normalization applied automatically upon reading and after calculating 'burgers')\n")
-            outf.write(f"# burgers = {CRC_a[X]*np.sqrt(3)/2} \t# a*sqrt(3)/2 (determined from Millerb), this optional line can be used as an override\n")
         elif X in hcp_metals:
             slip = 'hcp'+hcpslip
             outf.write("sym = hcp\n\n")
             outf.write("# example slip systems (Miller indices are converted to normalized Cartesian upon reading):\n")
-            outf.write(f"# burgers = {CRC_a[X]} \t# a (determined from Millerb), this optional line can be used as an override\n")
             ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
             ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
             ### therefore, may choose b parallel to x-axis
@@ -256,7 +253,6 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrsl
             slip = 'bct'+tetrslip
             if X in fct_metals: slip = 'fct'+tetrslip
             outf.write("sym = tetr\n\n")
-            outf.write("# burgers =  \t#  (determined from Millerb above), this optional line can be used as an override\n")
             ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
             ## simplest slip system in bct with the shortest burgers vector in Sn (i.e. energetically most favorable) is bct1 and in this case
             ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
