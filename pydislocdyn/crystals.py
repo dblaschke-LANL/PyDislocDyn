@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 16, 2026
+# Date: Nov. 7, 2017 - Sept. 18, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -14,7 +14,7 @@ import pandas as pd
 ##
 from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt, \
     convert_SOECiso, convert_TOECiso, strain_poly
-from .utilities import str_to_array, loadinputfile, dumpinputfile, usefortran
+from .utilities import str_to_array, loadinputfile, dumpinputfile, usefortran, material_data
 if usefortran:
     from .subroutines import dislocdyn_subroutines
     vlim_of_phi = dislocdyn_subroutines.vlim_of_phi
@@ -234,7 +234,7 @@ class metal_props:
             out += f"\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
         return out
 
-    def writeinputfile(self,fname=None):
+    def dumpinput(self,fname=None):
         """
         This method returns a dictionary with all input parameters needed to re-initialize the present
         class instance. If fname is provided, an input file is written for the present class instance.
@@ -268,8 +268,11 @@ class metal_props:
         else:
             mydict.pop('betac')
         if fname is not None:
-            dumpinputfile(mydict,fname)
-        return mydict
+            if fname[-4:] in ("toml","yaml",".yml"):
+                material_data(mydict).write(fname)
+            else:
+                dumpinputfile(mydict,fname)
+        return material_data(mydict).data
 
     def init_symbols(self):
         '''populates material density self.rho and elastic constants with sympy symbols'''
@@ -587,6 +590,10 @@ class metal_props:
         
     def populate_from_dict(self,inputparams):
         '''Assigns values to various attributes of this class by reading a dictionary 'inputparams'. Keywords unknown to this function are ignored.'''
+        ## compatibility layer supporting experimental new input file format while we still using legacy internally:
+        if 'lattice' in inputparams:
+            inputparams = material_data(inputparams).convert_to_legacy()
+        ##
         keys = inputparams.keys()
         sym = self.sym
         self.name = inputparams.get('name',self.name)

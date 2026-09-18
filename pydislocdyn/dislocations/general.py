@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 25, 2026
+# Date: Nov. 3, 2017 - Sept. 18, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,7 +12,7 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 import pandas as pd
-from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat
+from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat, material_data
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from ..crystals import readinputfile as _readcrystalinputfile
@@ -710,6 +710,9 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
     inputparams = loadinputfile(fname)
     sym = inputparams['sym']
     name = inputparams.get('name',str(fname))
+    ## compatibility layer supporting experimental new input file format while we still using legacy internally:
+    if 'lattice' in inputparams:
+        inputparams = material_data(inputparams).convert_to_legacy()
     if 'Millerb' in inputparams or 'Millern0' in inputparams:
         temp = metal_props(sym,name) ## need a metal_props method to convert to Cartesian b, n0
         temp.populate_from_dict(inputparams)

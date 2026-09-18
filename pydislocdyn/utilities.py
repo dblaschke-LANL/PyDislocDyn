@@ -3,6 +3,7 @@
 # Date: Nov. 5, 2017 - Sept. 18, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
+import copy
 import sys
 import os
 import shutil
@@ -209,7 +210,7 @@ def loadinputfile(fname):
     if str(fname)[-5:] == ".yaml" or str(fname)[-4:] == ".yml":
         if not knowyaml:
             raise ImportError("I need the pyyaml module to read yaml files.")
-        with  open(fname,"r") as f1:
+        with  open(fname,"r", encoding="utf8") as f1:
             inputparams = yaml.safe_load(f1)
         return inputparams
     with open(fname,"r", encoding="utf8") as inputfile:
@@ -246,7 +247,14 @@ def dumpinputfile(data,fname):
     if str(fname)[-5:] == ".toml":
         with open(fname,"w", encoding="utf8") as inputfile:
             for k, v in data.items():
-                inputfile.write(f'{k} = "{v}"\n')
+                if isinstance(v,dict):
+                    inputfile.write(f'\n[{k}]\n')
+                    for kk, vv in v.items():
+                        if isinstance(vv, (list,np.ndarray)):
+                            vv = ", ".join(map("{}".format,vv))
+                        inputfile.write(f'{kk} = "{vv}"\n')
+                else:
+                    inputfile.write(f'{k} = "{v}"\n')
     elif str(fname)[-5:] == ".yaml" or str(fname)[-4:] == ".yml":
         if not knowyaml:
             raise ImportError("I need the pyyaml module to write yaml files.")
@@ -469,3 +477,74 @@ def read_dislocdyn_output(fname,postprocess=False):
             out[X]['vlim'].index.name = 'theta'
             out[X]['vlim'].columns = pd.RangeIndex(start=0, stop=3, step=1, name='branch')
     return out
+
+
+#### experimental support for new structured toml format for input files:
+class material_data():
+    """
+    This class can read pydislocdyn input files in both the new and the legacy format and output
+    a dictionary. We also provide a method to dump back to a file of the same or a different format.
+    """
+    def __init__(self,inputdata):
+        if isinstance(inputdata, dict):
+            inputdata_raw = inputdata
+        else:
+            inputdata_raw = loadinputfile(inputdata)
+        self.data = self._preprocess(inputdata_raw)
+
+    def write(self,fname):
+        """Write the data to a file. The format (toml, yaml, or legacy)) is inferred from the file ending."""
+        if fname[-4:] not in ("toml","yaml",".yml"):
+            dumpinputfile(self.convert_to_legacy(),fname)
+        else:
+            dumpinputfile(self.data,fname)
+
+    def _preprocess(self,inputdata):
+        """
+        Checks inputdata for consistency and if necessary converts our legacy to our new format
+        before returning inputdata.
+        Limitations: we no longer store 'burgers' nor do we support Cartesian coordinates, i.e. slip systems
+        must be defined using Miller indices only using keywords 'Millerb' and 'Millern0'.
+        """
+        soecnames = ('c11','c12','c13','c33','c44','c66','cij','lam','mu')
+        toecnames = ('c111', 'c112', 'c123', 'c144', 'c166', 'c456', 'c113', 'c133', 'c155', 'c222', 'c333', 'c344', 'c366', 'cijk')
+        if inputdata.get('lattice') is None:
+            # convert from legacy format
+            inputdata['lattice'] = {'a':inputdata.pop('a'), 'b':inputdata.pop('lcb',None), 'c':inputdata.pop('c',None),
+                                    'alpha':inputdata.pop('alpha',None), 'beta':inputdata.pop('beta',None),
+                                    'gamma':inputdata.pop('gamma',None)}
+            inputdata['lattice'] = {k:v for k,v in inputdata['lattice'].items() if v is not None}
+            inputdata['soec'] = {k:inputdata.pop(k,None) for k in soecnames}
+            inputdata['soec'] = {k:v for k,v in inputdata['soec'].items() if v is not None}
+            inputdata['toec'] = {k:inputdata.pop(k,None) for k in toecnames}
+            inputdata['toec'] = {k:v for k,v in inputdata['toec'].items() if v is not None}
+        if inputdata.get('slip') is None:
+            # check if slip system is defined in legacy format and if so, convert:
+            if 'Millerb' in inputdata:
+                inputdata['slip'] = {'Millerb':inputdata.pop('Millerb'), 'Millern0':inputdata.pop('Millern0')}
+            elif 'b' in inputdata:
+                raise ValueError("cannot convert slip systems defined with Cartesian coordinates, please provide Miller indices!")
+        ###
+        if inputdata.get('slip') is not None:
+            for k in ('Millerb','Millern0'):
+                if isinstance(inputdata['slip'][k],str):
+                    inputdata['slip'][k] = str_to_array(inputdata['slip'][k])
+                elif any(isinstance(item, str) for item in inputdata['slip'][k]):
+                    inputdata['slip'][k] = np.asarray([Fraction(x) for x in inputdata['slip'][k]],dtype=object)
+                else:
+                    inputdata['slip'][k] = np.asarray(inputdata['slip'][k])
+        return inputdata
+    
+    def convert_to_legacy(self):
+        """converts a dictionary of pydislocdyn material data to our legacy format"""
+        data = copy.deepcopy(self.data)
+        if 'b' in data['lattice']:
+            data['lattice']['lcb'] = data['lattice'].pop('b')
+        data |= data.pop('lattice')
+        if 'slip' in data:
+            for k in ('Millerb','Millern0'):
+                data['slip'][k] = ", ".join(map("{}".format,data['slip'][k]))
+            data |= data.pop('slip')
+        data |= data.pop('soec')
+        data |= data.pop('toec')
+        return data
