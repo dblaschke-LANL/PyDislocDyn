@@ -10,7 +10,7 @@ Features and improvements:
  - new option in `writeinputfile()` lets the user override pre-defined slip systems
  - `pydislocdyn.readinputfile()` will now fall back to returning an instance of the `metal_props` class if no slip plane is defined in the file
  - added more pre-defined example slip planes for the tetragonal metals of `metal_data`; all examples are now in their own dictionary `example_slip_planes`
- - added support for reading and writing pydislocdyn input files in toml and yaml format
+ - added support for reading and writing pydislocdyn input files in toml and yaml format (new optional dependence: pyyaml)
 
 Fix:
 
@@ -25,7 +25,7 @@ Other:
    this has implications for other version requirements (e.g. numba)
  - changed defaults in functions `elasticC2/-C3/-S2/-S3` (output with `voigt=True` instead of `False`)
  - if Burgers vector and slip plane normal in an input file are not normal, PyDislcDyn will now throw a ValueError (previously just warned)
- - now require python 3.10 or higher
+ - now require python 3.10 or higher (with the additional requirement of tommli for python 3.10)
 
 ## 1.3.5 (2026-05-18)
 
