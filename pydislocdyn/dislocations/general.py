@@ -168,7 +168,7 @@ class Dislocation(StrohGeometry,metal_props):
                 norm=(self.C2[3,3]/self.rho)
                 C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
                 signs = [1,-1]
-                tmpout = np.zeros((2))
+                tmpout = np.zeros(2)
                 for i in range(2):
                     minresult = optimize.direct(lambda x: edgevlim_of_phi(x,signs[i],C2,norm),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                     tmpout[i] = minresult.fun
@@ -301,7 +301,7 @@ class Dislocation(StrohGeometry,metal_props):
     
     def findRayleigh(self):
         '''Computes the Rayleigh wave speed for every dislocation character self.theta.'''
-        Rayleigh=np.zeros((self.Ntheta))
+        Rayleigh=np.zeros(self.Ntheta)
         norm = self.C2[3,3] # use c44
         C2norm = UnVoigt(self.C2/norm)
         if self.vcrit_all is None or len(self.vcrit_all[0])!=self.Ntheta or np.any(self.vcrit_all[0]!=self.theta):

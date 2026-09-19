@@ -211,8 +211,8 @@ class metal_props:
         self.Vc=0 ## unit cell volume
         self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
         self.burgers=0 # length of Burgers vector
-        self.b=np.zeros((3)) ## unit Burgers vector
-        self.n0=np.zeros((3)) ## slip plane normal
+        self.b=np.zeros(3) ## unit Burgers vector
+        self.n0=np.zeros(3) ## slip plane normal
         self.Millerb = None ## Miller indices for burgers vector
         self.Millern0 = None ## Miller indices for slip plane
         self.alpha_a=0 # thermal expansion coefficient at temperature self.T, set to 0 for constant rho calculations
@@ -470,7 +470,7 @@ class metal_props:
         else:
             norm=(self.C2[3,3]/self.rho)
             C2 = UnVoigt(self.C2/self.C2[3,3])
-            out = np.zeros((3))
+            out = np.zeros(3)
             v = np.asarray(v)
             v = v/np.sqrt(v @ v)
             zero = np.array([1.,0.,0.])

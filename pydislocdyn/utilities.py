@@ -485,7 +485,7 @@ def read_dislocdyn_output(fname,postprocess=False):
 
 
 #### experimental support for new structured toml format for input files:
-class material_data():
+class material_data:
     """
     This class can read pydislocdyn input files in both the new and the legacy format and output
     a dictionary. We also provide a method to dump back to a file of the same or a different format.

@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 2, 2026
+# Date: Nov. 3, 2017 - Sept. 19, 2026
 '''This submodule contains a class, StrohGeometry, to calculate the displacement field of a steady state dislocation
    as well as various other properties. See also the more general Dislocation class defined in pydislocdyn.dislocations.general,
    which inherits from the StrohGeometry class defined here and the metal_props class defined in pydislocdyn.crystals.'''
@@ -91,7 +91,7 @@ class StrohGeometry:
         self.uij_acc_screw_aligned = None
         self.uij_acc_edge_aligned = None
         self.rot = np.zeros((Ntheta,3,3))
-        self.Etot = np.zeros((Ntheta))
+        self.Etot = np.zeros(Ntheta)
         self.LT = 0
         
         bsq = np.dot(self.b,self.b)
@@ -102,8 +102,8 @@ class StrohGeometry:
             self.t = np.empty(self.t.shape,dtype=object)
             self.m0 = np.empty(self.t.shape,dtype=object)
             for i,th in enumerate(self.theta*sp.pi/np.pi):
-                self.t[i] = sp.matrix2numpy(sp.simplify(sp.Matrix(self.b*sp.cos(th)) + sp.Matrix(self.b*sp.sin(th)).cross(sp.Matrix(self.n0)))).reshape((3))
-                self.m0[i] = sp.matrix2numpy(sp.simplify(sp.Matrix(self.n0).cross(sp.Matrix(self.t[i])))).reshape((3))
+                self.t[i] = sp.matrix2numpy(sp.simplify(sp.Matrix(self.b*sp.cos(th)) + sp.Matrix(self.b*sp.sin(th)).cross(sp.Matrix(self.n0)))).reshape(3)
+                self.m0[i] = sp.matrix2numpy(sp.simplify(sp.Matrix(self.n0).cross(sp.Matrix(self.t[i])))).reshape(3)
             ## skip the rest: would need numbers, not sympy symbols
         else:
             if bsq>1e-12 and abs(bsq-1)>1e-12:
@@ -278,13 +278,13 @@ def computeuij_iso(beta,ct_over_cl, theta, phi, r=None, nogradient=False):
             raise ValueError("I need an array for r in conjunction with nogradient=True.")
         r0 = r[0] ## cutoff
         uk = np.zeros((3,Ntheta,Nr*Nphi))
-        one = np.ones((Nr))
+        one = np.ones(Nr)
         if beta==0:
             crat2 = ct_over_cl**2
             atan = artan(sinph,cosph)
             ## edge parametrized by sin(theta)
             uk[0] = np.outer(np.sin(theta),np.outer(one,(atan + (1-crat2)*cosph*sinph)/(2*pi)))
-            uk[1] = np.outer(np.sin(theta),np.outer(one,((1-crat2)*(sinph)**2)/(2*pi)) - np.outer((crat2*np.log(r**2/r0**2))/(4*pi),np.ones((Nphi))))
+            uk[1] = np.outer(np.sin(theta),np.outer(one,((1-crat2)*(sinph)**2)/(2*pi)) - np.outer((crat2*np.log(r**2/r0**2))/(4*pi),np.ones(Nphi)))
         else:
             x2 = np.outer(r**2,cosph**2)
             y2 = np.outer(r**2,sinph**2)

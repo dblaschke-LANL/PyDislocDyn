@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Sept. 15, 2025 - Aug. 25, 2026
+# Date: Sept. 15, 2025 - Sept. 19, 2026
 '''This submodule contains various subroutines that are accelerated using just-in-time compiler numba.
    For the Fortran-implementation of these subroutines, see subroutines.f90.'''
 
@@ -43,7 +43,7 @@ def elbrak(A,B,elC):
        All arguments are arrays, i.e. A and B have shape (3,Ntheta) where Ntheta is e.g. the number of character angles.'''
     Ntheta = len(A[0,:,0])
     Nphi = len(A[0,0])
-    tmp = np.zeros((Nphi))
+    tmp = np.zeros(Nphi)
     AB = np.zeros((3,3,Ntheta,Nphi))
     for th in range(Ntheta):
         for l in range(3):
@@ -99,7 +99,7 @@ def computeuij(beta, C2, Cv, b, M, N, phi, r=None, nogradient=False, debug=False
     Sb = np.empty((3,Ntheta))
     pi = np.pi
     
-    tmp = np.empty((Nphi))
+    tmp = np.empty(Nphi)
     bb = beta*beta
     tmpC = np.empty(Cv.shape)
     
@@ -168,8 +168,8 @@ def fourieruij_sincos(ra,rb,phiX,q,ph):
     phres = len(ph)
     qres = len(q)
     phiXres = len(phiX)
-    cosphimph = np.reshape(np.cos(np.outer(np.ones((phres)),phiX)-np.outer(ph,np.ones((phiXres)))),(phres*phiXres))
-    out = np.zeros((phres*phiXres))
+    cosphimph = np.reshape(np.cos(np.outer(np.ones(phres),phiX)-np.outer(ph,np.ones(phiXres))),(phres*phiXres))
+    out = np.zeros(phres*phiXres)
     for iq in range(qres):
         out += (np.cos(q[iq]*ra*cosphimph)-np.cos(q[iq]*rb*cosphimph))/cosphimph/qres
    
@@ -184,7 +184,7 @@ def fourieruij_nocut(uij,phiX,sincos,Ntheta,phres):
     phiXres = len(phiX)
     ph2res = phres*phiXres
     result = np.zeros((3,3,Ntheta,phres))
-    ph_ones = np.ones((phres))
+    ph_ones = np.ones(phres)
     uij_array = np.zeros((3,3,ph2res))
     integrand = np.empty((3,3,ph2res))
     for th in range(Ntheta):

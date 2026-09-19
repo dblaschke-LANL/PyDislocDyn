@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - July 21, 2026
+# Date: Mar. 6, 2023 - Sept. 19, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import os
 import sys
@@ -166,12 +166,12 @@ def test_disloc_props(metal_list=None,Ntheta=2):
             assert np.allclose(M,np.moveaxis(Y[X].M,-1,0))
             assert np.allclose(N,np.moveaxis(Y[X].N,-1,0))
         ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
-        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), print('edge',X,num_edge,Y[X].vcrit_edge)
-        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), print('screw',X,num_screw,Y[X].vcrit_screw)
+        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), f"edge, {X}, {num_edge}, {Y[X].vcrit_edge}"
+        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), f"screw, {X}, {num_screw}, {Y[X].vcrit_screw}"
         if pydis.CheckReflectionSymmetry(Y[X].C2_aligned[0]):
             Y[X].computeuij(0.5)
             trace_of_screw = np.trace(Y[X].uij[:,:,0]) # trace is zero for pure screw dislocations
-            assert np.all(trace_of_screw<1e-15), print(X,trace_of_screw)
+            assert np.all(trace_of_screw<1e-15), f"{X}, {trace_of_screw}"
             if X in pydis.metal_data.fcc_metals: 
                 vlim_edge = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
                 assert np.isclose(Y[X].vcrit_edge,vlim_edge)
