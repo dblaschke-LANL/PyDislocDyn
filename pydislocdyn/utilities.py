@@ -259,7 +259,12 @@ def dumpinputfile(data,fname):
         if not knowyaml:
             raise ImportError("I need the pyyaml module to write yaml files.")
         with open(fname,"w", encoding="utf8") as inputfile:
-            inputfile.write(yaml.dump(data,sort_keys=False))
+            ydata = copy.deepcopy(data)
+            if 'slip' in ydata:
+                # workaround pyyaml not supporting ndarrays or Fractions:
+                for k,v in ydata['slip'].items():
+                    ydata['slip'][k] = ", ".join(map("{}".format,v))
+            inputfile.write(yaml.dump(ydata,sort_keys=False))
     else:
         with open(fname,"w", encoding="utf8") as inputfile:
             for k, v in data.items():
