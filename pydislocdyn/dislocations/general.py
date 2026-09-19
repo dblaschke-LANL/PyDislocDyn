@@ -707,7 +707,10 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
        with sym=iso and using those averages.
        Finally, include_extra adds two character angles at the edges (needed for linetension calcs since those involve 2 derivatives wrt theta).
        If the slip system is not defined in the input file, we fall back to returning an instance of the metal_props class.'''
-    inputparams = loadinputfile(fname)
+    if isinstance(fname, material_data):
+        inputparams = fname.data
+    else:
+        inputparams = loadinputfile(fname)
     sym = inputparams['sym']
     name = inputparams.get('name',str(fname))
     ## compatibility layer supporting experimental new input file format while we still using legacy internally:

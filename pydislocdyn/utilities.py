@@ -251,7 +251,7 @@ def dumpinputfile(data,fname):
                     inputfile.write(f'\n[{k}]\n')
                     for kk, vv in v.items():
                         if isinstance(vv, (list,np.ndarray)):
-                            vv = ", ".join(map("{}".format,vv))
+                            vv = ", ".join(map(str,vv))
                         inputfile.write(f'{kk} = "{vv}"\n')
                 else:
                     inputfile.write(f'{k} = "{v}"\n')
@@ -263,7 +263,7 @@ def dumpinputfile(data,fname):
             if 'slip' in ydata:
                 # workaround pyyaml not supporting ndarrays or Fractions:
                 for k,v in ydata['slip'].items():
-                    ydata['slip'][k] = ", ".join(map("{}".format,v))
+                    ydata['slip'][k] = ", ".join(map(str,v))
             inputfile.write(yaml.dump(ydata,sort_keys=False))
     else:
         with open(fname,"w", encoding="utf8") as inputfile:
@@ -548,7 +548,7 @@ class material_data():
         data |= data.pop('lattice')
         if 'slip' in data:
             for k in ('Millerb','Millern0'):
-                data['slip'][k] = ", ".join(map("{}".format,data['slip'][k]))
+                data['slip'][k] = ", ".join(map(str,data['slip'][k]))
             data |= data.pop('slip')
         data |= data.pop('soec')
         data |= data.pop('toec')

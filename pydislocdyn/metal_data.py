@@ -259,13 +259,13 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrsl
         if slip in example_slip_planes:
             for key, value in example_slip_planes[slip].items():
                 outf.write(f"{key} = ")
-                outf.write(", ".join(map("{}".format,value))+"\n")
+                outf.write(", ".join(map(str,value))+"\n")
         if Millerb is not None:
             outf.write("# replacing Millerb above with user value:\nMillerb = ")
-            outf.write(", ".join(map("{}".format,Millerb))+"\n")
+            outf.write(", ".join(map(str,Millerb))+"\n")
         if Millern0 is not None:
             outf.write("# replacing Millern0 above with user value:\nMillern0 = ")
-            outf.write(", ".join(map("{}".format,Millern0))+"\n")
+            outf.write(", ".join(map(str,Millern0))+"\n")
         outf.write("\n# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
         outf.write(f"T = 300\na = {CRC_a[X]}\n")
         if X in CRC_c:
