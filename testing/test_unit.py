@@ -236,18 +236,17 @@ def test_fortransubroutines():
 
 def test_inputfiles(metal_list=None):
     """tests reading/writing/converting input files and cloning dislocations"""
-    tmpinputfiles = tmppydislocdyn / "original"
+    tmpinputfiles = testpath / "original"
     tmpinputfiles.mkdir(exist_ok=True)
-    # legacy = tmppydislocdyn / "legacy"
+    # legacy = testpath / "legacy"
     # legacy.mkdir(exist_ok=True)
-    toml = tmppydislocdyn / "toml"
+    toml = testpath / "toml"
     toml.mkdir(exist_ok=True)
-    yaml = tmppydislocdyn / "yaml"
+    yaml = testpath / "yaml"
     yaml.mkdir(exist_ok=True)
-    print(toml)
     os.chdir(tmpinputfiles)
     pydis.writeallinputfiles()
-    os.chdir(tmppydislocdyn)
+    os.chdir(testpath)
     if metal_list is None:
         metal_list = sorted(tmpinputfiles.glob("*"))
     for X in metal_list:
