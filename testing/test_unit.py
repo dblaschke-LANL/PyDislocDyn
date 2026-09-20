@@ -4,6 +4,7 @@
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 # Date: Mar. 6, 2023 - Sept. 19, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
+import copy
 import os
 import sys
 import pathlib
@@ -232,3 +233,50 @@ def test_fortransubroutines():
     A = np.resize(np.random.rand(6**3),(6,6,6))
     assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_three(A))
     assert np.all(A==dislocdyn_elasticconstants.vgt_six(dislocdyn_elasticconstants.unvgt_three(A)))
+
+def test_inputfiles(metal_list=None):
+    """tests reading/writing/converting input files and cloning dislocations"""
+    tmpinputfiles = tmppydislocdyn / "original"
+    tmpinputfiles.mkdir(exist_ok=True)
+    # legacy = tmppydislocdyn / "legacy"
+    # legacy.mkdir(exist_ok=True)
+    toml = tmppydislocdyn / "toml"
+    toml.mkdir(exist_ok=True)
+    yaml = tmppydislocdyn / "yaml"
+    yaml.mkdir(exist_ok=True)
+    print(toml)
+    os.chdir(tmpinputfiles)
+    pydis.writeallinputfiles()
+    os.chdir(tmppydislocdyn)
+    if metal_list is None:
+        metal_list = sorted(tmpinputfiles.glob("*"))
+    for X in metal_list:
+        Y = pydis.utilities.material_data(X)
+        # check toml format:
+        fname = str(toml / (Y.data['name']+".toml"))
+        Y.write(fname)
+        Zt = pydis.utilities.material_data(fname)
+        # fname = str(legacy / Y.data['name'])
+        # Zt.write(fname)
+        for k in ('Millerb','Millern0'):
+            assert np.all(Zt.data['slip'][k]==Y.data['slip'][k])
+        Zt.data.pop('slip')
+        Ystrip = copy.deepcopy(Y.data)
+        Ystrip.pop('slip')
+        assert Zt.data==Ystrip
+        ## check clone disloc.
+        dis1 = pydis.readinputfile(fname)
+        dis2 = pydis.readinputfile(dis1.dumpinput())
+        assert dis1.__doc__ == dis2.__doc__
+        ##
+        if pydis.utilities.knowyaml:
+            # check yaml format:
+            fname = str(yaml / (Y.data['name']+".yaml"))
+            Y.write(fname)
+            Zy = pydis.utilities.material_data(fname)
+            # fname = str(legacy / Y.data['name'])
+            # Zy.write(fname)
+            for k in ('Millerb','Millern0'):
+                assert np.all(Zy.data['slip'][k]==Y.data['slip'][k])
+            Zy.data.pop('slip')
+            assert Zy.data==Ystrip
