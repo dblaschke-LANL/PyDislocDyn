@@ -267,6 +267,8 @@ def test_inputfiles(metal_list=None):
         dis1 = pydis.readinputfile(fname)
         dis2 = pydis.readinputfile(dis1.dumpinput())
         assert dis1.__doc__ == dis2.__doc__
+        assert np.allclose(dis1.C2,dis2.C2)
+        assert np.allclose(dis1.C3,dis2.C3)
         ##
         if pydis.utilities.knowyaml:
             # check yaml format:

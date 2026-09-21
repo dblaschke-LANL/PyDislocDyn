@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Sept. 1, 2026
+! Date: Mar. 25, 2026 - Sept. 20, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -104,7 +104,7 @@ module dislocdyn_tests
   use dislocdyn_checks
   implicit none
   private
-  public :: test_disloc
+  public :: test_disloc, test_readinput
   contains
     subroutine test_disloc(count_pass,count_fail)
       use dislocdyn_subroutines, only : computeEtot
@@ -225,6 +225,40 @@ module dislocdyn_tests
       call testzero(sum(B)-0.0846864,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
       
     end subroutine test_disloc
+
+    subroutine test_readinput(count_pass,count_fail)
+      use dislocdyn_dislocations
+      use dislocdyn_readinputfiles
+      integer, intent(inout) :: count_pass,count_fail
+      type(disloc), allocatable :: disl
+      type(inputdeck) :: sim_plan
+      character(256) :: materialfile, instructionfile
+      integer :: ios
+      
+      instructionfile = "testinstruct.in"
+      open(unit=20, file=trim(instructionfile), action="write", iostat=ios, status='replace')
+      write(20,'(a)',iostat=ios) "sim_type = vlimit"
+      write(20,'(a)',iostat=ios) "b = 0, 1, 1"
+      write(20,'(a)',iostat=ios) "n0 = 1, -1, 1"
+      close(unit=20)
+      materialfile = "testmaterial.in"
+      open(unit=21, file=trim(materialfile), action="write", iostat=ios, status='replace')
+      write(21,'(a)',iostat=ios) "name = Cu"
+      write(21,'(a)',iostat=ios) "sym = cubic"
+      write(21,'(a)',iostat=ios) "T = 300"
+      write(21,'(a)',iostat=ios) "a = 3.6146e-10"
+      write(21,'(a)',iostat=ios) "rho = 8960"
+      write(21,'(a)',iostat=ios) "c11 = 1.683000e+11"
+      write(21,'(a)',iostat=ios) "c12 = 1.212000e+11"
+      write(21,'(a)',iostat=ios) "c44 = 7.570000e+10"
+      close(unit=21)
+      
+      allocate(disl)
+      call read_materialfile(materialfile,disl)
+      call read_inputdeck(instructionfile,sim_plan,disl%sym)
+      call testzero(sum(disl%cij)-365200000000.0d0+sum(sim_plan%b)-2.0d0,"readfiles",1.d-5,count_pass,count_fail)
+      
+    end subroutine test_readinput
 end module dislocdyn_tests
 
 program runtests
@@ -310,6 +344,7 @@ program runtests
   call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
   
   call test_disloc(count_pass,count_fail)
+  call test_readinput(count_pass,count_fail)
   
   call system_clock(finish_time)
   print*,"------------------------------------------------------------"

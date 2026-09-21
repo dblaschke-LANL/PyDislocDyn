@@ -46,16 +46,18 @@ help:
 	@echo ''
 
 runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
-          pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 testing/runtests.f90
+          pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90  pydislocdyn/readinputfiles.f90 testing/runtests.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/optimize.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/crystals.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
+	$(FC) -c $(FFLAGS) pydislocdyn/readinputfiles.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	# Link
-	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o runtests.o $(LDFLAGS)
+	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \
+  runtests.o $(LDFLAGS)
 
 build: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
        pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90 app/dislocdyn.f90
