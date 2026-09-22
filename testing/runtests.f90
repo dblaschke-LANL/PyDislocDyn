@@ -235,22 +235,22 @@ module dislocdyn_tests
       character(256) :: materialfile, instructionfile
       integer :: ios
       
-      instructionfile = "testinstruct.in"
+      instructionfile = "testinstruct.toml"
       open(unit=20, file=trim(instructionfile), action="write", iostat=ios, status='replace')
-      write(20,'(a)',iostat=ios) "sim_type = vlimit"
-      write(20,'(a)',iostat=ios) "b = 0, 0.5, 0.5"
-      write(20,'(a)',iostat=ios) "n0 = 1, -1, 1"
+      write(20,'(a)',iostat=ios) 'sim_type = "vlimit"'
+      write(20,'(a)',iostat=ios) 'b = "0,0.5,0.5"'
+      write(20,'(a)',iostat=ios) 'n0 = "1,-1,1"'
       close(unit=20)
-      materialfile = "testmaterial.in"
+      materialfile = "testmaterial.toml"
       open(unit=21, file=trim(materialfile), action="write", iostat=ios, status='replace')
-      write(21,'(a)',iostat=ios) "name = Cu"
-      write(21,'(a)',iostat=ios) "sym = cubic"
-      write(21,'(a)',iostat=ios) "T = 300"
-      write(21,'(a)',iostat=ios) "a = 3.6146e-10"
-      write(21,'(a)',iostat=ios) "rho = 8960"
-      write(21,'(a)',iostat=ios) "c11 = 1.683000e+11"
-      write(21,'(a)',iostat=ios) "c12 = 1.212000e+11"
-      write(21,'(a)',iostat=ios) "c44 = 7.570000e+10"
+      write(21,'(a)',iostat=ios) 'name = "Cu"'
+      write(21,'(a)',iostat=ios) 'sym = "cubic"'
+      write(21,'(a)',iostat=ios) 'T = "300"'
+      write(21,'(a)',iostat=ios) 'rho = "8960"'
+      write(21,'(a)',iostat=ios) new_line('a')//'[lattice]'
+      write(21,'(a)',iostat=ios) 'a = "3.6146e-10"'
+      write(21,'(a)',iostat=ios) new_line('a')//'[soec]'
+      write(21,'(a)',iostat=ios) 'cij = "1.683000e+11,1.212000e+11,7.570000e+10"'
       close(unit=21)
       
       allocate(disl)

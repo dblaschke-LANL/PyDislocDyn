@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 18, 2026
+# Date: Nov. 5, 2017 - Sept. 21, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import copy
@@ -551,5 +551,28 @@ class material_data:
                 data['slip'][k] = ", ".join(map(str,data['slip'][k]))
             data |= data.pop('slip')
         data |= data.pop('soec')
-        data |= data.pop('toec')
+        if 'cij' in data:
+            match data.get('sym'):
+                case 'iso':
+                    (data['c12'],data['c44']) = str_to_array(data.pop('cij'))
+                case 'cubic' | 'fcc' | 'bcc':
+                    (data['c11'],data['c12'],data['c44']) = str_to_array(data.pop('cij'))
+                case 'hcp':
+                    (data['c11'],data['c12'],data['c13'],data['c33'],data['c44']) = str_to_array(data.pop('cij'))
+                case 'tetr':
+                    (data['c11'],data['c12'],data['c13'],data['c33'],data['c44'],data['c66']) = str_to_array(data.pop('cij'))
+        if 'toec' in data:
+            data |= data.pop('toec')
+            if 'cijk' in data:
+                match data.get('sym'):
+                    case 'iso':
+                        (data['c123'],data['c144'],data['c456']) = str_to_array(data.pop('cijk'))
+                    case 'cubic' | 'fcc' | 'bcc':
+                        (data['c111'],data['c112'],data['c123'],data['c144'],data['c166'],data['c456']) = str_to_array(data.pop('cijk'))
+                    case 'hcp':
+                        (data['c111'],data['c112'],data['c113'],data['c123'],data['c133'],data['c144'],data['c155'],data['c222'],
+                         data['c333'],data['c344']) = str_to_array(data.pop('cijk'))
+                    case 'tetr':
+                        (data['c111'],data['c112'],data['c113'],data['c123'],data['c133'],data['c144'],data['c155'],data['c166'],
+                         data['c333'],data['c344'],data['c366'],data['c456']) = str_to_array(data.pop('cijk'))
         return data
