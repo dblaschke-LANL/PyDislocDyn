@@ -33,17 +33,21 @@ EXEC = dislocdyn
 EXEC_tests = runtests
 SHARED = dislocdyn
 
+## define colors for output via echo below
+COL_YELLOW = \033[33m
+COL_PURPLE = \033[35m
+COL_RESET = \033[0m
+
 all:  runtests build clean
 
 help:
-	@echo 'targets:'
-	@echo 'make all             build $(EXEC_tests) and $(EXEC), then delete all object files'
-	@echo 'make runtests        only build the testsuite $(EXEC_tests)'
-	@echo 'make build           only build $(EXEC)'
-	@echo 'make shared          build the shared library $(SHARED) and $(EXEC) linked against it'
-	@echo 'make clean           delete all object files'
-	@echo 'make cleanall        delete all object files and executables'
-	@echo ''
+	@echo "\n$(COL_YELLOW)TARGETS:$(COL_RESET)"
+	@echo "make all             build $(EXEC_tests) and $(EXEC), then delete all object files"
+	@echo "make runtests        only build the testsuite $(EXEC_tests)"
+	@echo "make build           only build $(EXEC)"
+	@echo "make shared          build the shared library $(SHARED) and $(EXEC) linked against it"
+	@echo "make clean           delete all object files"
+	@echo "make cleanall        delete all object files and executables\n"
 
 runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
           pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90  pydislocdyn/readinputfiles.f90 testing/runtests.f90
@@ -87,10 +91,12 @@ shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn
 	# Link for linux
 	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o \
 	readinputfiles.o $(LD_SH)
+
 	$(FC) -o $(EXEC_tests)_sh.x runtests.o $(LDFLAGS) -l$(SHARED) -L.
-	## on linux run with: LD_LIBRARY_PATH="." ./runtests_sh.x)
+	@echo "\n$(COL_PURPLE)-> On linux run with: LD_LIBRARY_PATH="." ./runtests_sh.x $(COL_RESET)\n"
+
 	$(FC) -o $(EXEC)_sh.x dislocdyn.o $(LDFLAGS) -l$(SHARED) -L.
-	## on linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x)
+	@echo "\n$(COL_PURPLE)-> On linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x $(COL_RESET)\n"
 
 static: build
 	ar rcs libdislocdyn.a subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o

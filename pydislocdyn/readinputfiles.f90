@@ -112,7 +112,7 @@ module dislocdyn_readinputfiles
       do
         read(42,'(a)',iostat=ios) line
         if (ios/=0) exit
-        if ((line /= " ") .and. (line(1:1) /= "#")) then
+        if ((line /= " ") .and. (line(1:1) /= "#") .and. (line(1:1) /= "[")) then
           read(line,*) key,dummy,values
           if (trim(dummy) /= "=") then
             key = " "
@@ -130,21 +130,21 @@ module dislocdyn_readinputfiles
           p = p+1
         end if
         if (key=='logfile') sim_plan%logfile = trim(values)
-        if (key=='echoinput') read(line,*) key,dummy,sim_plan%echoinput
-        if (key=='include_negative_theta') read(line,*) key,dummy,sim_plan%include_negative_theta
+        if (key=='echoinput') read(values,*) sim_plan%echoinput
+        if (key=='include_negative_theta') read(values,*) sim_plan%include_negative_theta
         if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,sim_plan%b(1:n)
         if (key=='n0' .or. key=='Millern0') read(line,*) key,dummy,sim_plan%n0(1:n)
-        if (key=='betamin') read(line,*) key,dummy,sim_plan%betamin
-        if (key=='betamax') read(line,*) key,dummy,sim_plan%betamax
-        if (key=='Millernorm') read(line,*) key,dummy,sim_plan%Millernorm
+        if (key=='betamin') read(values,*) sim_plan%betamin
+        if (key=='betamax') read(values,*) sim_plan%betamax
+        if (key=='Millernorm') read(values,*) sim_plan%Millernorm
         if (key=='nbeta') then
-          read(line,*) key,dummy,sim_plan%nbeta
+          read(values,*) sim_plan%nbeta
           allocate(sim_plan%beta(sim_plan%nbeta))
           sim_plan%beta = 0.d0
         end if
         if (key=='beta') read(line,*) key,dummy,sim_plan%beta(1:sim_plan%nbeta)
-        if (key=='ntheta') read(line,*) key,dummy,sim_plan%ntheta
-        if (key=='nphi') read(line,*) key,dummy,sim_plan%nphi
+        if (key=='ntheta') read(values,*) sim_plan%ntheta
+        if (key=='nphi') read(values,*) sim_plan%nphi
       
       end do ! read file
       close(unit=42)
@@ -184,7 +184,7 @@ module dislocdyn_readinputfiles
         read(42,'(a)',iostat=ios) line
         if (ios/=0) exit
         key="" ! reset the key
-        if ((line /= " ") .and. (line /= "") .and. (line(1:1) /= "#")) then
+        if ((line /= " ") .and. (line /= "") .and. (line(1:1) /= "#") .and. (line(1:1) /= "[")) then
           read(line,*) key,dummy,values
           if (trim(dummy) /= "=") then
             key = " "

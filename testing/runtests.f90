@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Sept. 20, 2026
+! Date: Mar. 25, 2026 - Sept. 21, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -238,7 +238,7 @@ module dislocdyn_tests
       instructionfile = "testinstruct.in"
       open(unit=20, file=trim(instructionfile), action="write", iostat=ios, status='replace')
       write(20,'(a)',iostat=ios) "sim_type = vlimit"
-      write(20,'(a)',iostat=ios) "b = 0, 1, 1"
+      write(20,'(a)',iostat=ios) "b = 0, 0.5, 0.5"
       write(20,'(a)',iostat=ios) "n0 = 1, -1, 1"
       close(unit=20)
       materialfile = "testmaterial.in"
@@ -256,7 +256,7 @@ module dislocdyn_tests
       allocate(disl)
       call read_materialfile(materialfile,disl)
       call read_inputdeck(instructionfile,sim_plan,disl%sym)
-      call testzero(sum(disl%cij)-365200000000.0d0+sum(sim_plan%b)-2.0d0,"readfiles",1.d-5,count_pass,count_fail)
+      call testzero(sum(disl%cij)-365200000000.0d0+sum(sim_plan%b)-1.0d0,"readfiles",1.d-5,count_pass,count_fail)
       
     end subroutine test_readinput
 end module dislocdyn_tests
