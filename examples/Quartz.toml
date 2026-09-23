@@ -2,12 +2,12 @@
 name = "Quartz"
 sym = "trig"
 #burgers = "4.9136e-10"
-T = "300"
-rho = "2648."
+T = 300
+rho = 2648.
 
 [lattice]
-a = "4.9136e-10"
-c = "5.4051e-10"
+a = 4.9136e-10
+c = 5.4051e-10
 
 [soec]
 # need 6 constants for trigonal: c11, c12, c13, c14, c33, c44, taken from the CRC handbook

@@ -2,10 +2,10 @@
 name = "diamond"
 sym = "cubic"
 # actually face centered diamond cubic, but do we need to distinguish in PyDislocDyn?
-rho = "3513."
+rho = 3513.
 
 [lattice]
-a = "3.5669e-10"
+a = 3.5669e-10
 
 [soec]
 # c11, c12, c44 from https://doi.org/10.1016/j.ssc.2020.114136 , last column in table 1
