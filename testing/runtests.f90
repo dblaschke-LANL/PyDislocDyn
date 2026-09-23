@@ -245,10 +245,10 @@ module dislocdyn_tests
       open(unit=21, file=trim(materialfile), action="write", iostat=ios, status='replace')
       write(21,'(a)',iostat=ios) 'name = "Cu"'
       write(21,'(a)',iostat=ios) 'sym = "cubic"'
-      write(21,'(a)',iostat=ios) 'T = "300"'
-      write(21,'(a)',iostat=ios) 'rho = "8960"'
+      write(21,'(a)',iostat=ios) 'T = 300'
+      write(21,'(a)',iostat=ios) 'rho = 8960'
       write(21,'(a)',iostat=ios) new_line('a')//'[lattice]'
-      write(21,'(a)',iostat=ios) 'a = "3.6146e-10"'
+      write(21,'(a)',iostat=ios) 'a = 3.6146e-10'
       write(21,'(a)',iostat=ios) new_line('a')//'[soec]'
       write(21,'(a)',iostat=ios) 'cij = "1.683000e+11,1.212000e+11,7.570000e+10"'
       close(unit=21)

@@ -1,0 +1,17 @@
+# input parameters for C14H10  at ambient conditions
+name = "anthracene"
+sym = "mono"
+T = 300
+rho = 1.28
+
+[lattice]
+# lattice constants and angle taken from https://doi.org/10.1080/10587250210538, table 1
+a = 8.553e-10
+b = 6.021e-10
+c = 22.333e-10
+
+beta = 124.54
+
+[soec]
+# need 13 constants for monoclinic: c11, c12, c13, c15, c22, c23, c25, c33, c35, c44, c46, c55, c66, from CRC handbook
+cij = "0.0852e11, 0.0672e11, 0.0590e11, -0.0192e11, 0.1170e11, 0.0375e11, -0.0170e11, 0.1522e11, -0.0187e11, 0.0272e11, 0.0138e11, 0.0242e11, 0.0399e11"

@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Sept. 19, 2026
+# Date: Mar. 6, 2023 - Sept. 22, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import copy
 import os
@@ -29,7 +29,7 @@ def initialize_metals(metal_list=None):
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
-        metal_list = sorted(tmppydislocdyn.glob("*"))
+        metal_list = sorted(tmppydislocdyn.glob("*.toml"))
     for X in metal_list:
         tmpY = pydis.crystals.readinputfile(X)
         Y[tmpY.name] = tmpY
@@ -43,7 +43,7 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
-        metal_list = sorted(tmppydislocdyn.glob("*"))
+        metal_list = sorted(tmppydislocdyn.glob("*.toml"))
         ## make sure we wrote all expected files: iso+3 slip systems for bcc and hcp, fcc and tetr
         ## are overwritten by anisotropic version; also missing iso data for K, so -1
         assert len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
@@ -236,33 +236,35 @@ def test_fortransubroutines():
 
 def test_inputfiles(metal_list=None):
     """tests reading/writing/converting input files and cloning dislocations"""
-    tmpinputfiles = testpath / "original"
-    tmpinputfiles.mkdir(exist_ok=True)
-    # legacy = testpath / "legacy"
-    # legacy.mkdir(exist_ok=True)
+    legacy = testpath / "legacy"
+    legacy.mkdir(exist_ok=True)
     toml = testpath / "toml"
     toml.mkdir(exist_ok=True)
     yaml = testpath / "yaml"
     yaml.mkdir(exist_ok=True)
-    os.chdir(tmpinputfiles)
-    pydis.writeallinputfiles()
+    os.chdir(toml)
+    pydis.writeallinputfiles() # writes everything in toml format
     os.chdir(testpath)
     if metal_list is None:
-        metal_list = sorted(tmpinputfiles.glob("*"))
+        metal_list = sorted(toml.glob("*.toml"))
     for X in metal_list:
-        Y = pydis.utilities.material_data(X)
-        # check toml format:
-        fname = str(toml / (Y.data['name']+".toml"))
-        Y.write(fname)
-        Zt = pydis.utilities.material_data(fname)
-        # fname = str(legacy / Y.data['name'])
-        # Zt.write(fname)
+        Yt = pydis.utilities.material_data(X)
+        # check legacy format:
+        fname = str(legacy / (Yt.data['name']+".in"))
+        Yt.write(fname)
+        Zl = pydis.utilities.material_data(fname)
         for k in ('Millerb','Millern0'):
-            assert np.all(Zt.data['slip'][k]==Y.data['slip'][k])
-        Zt.data.pop('slip')
-        Ystrip = copy.deepcopy(Y.data)
-        Ystrip.pop('slip')
-        assert Zt.data==Ystrip
+            assert np.all(Zl.data['slip'][k]==Yt.data['slip'][k])
+        Zl.data.pop('slip')
+        Ytstrip = copy.deepcopy(Yt.data)
+        Ytstrip.pop('slip')
+        for k,v in Ytstrip.items():
+            if k in ('lattice','soec','toec'):
+                for kk,vv in Ytstrip[k].items():
+                    Ytstrip[k][kk] = str(vv)
+            else:
+                Ytstrip[k] = str(v)
+        assert Zl.data==Ytstrip
         ## check clone disloc.
         dis1 = pydis.readinputfile(fname)
         dis2 = pydis.readinputfile(dis1.dumpinput())
@@ -272,12 +274,11 @@ def test_inputfiles(metal_list=None):
         ##
         if pydis.utilities.knowyaml:
             # check yaml format:
-            fname = str(yaml / (Y.data['name']+".yaml"))
-            Y.write(fname)
+            fname = str(yaml / (Yt.data['name']+".yaml"))
+            Yt.write(fname)
             Zy = pydis.utilities.material_data(fname)
-            # fname = str(legacy / Y.data['name'])
-            # Zy.write(fname)
             for k in ('Millerb','Millern0'):
-                assert np.all(Zy.data['slip'][k]==Y.data['slip'][k])
+                assert np.all(Zy.data['slip'][k]==Yt.data['slip'][k])
             Zy.data.pop('slip')
-            assert Zy.data==Ystrip
+            Yt.data.pop('slip')
+            assert Zy.data==Yt.data
