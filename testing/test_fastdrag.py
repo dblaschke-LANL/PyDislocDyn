@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Sept. 22, 2026
+# Date: Aug. 6, 2026 - Sept. 23, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -10,6 +10,7 @@ import sys
 import pathlib
 import subprocess
 import shutil
+from fractions import Fraction
 import pytest
 try:
     from threadpoolctl import threadpool_limits
@@ -177,7 +178,10 @@ def test_fortran_drag_hcp(rnd=6,beta=0.25,Ntheta=3):
             infile.write(f"betamin = {beta}\nnbeta = 1\n")
             for key, value in pydislocdyn.metal_data.example_slip_planes['hcp'+slipL].items():
                 infile.write(f'{key} = "')
-                value = np.array(value,dtype=float)
+                if key=='Millerb':# remove fractions by adding same number to first 3 entries (doesn't change length)
+                    value = np.array(value)
+                    value[:3] += -Fraction(1,3)
+                value = np.array(value,dtype=int)
                 infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
         with open(f"drag_hcp{slip}.log", 'w', encoding="utf8") as logfile:

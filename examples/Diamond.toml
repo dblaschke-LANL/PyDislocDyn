@@ -1,0 +1,20 @@
+# input parameters for diamond at ambient conditions
+name = "diamond"
+sym = "cubic"
+# actually face centered diamond cubic, but do we need to distinguish in PyDislocDyn?
+rho = "3513."
+
+[lattice]
+a = "3.5669e-10"
+
+[soec]
+# c11, c12, c44 from https://doi.org/10.1016/j.ssc.2020.114136 , last column in table 1
+cij = "1079.26e9, 126.73e9, 578.16e9"
+
+[toec]
+# c111, c112, c123, c144, c166, c456 from https://doi.org/10.1016/j.diamond.2021.108490 , 1st column of table II
+cijk = "-7750.e9, -2220.e9, 2100.e9, -1780.e9, -2800.e9, -30.e9"
+
+[slip]
+Millerb = "0.5, 0.5, 0.0"
+Millern0 = "-1, 1, -1"
