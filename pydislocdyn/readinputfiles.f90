@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Sept. 21, 2026
+! Date: Apr. 10, 2026 - Sept. 22, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -70,6 +70,9 @@ module dislocdyn_readinputfiles
       istoml = .false.
       ! count number of simulations (nsims)
       call scan_inputdeck(filename,nsims)
+      if (nsims==0) then
+        error stop trim(filename)//" is not a valid input deck file - missing 'sim_type' keyword."
+      end if
       ! detect file format
       lentxt = len_trim(filename)
       if (filename(lentxt-4:lentxt)=='.toml') then

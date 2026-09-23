@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Aug. 25, 2026
+# Date: Aug. 6, 2026 - Sept. 22, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -10,6 +10,7 @@ import sys
 import pathlib
 import subprocess
 import shutil
+from fractions import Fraction
 import pytest
 import numpy as np
 dir_path = str(pathlib.Path(__file__).resolve().parents[1])
@@ -67,8 +68,8 @@ def test_fortran_vlim_fcc(rnd=2):
     vlim_f = {}
     command = basecommand.copy()
     for X in sorted(pydislocdyn.metal_data.fcc_metals):
-        command.append(tmpfolder / X)
-    command.append(example_path / "vlim_fcc.in")
+        command.append(tmpfolder / (X+".toml"))
+    command.append(example_path / "vlim_fcc.toml")
     with open("vlim_fcc.log", 'w', encoding="utf8") as logfile:
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
             for line in subproc.stdout:
@@ -76,7 +77,7 @@ def test_fortran_vlim_fcc(rnd=2):
             subproc.wait()
     vlim_f_raw = read_dislocdyn_output("vlim_fcc.log",postprocess=True)
     for X in sorted(pydislocdyn.metal_data.fcc_metals):
-        Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99)
+        Y[X] = pydislocdyn.readinputfile(tmpfolder / (X+".toml"),Ntheta=99)
         vlim_py[X] = Y[X].computevcrit(return_all=True)
         vlim_py[X].columns = vlim_py[X].columns/np.pi
         vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
@@ -98,8 +99,17 @@ def test_fortran_vlim_bcc(rnd=2):
     for slip in ["110", "112", "123"]:
         command = basecommand.copy()
         for X in sorted(pydislocdyn.metal_data.bcc_metals):
-            command.append(tmpfolder / (X+slip))
-        command.append(example_path / f"vlim_bcc{slip}.in")
+            command.append(tmpfolder / (X+slip+".toml"))
+        fname = f"vlim_bcc{slip}.toml"
+        with open(fname,"w",encoding="utf8") as infile:
+            infile.write(f'sim_type = "vlimit"\nntheta = 99\nlogfile = "{fname[:-4]}log"\nechoinput = true\n')
+            if slip in ["110", "123"]:
+                infile.write("include_negative_theta = true\n")
+            for key, value in pydislocdyn.metal_data.example_slip_planes['bcc'+slip].items():
+                infile.write(f'{key} = "')
+                value = np.array(value,dtype=float)
+                infile.write(', '.join(map(str,value))+'"\n')
+        command.append(testfolder / fname)
         with open(f"vlim_bcc{slip}.log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
@@ -112,7 +122,7 @@ def test_fortran_vlim_bcc(rnd=2):
             symmetric = True
             if slip in ['110','123']:
                 symmetric = False
-            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99,symmetric=symmetric)
+            Y[X] = pydislocdyn.readinputfile(tmpfolder / (X+".toml"),Ntheta=99,symmetric=symmetric)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
@@ -134,11 +144,21 @@ def test_fortran_vlim_hcp(rnd=2):
     vlim_py = {}
     vlim_f = {}
     vlim_f_raw = {}
-    for slip in hcpslip:
+    for slip, slipL in hcpslip.items():
         command = basecommand.copy()
         for X in sorted(pydislocdyn.metal_data.hcp_metals):
-            command.append(tmpfolder / f"{X}basal")
-        command.append(example_path / f"vlim_hcp{slip}.in")
+            command.append(tmpfolder / f"{X}basal.toml")
+        fname = f"vlim_hcp{slip}.toml"
+        with open(fname,"w",encoding="utf8") as infile:
+            infile.write(f'sim_type = "vlimit"\nntheta = 99\nlogfile = "{fname[:-4]}log"\nechoinput = true\n')
+            for key, value in pydislocdyn.metal_data.example_slip_planes['hcp'+slipL].items():
+                infile.write(f'{key[6:]} = "')# can use Miller(b,n0) and b,n0 interchangeably in this file
+                if key=='Millerb':# remove fractions by adding same number to first 3 entries (doesn't change length)
+                    value = np.array(value)
+                    value[:3] += -Fraction(1,3)
+                value = np.array(value,dtype=int)# our present slip systems have only integer values
+                infile.write(', '.join(map(str,value))+'"\n')
+        command.append(testfolder / fname)
         with open(f"vlim_hcp{slip}.log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
@@ -148,7 +168,7 @@ def test_fortran_vlim_hcp(rnd=2):
     for Xm in sorted(pydislocdyn.metal_data.hcp_metals):
         for slip, slipL in hcpslip.items():
             X = Xm+slip
-            Y[X] = pydislocdyn.readinputfile(tmpfolder / str(Xm+slipL),Ntheta=99)
+            Y[X] = pydislocdyn.readinputfile(tmpfolder / str(Xm+slipL+".toml"),Ntheta=99)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()
@@ -172,45 +192,45 @@ def test_fortran_vlim_tetr(rnd=2):
         slip = str(islip+1)
         command = basecommand.copy()
         for X in sorted(pydislocdyn.metal_data.bct_metals):
-            command.append(tmpfolder / (X+slip))
-        fname = f"vlim_tetr_bct{slip}.in"
+            command.append(tmpfolder / (X+slip+".toml"))
+        fname = f"vlim_tetr_bct{slip}.toml"
         with open(fname,"w",encoding="utf8") as infile:
-            infile.write(f"sim_type = vlimit\nntheta = 99\nlogfile = {fname[:-2]}log\nechoinput = true\n")
+            infile.write(f'sim_type = "vlimit"\nntheta = 99\nlogfile = "{fname[:-4]}log"\nechoinput = true\n')
             if islip in [3,5,9]: # islip starts at 0, i.e. non-symmetric bct slip planes are 4,6,10
                 infile.write("include_negative_theta = true\n")
             for key, value in pydislocdyn.metal_data.example_slip_planes['bct'+slip].items():
-                infile.write(f"{key} = ")
+                infile.write(f'{key} = "')
                 value = np.array(value,dtype=float)
-                infile.write(", ".join(map("{}".format,value))+"\n")
+                infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
-        with open(f"{fname[:-2]}log", 'w', encoding="utf8") as logfile:
+        with open(f"{fname[:-4]}log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw['bct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log",postprocess=True)
+        vlim_f_raw['bct'+slip] = read_dislocdyn_output(f"{fname[:-4]}log",postprocess=True)
     # fct metals:
     for islip in range(3):
         slip = str(islip+1)
         command = basecommand.copy()
         for X in sorted(pydislocdyn.metal_data.fct_metals):
-            command.append(tmpfolder / (X+slip))
-        fname = f"vlim_tetr_fct{slip}.in"
+            command.append(tmpfolder / (X+slip+".toml"))
+        fname = f"vlim_tetr_fct{slip}.toml"
         with open(fname,"w",encoding="utf8") as infile:
-            infile.write(f"sim_type = vlimit\nntheta = 99\nlogfile = {fname[:-2]}log\nechoinput = true\n")
+            infile.write(f'sim_type = "vlimit"\nntheta = 99\nlogfile = "{fname[:-4]}log"\nechoinput = true\n')
             if islip==1: # islip starts at 0, i.e. non-symmetric fct slip plane is 2
                 infile.write("include_negative_theta = true\n")
             for key, value in pydislocdyn.metal_data.example_slip_planes['fct'+slip].items():
-                infile.write(f"{key} = ")
+                infile.write(f'{key} = "')
                 value = np.array(value,dtype=float)
-                infile.write(", ".join(map("{}".format,value))+"\n")
+                infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
-        with open(f"{fname[:-2]}log", 'w', encoding="utf8") as logfile:
+        with open(f"{fname[:-4]}log", 'w', encoding="utf8") as logfile:
             with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
                 for line in subproc.stdout:
                     logfile.write(line)
                 subproc.wait()
-        vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-2]}log",postprocess=True)
+        vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-4]}log",postprocess=True)
     # the same with python, then compare:
     for Xm in sorted(pydislocdyn.metal_data.tetr_metals):
         nslip = 3
@@ -223,7 +243,7 @@ def test_fortran_vlim_tetr(rnd=2):
             symmetric = True
             if (slip=='bct' and islip in [3,5,9]) or (slip=='fct' and islip==1):
                 symmetric = False
-            Y[X] = pydislocdyn.readinputfile(tmpfolder / X,Ntheta=99,symmetric=symmetric)
+            Y[X] = pydislocdyn.readinputfile(tmpfolder / (X+".toml"),Ntheta=99,symmetric=symmetric)
             vlim_py[X] = Y[X].computevcrit(return_all=True)
             vlim_py[X].columns = vlim_py[X].columns/np.pi
             vlim_py[X] = vlim_py[X].T.round(frnd).reset_index()

@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 25, 2026
+# Date: Nov. 7, 2017 - Sept. 22, 2026
 '''This script will compute polycrystal averages of second and third order elastic constants;
    it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
    will be taken into account unless the user passes input files (or keywords for some of 
@@ -79,8 +79,8 @@ if __name__ == '__main__':
         for X in metal:
             ## change alt_soec=True to use SOEC numbers from Thomas:1968, Hiki:1966, Leese:1968, Powell:1984, and Graham:1968
             ## for some of the cubic metals (these were used for arXiv:1706.07132)
-            data.writeinputfile(X,X,alt_soec=False) # write temporary input files for requested X of metal_data
-            Y[X] = readinputfile(X)
+            data.writeinputfile(X,alt_soec=False) # write temporary input files for requested X of metal_data
+            Y[X] = readinputfile(X+".toml")
         os.chdir("..")
     
     metal_cubic = []

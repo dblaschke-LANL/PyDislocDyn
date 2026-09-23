@@ -1,7 +1,7 @@
 # Compilation of various useful data for metals; all numbers are given in SI units
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Sept. 18, 2026
+# Date: Nov. 3, 2017 - Sept. 22, 2026
 '''This module contains dictionaries of various material properties. Use function 'writeinputfile' to write a PyDislocDyn input file for a specific metal predefined in this module.
 
 References for the data included in these dictionaries (see the manual and its bibliography for further details):
@@ -168,7 +168,7 @@ for X in tetr_metals:
 
 X=Y=None
 #####################################################################################
-def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
+def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all',tetrslip='all'):
     '''takes a list of keyword-strings for metals and appends slip system names; the output matches the file names used by writeallinputfiles().'''
     if isinstance(metals, str):
         metals = metals.split(" ")
@@ -190,6 +190,14 @@ def expand_slipsystems(metals=all_metals,bccslip='all',hcpslip='all'):
         elif X in hcp_metals:
             for kw in slipkw_hcp:
                 out.append(X+kw)
+        elif X in fct_metals and tetrslip=='all':
+            for i in range(3):
+                kw = str(i+1)
+                out.append(X+kw)
+        elif X in bct_metals and tetrslip=='all':
+            for i in range(10):
+                kw = str(i+1)
+                out.append(X+kw)
         else:
             out.append(X)
     return out
@@ -198,10 +206,15 @@ example_slip_planes = {'fcc':{'Millerb':[Fraction(1,2),Fraction(1,2),0],'Millern
                        'bcc110':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1, 1, 0]},
                        'bcc112':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1, -1, -2]},
                        'bcc123':{'Millerb':[Fraction(1,2),-Fraction(1,2),Fraction(1,2)],'Millern0':[1, -2, -3]},
+                       ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
+                       ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
+                       ### therefore, may choose b parallel to x-axis
                        'hcpbasal':{'Millerb':[-Fraction(2,3), Fraction(1,3), Fraction(1,3), 0],'Millern0':[0, 0, 0, 1]},
                        'hcpprismatic':{'Millerb':[-Fraction(2,3), Fraction(1,3), Fraction(1,3), 0],'Millern0':[-1, 0, 1, 0]},
                        'hcppyramidal':{'Millerb':[-Fraction(2,3), Fraction(1,3), Fraction(1,3), 0],'Millern0':[-1, 0, 1, 1]},
                        ## for a list of slip systems in bct Sn, see Jpn J Appl Phys 32:3214  and Acta Mater. 192:1
+                       ## simplest slip system in bct with the shortest burgers vector in Sn (i.e. energetically most favorable) is bct1 and in this case
+                       ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
                        'bct1':{'Millerb':[0,0,1],'Millern0':[1,0,0]},
                        'bct2':{'Millerb':[0,0,1],'Millern0':[1,1,0]},
                        'bct3':{'Millerb':[0,1,0],'Millern0':[1,0,0]},
@@ -231,55 +244,41 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrsl
     if fname=='auto':
         fname = X
     slip = ""
-    with open(fname,"w", encoding="utf8") as outf:
-        outf.write(f"# this input file requires PyDislocDyn >=1.2.7\n# input parameters for {X} at ambient conditions\n\n")
-        outf.write(f"name = {fname}\n")
+    with open(fname+".toml","w", encoding="utf8") as outf:
+        outf.write(f"# this input file requires PyDislocDyn >=1.4.0\n# input parameters for {X} at ambient conditions\n\n")
+        outf.write(f'name = "{fname}"\n')
         if X in fcc_metals:
-            slip = "fcc"
-            outf.write("sym = fcc\n\n")
-            outf.write("# example slip system (normalization applied automatically upon reading and after calculating 'burgers')\n")
+            slip = sym = "fcc"
         elif X in bcc_metals:
-            slip = 'bcc'+bccslip
-            outf.write("sym = bcc\n\n")
-            outf.write("# example slip system (normalization applied automatically upon reading and after calculating 'burgers')\n")
+            sym = 'bcc'
+            slip = sym+bccslip
         elif X in hcp_metals:
-            slip = 'hcp'+hcpslip
-            outf.write("sym = hcp\n\n")
-            outf.write("# example slip systems (Miller indices are converted to normalized Cartesian upon reading):\n")
-            ### slip directions for hcp are the [1,1,bar-2,0] directions; the SOEC are invariant under rotations about the z-axis
-            ### caveat: TOEC are only invariant under rotations about the z-axis by angles of n*pi/3; measurement was done with x-axis aligned with one of the slip directions
-            ### therefore, may choose b parallel to x-axis
+            sym = 'hcp'
+            slip = sym+hcpslip
         elif X in tetr_metals:
+            sym = 'tetr'
             slip = 'bct'+tetrslip
             if X in fct_metals: slip = 'fct'+tetrslip
-            outf.write("sym = tetr\n\n")
-            ## just one of many possible slip systems in tetragonal crystals such as Sn (see Jpn J Appl Phys 32:3214 for a list):
-            ## simplest slip system in bct with the shortest burgers vector in Sn (i.e. energetically most favorable) is bct1 and in this case
-            ## slip plane normal may be parallel to either x or y as C2,C3 are invariant under rotations by pi/2 about the z axis
-        if slip in example_slip_planes:
-            for key, value in example_slip_planes[slip].items():
-                outf.write(f"{key} = ")
-                outf.write(", ".join(map(str,value))+"\n")
-        if Millerb is not None:
-            outf.write("# replacing Millerb above with user value:\nMillerb = ")
-            outf.write(", ".join(map(str,Millerb))+"\n")
-        if Millern0 is not None:
-            outf.write("# replacing Millern0 above with user value:\nMillern0 = ")
-            outf.write(", ".join(map(str,Millern0))+"\n")
-        outf.write("\n# temperature, lattice constant(s), density, thermal expansion coefficient, and melting temperature:\n")
-        outf.write(f"T = 300\na = {CRC_a[X]}\n")
-        if X in CRC_c:
-            outf.write(f"c = {CRC_c[X]}\n")
-        if alt_rho:
-            outf.write(f"rho = {CRC_rho_sc[X]}\n")
-        else:
-            outf.write(f"rho = {CRC_rho[X]}\n")
-        outf.write(f"alpha_a = {CRC_alpha_a[X]}\n")
-        outf.write(f"Tm = {CRC_T_m[X]}\n")
-        outf.write("\n#soec\n")
         if iso is True:
-            outf.write("\nsym = iso\t# (overwrites previous entry)")
+            sym = 'iso'
+        outf.write(f'sym = "{sym}"\n')
+        outf.write("\n# temperature, density, thermal expansion coefficient, and melting temperature:\n")
+        outf.write('T = 300\n')
+        if alt_rho:
+            outf.write(f'rho = {CRC_rho_sc[X]}\n')
+        else:
+            outf.write(f'rho = {CRC_rho[X]}\n')
+        outf.write(f'alpha_a = {CRC_alpha_a[X]}\n')
+        outf.write(f'Tm = {CRC_T_m[X]}\n')
+        outf.write("\n[lattice]\n")
+        if iso is True:
             outf.write(f"\na = {np.cbrt(CRC_Vc[X])}\t# replace by average lattice constants such that a^3 is the true unit cell volume\n\n")
+        else:
+            outf.write(f'a = {CRC_a[X]}\n')
+            if X in CRC_c:
+                outf.write(f'c = {CRC_c[X]}\n')
+        outf.write("\n[soec]\n")
+        if iso is True:
             soec = {"c11":ISO_c11, "c12":ISO_c12, "c44":ISO_c44}
         elif alt_soec and X in THLPG_c44:
             soec = {"c11":THLPG_c11, "c12":THLPG_c12, "c44":THLPG_c44}
@@ -288,8 +287,12 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrsl
         for c2, soec_c2 in soec.items():
             val = soec_c2[X]
             if val is not None:
-                outf.write(f"{c2} = {val:e}\n")
-        outf.write("\n#toec\n")
+                outf.write(f'{c2} = {val:e}\n')
+        if X in ISO_c44 and not iso:
+            outf.write("## optional - if omitted, averages will be used:\n")
+            outf.write(f'lam = {ISO_c12[X]:e}\n')
+            outf.write(f'mu = {ISO_c44[X]:e}\n')
+        outf.write("\n[toec]\n")
         if iso is True:
             toec = {"c123":ISO_c123, "c144":ISO_c144, "c456":ISO_c456}
         else:
@@ -298,12 +301,18 @@ def writeinputfile(X,fname='auto',iso=False,bccslip='110',hcpslip='basal',tetrsl
             if X in toec_c3:
                 val = toec_c3[X]
                 if val is not None:
-                    outf.write(f"{c3} = {val:e}\n")
-        if X in ISO_c44 and not iso:
-            outf.write("\n## optional - if omitted, averages will be used:\n")
-            outf.write(f"lam = {ISO_c12[X]:e}\n")
-            outf.write(f"mu = {ISO_c44[X]:e}\n")
-        outf.write("\n\n")
+                    outf.write(f'{c3} = {val:e}\n')
+        if Millerb is not None:
+            outf.write('\n[slip]\nMillerb = "')
+            outf.write(', '.join(map(str,Millerb))+'"\n')
+            outf.write('Millern0 = "')
+            outf.write(', '.join(map(str,Millern0))+'"\n')
+        elif slip in example_slip_planes:
+            outf.write('\n[slip]\n')
+            for key, value in example_slip_planes[slip].items():
+                outf.write(f'{key} = "')
+                outf.write(', '.join(map(str,value))+'"\n')
+        outf.write("\n")
 
 def writeallinputfiles(iso=False,alt_soec=False,alt_rho=False):
     '''Calls writeinputfile() for all metals and slip systems defined in the dictionaries of metal_data.py.

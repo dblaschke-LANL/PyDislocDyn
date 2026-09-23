@@ -296,6 +296,8 @@ def _separate_options(arglist):
 
 def str_to_array(arg,dtype=float):
     '''converts a string containing comma separated numbers to a numpy array of specified data type (floats by default).'''
+    if isinstance(arg, (list,np.ndarray)):
+        return np.asarray(arg)
     try:
         out = np.asarray(arg.split(','),dtype=dtype)
     except ValueError:
