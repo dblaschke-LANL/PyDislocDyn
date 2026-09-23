@@ -29,7 +29,7 @@ def initialize_metals(metal_list=None):
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
-        metal_list = sorted(tmppydislocdyn.glob("*"))
+        metal_list = sorted(tmppydislocdyn.glob("*.toml"))
     for X in metal_list:
         tmpY = pydis.crystals.readinputfile(X)
         Y[tmpY.name] = tmpY
@@ -43,7 +43,7 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
-        metal_list = sorted(tmppydislocdyn.glob("*"))
+        metal_list = sorted(tmppydislocdyn.glob("*.toml"))
         ## make sure we wrote all expected files: iso+3 slip systems for bcc and hcp, fcc and tetr
         ## are overwritten by anisotropic version; also missing iso data for K, so -1
         assert len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
@@ -246,7 +246,7 @@ def test_inputfiles(metal_list=None):
     pydis.writeallinputfiles() # writes everything in toml format
     os.chdir(testpath)
     if metal_list is None:
-        metal_list = sorted(toml.glob("*"))
+        metal_list = sorted(toml.glob("*.toml"))
     for X in metal_list:
         Yt = pydis.utilities.material_data(X)
         # check legacy format:
