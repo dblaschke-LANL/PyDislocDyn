@@ -30,6 +30,8 @@ jobs:
             #~ toolchain: {compiler: aocc}
           - os: macos-latest
             toolchain: {compiler: intel}
+          - os: windows-latest
+            toolchain: {compiler: intel}
           #~ - os: windows-latest
             #~ toolchain: {compiler: nvidia-hpc}
           #~ - os: windows-latest
@@ -49,17 +51,12 @@ jobs:
         uses: fortran-lang/setup-fpm@v10
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run tests Linux
+      - name: Run tests MAKE
         run: |
           FC=${{ env.FC }} make
           ./runtests.x
-          fpm test --profile release --compiler ${{ env.FC }} 
-        if: runner.os  == 'Linux'
-      - name: Run tests MacOS
-        run: |
-          FC=${{ env.FC }} make
-          ./runtests.x
-        if: runner.os  == 'MacOS'
-      - name: Run tests windows
+        if: runner.os  != 'Windows'
+      - name: Run tests fpm
         run: |
           fpm test --profile release --compiler ${{ env.FC }} 
+        if: runner.os  != 'MacOS'
