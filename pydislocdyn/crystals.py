@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Aug. 25, 2026
+# Date: Nov. 7, 2017 - Sept. 18, 2026
 '''This submodule defines the metal_props class which is one of the parents of the Dislocation class defined in linetension_calcs.py.
    Additional classes available in this module are IsoInvariants and IsoAverages which inherits from the former and is used to
    calculate averages of elastic constants. We also define a function, readinputfile, which reads a PyDislocDyn input file and
@@ -14,7 +14,7 @@ import pandas as pd
 ##
 from .elasticconstants import elasticC2, elasticC3, elasticS2, elasticS3, Voigt, UnVoigt, \
     convert_SOECiso, convert_TOECiso, strain_poly
-from .utilities import str_to_array, loadinputfile, usefortran
+from .utilities import str_to_array, loadinputfile, dumpinputfile, usefortran, material_data
 if usefortran:
     from .subroutines import dislocdyn_subroutines
     vlim_of_phi = dislocdyn_subroutines.vlim_of_phi
@@ -211,8 +211,8 @@ class metal_props:
         self.Vc=0 ## unit cell volume
         self.qBZ=0 ## edge of Brillouin zone in isotropic approximation
         self.burgers=0 # length of Burgers vector
-        self.b=np.zeros((3)) ## unit Burgers vector
-        self.n0=np.zeros((3)) ## slip plane normal
+        self.b=np.zeros(3) ## unit Burgers vector
+        self.n0=np.zeros(3) ## slip plane normal
         self.Millerb = None ## Miller indices for burgers vector
         self.Millern0 = None ## Miller indices for slip plane
         self.alpha_a=0 # thermal expansion coefficient at temperature self.T, set to 0 for constant rho calculations
@@ -233,7 +233,47 @@ class metal_props:
         else:
             out += f"\n Vc:\t {self.Vc:.6e}\n rho:\t {self.rho}\n ct:\t {self.ct:.2f}\n cl:\t {self.cl:.2f}"
         return out
-    
+
+    def dumpinput(self,fname=None):
+        """
+        This method returns a material_data instance with all input parameters needed to re-initialize the present
+        class instance. If fname is provided, an input file is written for the present class instance.
+        """
+        inc = {'name', 'sym', 'b', 'n0', 'Millerb', 'Millern0', 'burgers', 'ac', 'bc', 'cc', 'alphac', 'betac', 'gammac',
+               'T', 'Tm', 'alpha_a', 'rho', 'lam', 'mu', 'c11', 'c12', 'c13', 'c33', 'c44', 'c66', 'cij', 
+               'c111', 'c112', 'c113', 'c123', 'c133', 'c144', 'c155', 'c166', 'c222', 'c333', 'c344', 'c366', 'c456', 'cijk'}
+        mydict = {k:v for k,v in self.__dict__.items() if k in inc and v is not None}
+        keys = mydict.keys()
+        # convert keys from internal rep. to file rep. and remove auto-generated ones:
+        mydict['a'] = mydict.pop('ac')
+        if 'bc' in keys:
+            mydict['lcb'] = mydict.pop('bc')
+        if 'cc' in keys:
+            mydict['c'] = mydict.pop('cc')
+        for k in ['b', 'Millerb', 'n0', 'Millern0']:
+            mydict[k] = ", ".join(map(str,mydict[k]))
+        if 'Millerb' in keys and 'b' in keys:
+            mydict.pop('b')
+            mydict.pop('burgers')
+        if 'Millern0' in keys and 'n0' in keys:
+            mydict.pop('n0')
+        if self.sym in ['tric']:
+            mydict['alpha'] = (180/np.pi)*mydict.pop('alphac')
+            mydict['gamma'] = (180/np.pi)*mydict.pop('gammac')
+        else:
+            mydict.pop('alphac')
+            mydict.pop('gammac')
+        if self.sym in ['tric','mono']:
+            mydict['beta'] = (180/np.pi)*mydict.pop('betac')
+        else:
+            mydict.pop('betac')
+        if fname is not None:
+            if fname[-4:] in ("toml","yaml",".yml"):
+                material_data(mydict).write(fname)
+            else:
+                dumpinputfile(mydict,fname)
+        return material_data(mydict)
+
     def init_symbols(self):
         '''populates material density self.rho and elastic constants with sympy symbols'''
         poly = strain_poly(sym=self.sym)
@@ -430,7 +470,7 @@ class metal_props:
         else:
             norm=(self.C2[3,3]/self.rho)
             C2 = UnVoigt(self.C2/self.C2[3,3])
-            out = np.zeros((3))
+            out = np.zeros(3)
             v = np.asarray(v)
             v = v/np.sqrt(v @ v)
             zero = np.array([1.,0.,0.])
@@ -550,6 +590,10 @@ class metal_props:
         
     def populate_from_dict(self,inputparams):
         '''Assigns values to various attributes of this class by reading a dictionary 'inputparams'. Keywords unknown to this function are ignored.'''
+        ## compatibility layer supporting experimental new input file format while we still using legacy internally:
+        if 'lattice' in inputparams:
+            inputparams = material_data(inputparams).convert_to_legacy()
+        ##
         keys = inputparams.keys()
         sym = self.sym
         self.name = inputparams.get('name',self.name)
@@ -642,7 +686,10 @@ class metal_props:
 def readinputfile(fname,init=True):
     '''Reads an inputfile like the one generated by writeinputfile() defined in metal_data.py (some of these data are only needed by other parts of PyDislocDyn),
        and returns a populated instance of the metal_props class. If option init=True, some derived quantities are computed immediately via the classes .init_all() method.'''
-    inputparams = loadinputfile(fname)
+    if isinstance(fname, material_data):
+        inputparams = fname.data
+    else:
+        inputparams = loadinputfile(fname)
     sym = inputparams['sym']
     name = inputparams.get('name',str(fname))
     out = metal_props(sym,name)

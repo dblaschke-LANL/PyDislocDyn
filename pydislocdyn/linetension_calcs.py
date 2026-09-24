@@ -2,7 +2,7 @@
 # Compute the line tension of a moving dislocation for various metals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 25, 2026
+# Date: Nov. 3, 2017 - Sept. 22, 2026
 '''If run as a script, this file will compute the dislocation line tension and generate various plots.
 The script takes as (optional) arguments either the names of PyDislocDyn input files or keywords for
 metals that are predefined in metal_data.py, falling back to all available if no argument is passed.
@@ -104,7 +104,7 @@ if __name__ == '__main__':
             elif X=='ISO':
                 metal_list.append(X)
             else:
-                data.writeinputfile(X,X,iso=isokw) # write temporary input files for requested X of metal_data
+                data.writeinputfile(X,iso=isokw) # write temporary input files for requested X of metal_data
                 metal_list.append(X)
         for X in metal_list:
             if X=='ISO': ## define some isotropic elastic constants to check isotropic limit:
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                 Y[X].poisson = 1/3
                 Y[X].rho = 1e3
             else:
-                Y[X] = readinputfile(X,init=False,theta=theta,Nphi=opts.Nphi)
+                Y[X] = readinputfile(X+".toml",init=False,theta=theta,Nphi=opts.Nphi)
         os.chdir("..")
         metal = metal_list
         ## list of metals symmetric in +/-theta (for the predefined slip systems):

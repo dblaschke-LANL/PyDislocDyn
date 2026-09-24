@@ -1,7 +1,7 @@
 # Compute various properties of a moving dislocation
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 3, 2017 - Aug. 25, 2026
+# Date: Nov. 3, 2017 - Sept. 18, 2026
 '''This submodule contains the Dislocation class which inherits from the StrohGeometry class and the metal_props class.
    As such, it is the most complete class to compute properties of dislocations, both steady state and accelerating.
    Additionally, the Dislocation class can calculate properties like limiting velocities of dislocations. We also define
@@ -12,7 +12,7 @@ import sympy as sp
 from mpmath import findroot
 from scipy import optimize, integrate
 import pandas as pd
-from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat
+from ..utilities import usefortran, rotaround, roundcoeff, plotuij, convertfloat, material_data
 from ..elasticconstants import Voigt, UnVoigt, CheckReflectionSymmetry
 from ..crystals import metal_props, loadinputfile
 from ..crystals import readinputfile as _readcrystalinputfile
@@ -168,7 +168,7 @@ class Dislocation(StrohGeometry,metal_props):
                 norm=(self.C2[3,3]/self.rho)
                 C2 = UnVoigt(self.C2_aligned_edge/self.C2[3,3])
                 signs = [1,-1]
-                tmpout = np.zeros((2))
+                tmpout = np.zeros(2)
                 for i in range(2):
                     minresult = optimize.direct(lambda x: edgevlim_of_phi(x,signs[i],C2,norm),bounds=optimize.Bounds(0,np.pi),maxiter=10)
                     tmpout[i] = minresult.fun
@@ -301,7 +301,7 @@ class Dislocation(StrohGeometry,metal_props):
     
     def findRayleigh(self):
         '''Computes the Rayleigh wave speed for every dislocation character self.theta.'''
-        Rayleigh=np.zeros((self.Ntheta))
+        Rayleigh=np.zeros(self.Ntheta)
         norm = self.C2[3,3] # use c44
         C2norm = UnVoigt(self.C2/norm)
         if self.vcrit_all is None or len(self.vcrit_all[0])!=self.Ntheta or np.any(self.vcrit_all[0]!=self.theta):
@@ -707,9 +707,15 @@ def readinputfile(fname,init=True,theta=None,Nphi=500,Ntheta=2,symmetric=True,is
        with sym=iso and using those averages.
        Finally, include_extra adds two character angles at the edges (needed for linetension calcs since those involve 2 derivatives wrt theta).
        If the slip system is not defined in the input file, we fall back to returning an instance of the metal_props class.'''
-    inputparams = loadinputfile(fname)
+    if isinstance(fname, material_data):
+        inputparams = fname.data
+    else:
+        inputparams = loadinputfile(fname)
     sym = inputparams['sym']
     name = inputparams.get('name',str(fname))
+    ## compatibility layer supporting experimental new input file format while we still using legacy internally:
+    if 'lattice' in inputparams:
+        inputparams = material_data(inputparams).convert_to_legacy()
     if 'Millerb' in inputparams or 'Millern0' in inputparams:
         temp = metal_props(sym,name) ## need a metal_props method to convert to Cartesian b, n0
         temp.populate_from_dict(inputparams)

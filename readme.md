@@ -36,7 +36,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 ## Requirements
 
-* Python >=3.10,</br>
+* Python >=3.11 or Python 3.10 and tomli>=2.0,</br>
 * [numpy](https://numpy.org/doc/stable/user/) >=1.26,</br>
 * [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.10,</br>
 * [sympy](https://www.sympy.org) >=1.12,</br>
@@ -46,13 +46,14 @@ The LANL development team asks that any forks or derivative works include approp
 
 ### Optional (but recommended):
 
-* a Fortran 2018 capable compiler and meson
+* a Fortran 2018 capable compiler (such as gfortran>=10) and meson
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
 * [joblib](https://joblib.readthedocs.io) >=1.1 (for parallelization),</br>
-* [threadpoolctl](https://github.com/joblib/threadpoolctl) (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
+* [threadpoolctl](https://github.com/joblib/threadpoolctl) >=3.3 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.58.1 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
-* hatchling >=1.26 (to install via pip)
+* [pyyaml](https://github.com/yaml/pyyaml) >=6.0 (to read/write/convert input files in non-default .yaml format)
+* [hatchling](https://hatch.pypa.io/latest/) >=1.26 (to install via pip)
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
 * [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make to build the standalone Fortran frontend and library 
@@ -97,6 +98,14 @@ Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compil
 [dependencies]
 dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
 ```
+
+* the standalone fortran code has been manually tested with the following compilers:
+    - gfortran 10 &mdash; 16 (linux and macos)
+    - flang 21, 22 (linux), needs this workaround at runtime: `ulimit -s unlimited`
+    - lfortran 0.66 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
+    - ifx intel oneapi 2024.1, 2025.1 (linux)
+    - cray fortran compiler 17 (linux)
+
 
 ## PyDislocDyn consists of:
 

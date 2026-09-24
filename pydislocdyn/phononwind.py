@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Aug. 25, 2026
+# Date: Nov. 5, 2017 - Sept. 19, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -164,15 +164,15 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
         return out
     
     if np.asarray(skip_theta).all() is not None:
-        BTT = np.zeros((Ntheta))[skip_theta]
-        BLL = np.zeros((Ntheta))[skip_theta]
-        BTL = np.zeros((Ntheta))[skip_theta]
-        BLT = np.zeros((Ntheta))[skip_theta]
+        BTT = np.zeros(Ntheta)[skip_theta]
+        BLL = np.zeros(Ntheta)[skip_theta]
+        BTL = np.zeros(Ntheta)[skip_theta]
+        BLT = np.zeros(Ntheta)[skip_theta]
     else:
-        BTT = np.zeros((Ntheta))
-        BLL = np.zeros((Ntheta))
-        BTL = np.zeros((Ntheta))
-        BLT = np.zeros((Ntheta))
+        BTT = np.zeros(Ntheta)
+        BLL = np.zeros(Ntheta)
+        BTL = np.zeros(Ntheta)
+        BLT = np.zeros(Ntheta)
     
     if modes in ('all', 'TT'):
         if maxrec<0: ## bypass adaptive grid if requested by user
@@ -209,7 +209,7 @@ def dragcoeff_iso(dij, A3, qBZ, ct, cl, beta, burgers, T, modes='all', Nt=321, N
     if skip_theta is None:
         out = BTT + BLL + BTL + BLT
     else:
-        out = skip_theta_val*np.ones((Ntheta))
+        out = skip_theta_val*np.ones(Ntheta)
         theta_calcd = theta_ind[skip_theta]
         for th, thi in enumerate(theta_calcd):
             out[thi] = BTT[th] + BLL[th] + BTL[th] + BLT[th]
@@ -260,7 +260,7 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
     
     def maincomputations(bt):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
-        Bmix = np.zeros((disloc.Ntheta))
+        Bmix = np.zeros(disloc.Ntheta)
         if disloc.sym != 'iso' or forceanis:
             disloc.computeuij(beta=bt)
             disloc.alignuij()

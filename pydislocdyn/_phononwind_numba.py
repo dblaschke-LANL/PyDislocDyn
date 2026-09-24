@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Sept. 16, 2025
+# Date: Sept. 16, 2025 - Sept. 19, 2026
 '''This submodule contains various subroutines that are accelerated using just-in-time compiler numba.
    For the Fortran-implementation of these subroutines, see subroutines.f90.'''
 
@@ -34,7 +34,7 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
     '''Subroutine of dragcoeff_iso().'''
     ## prefactor has shape (len(t),len(phi))
     result1 = np.zeros(prefactor.shape)
-    prefacOnes = np.ones((len(prefactor)))
+    prefacOnes = np.ones(len(prefactor))
     for k in range(3):
         for kk in range(3):
             for n in range(3):
@@ -49,7 +49,7 @@ def dragcoeff_iso_Bintegrand(prefactor,dij,poly):
 def dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     A3qt2 = np.zeros((3,3,3,3,lentph))
-    tmp = np.zeros((lentph))
+    tmp = np.zeros(lentph)
     for i in range(3):
         for j in range(3):
             for k in range(3):
@@ -64,7 +64,7 @@ def dragcoeff_iso_computepoly_A3qt2(qt,qtshift,A3,lentph):
 def dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     part1 = np.zeros((3,3,3,3,lentph))
-    tmp = np.zeros((lentph))
+    tmp = np.zeros(lentph)
     for k in range(3):
         for kk in range(3):
             for l in range(3):
@@ -78,7 +78,7 @@ def dragcoeff_iso_computepoly_part1(qt,delta1,A3qt2,lentph):
 def dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dphi1,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     part2 = np.zeros((3,3,3,3,lentph))
-    tmp = np.zeros((lentph))
+    tmp = np.zeros(lentph)
     for n in range(3):
         for nn in range(3):
             for l in range(3):
@@ -92,7 +92,7 @@ def dragcoeff_iso_computepoly_part2(qtshift,delta2,mag,A3qt2,dphi1,lentph):
 def dragcoeff_iso_computepoly_foldpart12(result_previous,part1,part2,lentph):
     '''Subroutine of dragcoeff_iso_computepoly().'''
     result = result_previous
-    tmp = np.zeros((lentph))
+    tmp = np.zeros(lentph)
     for k in range(3):
         for kk in range(3):
             for n in range(3):
@@ -140,25 +140,25 @@ def dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitudinal=False
             delta1[i,i] = 1
             
     if len(t.shape)==1:
-        mag = np.reshape(np.outer(np.ones((lent)),np.ones((lenph)))+qtilde**2-2*np.outer(t,np.ones((lenph)))*qtilde,(lentph))
+        mag = np.reshape(np.outer(np.ones(lent),np.ones(lenph))+qtilde**2-2*np.outer(t,np.ones(lenph))*qtilde,(lentph))
         for i in range(3):
-            qv[i] = qtilde*np.outer(np.ones((lent)),qvec[i])
+            qv[i] = qtilde*np.outer(np.ones(lent),qvec[i])
         # pieces for qt:
         tcosphi = np.reshape(np.outer(t,np.cos(phi)),(lentph))
         sqrtsinphi = np.reshape(np.outer(np.sqrt(1-t**2),np.sin(phi)),(lentph))
         tsinphi = np.reshape(np.outer(t,np.sin(phi)),(lentph))
         sqrtcosphi = np.reshape(np.outer(np.sqrt(1-t**2),np.cos(phi)),(lentph))
-        sqrtt = np.reshape(np.outer(np.sqrt(1-t**2),np.ones((lenph))),(lentph))
+        sqrtt = np.reshape(np.outer(np.sqrt(1-t**2),np.ones(lenph)),(lentph))
     else:
-        mag = np.reshape(np.outer(np.ones((lent)),np.ones((lenph)))+np.outer(qtilde**2,np.ones((lenph)))-2*t*np.outer(qtilde,np.ones((lenph))),(lentph))
+        mag = np.reshape(np.outer(np.ones(lent),np.ones(lenph))+np.outer(qtilde**2,np.ones(lenph))-2*t*np.outer(qtilde,np.ones(lenph)),(lentph))
         for i in range(3):
             qv[i] = np.outer(qtilde,qvec[i])
         # pieces for qt:
-        tcosphi = np.reshape(t*np.outer(np.ones((lent)),np.cos(phi)),(lentph))
+        tcosphi = np.reshape(t*np.outer(np.ones(lent),np.cos(phi)),(lentph))
         sqrtt = np.sqrt(abs(1-t**2))
-        sqrtsinphi = np.reshape(sqrtt*np.outer(np.ones((lent)),np.sin(phi)),(lentph))
-        tsinphi = np.reshape(t*np.outer(np.ones((lent)),np.sin(phi)),(lentph))
-        sqrtcosphi = np.reshape(sqrtt*np.outer(np.ones((lent)),np.cos(phi)),(lentph))
+        sqrtsinphi = np.reshape(sqrtt*np.outer(np.ones(lent),np.sin(phi)),(lentph))
+        tsinphi = np.reshape(t*np.outer(np.ones(lent),np.sin(phi)),(lentph))
+        sqrtcosphi = np.reshape(sqrtt*np.outer(np.ones(lent),np.cos(phi)),(lentph))
         sqrtt = np.reshape(sqrtt,(lentph))
     
     qv = np.reshape(qv,(3,lentph))
@@ -219,7 +219,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
         q1h4 = (qBZ*q1)**4 ## one power less due to not substituting q->t; but instead have new Jacobian from q -> qtilde=q/q1 leading to same power as below
         prefac = (1000*np.pi*hbar*qBZ*burgers**2*c_T**4/(4*beta1*c1**2*c2**2*(2*np.pi)**5))*(np.outer(1/qtilde,csphi))
         ## take beta1 here, i.e. c2 and beta2 do not appear since they were eliminated by the energy-conserving delta fct. relating omega_2 to omega_1-Omega_q:
-        OneMinBtqcosph1 = np.outer(np.ones((lent)),np.ones((lenphi)))-beta1*np.outer(qtilde,csphi)
+        OneMinBtqcosph1 = np.outer(np.ones(lent),np.ones(lenphi))-beta1*np.outer(qtilde,csphi)
     else:
         c1qBZ = cs*qBZ
         c2qBZ = c1qBZ
@@ -229,8 +229,8 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
             ct_over_cl = beta_L/beta
             beta = beta_L
         ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
-        prefac = (1000*np.pi*hbar*qBZ*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5))*(np.outer(np.ones((lent)),csphi/(np.ones((lenphi))-(beta*csphi)**2))/qtilde)
-        OneMinBtqcosph1 = np.outer(np.ones((lent)),np.ones((lenphi)))-beta*qtilde*np.outer(np.ones((lent)),csphi)
+        prefac = (1000*np.pi*hbar*qBZ*burgers**2*ct_over_cl**4/(2*beta*(2*np.pi)**5))*(np.outer(np.ones(lent),csphi/(np.ones(lenphi)-(beta*csphi)**2))/qtilde)
+        OneMinBtqcosph1 = np.outer(np.ones(lent),np.ones(lenphi))-beta*qtilde*np.outer(np.ones(lent),csphi)
     if Debye_series and r0cut<=0:
         hbarcsqBZ_TkB = hbar*c1qBZ/(T*kB)
         qtilde_csphi = np.outer(qtilde,csphi)
@@ -248,7 +248,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
         distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)
     else:
         if isinstance(cs, list):
-            cut =np.ones((lenq1,lent,lenphi)) + (qBZ*r0cut)**2*np.reshape(np.outer(np.outer(q1**2,qtilde**2),np.ones((lenphi))),(lenq1,lent,lenphi))
+            cut =np.ones((lenq1,lent,lenphi)) + (qBZ*r0cut)**2*np.reshape(np.outer(np.outer(q1**2,qtilde**2),np.ones(lenphi)),(lenq1,lent,lenphi))
         else:
             cut =np.ones((lenq1,lent,lenphi)) + (qBZ*r0cut)**2*np.reshape(np.outer(q1**2,qtilde**2),(lenq1,lent,lenphi))
         distri = dragcoeff_iso_phonondistri(prefac,T,c1qBZ,c2qBZ,q1,q1h4,OneMinBtqcosph1,lenq1,lent,lenphi)/(cut)
@@ -257,7 +257,7 @@ def dragcoeff_iso_computeprefactor(qBZ, cs, beta_list, burgers, q1, phi, qtilde,
     ### we do this by applying a mask to set all according array elements to zero in 'distri' before we integrate
     if isinstance(cs, list):
         if c1>c2:
-            q1mask = np.reshape(np.outer(q1,np.ones((lent*lenphi))),((lenq1,lent,lenphi)))
+            q1mask = np.reshape(np.outer(q1,np.ones(lent*lenphi)),((lenq1,lent,lenphi)))
             q1limit = ct_over_cl/OneMinBtqcosph1
             q1mask = q1mask<=q1limit
             distri = distri*q1mask
@@ -274,7 +274,7 @@ def integratetphi(B,beta,t,phi,updatet,kthchk):
     '''Subroutine of dragcoeff_iso().'''
     limit = beta*np.abs(np.cos(phi))
     # qtlimit = 1/(beta*np.abs(np.cos(phi))) ## mask not needed for this, as it is always automatically fulfilled in the present coordinates and with the limit above
-    Bt = np.zeros((len(phi)))
+    Bt = np.zeros(len(phi))
     for p in range(len(phi)):
         Btmp = B[:,p]
         tmask = t>limit[p]
@@ -296,7 +296,7 @@ def integratetphi(B,beta,t,phi,updatet,kthchk):
 
 def integrateqtildephi(B,beta1,qtilde,t,phi,updatet,kthchk,Nchunks):
     '''Subroutine of dragcoeff_iso().'''
-    Bt = np.zeros((len(phi)))
+    Bt = np.zeros(len(phi))
     ## energy conservation tells us w1-Wq>0, and hence qtilde<c1/v*cosphi=1/beta1*cosphi;
     qtlimit = 1/(beta1*np.abs(np.cos(phi)))
     for p in range(len(phi)):
@@ -331,10 +331,10 @@ def computeprefactorHighT(qBZ, cs, beta_list, burgers, phi, qtilde,T):
         beta = beta_L
     else:
         ct_over_cl=1
-    OnesTwoDim = np.outer(np.ones((lent)),np.ones((len(phi))))
+    OnesTwoDim = np.outer(np.ones(lent),np.ones(len(phi)))
     ### multiply by 1000 to get the result in mPas instead of Pas; also multiply by Burgers vector squared since we scaled that out in dij
-    CsPhi = np.outer(np.ones((lent)),csphi)
-    qcosphi = np.outer(np.ones((lent)),csphi/(np.ones((len(phi)))-(beta*csphi)**2))/qtilde
+    CsPhi = np.outer(np.ones(lent),csphi)
+    qcosphi = np.outer(np.ones(lent),csphi/(np.ones(len(phi))-(beta*csphi)**2))/qtilde
     distri = np.zeros((lent,len(phi)))
     betaqtildeCsPhi = beta*qtilde*CsPhi
     hbarcsqBZ_TkB = hbar*cs*qBZ/(T*kB)
@@ -374,7 +374,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     q1 = np.linspace(0,1,Nq1) ## need to rescale by qBZ below!
     ##q1=0 is a divergence, so cut it off:
     q1 = q1[1:]
-    qvec = np.array([np.cos(phi),np.sin(phi),np.zeros((len(phi)))])
+    qvec = np.array([np.cos(phi),np.sin(phi),np.zeros(len(phi))])
     #####
     beta_L = beta_long
     longitud = beta_long
@@ -423,7 +423,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
                 else:
                     qtilde = np.linspace(subqtmin,subqtmax,Nt)
         ###
-        t = np.outer((qtilde+(1-c1**2/c2**2)/qtilde)/2,np.ones((len(phi)))) + np.outer(np.ones((len(qtilde))),(c1*beta2/c2)*np.abs(np.cos(phi))) - np.outer(qtilde/2,(beta2*np.cos(phi))**2)
+        t = np.outer((qtilde+(1-c1**2/c2**2)/qtilde)/2,np.ones(len(phi))) + np.outer(np.ones(len(qtilde)),(c1*beta2/c2)*np.abs(np.cos(phi))) - np.outer(qtilde/2,(beta2*np.cos(phi))**2)
         ### when integrating t later, need to slice such that -1<=t<=1 is ensured;
         ### also notice that this restricts the range of qtilde, i.e.: abs(1-c1/c2)/(1+beta2) <= qtilde <= (1+c1/c2)/(1-beta2) for all c1, c2; hence the definitions above for qt_min and qt_max
         prefactor1 = dragcoeff_iso_computeprefactor(qBZ, cs, [beta, beta_L], burgers, q1, phi, qtilde, T, r0cut=r0cut, Debye_series=Debye_series)
@@ -448,7 +448,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
                 t = np.linspace(tmin+dt,tmax-dt,Nt)
             else:
                 t = np.linspace(tmin,tmax,Nt)
-        qtilde = 2*(np.outer(t,np.ones((len(phi)))) - beta1*np.outer(np.ones((len(t))),np.abs(np.cos(phi))))/np.outer(np.ones((len(t))),(1-(beta1*np.cos(phi))**2))
+        qtilde = 2*(np.outer(t,np.ones(len(phi))) - beta1*np.outer(np.ones(len(t)),np.abs(np.cos(phi))))/np.outer(np.ones(len(t)),(1-(beta1*np.cos(phi))**2))
         qtilde[qtilde==0] = 1e-30 ## avoid 1/0
 
         if Debye_series and r0cut<=0:
@@ -458,7 +458,7 @@ def dragcoeff_iso_onemode(dij, A3, qBZ, cs, beta, burgers, T, Nt=500, Nq1=400, N
     
     Ntheta = len(dij[0,0])
     Bmix = np.empty((Ntheta,len(t),len(phi)))
-    Bmixfinal = np.zeros((Ntheta))
+    Bmixfinal = np.zeros(Ntheta)
     
     if A3[0,0,0,0,0,0].shape == ():
         poly = dragcoeff_iso_computepoly(A3, phi, qvec, qtilde, t, phi1, longitud)

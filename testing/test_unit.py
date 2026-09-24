@@ -2,8 +2,9 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - July 21, 2026
+# Date: Mar. 6, 2023 - Sept. 22, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
+import copy
 import os
 import sys
 import pathlib
@@ -28,7 +29,7 @@ def initialize_metals(metal_list=None):
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
-        metal_list = sorted(tmppydislocdyn.glob("*"))
+        metal_list = sorted(tmppydislocdyn.glob("*.toml"))
     for X in metal_list:
         tmpY = pydis.crystals.readinputfile(X)
         Y[tmpY.name] = tmpY
@@ -42,7 +43,7 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
     pydis.writeallinputfiles()
     Y = {}
     if metal_list is None:
-        metal_list = sorted(tmppydislocdyn.glob("*"))
+        metal_list = sorted(tmppydislocdyn.glob("*.toml"))
         ## make sure we wrote all expected files: iso+3 slip systems for bcc and hcp, fcc and tetr
         ## are overwritten by anisotropic version; also missing iso data for K, so -1
         assert len(metal_list)>=len(pydis.metal_data.fcc_metals)+len(pydis.metal_data.tetr_metals)\
@@ -166,12 +167,12 @@ def test_disloc_props(metal_list=None,Ntheta=2):
             assert np.allclose(M,np.moveaxis(Y[X].M,-1,0))
             assert np.allclose(N,np.moveaxis(Y[X].N,-1,0))
         ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
-        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), print('edge',X,num_edge,Y[X].vcrit_edge)
-        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), print('screw',X,num_screw,Y[X].vcrit_screw)
+        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), f"edge, {X}, {num_edge}, {Y[X].vcrit_edge}"
+        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), f"screw, {X}, {num_screw}, {Y[X].vcrit_screw}"
         if pydis.CheckReflectionSymmetry(Y[X].C2_aligned[0]):
             Y[X].computeuij(0.5)
             trace_of_screw = np.trace(Y[X].uij[:,:,0]) # trace is zero for pure screw dislocations
-            assert np.all(trace_of_screw<1e-15), print(X,trace_of_screw)
+            assert np.all(trace_of_screw<1e-15), f"{X}, {trace_of_screw}"
             if X in pydis.metal_data.fcc_metals: 
                 vlim_edge = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
                 assert np.isclose(Y[X].vcrit_edge,vlim_edge)
@@ -232,3 +233,52 @@ def test_fortransubroutines():
     A = np.resize(np.random.rand(6**3),(6,6,6))
     assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_three(A))
     assert np.all(A==dislocdyn_elasticconstants.vgt_six(dislocdyn_elasticconstants.unvgt_three(A)))
+
+def test_inputfiles(metal_list=None):
+    """tests reading/writing/converting input files and cloning dislocations"""
+    legacy = testpath / "legacy"
+    legacy.mkdir(exist_ok=True)
+    toml = testpath / "toml"
+    toml.mkdir(exist_ok=True)
+    yaml = testpath / "yaml"
+    yaml.mkdir(exist_ok=True)
+    os.chdir(toml)
+    pydis.writeallinputfiles() # writes everything in toml format
+    os.chdir(testpath)
+    if metal_list is None:
+        metal_list = sorted(toml.glob("*.toml"))
+    for X in metal_list:
+        Yt = pydis.utilities.material_data(X)
+        # check legacy format:
+        fname = str(legacy / (Yt.data['name']+".in"))
+        Yt.write(fname)
+        Zl = pydis.utilities.material_data(fname)
+        for k in ('Millerb','Millern0'):
+            assert np.all(Zl.data['slip'][k]==Yt.data['slip'][k])
+        Zl.data.pop('slip')
+        Ytstrip = copy.deepcopy(Yt.data)
+        Ytstrip.pop('slip')
+        for k,v in Ytstrip.items():
+            if k in ('lattice','soec','toec'):
+                for kk,vv in Ytstrip[k].items():
+                    Ytstrip[k][kk] = str(vv)
+            else:
+                Ytstrip[k] = str(v)
+        assert Zl.data==Ytstrip
+        ## check clone disloc.
+        dis1 = pydis.readinputfile(fname)
+        dis2 = pydis.readinputfile(dis1.dumpinput())
+        assert dis1.__doc__ == dis2.__doc__
+        assert np.allclose(dis1.C2,dis2.C2)
+        assert np.allclose(dis1.C3,dis2.C3)
+        ##
+        if pydis.utilities.knowyaml:
+            # check yaml format:
+            fname = str(yaml / (Yt.data['name']+".yaml"))
+            Yt.write(fname)
+            Zy = pydis.utilities.material_data(fname)
+            for k in ('Millerb','Millern0'):
+                assert np.all(Zy.data['slip'][k]==Yt.data['slip'][k])
+            Zy.data.pop('slip')
+            Yt.data.pop('slip')
+            assert Zy.data==Yt.data

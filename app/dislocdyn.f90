@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Aug. 31, 2026
+! Date: Apr. 10, 2026 - Sept. 23, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -30,9 +30,9 @@ program dislocdyn
   call ompinfo(nthreads)
   if (nthreads>0) then
     write(threadinfo, '(I0)') nthreads
-    threadinfo = trim(exe_name) // " compiled with openmp support, using " // trim(threadinfo) // " threads"
+    threadinfo = trim(exe_name) //new_line('a')// " compiled with openmp support, using " // trim(threadinfo) // " threads"
   else
-    threadinfo = trim(exe_name) // " compiled without openmp support"
+    threadinfo = trim(exe_name) //new_line('a')// " compiled without openmp support"
   end if
   
   num_args = command_argument_count()
@@ -116,7 +116,7 @@ program dislocdyn
         end if
         write(un(k),'(a, f10.8, a)') "Vc=", disl(i)%Vc*1.d27, " nm^3"
         write(un(k),'(a, f10.6, a)') "burgers=", disl(i)%burgers*1.d10, " Angstroem"
-        write(un(k),*) "slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0
+        write(un(k),'(*(g0, " "))') "slip plane: "//new_line('a')//"    b=", disl(i)%b, new_line('a'), "    n0=", disl(i)%n0
       end if
     end do
     
@@ -126,7 +126,7 @@ program dislocdyn
           call phonondrag(B,disl_neg(i),sim_plan%beta)
           do k=1,2
             write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind, negative character angles ---"
-            write(un(k),*) "character angles in units of pi (theta=0 is pure screw, theta=-pi/2 is pure edge):"
+            write(un(k),'(a)') "character angles in units of pi (theta=0 is pure screw, theta=-pi/2 is pure edge):"
             write(un(k),'(*(f10.4))') disl_neg(i)%theta/pi
             write(un(k),*) "beta // drag coefficient B(beta,theta) in units of mPas:"
             do j=1,size(sim_plan%beta)
@@ -137,7 +137,7 @@ program dislocdyn
         call phonondrag(B,disl(i),sim_plan%beta)
         do k=1,2
           write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind ---"
-          write(un(k),*) "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
+          write(un(k),'(a)') "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
           write(un(k),'(*(f10.4))') disl(i)%theta/pi
           write(un(k),*) "beta // drag coefficient B(beta,theta) in units of mPas:"
           do j=1,size(sim_plan%beta)

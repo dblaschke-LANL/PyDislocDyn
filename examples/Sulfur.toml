@@ -1,0 +1,14 @@
+# input parameters for S8 at ambient conditions
+name = "sulfur"
+sym = "orth"
+T = 300
+rho = 2.07
+
+[lattice]
+a = 1.0464e-9
+b = 1.2861e-9
+c = 2.4486e-9
+
+[soec]
+# need 9 constants for orthorhombic: c11, c12, c13, c22, c23, c33, c44, c55, c66, from CRC handbook
+cij = "0.240e11, 0.133e11, 0.171e11, 0.205e11, 0.159e11, 0.483e11, 0.043e11, 0.087e11, 0.076e11"

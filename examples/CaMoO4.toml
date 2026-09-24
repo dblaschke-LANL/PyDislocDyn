@@ -1,0 +1,13 @@
+# input parameters for calcium molybdate at ambient conditions
+name = "CaMoO4"
+sym = "tetr2"
+T = 300
+rho = 4255.
+
+[lattice]
+a = 5.034e-10
+c = 10.768e-10
+
+[soec]
+# need 7 constants for tetr2: c11, c12, c13, c16, c33, c44, c66, taken from the CRC handbook
+cij = "1.447e+11, 0.664e+11, 0.466e+11, 0.134e+11, 1.265e+11, 0.369e+11, 0.451e+11"

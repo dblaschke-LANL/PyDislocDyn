@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Aug. 12, 2026
+! Date: July 23, 2018 - Sept. 19, 2026
 
 !> this module contains subroutines for phononwind_xx() and phononwind_xy()
 module dislocdyn_phononwind_subroutines
@@ -267,17 +267,10 @@ module dislocdyn_phononwind
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN)  :: C2(3,3,3,3), C3(3,3,3,3,3,3)
       REAL(KIND=sel), INTENT(OUT) :: A3(3,3,3,3,3,3)
-      INTEGER :: i,j,k,l
+      INTEGER :: i
       REAL(KIND=sel), DIMENSION(3,3,3,3) :: C2swap
       
       C2swap = reshape(C2, [3, 3, 3, 3], order = [2,3,1,4])
-      if (sum(abs(C2swap-C2))<1.d-9) then
-        print*,"ERROR: compiler does not support reshape intrinsic with optional 'order' parameter!!"
-        print*,"using fall back code instead"
-        do concurrent (i=1:3, j=1:3, k=1:3, l=1:3)
-          C2swap(i,j,k,l) = C2(j,k,i,l)
-        end do
-      end if
       A3 = C3
       do i=1,3
         A3(:,:,i,:,i,:) = A3(:,:,i,:,i,:) + C2
