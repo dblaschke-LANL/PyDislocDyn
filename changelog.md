@@ -11,6 +11,9 @@ Features and improvements:
  - `pydislocdyn.readinputfile()` will now fall back to returning an instance of the `metal_props` class if no slip plane is defined in the file
  - added more pre-defined example slip planes for the tetragonal metals of `metal_data`; all examples are now in their own dictionary `example_slip_planes`
  - added support for reading and writing pydislocdyn input files in toml and yaml format (new optional dependence: pyyaml)
+   via the new `pydislocdyn.utilities.material_data` class; dislocations also have a new method, `.dumpinput()` to write an input file 
+   or to clone/reset a dislocation via `disl2 = pydislocdyn.readinputfile(disl1.dumpinput())`
+ - changed the default input file format to toml (the legacy format is still supported for now)
 
 Fix:
 

@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{September 18, 2026}
+\date{September 23, 2026}
 
 \begin{document}
 \maketitle
@@ -204,10 +204,8 @@ these can be conveniently read into a pandas dataframe by using function `\verb|
 \subsection{Anatomy of an input file}
 \label{sec:inputfiles}
 
-Input files are text files assigning values to keywords known to PyDislocDyn.
-All entries adhere to the format\footnote{As of PyDislocDyn 1.4.0, the .toml and .yaml formats are also supported.}
-\\\verb|keyword = value|\\
-where all numerical values must be set in SI units.
+PyDislocDyn 1.4.x input files are toml files assigning values to keywords known to PyDislocDyn.
+All numerical values must be set in SI units.
 Comments are allowed and start with `\verb|#|'.
 Required keywords include:
 \begin{itemize}
@@ -215,20 +213,23 @@ Required keywords include:
 
 \item \verb|rho|: the material density
 
-\item lattice constant(s) and angles: lattice constant \verb|a| is always required, \verb|lcb| and \verb|c| may be required depending on \verb|sym| (keyword \verb|b| is reserved for the Burgers vector direction, see below); angles between lattice basis vectors (only required by lower symmetries where they cannot be inferred from keyword \verb|sym|) are denoted by \verb|alpha|, \verb|beta|, \verb|gamma| and are provided in degrees (not radians).
+\item lattice constant(s) and angles must be in the \verb|[lattice]| section of the toml file: lattice constant \verb|a| is always required, \verb|b| and \verb|c| may be required depending on \verb|sym|; angles between lattice basis vectors (only required by lower symmetries where they cannot be inferred from keyword \verb|sym|) are denoted by \verb|alpha|, \verb|beta|, \verb|gamma| and are provided in degrees (not radians).
 The unit cell volume is then automatically computed.
 
-\item Second order elastic constants (SOEC): for \verb|sym| in one of \verb|iso|--\verb|tetr|, every required elastic constant is set with its own keyword (e.g. \verb|c44| etc.);
+\item Second order elastic constants (SOEC) must be in the \verb|[soec]| section of the toml file: for \verb|sym| in one of \verb|iso|--\verb|tetr|, every required elastic constant may be set with its own keyword (e.g. \verb|c44| etc.);
 for lower symmetries, all values are assigned to one keyword, \verb|cij|, and must be a assembled in one line separated by commas.
 The order is ascending, i.e. c11 comes before c12 etc.; see \cite{Brugger:1965} for further details on which elastic constants need to be provided for each crystal system.
 
+\item The slip system is defined using Miller indices in the \verb|[slip]| section of the toml file:
+\begin{itemize}
 \item \verb|Millern0|: requires comma separated values and denotes the slip plane normal in Miller indices for planes (i.e. in reciprocal space); its length is ignored, Miller indices \verb|Millern0| are automatically converted to Cartesian coordinates \verb|n0|, and \verb|n0| is automatically normalized.
 
 \item \verb|Millerb|: requires comma separated values and denotes the Burgers vector in Miller indices; its length is used to infer the Burgers vector length \verb|burgers|.
 Miller indices \verb|Millerb| are automatically converted to Cartesian coordinates \verb|b|, and \verb|b| is automatically normalized.
 \end{itemize}
+\end{itemize}
 \noindent
-The following keywords are optional (depending on the intended use case)\footnote{Legacy keywords `\texttt{burgers}', `\texttt{b}', and `\texttt{n0}' for input files are deprecated in PydislocDyn 1.4.0, users should use Miller indices instead.}:
+The following keywords are optional (depending on the intended use case)\footnote{Legacy keywords `\texttt{burgers}' (for overriding the Burgers vector length), `\texttt{b}' (Burgers vector in Cartesian coordinates), and `\texttt{n0}' (slip plane normal in Cartesian coordinates) for input files are deprecated in PyDislocDyn 1.4.0, users should use Miller indices instead.}:
 \begin{itemize}
 %\item \verb|burgers| defines the Burgers vector length; if omitted it is inferred from \verb|Millerb| or \verb|b| (in which case their length matters).
 %
@@ -237,16 +238,16 @@ Though not strictly necessary it is recommended to set a name.
 
 \item \verb|T|: the material temperature where density and elastic constants were measured (or calculated); defaults to 300K if omitted.
 
-\item \verb|lam| and \verb|mu|: polycrystal averages for the Lam\'e constants; if omitted, they are calculated by averaging over the (anisotropic) SOECs.
+\item \verb|alpha_a|: denotes the thermal expansion coefficient; only used if dislocation drag is computed for multiple temperatures $\ge$T.
 
-\item Third order elastic constants (TOEC), these are required for phonon wind (dislocation drag) calculations:
-for \verb|sym| in one of \verb|iso|--\verb|tetr|, every required elastic constant is set with its own keyword (e.g. \verb|c123| etc.);
+\item \verb|lam| and \verb|mu| may be provided in the \verb|[soec]| section of the toml file: polycrystal averages for the Lam\'e constants; if omitted, they are calculated by averaging over the (anisotropic) SOECs.
+
+\item Third order elastic constants (TOEC) can be provided in a \verb|[toec]| section in the toml file, these are required for phonon wind (dislocation drag) calculations:
+for \verb|sym| in one of \verb|iso|--\verb|tetr|, every required elastic constant may be set with its own keyword (e.g. \verb|c123| etc.);
 for lower symmetries, all values are assigned to one keyword, \verb|cijk|, and must be a assembled in one line separated by commas.
 The order is ascending, i.e. c111 comes before c112 etc.; see \cite{Brugger:1965} for further details on which elastic constants need to be provided for each crystal system.
-
-\item \verb|alpha_a|: denotes the thermal expansion coefficient; only used if dislocation drag is computed for multiple temperatures >=T.
 \end{itemize}
-
+The same files can also be used as material files for the Fortran frontend, although the slip systems will be ignored and have to be provided in a separate inputdeck as described below in Section \ref{sec:fortran}.
 
 
 \subsection{Working with the classes}
@@ -369,7 +370,7 @@ In particular this includes the following objects:
    \item function \verb|phonondrag| to calculate the drag coefficient $B$ in units of mPa\,s as a function of velocity for an instance of the Dislocation class.
    \item function \verb|B_of_sigma| to calculate the drag coefficient $B$ as a function of stress $\sigma$ from a previously determined fitting function for $B(v)$ as a function of dislocation velocity $v$.
    \item function \verb|plotuij| generates a heat map plot of a 2-dimensional dislocation field.
-   \item function \verb|read_dislocdyn_output(fname)| can be used to read an output file of the Fortran frontend, \verb|fname| (PyDislocDyn 1.4.0 and up).
+   \item function \verb|read_dislocdyn_output(fname)| can be used to read an output file of the Fortran frontend, \verb|fname| (PyDislocDyn 1.4.0 and up, see Section \ref{sec:fortran} below).
    It returns a dictionary containing pandas DataFrames for limiting velocities and/or drag coefficients for each material found in \verb|fname|.
 \end{itemize}
 
@@ -384,6 +385,48 @@ Additional functions are available within the sub-modules:
 	\item \verb|pydislocdyn.subroutines|, if it is compiled using \verb|numpy.f2py| and a Fortran compiler, provides some faster alternatives to a subset of functions defined in \verb|pydislocdyn.phononwind| and \verb|pydislocdyn.dislocations|; the code will use them automatically if they are available (as indicated by the Boolean variable \verb|pydislocdyn.usefortran|).
 	\item as of PyDislocDyn 1.3.0, the front-end scripts no longer contain anything importable as their module parts were moved into the other submodules described above.
 \end{itemize}
+
+
+\section{Running the Fortran code}
+\label{sec:fortran}
+
+PyDislocDyn >=1.4.0 includes a Fortran library, \verb|dislocdynlib|, and a frontend, \verb|dislocdyn|.
+The recommended way to compile both is via the Fortran Package Manager (fpm);
+Use \verb|ford| to generate the detailed documentation of the library API.
+The Fortran frontend is input file driven and requires as its commandline arguments one or more material files as well as an inputdeck:
+\\\verb|fpm run --profile release -- <one or more material files> <inputdeck>|\\
+The material files have exactly the same (toml) format as the input files for the Python code as described in Section \ref{sec:inputfiles}, except that the slip planes therein are ignored and must be provided inside the input deck (also a \verb|.toml|-file) instead.
+%All entries adhere to the toml format: 
+%\verb|keyword = "value"|.\\
+At the very least the input deck must define a slip plane via the \verb|Millerb| (or \verb|b|) and \verb|Millern0| (or \verb|n0|) keywords and specify what to calculate via the \verb|sim_type| keyword.
+In particular, 
+\\\verb|sim_type = "vlimit"|\\
+will instruct \verb|dislocdyn| to calculate dislocation limiting velocities and
+\\\verb|sim_type = "drag"|\\
+will instruct \verb|dislocdyn| to calculate the dislocation drag coefficient from phonon wind.
+To do both, just add a second entry to the input deck.
+The Burgers vector direction \verb|b| and slip plane normal \verb|n0| must be provided as Miller indices and the Burgers vector length is determined from vector \verb|b|.
+Note that the Fortran version currently does not support reading fractions from the input deck.
+Instead, keyword \verb|Millernorm| may be used to set a number to divide all entries of \verb|b| by.
+Other keywords that may be set in the input deck, but have default values if they are not specified, include:
+\begin{itemize}
+\item \verb|ntheta| $\ldots$ number of dislocation character angles to consider between 0 (screw) and $\pi/2$ (edge). The default is 2 (only screw and edge).
+\item \verb|include_negative_theta| $\ldots$ whether or not to include negative dislocation characters (default=false). Many slip systems are symmetric with respect to the sign of character angle for mixed dislocations, and it is up to the user to decide if negative character angles need to be considered separately.
+In contrast to the Python version, the Fortran derived type for dislocations is restricted to character angles from 0 to $\pi/2$, but all signs can be flipped.
+Therefore, under the hood, the frontend will initialize two dislocation variables, one for the positive and one for the negative angles if \verb|include_negative_theta = true| in the input deck.
+\item \verb|nphi| $\ldots$ resolution of polar angles to use for the dislocation field (defaults to 500)
+\item \verb|logfile| $\ldots$ name of the file to write to (defaults to \verb|dislocdyn.log|)
+\item \verb|betamin| $\ldots$ smallest dislocation gliding velocity in units of average transverse sound speed $c_T$ to consider in dislocation drag calculations (defaults to 0.01)
+\item \verb|betamax| $\ldots$ largest dislocation gliding velocity in units of $c_T$ to consider in dislocation drag calculations (defaults to 0.99)
+\item \verb|nbeta| $\ldots$ number of  dislocation gliding velocities to consider between \verb|betamin| and \verb|betamax| (defaults to 1, meaning only \verb|betamin| is calculated)
+\end{itemize}
+The instructions in the input deck apply to all material files included in a run, i.e. limiting velocities and/or drag coefficients are computed for all material files in order of appearance on the command line.
+Since the slip plane is defined in the input deck, an important limitation is that all material files included in a run must have the same crystal symmetry \verb|sym|.
+
+For the drag coefficient calculations, the Fortran version prioritizes speed over accuracy and therefore uses the high temperature Debye expansion of the phonon distributions to skip one of the numeric integrations.
+Also, the adaptive grid present in the Python version is not implemented in the Fortran code at this point.
+Therefore, the Fortran results will match the Python results only if the latter's \verb|phonondrag()| function is called with options \verb|Debye_series=True| and \verb|maxrec=-1|.
+
 
 
 \subsection*{Acknowledgments}
