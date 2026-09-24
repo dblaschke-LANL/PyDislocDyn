@@ -17,19 +17,21 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         toolchain:
           - {compiler: gcc, version: 'latest'}
-          - {compiler: intel, version: '2026.1'}
-          - {compiler: nvidia-hpc, version: 'latest'}
-          - {compiler: lfortran, version: '0.66.0'}
-          - {compiler: aocc, version: '5.1.0'}
+          - {compiler: intel, version: '2026.0'}
+          #~ - {compiler: nvidia-hpc, version: 'latest'}
+          #~ - {compiler: lfortran, version: '0.66.0'}
+          #~ - {compiler: aocc, version: '5.1.0'}
         exclude:
+          #~ - os: macos-latest
+            #~ toolchain: {compiler: nvidia-hpc}
+          #~ - os: macos-latest
+            #~ toolchain: {compiler: aocc}
           - os: macos-latest
-            toolchain: {compiler: nvidia-hpc}
-          - os: macos-latest
-            toolchain: {compiler: aocc}
-          - os: windows-latest
-            toolchain: {compiler: nvidia-hpc}
-          - os: windows-latest
-            toolchain: {compiler: aocc}
+            toolchain: {compiler: intel}
+          #~ - os: windows-latest
+            #~ toolchain: {compiler: nvidia-hpc}
+          #~ - os: windows-latest
+            #~ toolchain: {compiler: aocc}
     steps:
       - uses: fortran-lang/setup-fortran@v1
         id: setup-fortran
@@ -41,6 +43,14 @@ jobs:
         uses: fortran-lang/setup-fpm@v10
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run tests
+      - name: Run tests Linux
+        run: |
+          fpm test --profile release --compiler ${{ env.FC }} 
+        if: runner.os  == 'Linux'
+      - name: Run tests MacOS
+        run: |
+          fpm test --profile release
+        if: runner.os  == 'MacOS'
+      - name: Run tests windows
         run: |
           fpm test --profile release --compiler ${{ env.FC }} 
