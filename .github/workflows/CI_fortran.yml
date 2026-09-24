@@ -31,14 +31,15 @@ jobs:
           - os: windows-latest
             python-version: aocc
     steps:
-      - uses: actions/checkout@v7
-      - name: Setup Fortran Compiler
-        uses: fortran-lang/setup-fortran@v1
+      - uses: fortran-lang/setup-fortran@v1
+        id: setup-fortran
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
       - name: Setup Fortran Package Manager
         uses: fortran-lang/setup-fpm@v10
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-        if: runner.os  == 'Linux' || runner.os == 'Windows'
       - name: Run tests
         run: |
-          fpm test --profile release
+          ${{ env.FC }} fpm test --profile release
