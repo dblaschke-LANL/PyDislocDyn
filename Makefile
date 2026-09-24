@@ -1,8 +1,8 @@
-## required compiler versions: gfortran>=10, flang>=20
+## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.66, ifx>=2024
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
-#~   FFLAGS = --realloc-lhs-arrays --detect-leaks -g --fpe-trap invalid, zero, overflow, underflow, inexact, denormal
+#   FFLAGS = --realloc-lhs-arrays --detect-leaks -g --fpe-trap invalid, zero, overflow, underflow, inexact, denormal
   LDFLAGS = 
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
@@ -48,6 +48,8 @@ help:
 	@echo "make shared          build the shared library $(SHARED) and $(EXEC) linked against it"
 	@echo "make clean           delete all object files"
 	@echo "make cleanall        delete all object files and executables\n"
+	@echo "default build is with gfortran, set environment variable FC=lfortran, flang, ftn, or ifx"
+	@echo "to use another compiler (or edit this Makefile as needed)\n"
 
 runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
           pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90  pydislocdyn/readinputfiles.f90 testing/runtests.f90
