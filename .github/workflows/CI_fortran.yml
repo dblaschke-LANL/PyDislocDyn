@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - '**.f90'
+      - '**.toml'
+      - '**.yml'
+
+jobs:
+  RunTests:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        toolchain:
+          - {compiler: gcc, version: 'latest'}
+          - {compiler: intel, version: '2026.1'}
+          - {compiler: nvidia-hpc, version: 'latest'}
+          - {compiler: lfortran, version: '0.66.0'}
+          - {compiler: aocc, version: '5.2.0'}
+        exclude:
+          - os: macos-latest
+            python-version: nvidia-hpc
+          - os: macos-latest
+            python-version: aocc
+          - os: windows-latest
+            python-version: nvidia-hpc
+          - os: windows-latest
+            python-version: aocc
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Fortran Compiler
+        uses: fortran-lang/setup-fortran@v1
+      - name: Setup Fortran Package Manager
+        uses: fortran-lang/setup-fpm@v10
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        if: runner.os  == 'Linux' || runner.os == 'Windows'
+      - name: Run tests
+        run: |
+          fpm test --profile release
