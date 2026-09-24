@@ -20,7 +20,7 @@ jobs:
           - {compiler: intel, version: '2026.1'}
           - {compiler: nvidia-hpc, version: 'latest'}
           - {compiler: lfortran, version: '0.66.0'}
-          - {compiler: aocc, version: '5.2.0'}
+          - {compiler: aocc, version: '5.1.0'}
         exclude:
           - os: macos-latest
             toolchain: {compiler: nvidia-hpc}
@@ -42,4 +42,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run tests
         run: |
-          ${{ env.FC }} fpm test --profile release
+          fpm test --profile release --compiler ${{ env.FC }} 
