@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Sept. 23, 2026
+! Date: Apr. 10, 2026 - Sept. 24, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -39,13 +39,13 @@ program dislocdyn
   allocate(args(num_args))
   if (len_trim(cmdlinearg) > 0) then
     if ((cmdlinearg == '--version') .or. (cmdlinearg == '-v')) then
-      print*,prog_version
+      write(un(1),'(*(g0))') prog_version
       stop
     else
       print*,proginfo
-      print*,threadinfo
+      write(un(1),'(*(g0))') threadinfo
       if ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
-        print*,usageinfo
+        write(un(1),'(*(g0))') usageinfo
         stop
       end if
     end if
@@ -72,8 +72,8 @@ program dislocdyn
     if (i==1) then
       call read_inputdeck(instructionfile,sim_plan,disl(i)%sym) ! need to know how many Miller indices to expect based on 'sym'
       open(unit=un(2), file=sim_plan%logfile, status='replace') ! open log file
-      write(un(2),*) proginfo
-      write(un(2),*) threadinfo
+      write(un(2),'(*(g0))') proginfo
+      write(un(2),'(*(g0))') threadinfo
     end if
     do k=1,2
       write(un(k),*) new_line('a') // "--- Crystal / Dislocation properties ---"
