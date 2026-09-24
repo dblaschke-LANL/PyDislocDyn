@@ -23,13 +23,13 @@ jobs:
           - {compiler: aocc, version: '5.2.0'}
         exclude:
           - os: macos-latest
-            python-version: nvidia-hpc
+            compiler: nvidia-hpc
           - os: macos-latest
-            python-version: aocc
+            compiler: aocc
           - os: windows-latest
-            python-version: nvidia-hpc
+            compiler: nvidia-hpc
           - os: windows-latest
-            python-version: aocc
+            compiler: aocc
     steps:
       - uses: fortran-lang/setup-fortran@v1
         id: setup-fortran
