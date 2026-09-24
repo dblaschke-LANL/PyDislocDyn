@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Sept. 22, 2026
+! Date: Apr. 10, 2026 - Sept. 23, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -47,7 +47,7 @@ module dislocdyn_readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key=='sim_type') then
+        if (key(1:8)=='sim_type') then
           nsims = nsims + 1
         end if
       end do ! read file
@@ -114,7 +114,7 @@ module dislocdyn_readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key=='sim_type') then
+        if (key(1:8)=='sim_type') then
           if (p>nsims) error stop "too many sim_types in file"
           sim_plan%sim_type(p)%str = trim(values)
           p = p+1
