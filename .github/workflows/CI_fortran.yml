@@ -36,6 +36,7 @@ jobs:
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
+      - uses: actions/checkout@v7
       - name: Setup Fortran Package Manager
         uses: fortran-lang/setup-fpm@v10
         with:
