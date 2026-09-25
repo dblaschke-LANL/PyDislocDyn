@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Sept. 23, 2026
+# Date: Aug. 6, 2026 - Sept. 25, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -24,7 +24,7 @@ if dir_path not in sys.path:
 dir_path = pathlib.Path(__file__).resolve().parents[1]
 example_path = dir_path / "examples"
 import pydislocdyn
-from pydislocdyn import read_dislocdyn_output, Ncpus, ompthreads
+from pydislocdyn import read_dislocdyn_output, Ncpus, ompthreads, usefortran
 cwd =pathlib.Path.cwd()
 from test_regression import prepare_inputfiles
 
@@ -54,6 +54,9 @@ if fpmoutput[-1].strip()[:4]=='2026':
 ## check if fortran executable exists, skip these tests if not:
 if not executable.exists() and not usefpm:
     reason = "Fortran executable not found - please compile and re-run this script!"
+    skiptests = True
+elif not usefortran:
+    reason = "Missing Fortran subroutines for the python code"
     skiptests = True
 
 os.chdir(example_path)
