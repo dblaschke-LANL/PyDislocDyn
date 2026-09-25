@@ -63,9 +63,9 @@ jobs:
         if: runner.os  == 'MacOS'
       - name: Run tests windows
         run: |
-          fpm test --profile release
           echo 'N' | pytest -s --collect-only testing
           pytest -n auto -rP --durations=0 testing/
+          fpm test --profile release
         if: runner.os == 'Windows'
       - name: Upload log files as artifacts
         uses: actions/upload-artifact@v7
