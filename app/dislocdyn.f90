@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Sept. 24, 2026
+! Date: Apr. 10, 2026 - Sept. 28, 2026
 ! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
@@ -14,23 +14,22 @@ program dislocdyn
   implicit none
   
   integer :: nthreads, i, j, k, p, num_args, un(3), start_time, finish_time, countrate
-  character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, proginfo, threadinfo, usageinfo
+  character(32) :: proginfo
+  character(256) :: materialfile, instructionfile, cmdlinearg, exe_name, threadinfo, usageinfo
   character(256), dimension(:), allocatable :: args
   type(disloc), dimension(:), allocatable :: disl, disl_neg
   type(inputdeck) :: sim_plan
   real(sel), allocatable :: B(:,:), vlim(:,:)
   un = [output_unit, 123, error_unit]
   
-  write(proginfo, '(I0)') prog_version
-  proginfo = "DislocDyn version " // trim(proginfo)
+  write(proginfo, '(a, I0)') "DislocDyn version ", prog_version
   call get_command_argument(1, cmdlinearg)
   call get_command_argument(0, exe_name)
   usageinfo = "USAGE: " // trim(exe_name) // " [--version] [--help] <1 or more materialfiles> <inputdeck>"
 
   call ompinfo(nthreads)
   if (nthreads>0) then
-    write(threadinfo, '(I0)') nthreads
-    threadinfo = trim(exe_name) //new_line('a')// " compiled with openmp support, using " // trim(threadinfo) // " threads"
+    write(threadinfo, '(a, I0, a)') trim(exe_name) //new_line('a')// " compiled with openmp support, using ", nthreads, " threads"
   else
     threadinfo = trim(exe_name) //new_line('a')// " compiled without openmp support"
   end if
@@ -43,7 +42,7 @@ program dislocdyn
       stop
     else
       print*,proginfo
-      write(un(1),'(*(g0))') threadinfo
+      write(un(1),'(*(g0))') trim(threadinfo)
       if ((cmdlinearg == '--help') .or. (cmdlinearg == '-h')) then
         write(un(1),'(*(g0))') usageinfo
         stop
@@ -72,8 +71,8 @@ program dislocdyn
     if (i==1) then
       call read_inputdeck(instructionfile,sim_plan,disl(i)%sym) ! need to know how many Miller indices to expect based on 'sym'
       open(unit=un(2), file=sim_plan%logfile, status='replace') ! open log file
-      write(un(2),'(*(g0))') proginfo
-      write(un(2),'(*(g0))') threadinfo
+      write(un(2),*) proginfo
+      write(un(2),'(*(g0))') trim(threadinfo)
     end if
     do k=1,2
       write(un(k),*) new_line('a') // "--- Crystal / Dislocation properties ---"
