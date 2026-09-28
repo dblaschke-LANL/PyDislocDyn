@@ -33,23 +33,24 @@ tmpfolder="temp_pydislocdyn"
 skiptests = False
 usefpm = False
 reason  = ""
-executable = dir_path / "dislocdyn.x"
+executable = pathlib.Path(os.environ.get("DISLOCDYNEXE",dir_path / "dislocdyn.x"))
 
 aver_lame = pydislocdyn.metal_data.all_metals.difference(pydislocdyn.metal_data.ISO_c44)
 
 fpm = shutil.which('fpm')
-os.chdir(dir_path)
-if fpm is None:
-    fpmoutput = "    "
-else:
-    with subprocess.Popen([fpm,"run","--profile","release","--","-v"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-        fpmoutput = []
-        for line in subproc.stdout:
-            fpmoutput.append(line)
-        subproc.wait()
-os.chdir(cwd)
-if fpmoutput[-1].strip()[:4]=='2026':
-    usefpm = True
+if not executable.exists():
+    os.chdir(dir_path)
+    if fpm is None:
+        fpmoutput = "    "
+    else:
+        with subprocess.Popen([fpm,"run","--profile","release","--","-v"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+            fpmoutput = []
+            for line in subproc.stdout:
+                fpmoutput.append(line)
+            subproc.wait()
+    os.chdir(cwd)
+    if fpmoutput[-1].strip()[:4]=='2026':
+        usefpm = True
 
 ## check if fortran executable exists, skip these tests if not:
 if not executable.exists() and not usefpm:
