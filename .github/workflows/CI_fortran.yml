@@ -51,14 +51,14 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fpm-version: 'current'
-      - name: Run tests MAKE
-        run: |
-          FC=${{ env.FC }} make
-          ./runtests.x
-        if: runner.os  != 'Windows'
       - name: Run tests fpm
         run: |
           fpm --version
-          ${{ env.FC }}  --version
           fpm test --profile release --compiler ${{ env.FC }} 
         if: runner.os  != 'MacOS'
+      - name: Run tests MAKE
+        run: |
+          ${{ env.FC }}  --version
+          FC=${{ env.FC }} make
+          ./runtests.x
+        if: runner.os  != 'Windows'

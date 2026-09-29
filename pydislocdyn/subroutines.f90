@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Sept. 21, 2026
+! Date: July 23, 2018 - Sept. 29, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20260921
+  integer,parameter :: version = 20260929
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
@@ -24,7 +24,7 @@ module dislocdyn_utilities
   interface operator(.inv.)
     module procedure inv
   end interface
-  public :: ompinfo, elbrak, elbrak1d, cross, operator(.cross.), trapz, cumtrapz, inv, operator(.inv.), linspace
+  public :: ompinfo, elbrak, elbrak1d, operator(.cross.), trapz, cumtrapz, operator(.inv.), linspace
   contains
     !>returns the number of threads used for OpenMP parallelization (or 0 if compiled without OpenMP support)
     subroutine ompinfo(nthreads)
