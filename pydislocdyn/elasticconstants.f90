@@ -1,12 +1,12 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Aug. 12, 2026
+! Date: Mar. 30, 2026 - Sept. 29, 2026
 module dislocdyn_elasticconstants
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
   character(110), parameter :: symkwerror = &
                 "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
-  private VoigtIndices, UnVoigtIndices ! f2py-incompatibilities prevent us from making more stuff private
+  private VoigtIndices, UnVoigtIndices, vgt_two, vgt_four, vgt_six, unvgt_one, unvgt_two, unvgt_three
   public symkwerror, voigt, unvoigt, elasticC2, elasticC3, CheckReflectionSymmetry, number_of_elasticC, &
           voigtaverage, reussaverage, hillaverage
   !> converts the input to Voigt notation

@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Sept. 22, 2026
+# Date: Mar. 6, 2023 - Sept. 29, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import copy
 import os
@@ -189,10 +189,10 @@ def test_fortransubroutines():
     if not pydis.usefortran:
         print("\ntest_fortransubroutines(): cannot import fortran subroutines, therefore nothing to test")
         return
-    # test inv()
-    A = np.random.rand(9).reshape((3,3))
-    Ainv = dislocdyn_utilities.inv(A)
-    assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-9) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-9)
+    # test inv() - skip since inv is now private
+    # A = np.random.rand(9).reshape((3,3))
+    # Ainv = dislocdyn_utilities.inv(A)
+    # assert np.all(np.abs(A@Ainv-pydis.utilities.delta)<1e-9) and np.all(np.abs(np.linalg.inv(A)-Ainv)<1e-9)
     # test linspace()
     assert sum(abs(np.linspace(0,1,11)-dislocdyn_utilities.linspace(0,1,11)))<1e-15
     # test trapz() and cumtrapz()
@@ -224,15 +224,16 @@ def test_fortransubroutines():
     assert np.allclose(dislocdyn_elasticconstants.elasticc3(xtric[:32],sym='mono'),pydis.elasticC3(cijk=xtric[:32],voigt=True))
     assert np.allclose(dislocdyn_elasticconstants.elasticc3(xtric,sym='tric'),pydis.elasticC3(cijk=xtric,voigt=True))
     ##
-    A = np.random.rand(6)
-    assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_one(A))
-    assert np.all(A==dislocdyn_elasticconstants.vgt_two(dislocdyn_elasticconstants.unvgt_one(A)))
-    A = np.resize(np.random.rand(6**2),(6,6))
-    assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_two(A))
-    assert np.all(A==dislocdyn_elasticconstants.vgt_four(dislocdyn_elasticconstants.unvgt_two(A)))
-    A = np.resize(np.random.rand(6**3),(6,6,6))
-    assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_three(A))
-    assert np.all(A==dislocdyn_elasticconstants.vgt_six(dislocdyn_elasticconstants.unvgt_three(A)))
+    # test voigt / unvoigt - skip since f2py does not support interfaces and the subroutines are now private
+    # A = np.random.rand(6)
+    # assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_one(A))
+    # assert np.all(A==dislocdyn_elasticconstants.vgt_two(dislocdyn_elasticconstants.unvgt_one(A)))
+    # A = np.resize(np.random.rand(6**2),(6,6))
+    # assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_two(A))
+    # assert np.all(A==dislocdyn_elasticconstants.vgt_four(dislocdyn_elasticconstants.unvgt_two(A)))
+    # A = np.resize(np.random.rand(6**3),(6,6,6))
+    # assert np.all(pydis.UnVoigt(A)==dislocdyn_elasticconstants.unvgt_three(A))
+    # assert np.all(A==dislocdyn_elasticconstants.vgt_six(dislocdyn_elasticconstants.unvgt_three(A)))
 
 def test_inputfiles(metal_list=None):
     """tests reading/writing/converting input files and cloning dislocations"""

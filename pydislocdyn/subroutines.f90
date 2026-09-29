@@ -24,6 +24,7 @@ module dislocdyn_utilities
   interface operator(.inv.)
     module procedure inv
   end interface
+  private :: cross, inv
   public :: ompinfo, elbrak, elbrak1d, operator(.cross.), trapz, cumtrapz, operator(.inv.), linspace
   contains
     !>returns the number of threads used for OpenMP parallelization (or 0 if compiled without OpenMP support)
