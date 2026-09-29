@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Aug. 12, 2026
+! Date: Mar. 31, 2026 - Sept. 29, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -35,8 +35,7 @@ module dislocdyn_dislocations
       procedure :: computevcrit_barnett => computevcrit_barnett
       procedure :: computevcrit => computevcrit
   end type
-  public :: set_character_angles, computerot, phonondrag, computevcrit_screw, computevcrit_edge, &
-            computevcrit_barnett, computevcrit
+  public :: phonondrag
   !-------------------------
   contains
     subroutine update_slipplane(disl,Millerb,Millern0)
@@ -93,7 +92,7 @@ module dislocdyn_dislocations
       integer :: th, i, ii, j, jj
       if (allocated(disl%rot)) deallocate(disl%rot)
       allocate(disl%rot(3,3,disl%ntheta))
-      call unvgt_two(disl%C2,C2)
+      call unvoigt(disl%C2,C2)
       do th=1,disl%ntheta
         rot(1,:) = disl%n0 .cross. disl%t(:,th)
         rot(2,:) = disl%n0
@@ -109,7 +108,7 @@ module dislocdyn_dislocations
             end do
           end do
         end do
-        call vgt_four(C2aligned,disl%C2aligned(:,:,th))
+        call voigt(C2aligned,disl%C2aligned(:,:,th))
       end do
     end subroutine computerot
     !-------------------------
@@ -293,7 +292,7 @@ module dislocdyn_dislocations
     !>and gliding velocities 'beta'=v/ct
     subroutine phonondrag(drag,disl,beta,nphi,nq)
       use dislocdyn_phononwind
-      class(disloc), intent(in) :: disl
+      type(disloc), intent(in) :: disl
       real(sel), intent(in) :: beta(:)
       real(sel), intent(out), allocatable :: drag(:,:)
       integer, optional :: nphi, nq

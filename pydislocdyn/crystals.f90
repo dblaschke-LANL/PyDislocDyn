@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Aug. 1, 2026
+! Date: Mar. 31, 2026 - Sept. 29, 2026
 module dislocdyn_crystals
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : operator(.cross.) ! defined in subroutines.f90
@@ -31,7 +31,7 @@ module dislocdyn_crystals
       procedure :: computesound => computesound
       procedure :: anisotropy_index => anisotropy_index
   end type crystal
-  public :: volume_unitcell, Miller_to_Cart, computesound, anisotropy_index
+!~   public :: volume_unitcell, Miller_to_Cart, computesound, anisotropy_index
   !-------------------------
   contains
     !> computes the unit cell volume
