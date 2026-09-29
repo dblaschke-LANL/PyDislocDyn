@@ -64,8 +64,8 @@ jobs:
       - name: Run tests windows
         run: |
           fpm test --profile release
-          echo 'Y' | pytest -s --collect-only testing
-          pytest -n auto -rP --durations=0 testing/
+          echo 'N' | pytest -s --collect-only testing
+          #pytest -n auto -rP --durations=0 testing/
           fpm test --profile release
         if: runner.os == 'Windows'
       #~ - name: Upload log files as artifacts

@@ -5,7 +5,7 @@ on:
     paths:
       - '**.f90'
       - '**.toml'
-      #~ - '**.yml'
+      - '**.yml'
 
 jobs:
   RunTests:
@@ -18,23 +18,23 @@ jobs:
         toolchain:
           - {compiler: gcc, version: 'latest'}
           #~ - {compiler: intel, version: '2025.0'}
-          #~ - {compiler: intel, version: '2026.0'}
-          #~ - {compiler: nvidia-hpc, version: 'latest'}
-          #~ - {compiler: lfortran, version: '0.66.0'}
-          #~ - {compiler: aocc, version: '5.1.0'}
+          - {compiler: intel, version: '2026.0'}
+          - {compiler: nvidia-hpc, version: 'latest'}
+          - {compiler: lfortran, version: '0.66.0'}
+          - {compiler: aocc, version: 'latest'}
         exclude:
-          #~ - os: macos-latest
-            #~ toolchain: {compiler: nvidia-hpc}
-          #~ - os: macos-latest
-            #~ toolchain: {compiler: aocc}
+          - os: macos-latest
+            toolchain: {compiler: nvidia-hpc}
+          - os: macos-latest
+            toolchain: {compiler: aocc}
           - os: macos-latest
             toolchain: {compiler: intel}
           - os: windows-latest
             toolchain: {compiler: intel}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: nvidia-hpc}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: aocc}
+          - os: windows-latest
+            toolchain: {compiler: nvidia-hpc}
+          - os: windows-latest
+            toolchain: {compiler: aocc}
     steps:
       - uses: fortran-lang/setup-fortran@v1
         id: setup-fortran
@@ -50,6 +50,7 @@ jobs:
         uses: fortran-lang/setup-fpm@v10
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          fpm-version: 'current'
       - name: Run tests MAKE
         run: |
           FC=${{ env.FC }} make
@@ -57,5 +58,7 @@ jobs:
         if: runner.os  != 'Windows'
       - name: Run tests fpm
         run: |
+          fpm --version
+          ${{ env.FC }}  --version
           fpm test --profile release --compiler ${{ env.FC }} 
         if: runner.os  != 'MacOS'
