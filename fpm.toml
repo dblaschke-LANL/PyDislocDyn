@@ -23,7 +23,8 @@ baseline.lfortran.flags = "--fast --realloc-lhs-arrays"
 default = ["baseline"]
 
 [library]
-type = ["shared", "static"]
+#~ type = ["shared", "static"]
+type = ["static"]
 source-dir = "pydislocdyn"
 
 [[executable]]

@@ -18,7 +18,8 @@ jobs:
         toolchain:
           - {compiler: gcc, version: 'latest'}
           #~ - {compiler: intel, version: '2025.0'}
-          - {compiler: intel, version: '2026.0'}
+          #~ - {compiler: intel, version: '2026.0'}
+          - {compiler: intel, version: 'latest'}
           - {compiler: nvidia-hpc, version: 'latest'}
           - {compiler: lfortran, version: '0.66.0'}
           #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
@@ -65,10 +66,11 @@ jobs:
       - name: Run tests MAKE
         run: |
           if [ "${{ matrix.toolchain.compiler }}" = "lfortran" ]; then
-            export FC=lfortran
-            export FPM_FC=lfortran
+            lfortran --version
+            FC=lfortran make
+          else
+            ${{ env.FC }}  --version
+            FC=${{ env.FC }} make
           fi
-          ${{ env.FC }}  --version
-          FC=${{ env.FC }} make
           ./runtests.x
         if: runner.os  != 'Windows'

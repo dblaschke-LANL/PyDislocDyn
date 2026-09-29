@@ -5,7 +5,7 @@ on:
     paths:
       - '**.py'
       - '**.f90'
-      - '**.toml'
+      #~ - '**.toml'
       #~ - '**.yml'
 
 jobs:
