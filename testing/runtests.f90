@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Sept. 21, 2026
+! Date: Mar. 25, 2026 - Sept. 24, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -262,6 +262,7 @@ module dislocdyn_tests
 end module dislocdyn_tests
 
 program runtests
+  use, intrinsic :: iso_fortran_env, only : output_unit
   use dislocdyn_parameters
   use dislocdyn_utilities, only : ompinfo, linspace, operator(.inv.), trapz, cumtrapz
   use dislocdyn_phononwind_subroutines
@@ -283,12 +284,12 @@ program runtests
   
   ! check for openmp
   call get_command_argument(0, exe_name)
-  print*,"Testing dislocdynlib version", version
+  write(output_unit,'(*(g0))') "Testing dislocdynlib version ", version
   call ompinfo(nthreads)
   if (nthreads>0) then
-    print*,exe_name, " compiled with openmp support, using ",nthreads," threads"
+    write(output_unit,'(*(g0))') trim(exe_name), " compiled with openmp support, using ",nthreads," threads"
   else
-    print*,exe_name, " compiled without openmp support"
+    write(output_unit,'(*(g0))') trim(exe_name), " compiled without openmp support"
     nthreads = 1
   end if
   

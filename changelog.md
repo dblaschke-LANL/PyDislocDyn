@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 (wip)
+## 1.4.0 (2026-09-25)
 
 Features and improvements:
 
@@ -13,12 +13,12 @@ Features and improvements:
  - added support for reading and writing pydislocdyn input files in toml and yaml format (new optional dependence: pyyaml)
    via the new `pydislocdyn.utilities.material_data` class; dislocations also have a new method, `.dumpinput()` to write an input file 
    or to clone/reset a dislocation via `disl2 = pydislocdyn.readinputfile(disl1.dumpinput())`
- - changed the default input file format to toml (the legacy format is still supported for now)
+ - changed the default input file format to toml (the legacy format is still supported for now,
+   but overriding the Burgers vector length with keyword `burgers` as well as defining the slip plane using Cartesian coordinates is deprecated;
+   use Miller indices instead.)
 
 Fix:
 
- - fixed a segfault in the Fortran subroutines when setting non-default different values for `Nphi` and `Nphi1`
-   (regression since 1.3.3)
  - `pydislocdyn.writeinputfile()` now writes correct slip planes for face-centered tetragonal indium
 
 Other:
@@ -28,7 +28,19 @@ Other:
    this has implications for other version requirements (e.g. numba)
  - changed defaults in functions `elasticC2/-C3/-S2/-S3` (output with `voigt=True` instead of `False`)
  - if Burgers vector and slip plane normal in an input file are not normal, PyDislcDyn will now throw a ValueError (previously just warned)
- - now require python 3.10 or higher (with the additional requirement of tommli for python 3.10)
+ - now require python 3.10 or higher (with the additional requirement of tomli for python 3.10)
+
+
+## 1.3.5.1 (2026-08-06)
+
+Fix:
+
+ - fixed a segfault in the Fortran subroutines when setting non-default different values for `Nphi` and `Nphi1`
+   (regression since 1.3.3)
+
+Other:
+
+ - increased the resolution of `test_dragiso` in the regression test suite for more consistent curve fits across scipy versions
 
 ## 1.3.5 (2026-05-18)
 

@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Sept. 23, 2026
+# Date: Aug. 6, 2026 - Sept. 25, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -24,7 +24,7 @@ if dir_path not in sys.path:
 dir_path = pathlib.Path(__file__).resolve().parents[1]
 example_path = dir_path / "examples"
 import pydislocdyn
-from pydislocdyn import read_dislocdyn_output, Ncpus, ompthreads
+from pydislocdyn import read_dislocdyn_output, Ncpus, ompthreads, usefortran
 cwd =pathlib.Path.cwd()
 from test_regression import prepare_inputfiles
 
@@ -33,27 +33,31 @@ tmpfolder="temp_pydislocdyn"
 skiptests = False
 usefpm = False
 reason  = ""
-executable = dir_path / "dislocdyn.x"
+executable = pathlib.Path(os.environ.get("DISLOCDYNEXE",dir_path / "dislocdyn.x"))
 
 aver_lame = pydislocdyn.metal_data.all_metals.difference(pydislocdyn.metal_data.ISO_c44)
 
 fpm = shutil.which('fpm')
-os.chdir(dir_path)
-if fpm is None:
-    fpmoutput = "    "
-else:
-    with subprocess.Popen([fpm,"run","--profile","release","--","-v"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-        fpmoutput = []
-        for line in subproc.stdout:
-            fpmoutput.append(line)
-        subproc.wait()
-os.chdir(cwd)
-if fpmoutput[-1].strip()[:4]=='2026':
-    usefpm = True
+if not executable.exists():
+    os.chdir(dir_path)
+    if fpm is None:
+        fpmoutput = "    "
+    else:
+        with subprocess.Popen([fpm,"run","--profile","release","--","-v"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+            fpmoutput = []
+            for line in subproc.stdout:
+                fpmoutput.append(line)
+            subproc.wait()
+    os.chdir(cwd)
+    if fpmoutput[-1].strip()[:4]=='2026':
+        usefpm = True
 
 ## check if fortran executable exists, skip these tests if not:
 if not executable.exists() and not usefpm:
     reason = "Fortran executable not found - please compile and re-run this script!"
+    skiptests = True
+elif not usefortran:
+    reason = "Missing Fortran subroutines for the python code"
     skiptests = True
 
 os.chdir(example_path)
