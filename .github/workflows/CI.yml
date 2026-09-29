@@ -6,7 +6,7 @@ on:
       - '**.py'
       - '**.f90'
       - '**.toml'
-      - '**.yml'
+      #~ - '**.yml'
 
 jobs:
   RunTests:
