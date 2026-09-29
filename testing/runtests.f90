@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Sept. 24, 2026
+! Date: Mar. 25, 2026 - Sept. 29, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -264,7 +264,7 @@ end module dislocdyn_tests
 program runtests
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dislocdyn_parameters
-  use dislocdyn_utilities, only : ompinfo, linspace, operator(.inv.), trapz, cumtrapz
+  use dislocdyn_utilities, only : ompinfo, linspace, operator(.cross.), operator(.inv.), trapz, cumtrapz
   use dislocdyn_phononwind_subroutines
   use dislocdyn_elasticconstants
   use dislocdyn_checks
@@ -273,7 +273,7 @@ program runtests
   
   real(kind=sel) :: tmpintegral, array1(5),array2(5)
   real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],[3,3])
-  real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21)
+  real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21), n(3), m(3), t(3)
   real(kind=sel), allocatable, dimension(:) :: x, func, integral
   logical :: istrue
   integer :: resol, nthreads, count_fail=0, count_pass=0, start_time, finish_time, countrate
@@ -311,6 +311,12 @@ program runtests
   B = .inv. A
   call testequal(one,matmul(A,B),3,3,"inv",1.d-12,count_pass,count_fail)
   
+  ! test cross
+  n = [1.1d0,2.2d0,-3.3d0]
+  m = [3.0d0,0.0d0,1.0d0]
+  t = n.cross.m
+  call testzero(dot_product(t,m)+dot_product(n,t),"cross",1.d-12,count_pass,count_fail)
+
   ! test voigt
   call random_number(A)
   A = A+transpose(A)
@@ -329,19 +335,8 @@ program runtests
   call testtrue(.not. istrue,"checkvoigt_asym (intended error printing in above line)",count_pass,count_fail)
   
   ! test C2
-!~   call elasticC2((/1.d0,2.d0,3.d0/),'cubic',b2)
-!~   do i=1,6
-!~     print*,b2(i,:)
-!~   end do
-!~   call elasticC2((/1.d0,2.d0/),'iso',b2)
-!~   do i=1,6
-!~     print*,b2(i,:)
-!~   end do
   call linspace(1.d0,21.d0,21,xtric)
   call elasticC2(xtric,'tric',b2)
-!~   do i=1,6
-!~     print*,b2(i,:)
-!~   end do
   call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
   
   call test_disloc(count_pass,count_fail)
