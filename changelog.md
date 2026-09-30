@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0.1 (wip)
+
+Fix:
+
+ - dislocdyn output: work around a gfortran bug and improve overall formatting
+
+
 ## 1.4.0 (2026-09-25)
 
 Features and improvements:
