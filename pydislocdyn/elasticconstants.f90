@@ -1,14 +1,15 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Sept. 29, 2026
+! Date: Mar. 30, 2026 - Sept. 30, 2026
 module dislocdyn_elasticconstants
+  use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   implicit none
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
   character(110), parameter :: symkwerror = &
                 "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
   private VoigtIndices, UnVoigtIndices, vgt_two, vgt_four, vgt_six, unvgt_one, unvgt_two, unvgt_three
   public symkwerror, voigt, unvoigt, elasticC2, elasticC3, CheckReflectionSymmetry, number_of_elasticC, &
-          voigtaverage, reussaverage, hillaverage
+          voigtaverage, reussaverage, hillaverage!, checkvoigt
   !> converts the input to Voigt notation
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six
@@ -57,7 +58,6 @@ module dislocdyn_elasticconstants
     end subroutine number_of_elasticC
     !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC2(cij,sym,vc)
-      use dislocdyn_parameters, only : sel
       real(sel), intent(in) :: cij(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6)
@@ -147,7 +147,6 @@ module dislocdyn_elasticconstants
     !-------------------------
     !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC3(cijk,sym,vc)
-      use dislocdyn_parameters, only : sel
       real(sel), intent(in) :: cijk(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6,6)
@@ -269,7 +268,6 @@ module dislocdyn_elasticconstants
     ! -----------------------------
     !> subroutine of voigt()
     pure subroutine vgt_two(x,y)
-      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3)
       real(kind=sel), intent(out) :: y(6)
       real(kind=sel) :: z(9)
@@ -278,7 +276,6 @@ module dislocdyn_elasticconstants
     end subroutine vgt_two
     !> subroutine of voigt()
     pure subroutine vgt_four(x,y)
-      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6)
       real(kind=sel) :: z(9,9)
@@ -287,7 +284,6 @@ module dislocdyn_elasticconstants
     end subroutine vgt_four
     !> subroutine of voigt()
     pure subroutine vgt_six(x,y)
-      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(3,3,3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6,6)
       real(kind=sel) :: z(9,9,9)
@@ -296,21 +292,18 @@ module dislocdyn_elasticconstants
     end subroutine vgt_six
     !> subroutine of unvoigt()
     pure subroutine unvgt_one(x,y)
-      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(6)
       real(kind=sel), intent(out) :: y(3,3)
       y = reshape(x(UnVoigtIndices),(/3,3/))
     end subroutine unvgt_one
     !> subroutine of unvoigt()
     pure subroutine unvgt_two(x,y)
-      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices),(/3,3,3,3/))
     end subroutine unvgt_two
     !> subroutine of unvoigt()
     pure subroutine unvgt_three(x,y)
-      use dislocdyn_parameters, only : sel
       real(kind=sel), intent(in) :: x(6,6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices,UnVoigtIndices),(/3,3,3,3,3,3/))
@@ -320,7 +313,6 @@ module dislocdyn_elasticconstants
     !>C2 has been rotated into the coordinates to be checked. In fact, we check for the slightly weaker condition where
     !>non-vanishing c34 and c35 are allowed since they drop out of the differential equations for screw/edge dislocations.
     pure function CheckReflectionSymmetry(C2)
-      use dislocdyn_parameters, only : sel
       real(sel), intent(in) :: C2(6,6)
       logical :: CheckReflectionSymmetry
       real(sel) :: test(6,6), testsum
@@ -329,6 +321,31 @@ module dislocdyn_elasticconstants
       CheckReflectionSymmetry = .false.
       if (testsum < 1.d-12) CheckReflectionSymmetry = .true.
     end function CheckReflectionSymmetry
+  !-------------------------------------
+  subroutine checkvoigt(x,b)
+    !> checks if Cartesian tensor x has Voigt symmetry
+    real(kind=sel), intent(in) :: x(..)
+    logical, intent(out) :: b
+    real(kind=sel) :: y2(3,3), y4(3,3,3,3), y6(3,3,3,3,3,3)
+    real(kind=sel) :: z1(6), z2(6,6), z3(6,6,6)
+    select rank(x)
+      rank(2)
+        call voigt(x,z1)
+        call unvoigt(z1,y2)
+        b = all(abs(x-y2)<rzero)
+      rank(4)
+        call voigt(x,z2)
+        call unvoigt(z2,y4)
+        b = all(abs(x-y4)<rzero)
+      rank(6)
+        call voigt(x,z3)
+        call unvoigt(z3,y6)
+        b = all(abs(x-y6)<rzero)
+      rank default
+        print*,"ERROR: rank must be 2,4, or 6"
+        b = .false.
+      end select
+  end subroutine checkvoigt
     !-------------------------
     !> Computes the Voigt average of 2nd order elastic constants
     pure subroutine voigtaverage(C2,lambda,mu)

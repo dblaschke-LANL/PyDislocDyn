@@ -1,5 +1,19 @@
 # Changelog
 
+## wip
+
+Features and improvements:
+
+Fix:
+
+ - dislocdyn output: work around a gfortran bug and improve overall formatting
+
+Other:
+
+ - dislocdynlib: keep more things private to simplify the API, make checkvoigt() available in the library (previously in testsuite)
+ - make path to dislocdyn executable configurable in test suite
+
+
 ## 1.4.0 (2026-09-25)
 
 Features and improvements:

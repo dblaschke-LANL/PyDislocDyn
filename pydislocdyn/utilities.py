@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 21, 2026
+# Date: Nov. 5, 2017 - Sept. 30, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import copy
@@ -124,6 +124,7 @@ def compilefortranmodule(buildopts='',clean=False):
        To delete files created by this function, set "clean"=True.'''
     cwd =pathlib.Path.cwd()
     compilerflags = '--dep=openmp'
+    skip = 'skip: checkvoigt :' # as it contains an assumed rank array that trips up f2py
     if sys.version_info[:2]<=(3,11):
         compilerflags += ' --backend=meson'
     if buildopts != '':
@@ -139,7 +140,7 @@ def compilefortranmodule(buildopts='',clean=False):
         os.chdir(cwd)
         return 0
     sourcefiles = "subroutines.f90 phononwind.f90 elasticconstants.f90"
-    error = os.system(f'python -m numpy.f2py {compilerflags} -c {sourcefiles} -m subroutines')
+    error = os.system(f'python -m numpy.f2py {compilerflags} -c {sourcefiles} -m subroutines {skip}')
     fname  = f"fmoderror_py{sys.version_info[0]}.{sys.version_info[1]}.txt"
     if error != 0:
         with open(fname,"w", encoding="utf8") as f1:
