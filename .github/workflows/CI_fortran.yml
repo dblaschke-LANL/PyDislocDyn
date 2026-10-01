@@ -65,7 +65,7 @@ jobs:
         if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
       - name: Run tests MAKE
         run: |
-          shell: bash -el {0}  # Forces the step to evaluate the micromamba/conda path modifications
+          #shell: bash -el {0}  # Forces the step to evaluate the micromamba/conda path modifications
           #~ if [ "${{ matrix.toolchain.compiler }}" = "lfortran" ]; then
             #~ lfortran --version
             #~ FC=lfortran make
