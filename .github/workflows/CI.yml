@@ -5,8 +5,8 @@ on:
     paths:
       - '**.py'
       - '**.f90'
-      #~ - '**.toml'
-      #~ - '**.yml'
+      - '**.toml'
+      - '**.yml'
 
 jobs:
   RunTests:
@@ -16,17 +16,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.14"]
+        python-version: ["3.11", "3.14"]
         toolchain:
           - {compiler: gcc, version: 'latest'}
         exclude:
           - os: macos-latest
-            python-version: '3.10'
+            python-version: '3.11'
           - os: windows-latest
-            python-version: '3.10'
+            python-version: '3.11'
         include:
-          - python-version: '3.10'
-            module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8 pandas==1.5 jinja2==3.0.3 joblib==1.1 threadpoolctl==3.3 gmpy2==2.2.1 numba==0.58.1 tomli==2.0 meson ninja pytest==9.0.1"
+          - python-version: '3.11'
+            module-versions: "numpy==2.2 scipy==1.13 sympy==1.13 matplotlib==3.8 pandas==2.2 jinja2==3.1 joblib==1.2 threadpoolctl==3.1 gmpy2==2.2.1 numba==0.61 meson ninja pytest==8.3"
           - python-version: '3.14'
             module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba pyyaml meson ninja pytest pytest-xdist"
     steps:
@@ -53,20 +53,19 @@ jobs:
           fpm test --profile release
           make
           ./runtests.x
-          #~ yes 2>/dev/null | pytest -s --durations=0 testing/
+          yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'Linux'
       - name: Run tests MacOS
         run: |
           make
           ./runtests.x
-          #~ yes 2>/dev/null | pytest -s --durations=0 testing/
+          yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'MacOS'
       - name: Run tests windows
         run: |
           fpm test --profile release
           echo 'N' | pytest -s --collect-only testing
-          #pytest -n auto -rP --durations=0 testing/
-          fpm test --profile release
+          pytest -n auto -rP --durations=0 testing/
         if: runner.os == 'Windows'
       #~ - name: Upload log files as artifacts
         #~ uses: actions/upload-artifact@v7
