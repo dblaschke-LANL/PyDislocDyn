@@ -1,10 +1,10 @@
 # Changelog
 
-## 1.4.0.1 (wip)
+## 1.4.0.1 (2026-10-01)
 
 Fix:
 
- - dislocdyn output: work around a gfortran bug and improve overall formatting
+ - `dislocdyn` output: work around a gfortran bug and improve overall formatting
 
 
 ## 1.4.0 (2026-09-25)
