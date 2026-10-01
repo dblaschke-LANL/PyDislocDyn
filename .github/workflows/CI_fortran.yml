@@ -39,16 +39,16 @@ jobs:
           - os: windows-latest
             toolchain: {compiler: lfortran} # broken on windows runner
     steps:
+      - uses: actions/checkout@v7
       - uses: fortran-lang/setup-fortran@v1
         id: setup-fortran
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
-        if: runner.os != 'MacOS'
-      - uses: actions/checkout@v7
-      - name: Setup Fortran Compiler MacOS
-        uses: fortran-lang/setup-fortran@v1
-        if: runner.os == 'MacOS'
+        #~ if: runner.os != 'MacOS'
+      #~ - name: Setup Fortran Compiler MacOS
+        #~ uses: fortran-lang/setup-fortran@v1
+        #~ if: runner.os == 'MacOS'
       - name: Setup Fortran Package Manager
         uses: fortran-lang/setup-fpm@v10
         with:
