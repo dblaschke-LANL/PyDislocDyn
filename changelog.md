@@ -6,12 +6,19 @@ Features and improvements:
 
 Fix:
 
- - dislocdyn output: work around a gfortran bug and improve overall formatting
+ - replace Pandas' `.fillna(method=)` with modern alternative (now need Pandas >=2.2) 
 
 Other:
 
- - dislocdynlib: keep more things private to simplify the API, make checkvoigt() available in the library (previously in testsuite)
- - make path to dislocdyn executable configurable in test suite
+ - `dislocdynlib`: keep more things private to simplify the API, make `checkvoigt()` available in the library (previously in testsuite)
+ - make path to `dislocdyn` executable configurable in test suite
+
+
+## 1.4.0.1 (2026-10-01)
+
+Fix:
+
+ - `dislocdyn` output: work around a gfortran bug and improve overall formatting
 
 
 ## 1.4.0 (2026-09-25)
