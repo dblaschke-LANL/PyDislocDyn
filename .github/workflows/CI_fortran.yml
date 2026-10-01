@@ -45,10 +45,6 @@ jobs:
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
-        #~ if: runner.os != 'MacOS'
-      #~ - name: Setup Fortran Compiler MacOS
-        #~ uses: fortran-lang/setup-fortran@v1
-        #~ if: runner.os == 'MacOS'
       - name: Setup Fortran Package Manager
         uses: fortran-lang/setup-fpm@v10
         with:
