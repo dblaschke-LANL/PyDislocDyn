@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "PyDislocDyn"
-version = "1.4.0"
+version = "1.4.0+dev"
 authors = [
   { name="Daniel N. Blaschke", email="40176390+dblaschke-LANL@users.noreply.github.com" },
 ]
@@ -22,8 +22,8 @@ dependencies = [
   "scipy>=1.10",
   "sympy>=1.12",
   "matplotlib>=3.8",
-  "pandas>=1.5",
-  "jinja2>=3.0",
+  "pandas>=2.2",
+  "jinja2>=3.1",
   "tomli>=2.0; python_version < '3.11'",
 ]
 [project.optional-dependencies]
