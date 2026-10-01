@@ -40,7 +40,7 @@ The LANL development team asks that any forks or derivative works include approp
 * [numpy](https://numpy.org/doc/stable/user/) >=2.2,</br>
 * [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.13,</br>
 * [sympy](https://www.sympy.org) >=1.13,</br>
-* [matplotlib](https://matplotlib.org/) >=3.8</br>
+* [matplotlib](https://matplotlib.org/) >=3.9</br>
 * [pandas](https://pandas.pydata.org/) >=2.2 (and Jinja2 >=3.1)</br>
 * [mpmath](https://mpmath.org/) (recommended optional dependency of mpmath: gmpy)
 
@@ -50,7 +50,7 @@ The LANL development team asks that any forks or derivative works include approp
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
 * [joblib](https://joblib.readthedocs.io) >=1.2 (for parallelization),</br>
-* [threadpoolctl](https://github.com/joblib/threadpoolctl) >=3.3 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
+* [threadpoolctl](https://github.com/joblib/threadpoolctl) >=3.1 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
 * [numba](https://numba.pydata.org/) >=0.61 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
 * [pyyaml](https://github.com/yaml/pyyaml) >=6.0 (to read/write/convert input files in non-default .yaml format)
 * [hatchling](https://hatch.pypa.io/latest/) >=1.26 (to install via pip)

@@ -21,7 +21,7 @@ dependencies = [
   "numpy>=2.2",
   "scipy>=1.13",
   "sympy>=1.13",
-  "matplotlib>=3.8",
+  "matplotlib>=3.9",
   "pandas>=2.2",
   "jinja2>=3.1",
 ]
