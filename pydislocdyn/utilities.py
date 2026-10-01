@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 30, 2026
+# Date: Nov. 5, 2017 - Oct. 1, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import copy
@@ -471,19 +471,19 @@ def read_dislocdyn_output(fname,postprocess=False):
                 skiprows = nrows = 0
     if not postprocess:
         return out
-    for X, subdic in out.items():
+    for subdic in out.values():
         if 'drag_neg' in subdic:
             for i in range(len(subdic['drag_neg'].columns)-1):
                 newcol = subdic['drag_neg'].iloc[:,i+1]
-                out[X]['drag'].insert(0,newcol.name,newcol)
-            out[X].pop('drag_neg')
+                subdic['drag'].insert(0,newcol.name,newcol)
+            subdic.pop('drag_neg')
         if 'drag' in subdic:
-            out[X]['drag'].columns.name = 'theta/pi'
+            subdic['drag'].columns.name = 'theta/pi'
         if 'vlim_neg' in subdic:
-            out[X]['vlim'] = pd.concat([out[X].pop('vlim_neg').sort_index().iloc[:-1],subdic['vlim']])
+            subdic['vlim'] = pd.concat([subdic.pop('vlim_neg').sort_index().iloc[:-1],subdic['vlim']])
         if 'vlim' in subdic:
-            out[X]['vlim'].index.name = 'theta'
-            out[X]['vlim'].columns = pd.RangeIndex(start=0, stop=3, step=1, name='branch')
+            subdic['vlim'].index.name = 'theta'
+            subdic['vlim'].columns = pd.RangeIndex(start=0, stop=3, step=1, name='branch')
     return out
 
 
