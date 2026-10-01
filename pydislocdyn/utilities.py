@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 21, 2026
+# Date: Nov. 5, 2017 - Oct. 1, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import copy
@@ -124,6 +124,7 @@ def compilefortranmodule(buildopts='',clean=False):
        To delete files created by this function, set "clean"=True.'''
     cwd =pathlib.Path.cwd()
     compilerflags = '--dep=openmp'
+    skip = 'skip: checkvoigt :' # as it contains an assumed rank array that trips up f2py
     if sys.version_info[:2]<=(3,11):
         compilerflags += ' --backend=meson'
     if buildopts != '':
@@ -139,7 +140,7 @@ def compilefortranmodule(buildopts='',clean=False):
         os.chdir(cwd)
         return 0
     sourcefiles = "subroutines.f90 phononwind.f90 elasticconstants.f90"
-    error = os.system(f'python -m numpy.f2py {compilerflags} -c {sourcefiles} -m subroutines')
+    error = os.system(f'python -m numpy.f2py {compilerflags} -c {sourcefiles} -m subroutines {skip}')
     fname  = f"fmoderror_py{sys.version_info[0]}.{sys.version_info[1]}.txt"
     if error != 0:
         with open(fname,"w", encoding="utf8") as f1:
@@ -470,19 +471,19 @@ def read_dislocdyn_output(fname,postprocess=False):
                 skiprows = nrows = 0
     if not postprocess:
         return out
-    for X, subdic in out.items():
+    for subdic in out.values():
         if 'drag_neg' in subdic:
             for i in range(len(subdic['drag_neg'].columns)-1):
                 newcol = subdic['drag_neg'].iloc[:,i+1]
-                out[X]['drag'].insert(0,newcol.name,newcol)
-            out[X].pop('drag_neg')
+                subdic['drag'].insert(0,newcol.name,newcol)
+            subdic.pop('drag_neg')
         if 'drag' in subdic:
-            out[X]['drag'].columns.name = 'theta/pi'
+            subdic['drag'].columns.name = 'theta/pi'
         if 'vlim_neg' in subdic:
-            out[X]['vlim'] = pd.concat([out[X].pop('vlim_neg').sort_index().iloc[:-1],subdic['vlim']])
+            subdic['vlim'] = pd.concat([subdic.pop('vlim_neg').sort_index().iloc[:-1],subdic['vlim']])
         if 'vlim' in subdic:
-            out[X]['vlim'].index.name = 'theta'
-            out[X]['vlim'].columns = pd.RangeIndex(start=0, stop=3, step=1, name='branch')
+            subdic['vlim'].index.name = 'theta'
+            subdic['vlim'].columns = pd.RangeIndex(start=0, stop=3, step=1, name='branch')
     return out
 
 

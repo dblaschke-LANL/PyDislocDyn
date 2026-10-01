@@ -105,9 +105,7 @@ static: build
 
 clean: 
 	rm -f subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
-	dislocdyn_parameters.mod dislocdyn_utilities.mod dislocdyn_subroutines.mod dislocdyn_opt.mod dislocdyn_phononwind.mod \
-	dislocdyn_phononwind_subroutines.mod dislocdyn_elasticconstants.mod dislocdyn_crystals.mod dislocdyn_dislocations.mod \
-	dislocdyn_readinputfiles.mod dislocdyn_checks.mod dislocdyn_tests.mod
+	dislocdyn_*.mod
 
 cleanall: clean
 	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so libdislocdyn.a

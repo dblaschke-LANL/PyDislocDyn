@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Sept. 29, 2026
+# Date: Mar. 6, 2023 - Sept. 30, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import copy
 import os
@@ -56,31 +56,31 @@ def initialize_dislocs(metal_list=None,Ntheta=2):
 def test_sound(metal_list=None):
     '''verify properties of calculated sound speeds'''
     Y = initialize_metals(metal_list=metal_list)
-    for X in Y:
-        Y[X].sumofsounds = 0
+    for Z in Y.values():
+        Z.sumofsounds = 0
         for v in ([1,0,0],[0,1,0],[0,0,1]):
-            sound = Y[X].computesound(v)
+            sound = Z.computesound(v)
             if len(sound)==2:
-                Y[X].sumofsounds += 2*min(sound)**2+max(sound)**2
+                Z.sumofsounds += 2*min(sound)**2+max(sound)**2
             else:
-                Y[X].sumofsounds += sum(np.array(sound)**2)
-        Y[X].C2tracerho = np.trace(np.trace(pydis.UnVoigt(Y[X].C2),axis1=1,axis2=2))/Y[X].rho
-        assert np.isclose(Y[X].C2tracerho,Y[X].sumofsounds) ## see Fitzgerald 1967 for details on this relation
+                Z.sumofsounds += sum(np.array(sound)**2)
+        Z.C2tracerho = np.trace(np.trace(pydis.UnVoigt(Z.C2),axis1=1,axis2=2))/Z.rho
+        assert np.isclose(Z.C2tracerho,Z.sumofsounds) ## see Fitzgerald 1967 for details on this relation
 
 def test_elasticconstants(metal_list=None,Ntheta=2):
     '''verify properties of elastic constants of anisotropic crystals'''
     Y = initialize_dislocs(metal_list=metal_list,Ntheta=Ntheta)
-    for X in Y:
-        if Y[X].Zener is not None:
-            Y[X].AL = Y[X].anisotropy_index()
-            Y[X].AL_Z = np.sqrt(5)*np.log((2+3*Y[X].Zener)*(3+2*Y[X].Zener)/(25*Y[X].Zener))
-            assert np.isclose(Y[X].AL, Y[X].AL_Z)
+    for X, Z in Y.items():
+        if Z.Zener is not None:
+            Z.AL = Z.anisotropy_index()
+            Z.AL_Z = np.sqrt(5)*np.log((2+3*Z.Zener)*(3+2*Z.Zener)/(25*Z.Zener))
+            assert np.isclose(Z.AL, Z.AL_Z)
 
         if X in pydis.metal_data.fcc_metals: # could include bcc here, but don't spend too much time on this test
-            Y[X].clowest1 = round(Y[X].find_wavespeed(accuracy=1e-2)) # due to reduced accuracy, only expect correct to 1 m/s
-            Y[X].clowest2 = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
-            Y[X].findvcrit_smallest()
-            assert (np.isclose(Y[X].clowest1, round(Y[X].clowest2)) and np.isclose(Y[X].clowest2, Y[X].vcrit_smallest))
+            Z.clowest1 = round(Z.find_wavespeed(accuracy=1e-2)) # due to reduced accuracy, only expect correct to 1 m/s
+            Z.clowest2 = np.sqrt(min(Z.cp,Z.c44)/Z.rho)
+            Z.findvcrit_smallest()
+            assert (np.isclose(Z.clowest1, round(Z.clowest2)) and np.isclose(Z.clowest2, Z.vcrit_smallest))
 
         testC = (12.3e9,4.5e9,6e9)
         a1 = pydis.convert_SOECiso(*testC[:2])
@@ -150,39 +150,39 @@ def test_hcp():
 def test_disloc_props(metal_list=None,Ntheta=2):
     '''checks some propoerties of the steady-state dislocation displacement gradient field'''
     Y = initialize_dislocs(metal_list=metal_list,Ntheta=Ntheta)
-    for X in Y:
-        Y[X].alignC2()
-        Y[X].computevcrit()
-        if Y[X].sym=='iso':
-            num_edge = num_screw = Y[X].ct ## Barnett routine is not called in the isotropic case
+    for X, Z in Y.items():
+        Z.alignC2()
+        Z.computevcrit()
+        if Z.sym=='iso':
+            num_edge = num_screw = Z.ct ## Barnett routine is not called in the isotropic case
         else:
-            num_edge = sorted(Y[X].vcrit_barnett[0,-1])[:2]
-            num_screw = sorted(Y[X].vcrit_barnett[0,0])[:2]
+            num_edge = sorted(Z.vcrit_barnett[0,-1])[:2]
+            num_screw = sorted(Z.vcrit_barnett[0,0])[:2]
         if pydis.usefortran:
             ## check fortran implementation of stroh geometry also:
-            t,m0,M,N,Cv = dislocdyn_subroutines.strohgeometry(Y[X].b,Y[X].n0,Y[X].theta,Y[X].phi)
-            assert np.allclose(m0,Y[X].m0.T)
-            assert np.allclose(t,Y[X].t.T)
-            assert np.allclose(Cv,Y[X].Cv)
-            assert np.allclose(M,np.moveaxis(Y[X].M,-1,0))
-            assert np.allclose(N,np.moveaxis(Y[X].N,-1,0))
+            t,m0,M,N,Cv = dislocdyn_subroutines.strohgeometry(Z.b,Z.n0,Z.theta,Z.phi)
+            assert np.allclose(m0,Z.m0.T)
+            assert np.allclose(t,Z.t.T)
+            assert np.allclose(Cv,Z.Cv)
+            assert np.allclose(M,np.moveaxis(Z.M,-1,0))
+            assert np.allclose(N,np.moveaxis(Z.N,-1,0))
         ## need high tolerance in assert statements since numerical barnett scheme is inaccurate in highly symmetric cases
-        assert np.any(np.isclose(num_edge,Y[X].vcrit_edge,rtol=1.1e-01)), f"edge, {X}, {num_edge}, {Y[X].vcrit_edge}"
-        assert np.any(np.isclose(num_screw,Y[X].vcrit_screw,rtol=1e-01)), f"screw, {X}, {num_screw}, {Y[X].vcrit_screw}"
-        if pydis.CheckReflectionSymmetry(Y[X].C2_aligned[0]):
-            Y[X].computeuij(0.5)
-            trace_of_screw = np.trace(Y[X].uij[:,:,0]) # trace is zero for pure screw dislocations
+        assert np.any(np.isclose(num_edge,Z.vcrit_edge,rtol=1.1e-01)), f"edge, {X}, {num_edge}, {Z.vcrit_edge}"
+        assert np.any(np.isclose(num_screw,Z.vcrit_screw,rtol=1e-01)), f"screw, {X}, {num_screw}, {Z.vcrit_screw}"
+        if pydis.CheckReflectionSymmetry(Z.C2_aligned[0]):
+            Z.computeuij(0.5)
+            trace_of_screw = np.trace(Z.uij[:,:,0]) # trace is zero for pure screw dislocations
             assert np.all(trace_of_screw<1e-15), f"{X}, {trace_of_screw}"
             if X in pydis.metal_data.fcc_metals: 
-                vlim_edge = np.sqrt(min(Y[X].cp,Y[X].c44)/Y[X].rho)
-                assert np.isclose(Y[X].vcrit_edge,vlim_edge)
+                vlim_edge = np.sqrt(min(Z.cp,Z.c44)/Z.rho)
+                assert np.isclose(Z.vcrit_edge,vlim_edge)
     if pydis.usefortran:
         ## check that fortran implementation of averaging schemes matches the python implementations
-        for X in Y:
-            if Y[X].sym in ('cubic','fcc','bcc'):
-                assert np.allclose(np.array(Y[X].compute_Lame(scheme='improved',roundto=0)[:2]),np.array(dislocdyn_elasticconstants.kroeneraverage(Y[X].C2)))
+        for X, Z in Y.items():
+            if Z.sym in ('cubic','fcc','bcc'):
+                assert np.allclose(np.array(Z.compute_Lame(scheme='improved',roundto=0)[:2]),np.array(dislocdyn_elasticconstants.kroeneraverage(Z.C2)))
             if X in ('Cu','Tibasal','Sn','Mo'): # check only one rep. for each symmetry (Mo is isotropic in contrast to Mo110 etc.)
-                assert np.allclose(np.array(Y[X].compute_Lame(scheme='hill',roundto=0)[:2]),np.array(dislocdyn_elasticconstants.hillaverage(Y[X].C2)))
+                assert np.allclose(np.array(Z.compute_Lame(scheme='hill',roundto=0)[:2]),np.array(dislocdyn_elasticconstants.hillaverage(Z.C2)))
 
 def test_fortransubroutines():
     '''tests some of the fortran code, if it is available'''

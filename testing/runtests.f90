@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Sept. 29, 2026
+! Date: Mar. 25, 2026 - Sept. 30, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -10,7 +10,7 @@ module dislocdyn_checks
   character(*), parameter :: esc = achar(27), red = '[31m', green = '[32m', reset = '[0m'
   character(*), parameter :: passed = char(9)//esc//green//"PASSED"//esc//reset
   character(*), parameter :: failed = char(9)//esc//red//"FAILED"//esc//reset
-  public :: checkvoigt, testtrue, testequal, testequalarray, testzero, passed, failed
+  public :: testtrue, testequal, testequalarray, testzero, passed, failed
   contains
   subroutine testtrue(equal,string,count_pass,count_fail)
     logical, intent(in) :: equal
@@ -72,31 +72,6 @@ module dislocdyn_checks
     integer :: count_pass,count_fail
     call testequalarray([A],[0.d0],1,string,tolerance,count_pass,count_fail)
   end subroutine testzero
-  !-------------------------------------
-  subroutine checkvoigt(x,b)
-    use dislocdyn_elasticconstants
-    real(kind=sel), intent(in) :: x(..)
-    logical, intent(out) :: b
-    real(kind=sel) :: y2(3,3), y4(3,3,3,3), y6(3,3,3,3,3,3)
-    real(kind=sel) :: z1(6), z2(6,6), z3(6,6,6)
-    select rank(x)
-      rank(2)
-        call voigt(x,z1)
-        call unvoigt(z1,y2)
-        b = all(abs(x-y2)<rzero)
-      rank(4)
-        call voigt(x,z2)
-        call unvoigt(z2,y4)
-        b = all(abs(x-y4)<rzero)
-      rank(6)
-        call voigt(x,z3)
-        call unvoigt(z3,y6)
-        b = all(abs(x-y6)<rzero)
-      rank default
-        print*,"ERROR: rank must be 2,4, or 6"
-        b = .false.
-      end select
-  end subroutine checkvoigt
 end module dislocdyn_checks
 
 module dislocdyn_tests

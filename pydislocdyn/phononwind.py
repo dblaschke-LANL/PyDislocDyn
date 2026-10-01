@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Sept. 19, 2026
+# Date: Nov. 5, 2017 - Sept. 30, 2026
 '''This module implements the calculation of a dislocation drag coefficient from phonon wind.
    Its front-end functions are :
        elasticA3 ...... computes the coefficient A3 from the SOECs and TOECs
@@ -256,8 +256,8 @@ def phonondrag(disloc,beta,Nq=50,rmin=0,rmax=250,Nphi=50,skiptransonic=True,Ncor
         if np.isnan(disloc.vcrit_all[1]).any():
             print(f"Warning: found NaN in vcrit for {disloc.name}, replacing with interpolated values.")
             fixnan = pd.Series(disloc.vcrit_all[1])
-            disloc.vcrit_all[1] = fixnan.where(fixnan.notnull(),other=(fixnan.fillna(method='ffill')+fixnan.fillna(method='bfill'))/2).to_numpy()
-    
+            disloc.vcrit_all[1] = fixnan.where(fixnan.notnull(),other=(fixnan.ffill()+fixnan.bfill())/2).to_numpy()
+
     def maincomputations(bt):
         '''wrap all main computations into a single function definition to be run in a parallelized loop'''
         Bmix = np.zeros(disloc.Ntheta)
