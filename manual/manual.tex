@@ -100,7 +100,7 @@ On Python 3.10, tomli is an additional requirement.
 Meson\footnote{%
 Note: building the Fortran subroutines of previous PyDislocDyn 1.3.x releases with Numpy $\le1.26$ requires Setuptools $<70$.%
 } and a Fortran compiler supported by numpy.f2py to compile the optional Fortran subroutines (resp. a Fortran 2018 compiler, such as gfortran>=10, for the standalone Fortran library and frontend), Joblib $\ge1.1$ (for parallelization),
-threadpoolctl>=3.3 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and Numpy to avoid over-committing if Joblib is used), and 
+threadpoolctl>=3.1 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and Numpy to avoid over-committing if Joblib is used), and 
 Numba $\ge0.58.1$ (a just-in-time compiler for Python; the Fortran subroutines are faster and thus preferred however).
 \\
 To compile the subroutines of PyDislocDyn $\ge1.3.0$, simply run\\

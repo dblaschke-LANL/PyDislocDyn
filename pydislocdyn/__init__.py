@@ -1,7 +1,7 @@
 # PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Jan. 8, 2024 - Aug. 31, 2026
+# Date: Jan. 8, 2024 - Oct. 1, 2026
 '''PyDislocDyn is a suite of python programs designed to perform various calculations for basic research
    in dislocation dynamics in metals with various crystal symmetries in the continuum limit. In particular,
    one of its main purposes is to calculate dislocation drag from phonon wind. Additional features include
