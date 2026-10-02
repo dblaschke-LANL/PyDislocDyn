@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - '**.f90'
+      - '**.toml'
+      - '**.yml'
+
+jobs:
+  RunTests:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        toolchain:
+          - {compiler: gcc, version: '13'}
+          - {compiler: gcc, version: 'latest'}
+          - {compiler: intel, version: '2024.1'}
+          - {compiler: intel, version: 'latest'}
+          #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
+          - {compiler: lfortran, version: '0.66.0'}
+          #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
+        exclude:
+          #~ - os: macos-latest
+            #~ toolchain: {compiler: nvidia-hpc}
+          #~ - os: macos-latest
+            #~ toolchain: {compiler: aocc}
+          - os: macos-latest
+            toolchain: {compiler: intel}
+          - os: windows-latest
+            toolchain: {compiler: intel}
+          #~ - os: windows-latest
+            #~ toolchain: {compiler: nvidia-hpc}
+          #~ - os: windows-latest
+            #~ toolchain: {compiler: aocc}
+          - os: windows-latest
+            toolchain: {compiler: lfortran} # broken on windows runner
+    steps:
+      - uses: actions/checkout@v7
+      - uses: fortran-lang/setup-fortran@v1
+        id: setup-fortran
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
+      - name: Setup Fortran Package Manager
+        uses: fortran-lang/setup-fpm@v10
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fpm-version: 'current'
+      - name: increase stack size
+        run: |
+          ulimit -s unlimited
+        if: runner.os  == 'Linux'
+      - name: Run tests fpm
+        run: |
+          fpm --version
+          fpm test --profile release --compiler ${{ env.FC }} 
+        if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
+      - name: Run tests MAKE
+        run: |
+          ${{ env.FC }}  --version
+          FC=${{ env.FC }} make
+          ./runtests.x
+        if: runner.os  != 'Windows'
