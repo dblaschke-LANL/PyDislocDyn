@@ -30,8 +30,8 @@ jobs:
             #~ toolchain: {compiler: aocc}
           - os: macos-latest
             toolchain: {compiler: intel}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: intel}
+          - os: windows-latest
+            toolchain: {compiler: intel}
           #~ - os: windows-latest
             #~ toolchain: {compiler: nvidia-hpc}
           #~ - os: windows-latest
@@ -61,13 +61,7 @@ jobs:
         if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
       - name: Run tests MAKE
         run: |
-          #shell: bash -el {0}  # Forces the step to evaluate the micromamba/conda path modifications
-          #~ if [ "${{ matrix.toolchain.compiler }}" = "lfortran" ]; then
-            #~ lfortran --version
-            #~ FC=lfortran make
-          #~ else
           ${{ env.FC }}  --version
           FC=${{ env.FC }} make
-          #~ fi
           ./runtests.x
         if: runner.os  != 'Windows'
