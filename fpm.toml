@@ -18,6 +18,7 @@ openmp = "*"
 baseline.gfortran.flags = "-O3 -march=native"
 baseline.flang.flags = "-O3 -march=native"
 baseline.lfortran.flags = "--fast --realloc-lhs-arrays"
+baseline.ifx.flags = "-O3 -heap-arrays"
 
 [profiles]
 default = ["baseline"]

@@ -17,7 +17,7 @@ else ifeq ($(FC),ftn)
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),ifx)
   FC = ifx
-  FFLAGS = -O3 -stand f23 -qopenmp# -qno-openmp-simd -fp-model=precise -fno-fast-math
+  FFLAGS = -O3 -stand f23 -qopenmp -heap-arrays# -qno-openmp-simd -fp-model=precise -fno-fast-math
   LDFLAGS = -qopenmp 
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran

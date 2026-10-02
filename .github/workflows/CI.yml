@@ -5,8 +5,8 @@ on:
     paths:
       - '**.py'
       - '**.f90'
-      - '**.toml'
-      - '**.yml'
+      #~ - '**.toml'
+      #~ - '**.yml'
 
 jobs:
   RunTests:
