@@ -18,7 +18,7 @@ jobs:
         toolchain:
           - {compiler: gcc, version: '13'}
           - {compiler: gcc, version: 'latest'}
-          - {compiler: intel, version: '2024.0'}
+          - {compiler: intel, version: '2024.1'}
           - {compiler: intel, version: 'latest'}
           #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
           - {compiler: lfortran, version: '0.66.0'}
@@ -30,8 +30,8 @@ jobs:
             #~ toolchain: {compiler: aocc}
           - os: macos-latest
             toolchain: {compiler: intel}
-          - os: windows-latest
-            toolchain: {compiler: intel}
+          #~ - os: windows-latest
+            #~ toolchain: {compiler: intel}
           #~ - os: windows-latest
             #~ toolchain: {compiler: nvidia-hpc}
           #~ - os: windows-latest
