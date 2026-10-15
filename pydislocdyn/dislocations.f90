@@ -214,22 +214,33 @@ module dislocdyn_dislocations
     end subroutine computevcrit_edge
     !-------------------------
     !> Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
-    pure subroutine computevcrit_barnett(disl,th,vlim)
+    pure subroutine computevcrit_barnett(disl,th,vlim,lowest_only)
       use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
       use dislocdyn_subroutines, only : vlim_of_phi
       class(disloc), intent(in) :: disl
       integer, intent(in) :: th !< index of the character angle disl%theta(th)
+      logical, intent(in), optional   :: lowest_only
       real(sel), intent(out) :: vlim(3) !< 3 branches to consider, the lowest value is the (lowest) limiting velocity
       real(sel) :: norm, C2(3,3,3,3), tmp, ub, lb
       integer :: i, j
+      logical :: nohigh
+      nohigh = .false.
+      if (present(lowest_only)) then
+        nohigh = lowest_only
+      end if
       call unvoigt(disl%C2/disl%C2(4,4),C2)
       norm=(disl%C2(4,4)/disl%rho)
       lb = -0.5d0*pi
       ub = 0.5d0*pi
       vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),60))
-      vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),40))
-      vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+      if (nohigh) then
+        vlim(2) = vlim(1) ! don't set to zero before the sorting is done
+        vlim(3) = vlim(1)
+      else
+        vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),40))
+        vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+      end if
       if (.not. ((vlim(1)<=vlim(2)) .and. (vlim(2)<=vlim(3)))) then
         do i = 1, 2
           do j = i + 1, 3
@@ -241,6 +252,10 @@ module dislocdyn_dislocations
             end if
           end do
         end do
+      end if
+      if (nohigh) then
+        vlim(2) = 0.d0 ! so that the calling code knows these have not been calculated
+        vlim(3) = 0.d0
       end if
       contains
         pure function f1(x) result(y)
@@ -265,11 +280,17 @@ module dislocdyn_dislocations
     !> general numerical algorithm computevcrit_barnett() will be replaced by the analytic results of computevcrit screw/edge
     !> the results are assembled into a 2-dim array where each row represents the 3 branches (lowest, 2nd and highest vlim) for
     !> a character angle theta = [0,...,disl%ntheta]
-    subroutine computevcrit(disl,vlim)
+    subroutine computevcrit(disl,vlim,lowest_only)
       class(disloc), intent(in) :: disl
+      logical, intent(in), optional   :: lowest_only
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp
       integer th, sth
+      logical :: nohigh
+      nohigh = .false.
+      if (present(lowest_only)) then
+        nohigh = lowest_only
+      end if
       tmp = 0.d0
       sth=1
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
@@ -279,7 +300,7 @@ module dislocdyn_dislocations
       end if
       !$OMP PARALLEL DO
       do th=sth,disl%ntheta
-        call computevcrit_barnett(disl,th,vlim(th,:))
+        call computevcrit_barnett(disl,th,vlim(th,:),nohigh)
       end do
       !$OMP END PARALLEL DO
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
