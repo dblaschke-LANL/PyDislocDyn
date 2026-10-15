@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Sept. 29, 2026
+! Date: Mar. 31, 2026 - Oct. 14, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -269,17 +269,19 @@ module dislocdyn_dislocations
       class(disloc), intent(in) :: disl
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp
-      integer th
-      !$OMP PARALLEL DO
-      do th=1,disl%ntheta
-        call computevcrit_barnett(disl,th,vlim(th,:))
-      end do
-      !$OMP END PARALLEL DO
+      integer th, sth
       tmp = 0.d0
+      sth=1
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
         call disl%computevcrit_screw(tmp)
         vlim(1,:) = tmp
+        sth=2 ! skip barnett routine for this character
       end if
+      !$OMP PARALLEL DO
+      do th=sth,disl%ntheta
+        call computevcrit_barnett(disl,th,vlim(th,:))
+      end do
+      !$OMP END PARALLEL DO
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
         call disl%computevcrit_edge(tmp)
         vlim(disl%ntheta,:2) = tmp
