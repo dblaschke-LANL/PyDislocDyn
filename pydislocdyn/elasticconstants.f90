@@ -19,7 +19,7 @@ module dislocdyn_elasticconstants
     module procedure unvgt_one, unvgt_two, unvgt_three
   end interface unvoigt
   contains
-    !> returns the number of linearly independent 2nd and 3rd order elastic constants given crystal symmetry keyword 'sym'
+    !> returns the number of linearly independent 2nd and 3rd order elastic constants given crystal symmetry keyword `sym`
     subroutine number_of_elasticC(sym,lencij,lencijk)
       character(*), intent(in) :: sym
       integer, intent(out) :: lencij, lencijk
@@ -56,7 +56,7 @@ module dislocdyn_elasticconstants
           return
       end select
     end subroutine number_of_elasticC
-    !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
+    !> takes a list of independent elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC2(cij,sym,vc)
       real(sel), intent(in) :: cij(:)
       character(*), intent(in) :: sym
@@ -145,7 +145,7 @@ module dislocdyn_elasticconstants
       end do
     end subroutine elasticC2
     !-------------------------
-    !> takes a list of indep. elastic constants and returns the 2nd order tensor in Voigt notation
+    !> takes a list of independent elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC3(cijk,sym,vc)
       real(sel), intent(in) :: cijk(:)
       character(*), intent(in) :: sym
@@ -266,7 +266,7 @@ module dislocdyn_elasticconstants
       end do; end do; end do
     end subroutine elasticC3
     ! -----------------------------
-    !> subroutine of voigt()
+    !> subroutine of `voigt()`
     pure subroutine vgt_two(x,y)
       real(kind=sel), intent(in) :: x(3,3)
       real(kind=sel), intent(out) :: y(6)
@@ -274,7 +274,7 @@ module dislocdyn_elasticconstants
       z = reshape(x,(/9/))
       y = z(VoigtIndices)
     end subroutine vgt_two
-    !> subroutine of voigt()
+    !> subroutine of `voigt()`
     pure subroutine vgt_four(x,y)
       real(kind=sel), intent(in) :: x(3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6)
@@ -282,7 +282,7 @@ module dislocdyn_elasticconstants
       z = reshape(x,(/9,9/))
       y = z(VoigtIndices,VoigtIndices)
     end subroutine vgt_four
-    !> subroutine of voigt()
+    !> subroutine of `voigt()`
     pure subroutine vgt_six(x,y)
       real(kind=sel), intent(in) :: x(3,3,3,3,3,3)
       real(kind=sel), intent(out) :: y(6,6,6)
@@ -290,19 +290,19 @@ module dislocdyn_elasticconstants
       z = reshape(x,(/9,9,9/))
       y = z(VoigtIndices,VoigtIndices,VoigtIndices)
     end subroutine vgt_six
-    !> subroutine of unvoigt()
+    !> subroutine of `unvoigt()`
     pure subroutine unvgt_one(x,y)
       real(kind=sel), intent(in) :: x(6)
       real(kind=sel), intent(out) :: y(3,3)
       y = reshape(x(UnVoigtIndices),(/3,3/))
     end subroutine unvgt_one
-    !> subroutine of unvoigt()
+    !> subroutine of `unvoigt()`
     pure subroutine unvgt_two(x,y)
       real(kind=sel), intent(in) :: x(6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3)
       y = reshape(x(UnVoigtIndices,UnVoigtIndices),(/3,3,3,3/))
     end subroutine unvgt_two
-    !> subroutine of unvoigt()
+    !> subroutine of `unvoigt()`
     pure subroutine unvgt_three(x,y)
       real(kind=sel), intent(in) :: x(6,6,6)
       real(kind=sel), intent(out) :: y(3,3,3,3,3,3)

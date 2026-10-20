@@ -9,16 +9,16 @@ module dislocdyn_dislocations
   use dislocdyn_crystals, only : crystal
   implicit none
   private
-  !> The 'disloc' derived type extends 'crystal' by including information about a dislocation (slip plane etc.).
+  !> The `disloc` derived type extends `crystal` by including information about a dislocation (slip plane etc.).
   !> It represents the fortran version of the Dislocation class found in PyDislocDyn, implementing a subset of the latter.
   !> Type-bound procedures include subroutines to calculate the dislocation displacement field and other properties.
   type, extends(crystal), public :: disloc
-    real(sel) :: b(3)=0.d0  !< Burgers vector
-    real(sel) :: n0(3)=0.d0 !< slip plane normal
-    real(sel) :: burgers=0.d0 !< Burgers vector length
-    real(sel) :: beta=0.d0  !< ratio of gliding velocity over transverse sound speed
-    integer :: ntheta=2 !< number of character angles between 0 and pi/2
-    integer :: nphi=500 !< resolution in polar angle phi
+    real(sel) :: b(3)=0.d0  !! Burgers vector
+    real(sel) :: n0(3)=0.d0 !! slip plane normal
+    real(sel) :: burgers=0.d0 !! Burgers vector length
+    real(sel) :: beta=0.d0  !! ratio of gliding velocity over transverse sound speed
+    integer :: ntheta=2 !! number of character angles between 0 and \(\pi/2\)
+    integer :: nphi=500 !! resolution in polar angle \(\phi\)
     real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:), C2aligned(:,:,:)
     real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
     real(sel), allocatable :: uij(:,:,:,:)
@@ -51,7 +51,7 @@ module dislocdyn_dislocations
     !------------------------------
     !> initializes an array of dislocation character angles to be used in the computations
     !> default is to use character angles between 0 (screw) and +pi/2 (edge); set optional
-    !> parameter positive_theta = .false. to swap signs of these character angles
+    !> parameter `positive_theta = .false.` to swap signs of these character angles
     !> reason: not all slip systems are symmetric regarding positive and negative mixed
     !> dislocation character angles; in these cases, the user can initialize two dislocations,
     !> in two variables, one for positive theta, one for negative theta
@@ -85,7 +85,7 @@ module dislocdyn_dislocations
     end subroutine computestroh
     !>determines the rotation matrices necessary to align each dislocation of character angle theta with z 
     !>and its slip plane normal with y; then rotates the tensor of elastic constants C2 to align with each dislocation
-    !>the latter array of aligne C2s is saved in Voigt notation as %C2aligned
+    !>the latter array of aligned C2s is saved in Voigt notation as `%C2aligned`
     subroutine computerot(disl)
       class(disloc), intent(inout) :: disl
       real(sel) :: C2(3,3,3,3), C2aligned(3,3,3,3), rot(3,3)
@@ -155,8 +155,8 @@ module dislocdyn_dislocations
     end subroutine compute_uij
     !-------------------------
     !> Computes the elastic self energy logarithmic prefactor of a straight dislocation uij moving at velocity beta.
-    !> Specifically, the self energy is Etot*ln(R/r0) where Etot is computed in this method
-    !> and R and r0 are the outer and inner radius, see Phil. Mag. 98 (2018) 2397.
+    !> Specifically, the self energy is \(E_{tot}\ln(R/r_0)\) where \(E_{tot}\) is computed in this method
+    !> and \(R\) and \(r_0\) are the outer and inner radius, see [[Phil. Mag. 98 (2018) 2397](https://doi.org/10.1080/14786435.2018.1489152)].
     subroutine compute_elasticE(disl, Wtot)
       class(disloc), intent(in) :: disl
       real(sel), intent(out) :: Wtot(disl%ntheta)
@@ -173,9 +173,9 @@ module dislocdyn_dislocations
     !-------------------------
     !>Compute the limiting velocity of a pure edge dislocation, assuming the slip plane is a reflection plane.
     !>Note: the reflection plane property must be checked separately, this function will not.
-    !>If elastic constants c16 and c26 are zero, we use the analytic solution of L. J. Teutonico 1961, Phys. Rev. 124:1039.
-    !>Otherwise, we adapt the method of Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5, to the present decoupled 2D
-    !>special case.
+    !>If elastic constants c16 and c26 are zero, we use the analytic solution of [[L. J. Teutonico 1961, Phys. Rev. 124:1039](https://doi.org/10.1103/PhysRev.124.1039)].
+    !>Otherwise, we adapt the method of [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)]
+    !>to the present decoupled 2D special case.
     subroutine computevcrit_edge(disl,vlim)
       use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
@@ -213,15 +213,16 @@ module dislocdyn_dislocations
         end function f_edge_l
     end subroutine computevcrit_edge
     !-------------------------
-    !> Computes the limiting velocities following Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5.
+    !> Computes the limiting velocities following [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)].
+    !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
     pure subroutine computevcrit_barnett(disl,th,vlim,lowest_only)
       use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
       use dislocdyn_subroutines, only : vlim_of_phi
       class(disloc), intent(in) :: disl
-      integer, intent(in) :: th !< index of the character angle disl%theta(th)
+      integer, intent(in) :: th !! index of the character angle `disl%theta(th)`
       logical, intent(in), optional   :: lowest_only
-      real(sel), intent(out) :: vlim(3) !< 3 branches to consider, the lowest value is the (lowest) limiting velocity
+      real(sel), intent(out) :: vlim(3) !! 3 branches to consider, the lowest value is the (lowest) limiting velocity
       real(sel) :: norm, C2(3,3,3,3), tmp, ub, lb
       integer :: i, j
       logical :: nohigh
@@ -277,9 +278,10 @@ module dislocdyn_dislocations
     !-------------------------
     !> Computes all limiting velocities for all dislocation character angles
     !> In the special case of reflection symmetry for the screw or edge dislocation, the appropriate values from the 
-    !> general numerical algorithm computevcrit_barnett() will be replaced by the analytic results of computevcrit screw/edge
+    !> general numerical algorithm `computevcrit_barnett()` will be replaced by the analytic results of computevcrit screw/edge
     !> the results are assembled into a 2-dim array where each row represents the 3 branches (lowest, 2nd and highest vlim) for
-    !> a character angle theta = [0,...,disl%ntheta]
+    !> a character angle `theta = [0,...,disl%ntheta]`.
+    !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
     subroutine computevcrit(disl,vlim,lowest_only)
       class(disloc), intent(in) :: disl
       logical, intent(in), optional   :: lowest_only
@@ -312,8 +314,8 @@ module dislocdyn_dislocations
       end if
     end subroutine computevcrit
     !-------------------------
-    !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation 'disl' 
-    !>and gliding velocities 'beta'=v/ct
+    !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation `disl` 
+    !>and gliding velocities `beta`=v/ct
     subroutine phonondrag(drag,disl,beta,nphi,nq)
       use dislocdyn_phononwind
       type(disloc), intent(in) :: disl

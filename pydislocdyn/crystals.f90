@@ -1,29 +1,29 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Sept. 29, 2026
+! Date: Mar. 31, 2026 - Oct. 20, 2026
 module dislocdyn_crystals
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : operator(.cross.) ! defined in subroutines.f90
   use dislocdyn_elasticconstants ! defined in elasticconstants.f90
   implicit none
   private
-  !> The 'crystal' derived type is used to store material information for a crystal.
+  !> The `crystal` derived type is used to store material information for a crystal.
   !> It represents the fortran version of the metalprops class found in PyDislocDyn, implementing a subset of the latter.
   type, public :: crystal
-    character(:), allocatable :: sym !< defines the symmetry via keyword
-    character(:), allocatable :: metal !< metal is a name given to this instance
-    real(sel), allocatable :: cij(:) !< store linearly independent 2nd order elastic constants only
-    real(sel), allocatable :: cijk(:) !< store linearly independent 3rd order elastic constants only
-    real(sel) :: rho=0.d0 !< material density
-    real(sel) :: C2(6,6)=0.d0 !< tensor of 2nd order elastic constants in Voigt notation
-    real(sel) :: C3(6,6,6)=0.d0 !< tensor of 3rd order elastic constants in Voigt notation
-    real(sel) :: lat_a(3)=0.d0 !< lattice constants
-    real(sel) :: lat_angles(3)=0.d0 !< angles between lattice constants
-    real(sel) :: Vc=0.d0 !< unit cell volume
+    character(:), allocatable :: sym !! defines the symmetry via keyword
+    character(:), allocatable :: metal !! metal is a name given to this instance
+    real(sel), allocatable :: cij(:) !! store linearly independent 2nd order elastic constants only
+    real(sel), allocatable :: cijk(:) !! store linearly independent 3rd order elastic constants only
+    real(sel) :: rho=0.d0 !! material density
+    real(sel) :: C2(6,6)=0.d0 !! tensor of 2nd order elastic constants in Voigt notation
+    real(sel) :: C3(6,6,6)=0.d0 !! tensor of 3rd order elastic constants in Voigt notation
+    real(sel) :: lat_a(3)=0.d0 !! lattice constants
+    real(sel) :: lat_angles(3)=0.d0 !! angles between lattice constants
+    real(sel) :: Vc=0.d0 !! unit cell volume
     !> Lame constants (polycryst. averages)
     real(sel) :: lam=0.d0, mu=0.d0
-    real(sel) :: C2norm(3,3,3,3)=0.d0 !< will be used to store unvoigt(C2)/mu
-    real(sel) :: Temp=300.d0 !< temperature associated with C2, rho, etc.
+    real(sel) :: C2norm(3,3,3,3)=0.d0 !! will be used to store `unvoigt(C2)/mu`
+    real(sel) :: Temp=300.d0 !! temperature associated with `C2`, `rho`, etc.
     contains
       procedure :: update_Vc => volume_unitcell ! define as type-bound procedure
       procedure :: init_crystal => init_crystal
@@ -114,8 +114,8 @@ module dislocdyn_crystals
       call unvoigt(mat%C2/mat%mu,mat%C2norm)
     end subroutine init_crystal
     !-----------------------------------------
-    !> Converts Miller indices to a Cartesian vector v, which is normalized if option normalize=true (default)
-    !> another optional parameter, reziprocal (false by default) can be set to use the reziprocal crystal basis for conversion
+    !> Converts Miller indices to a Cartesian vector `v`, which is normalized if option `normalize=true` (default)
+    !> another optional parameter, reziprocal (`.false.` by default) can be set to use the reziprocal crystal basis for conversion
     !> (needed if Millerv describes the normal to a plane for example)
     subroutine Miller_to_Cart(mat,millerv,normalize,reziprocal,v)
       class(crystal), intent(in) :: mat ! needed for the lattice vectors and angles
@@ -171,10 +171,10 @@ module dislocdyn_crystals
       end do
     end subroutine Miller_to_Cart
     !------------------------------
-    !> Computes the sound speeds of the crystal propagating in the direction of unit vector v (Cartesian coordinates).
-    !> Use function Miller_to_Cart() to convert Miller indices to Cartesian coordinates prior to calling this routine.
-    !> The present numerical method is derived from Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5 for the special 
-    !> case of z=v and psi=0.
+    !> Computes the sound speeds of the crystal propagating in the direction of unit vector `v` (Cartesian coordinates).
+    !> Use function `Miller_to_Cart()` to convert Miller indices to Cartesian coordinates prior to calling this routine.
+    !> The present numerical method is derived from [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)]
+    !> for the special case of z=v and psi=0.
     subroutine computesound(mat,v,sound)
       use dislocdyn_parameters, only : sel
       use dislocdyn_subroutines, only : vlim_of_phi
@@ -196,7 +196,7 @@ module dislocdyn_crystals
     !> recommendation of Kube 2016. In particular, we compute a measure of the
     !> difference between Voigt and Reuss averages of shear and bulk modulus, 
     !> known also as the universal log-Euclidean anisotropy index:
-    !> A_L = sqrt([ln(B_V/B_R)]^2 + 5*[ln(G_V/G_R)]^2), see AIP Advances 6, 095209 (2016).
+    !> \(A_L = \sqrt{[\ln(B_V/B_R)]^2 + 5[\ln(G_V/G_R)]^2}\), see [[AIP Advances 6, 095209 (2016)](https://doi.org/10.1063/1.4962996)].
     subroutine anisotropy_index(mat,anisidx)
       use dislocdyn_parameters, only : sel
       class(crystal), intent(in) :: mat

@@ -57,7 +57,7 @@ A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included t
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
 * [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make to build the standalone Fortran frontend and library 
-* [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 (or [Doxygen](https://www.doxygen.nl/)) to build the documentation detailing the API of the Fortran library
+* [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build the documentation detailing the API of the Fortran library
 
 ## Documentation
 
@@ -99,11 +99,11 @@ Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compil
 dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
 ```
 
-* the standalone fortran code has been manually tested with the following compilers:
+* the standalone fortran code has been tested with the following compilers:
     - gfortran 10 &mdash; 16 (linux and macos)
     - flang 21, 22 (linux), needs this workaround at runtime: `ulimit -s unlimited`
     - lfortran 0.66 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
-    - ifx intel oneapi 2024.1, 2025.1 (linux)
+    - ifx intel oneapi 2024.1 &mdash; 2026.2 (linux)
     - cray fortran compiler 17 (linux)
 
 
