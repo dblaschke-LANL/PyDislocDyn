@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Oct. 14, 2026
+! Date: Mar. 31, 2026 - Oct. 20, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -291,6 +291,7 @@ module dislocdyn_dislocations
       if (present(lowest_only)) then
         nohigh = lowest_only
       end if
+      vlim = 0.d0
       tmp = 0.d0
       sth = 1
       eth = disl%ntheta
