@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Oct. 14, 2026
+! Date: Mar. 31, 2026 - Oct. 20, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -291,8 +291,9 @@ module dislocdyn_dislocations
       if (present(lowest_only)) then
         nohigh = lowest_only
       end if
+      vlim = 0.d0
       tmp = 0.d0
-      sth=1
+      sth = 1
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
         call disl%computevcrit_screw(tmp)
         vlim(1,:) = tmp
@@ -307,7 +308,7 @@ module dislocdyn_dislocations
         call disl%computevcrit_edge(tmp)
         vlim(disl%ntheta,:2) = tmp
       !else if (disl%sym=="fcc") then  ! would need to check the slip system as well and computevcrit_barnett() is accurate enough
-      !  vlim(1) = sqrt(min(disl%C2(4,4),0.5d0*(disl%C2(1,1)-disl%C2(1,2)))/disl%rho)
+      !  vlim(1) = sqrt(min(disl%cij(3),0.5d0*(disl%cij(1)-disl%cij(2)))/disl%rho)
       end if
     end subroutine computevcrit
     !-------------------------
