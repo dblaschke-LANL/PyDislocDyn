@@ -55,7 +55,7 @@ module dislocdyn_readinputfiles
 !~       print*,"found",nsims,"sims"
     end subroutine scan_inputdeck
 
-    !>reads an input deck file and stores its info in 'sim_plan' of derived type 'inputdeck' 
+    !>reads an input deck file and stores its info in `sim_plan` of derived type `inputdeck` 
     subroutine read_inputdeck(filename,sim_plan,sym)
       use dislocdyn_utilities, only: linspace
       character(*), intent(in) :: filename
@@ -158,7 +158,7 @@ module dislocdyn_readinputfiles
     end subroutine read_inputdeck
 
     !-------------------------
-    !>reads a material file and stores the information in 'disl' of derived type 'disloc'
+    !>reads a material file and stores the information in `disl` of derived type `disloc`
     subroutine read_materialfile(filename,disl)
       ! populates an instance of the dislocation derived type using data read from filename
       character(*), intent(in) :: filename

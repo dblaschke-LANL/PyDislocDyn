@@ -2,7 +2,7 @@
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ! Date: July 23, 2018 - Sept. 19, 2026
 
-!> this module contains subroutines for phononwind_xx() and phononwind_xy()
+!> this module contains subroutines for `phononwind_xx()` and `phononwind_xy()`
 module dislocdyn_phononwind_subroutines
   implicit none
   private :: thesum
@@ -96,7 +96,7 @@ module dislocdyn_phononwind_subroutines
     
     ! **********************************************************************
     
-    !> this wrapper parallelizes thesum()
+    !> this wrapper parallelizes `thesum()`
     subroutine parathesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1, &
                           lenp,lent,lenph1,lentph)
     !$   Use omp_lib
@@ -248,7 +248,7 @@ module dislocdyn_phononwind_subroutines
 end module dislocdyn_phononwind_subroutines
 
 !!**********************************************************************
-!> this module contains various subroutines for phonondrag() (both Fortran and Python implementations)
+!> this module contains various subroutines for `phonondrag()` (both Fortran and Python implementations)
 module dislocdyn_phononwind
   implicit none
   public :: phononwind_xx, phononwind_xy, elasticA3, fourieruij_sincos, fourieruij_nocut
@@ -277,7 +277,7 @@ module dislocdyn_phononwind
 
     !!**********************************************************************
 
-    !> subroutine for one of the inputs of fourieruij_nocut()
+    !> subroutine for one of the inputs of `fourieruij_nocut()`
     SUBROUTINE fourieruij_sincos(sincos,ra,rb,phix,q,ph,phixres,nq,phres)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
@@ -298,7 +298,7 @@ module dislocdyn_phononwind
 
     !!**********************************************************************
 
-    !> Fourier transform of angular part of uij (needs result of subroutine fourieruij_sincos for sincos)
+    !> Fourier transform of angular part of `uij` (needs result of subroutine `fourieruij_sincos` for `sincos`)
     SUBROUTINE fourieruij_nocut(fourieruij,uij,phix,sincos,ntheta,phres,phixres)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
@@ -318,7 +318,7 @@ module dislocdyn_phononwind
 
     !!**********************************************************************
 
-    !> this is a subroutine of phonondrag() (TT and LL modes, used by both fortran and python implementations)
+    !> this is a subroutine of `phonondrag()` (TT and LL modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xx(dij,A3,qBZ,ct,cl,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel, selsm, hbar, kb, pi
@@ -477,7 +477,7 @@ module dislocdyn_phononwind
 
     !!**********************************************************************
 
-    !> this is a subroutine of phonondrag() (mixed modes, used by both fortran and python implementations)
+    !> this is a subroutine of `phonondrag()` (mixed modes, used by both fortran and python implementations)
     SUBROUTINE phononwind_xy(dij,A3,qBZ,cx,cy,beta,burgers,Temp,lentheta,lent,lenph,lenq1,lenph1,updatet,chunks,r0cut,debye,dragb)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel, selsm, hbar, kb, pi

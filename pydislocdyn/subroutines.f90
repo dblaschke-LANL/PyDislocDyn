@@ -6,13 +6,13 @@
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
-  integer,parameter :: selsm = selected_real_kind(6)  !< some memory-heavy subroutines use lower precision in favor of speed
+  integer,parameter :: selsm = selected_real_kind(6)  !! some memory-heavy subroutines use lower precision in favor of speed
   integer,parameter :: version = 20261019
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
-  real(kind=sel), parameter :: hbar = 1.0545718d-34       !< reduced Planck constant
-  real(kind=sel), parameter :: kB = 1.38064852d-23        !< Boltzmann constant
-  real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) !< number Pi
-  real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 !< Pi squared
+  real(kind=sel), parameter :: hbar = 1.0545718d-34       !! reduced Planck constant
+  real(kind=sel), parameter :: kB = 1.38064852d-23        !! Boltzmann constant
+  real(kind=sel), parameter :: pi = (4.d0*atan(1.d0)) !! number \(\pi\)
+  real(kind=sel), parameter :: pi2 = (4.d0*atan(1.d0))**2 !! \(\pi\) squared
 end module dislocdyn_parameters
 
 !>this module contains a number of helper functions
@@ -38,7 +38,7 @@ module dislocdyn_utilities
     return
     end subroutine ompinfo
 
-    !> Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
+    !> Compute the bracket (A,B) := `A.Cmat.B`, where `Cmat` is a tensor of 2nd order elastic constants.
     !> All three variables have an additional disloc. character dependence.
     SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
     !-----------------------------------------------------------------------
@@ -69,7 +69,7 @@ module dislocdyn_utilities
       
     END SUBROUTINE elbrak
 
-    !> Compute the bracket (A,B) := A.Cmat.B, where Cmat is a tensor of 2nd order elastic constants.
+    !> Compute the bracket (A,B) := `A.Cmat.B`, where `Cmat` is a tensor of 2nd order elastic constants.
     pure SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel

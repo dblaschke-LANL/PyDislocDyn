@@ -2,7 +2,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ! Date: Mar. 25, 2026 - Oct. 20, 2026
-! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
