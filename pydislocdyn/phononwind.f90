@@ -58,40 +58,36 @@ module dislocdyn_phononwind_subroutines
     qtshift = qt - qv
 
     A3qt2(:,:,:,:,:) = 0.0
-    do kk = 1,3; do k = 1,3; do j = 1,3; do i = 1,3
-    !do concurrent (kk = 1:3, k = 1:3, j = 1:3, i = 1:3) local(jj,ii) shared(qt,qtshift,A3) reduce(+:A3qt2)
+    do concurrent (kk = 1:3, k = 1:3, j = 1:3, i = 1:3) local(jj,ii) shared(qt,qtshift,A3) reduce(+:A3qt2)
       do jj = 1,3
         do ii = 1,3
           A3qt2(:,i,j,k,kk) = A3qt2(:,i,j,k,kk) + qt(:,ii)*qtshift(:,jj)*A3(i,ii,j,jj,k,kk)
         end do
       end do
-    end do; end do; end do; end do
+    end do
 
     part1(:,:,:,:,:) = 0.0
-    do kk = 1,3; do k = 1,3; do j = 1,3; do l = 1,3
-    !do concurrent (kk = 1:3, k = 1:3, j = 1:3, l = 1:3) local(i) shared(A3qt2,qt,delta1) reduce(+:part1)
+    do concurrent (kk = 1:3, k = 1:3, j = 1:3, l = 1:3) local(i) shared(A3qt2,qt,delta1) reduce(+:part1)
       do i = 1,3
          part1(:,l,j,k,kk) = part1(:,l,j,k,kk) + (delta1(i,l) - qt(:,l)*qt(:,i))*A3qt2(:,i,j,k,kk)
       end do
-    end do; end do; end do; end do
+    end do
 
     part2(:,:,:,:,:) = 0.0
-    do nn = 1,3; do n = 1,3; do j = 1,3; do l = 1,3
-    !do concurrent (nn = 1:3, n = 1:3, j = 1:3, l = 1:3) local(m) shared(A3qt2,qtshift,mag,delta2) reduce(+:part2)
+    do concurrent (nn = 1:3, n = 1:3, j = 1:3, l = 1:3) local(m) shared(A3qt2,qtshift,mag,delta2) reduce(+:part2)
       do m = 1,3
        part2(:,l,j,n,nn) = part2(:,l,j,n,nn) + (delta2(j,m) - qtshift(:,j)*qtshift(:,m)/mag)*A3qt2(:,l,m,n,nn)
       end do
-    end do; end do; end do; end do
+    end do
     part2(:,:,:,:,:) = part2(:,:,:,:,:)*dphi1(p)
 
-    do nn = 1,3; do n = 1,3; do kk = 1,3; do k = 1,3
-    !do concurrent (nn = 1:3, n = 1:3, kk = 1:3, k = 1:3) local(j,l) shared(part1,part2) reduce(+:output)
+    do concurrent (nn = 1:3, n = 1:3, kk = 1:3, k = 1:3) local(j,l) shared(part1,part2) reduce(+:output)
       do j = 1,3
          do l = 1,3
             output(:,k,kk,n,nn) = output(:,k,kk,n,nn) + part1(:,l,j,k,kk)*part2(:,l,j,n,nn)
          end do
       end do
-    end do; end do; end do; end do
+    end do
 
     end do
     !~ !$OMP END PARALLEL DO
@@ -150,11 +146,10 @@ module dislocdyn_phononwind_subroutines
       do n=1,3
         do kk=1,3
           do k=1,3
-            do j = 1,lenph; do i = 1,lent
-            !do concurrent (j = 1:lenph, i = 1:lent) local(ij) shared(dij,flatpoly) reduce(+:output)
+            do concurrent (j = 1:lenph, i = 1:lent) local(ij) shared(dij,flatpoly) reduce(+:output)
               ij = (i-1)*lenph+j
               output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
-            end do; end do
+            end do
           end do
         end do
       end do 
@@ -294,11 +289,10 @@ module dislocdyn_phononwind
       integer i,j
       real(kind=sel) :: cosphimph
       
-      do j=1,phres; do i=1,phixres
-      !do concurrent (j=1:phres, i=1:phixres) local(cosphimph) shared(phix,ph,q,ra,rb,nq)
+      do concurrent (j=1:phres, i=1:phixres) local(cosphimph) shared(phix,ph,q,ra,rb,nq)
           cosphimph = cos(phix(i)-ph(j))
           sincos(i,j) = sum(cos(q*ra*cosphimph)-cos(q*rb*cosphimph))/cosphimph/nq
-      end do; end do
+      end do
       
     END SUBROUTINE fourieruij_sincos
 

@@ -9,7 +9,7 @@ module dislocdyn_elasticconstants
                 "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
   private VoigtIndices, UnVoigtIndices, vgt_two, vgt_four, vgt_six, unvgt_one, unvgt_two, unvgt_three
   public symkwerror, voigt, unvoigt, elasticC2, elasticC3, CheckReflectionSymmetry, number_of_elasticC, &
-          voigtaverage, reussaverage, hillaverage!, checkvoigt
+          voigtaverage, reussaverage, hillaverage, checkvoigt
   !> converts the input to Voigt notation
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six
@@ -257,13 +257,12 @@ module dislocdyn_elasticconstants
           print*,symkwerror
           return
       end select
-      do i=1,6; do j=1,6; do k=1,6
-      !do concurrent (i=1:6, j=1:6, k=1:6) local(ii,jj,kk) shared(vc,xijk) local_init(iind)
+      do concurrent (i=1:6, j=1:6, k=1:6) local(ii,jj,kk) shared(vc,xijk) local_init(iind)
         ii = min(i,j,k)
         jj = min(max(i,j),max(i,k),max(j,k))
         kk = max(i,j,k)
         vc(i,j,k) = xijk(kk-jj+1+int((14-jj)*(jj-1)/2)+iind(ii))
-      end do; end do; end do
+      end do
     end subroutine elasticC3
     ! -----------------------------
     !> subroutine of voigt()

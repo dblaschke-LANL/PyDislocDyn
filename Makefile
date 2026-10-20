@@ -1,4 +1,4 @@
-## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.66, ifx>=2024
+## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.66, ifx>=2025
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
@@ -6,8 +6,8 @@ ifeq ($(FC),lfortran)
   LDFLAGS = 
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
-  FC = flang -v# -flto
-  FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -ffast-math
+  FC = flang -v# -flto -ffree-line-length-225
+  FFLAGS = -O3 -pedantic -std=f2023 -fopenmp -march=native# -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),ftn)
@@ -21,8 +21,8 @@ else ifeq ($(FC),ifx)
   LDFLAGS = -qopenmp 
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
-  FC = gfortran -fimplicit-none# -flto -ffree-line-length-225
-  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native# -funroll-loops
+  FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225
+  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2023 -fopenmp -march=native# -funroll-loops
 #  FFLAGS = -O0  -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)

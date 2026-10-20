@@ -285,29 +285,41 @@ module dislocdyn_dislocations
       logical, intent(in), optional   :: lowest_only
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp
-      integer th, sth
-      logical :: nohigh
+      integer th, sth, eth
+      logical :: nohigh, reflect
       nohigh = .false.
       if (present(lowest_only)) then
         nohigh = lowest_only
       end if
       tmp = 0.d0
-      sth=1
+      sth = 1
+      eth = disl%ntheta
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
         call disl%computevcrit_screw(tmp)
         vlim(1,:) = tmp
         sth=2 ! skip barnett routine for this character
       end if
+      reflect = .false. ! check edge for reflection symmetry
+      if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
+        reflect = .true.
+      end if
+      if ( (nohigh) .and. ( (reflect) .or. (disl%sym=="fcc") ) ) then
+        eth = eth-1
+      end if
       !$OMP PARALLEL DO
-      do th=sth,disl%ntheta
+      do th=sth,eth
         call computevcrit_barnett(disl,th,vlim(th,:),nohigh)
       end do
       !$OMP END PARALLEL DO
-      if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
+      if (reflect) then
         call disl%computevcrit_edge(tmp)
         vlim(disl%ntheta,:2) = tmp
-      !else if (disl%sym=="fcc") then  ! would need to check the slip system as well and computevcrit_barnett() is accurate enough
-      !  vlim(1) = sqrt(min(disl%C2(4,4),0.5d0*(disl%C2(1,1)-disl%C2(1,2)))/disl%rho)
+      else if ( (disl%sym=="fcc") .and. (nohigh) ) then
+        ! in general, we would need to check the slip system as well and computevcrit_barnett() is accurate enough
+        ! users setting 'lowest_only' want this to be fast, so just assume the 12 fcc slip systems if sym=fcc
+        ! (user can set 'cubic' to bypass)
+        vlim(disl%ntheta,1) = sqrt(min(disl%cij(3),0.5d0*(disl%cij(1)-disl%cij(2)))/disl%rho)
+      !  vlim(disl%ntheta,2) = sqrt(max(disl%cij(3),0.5d0*(disl%cij(1)-disl%cij(2)))/disl%rho)
       end if
     end subroutine computevcrit
     !-------------------------
@@ -347,8 +359,7 @@ module dislocdyn_dislocations
       call linspace(0.d0,1.d0,lenq,q)
       call fourieruij_sincos(sincos,0.d0,250.d0*pi,disl%phi,q(4:lenq-4),phi,disl%nphi,lenq-7,lenph)
       A3rot = 0.d0
-      do th=1,disl%ntheta
-      !do concurrent (th=1:disl%ntheta) local(i, ii, j, jj, k, kk, l, ll, rot) shared(disl,A3rot,A3) ! requires gfortran>=15
+      do concurrent (th=1:disl%ntheta) local(i, ii, j, jj, k, kk, l, ll, rot) shared(disl,A3rot,A3) ! requires gfortran>=15
         rot = disl%rot(:,:,th)
         do ii=1,3
           do i=1,3

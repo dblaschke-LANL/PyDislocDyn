@@ -16,17 +16,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.14"]
+        python-version: ["3.11", "3.14"]
         toolchain:
           - {compiler: gcc, version: 'latest'}
         exclude:
           - os: macos-latest
-            python-version: '3.10'
+            python-version: '3.11'
           - os: windows-latest
-            python-version: '3.10'
+            python-version: '3.11'
         include:
-          - python-version: '3.10'
-            module-versions: "numpy==1.26 scipy==1.10 sympy==1.12 matplotlib==3.8.4 pandas==2.2.3 jinja2==3.1.2 joblib==1.1 threadpoolctl==3.1 gmpy2==2.2.1 numba==0.58.1 tomli==2.0 meson ninja pytest==8.3"
+          - python-version: '3.11'
+            module-versions: "numpy==2.2 scipy==1.13 sympy==1.13 matplotlib==3.8.4 pandas==2.2.3 jinja2==3.1.2 joblib==1.2 threadpoolctl==3.1 gmpy2==2.2.1 numba==0.61.2 meson ninja pytest==8.3"
           - python-version: '3.14'
             module-versions: "numpy scipy sympy matplotlib pandas jinja2 joblib threadpoolctl gmpy2 numba pyyaml meson ninja pytest pytest-xdist"
     steps:
