@@ -4,6 +4,8 @@
 
 Features and improvements:
 
+ - `dislocdynlib`: speedup `computevcrit()` and new option to skip higher limiting velocities
+
 Fix:
 
  - replace Pandas' `.fillna(method=)` with modern alternative (now need Pandas >=2.2) 
