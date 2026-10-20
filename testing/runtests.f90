@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Sept. 30, 2026
+! Date: Mar. 25, 2026 - Oct. 20, 2026
 ! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
@@ -88,7 +88,7 @@ module dislocdyn_tests
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti, Fe
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener, soundinvariant
-      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:)
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:), vlim_low(:,:)
       logical :: istrue
       integer :: i, j
       ! in parts of this test we validate against results of the Python code PyDislocDyn
@@ -125,7 +125,7 @@ module dislocdyn_tests
       zeros = 0.d0
       call testequalarray(Cu%uij(:,1,1,1)+Cu%uij(:,2,2,1)+Cu%uij(:,3,3,1),zeros,Cu%nphi,&
                           "disloc_Cu_uij-screw_zero-trace",1.d-12,count_pass,count_fail)
-      allocate(Etot(Cu%ntheta),vlim(Cu%ntheta,3))
+      allocate(Etot(Cu%ntheta),vlim(Cu%ntheta,3),vlim_low(Cu%ntheta,3))
       call Cu%update_elasticE(Etot)
       call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_elasticEtot",1.d-9,count_pass,count_fail)
       
@@ -135,8 +135,10 @@ module dislocdyn_tests
                 .not.CheckReflectionSymmetry(Cu%C2aligned(:,:,Cu%ntheta))),"reflection-sym, Cu screw/edge",count_pass,count_fail)
       call Cu%computevcrit_screw(vlim_s)
       call Cu%computevcrit(vlim)
+      call Cu%computevcrit(vlim_low,lowest_only=.true.)
       vlim_e = vlim(Cu%ntheta,1)
-      call testzero(vlim_s+vlim_e-3825.924891d0 + sum(vlim)-16102.217647d0,"disloc_Cu_vlim screw/edge",1.d-6,count_pass,count_fail)
+      call testzero(vlim_s+vlim_e-3825.924891d0 + sum(vlim)-16102.217647d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(2:,2:)), &
+                    "disloc_Cu_vlim screw/edge", 1.d-6, count_pass, count_fail)
       call Cu%computesound([1.d0,1.d0,0.d0],vsound)
       call testzero(sum(vsound)-sqrt(0.5d0*(Cu%cij(1)-Cu%cij(2))/Cu%rho)-sqrt(Cu%cij(3)/Cu%rho)&
                     -sqrt((0.5d0*Cu%cij(1)+0.5d0*Cu%cij(2)+Cu%cij(3))/Cu%rho),"Cu_vsound",1.d-9,count_pass,count_fail)
@@ -169,10 +171,12 @@ module dislocdyn_tests
                 CheckReflectionSymmetry(Ti%C2aligned(:,:,Ti%ntheta))),"reflection-sym, Ti screw/edge",count_pass,count_fail)
       call Ti%computevcrit_screw(vlim_s)
       call Ti%computevcrit_edge(vlim_e)
-      deallocate(vlim)
-      allocate(vlim(Ti%ntheta,3))
+      deallocate(vlim,vlim_low)
+      allocate(vlim(Ti%ntheta,3),vlim_low(Ti%ntheta,3))
       call Ti%computevcrit(vlim)
-      call testzero(vlim_s+vlim_e-6014.271264d0+sum(vlim)-33723.904944d0,"disloc_Tipris_vlimit",1.d-6,count_pass,count_fail)
+      call Ti%computevcrit(vlim_low,lowest_only=.true.)
+      call testzero(vlim_s+vlim_e-6014.271264d0 + sum(vlim)-33723.904944d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(2,2:)) + &
+                    sum(vlim_low(2:,3)), "disloc_Tipris_vlimit", 1.d-6, count_pass, count_fail)
       
       Fe = disloc(sym="bcc",metal="Fe",rho=7870.d0,lat_a = [2.8665d-10,0.d0,0.d0],ntheta=99)
       Fe%cij = [226.0d9, 140.0d9, 116.0d9]
@@ -187,15 +191,17 @@ module dislocdyn_tests
       Fe%lam = 115.5d9
       Fe%cijk = [-27.2d11,-6.08d11,-5.78d11,-8.36d11,-5.3d11,-7.2d11]
       call Fe%init(Millerb=[0.5d0,-0.5d0,0.5d0],Millern0=[1.d0,1.d0,0.d0],positive_theta = .false.)
-      deallocate(vlim)
-      allocate(vlim(Fe%ntheta,3))
+      deallocate(vlim,vlim_low)
+      allocate(vlim(Fe%ntheta,3),vlim_low(Fe%ntheta,3))
       call Fe%computevcrit(vlim)
+      call Fe%computevcrit(vlim_low,lowest_only=.true.)
       deallocate(B,Etot)
       allocate(Etot(Fe%ntheta))
       Fe%beta = 0.5d0
       call Fe%update_uij()
       call Fe%update_elasticE(Etot)
-      call testzero(sum(vlim)/1.d5+sum(Etot)-0.5059065d0-0.6158183d0,"disloc_Fe_neg-theta",1.d-5,count_pass,count_fail)
+      call testzero(sum(vlim)/1.d5 + sum(Etot) - 0.5059065d0 - 0.6158183d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(:,2:)), &
+                    "disloc_Fe_neg-theta",1.d-5,count_pass,count_fail)
       call phonondrag(B,Fe,[0.25d0])
       call testzero(sum(B)-0.0846864,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
       
