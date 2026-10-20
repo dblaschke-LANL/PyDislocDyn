@@ -18,7 +18,7 @@ Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 
 ## Requirements
 
-* a Fortran 2018 capable compiler (such as gfortran 10 or higher)
+* a Fortran 2023 capable compiler (such as gfortran 15 or higher)
 * [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make
 * [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build this documentation
 

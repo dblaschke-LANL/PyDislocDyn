@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Sept. 30, 2026
+! Date: Mar. 30, 2026 - Oct. 20, 2026
 module dislocdyn_elasticconstants
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   implicit none

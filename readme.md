@@ -46,7 +46,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 ### Optional (but recommended):
 
-* a Fortran 2018 capable compiler (such as gfortran>=10) and meson
+* a Fortran 2023 capable compiler (such as gfortran>=15) and meson
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
 A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
 * [joblib](https://joblib.readthedocs.io) >=1.2 (for parallelization),</br>
@@ -100,10 +100,10 @@ dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
 ```
 
 * the standalone fortran code has been tested with the following compilers:
-    - gfortran 10 &mdash; 16 (linux and macos)
-    - flang 21, 22 (linux), needs this workaround at runtime: `ulimit -s unlimited`
+    - gfortran 15 &mdash; 16 (linux and macos)
+    - flang 22 (linux), needs this workaround at runtime: `ulimit -s unlimited`
     - lfortran 0.66 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
-    - ifx intel oneapi 2024.1 &mdash; 2026.2 (linux)
+    - ifx intel oneapi 2025.0 &mdash; 2026.2 (linux)
     - cray fortran compiler 17 (linux)
 
 

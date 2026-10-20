@@ -282,6 +282,8 @@ module dislocdyn_dislocations
     !> the results are assembled into a 2-dim array where each row represents the 3 branches (lowest, 2nd and highest vlim) for
     !> a character angle `theta = [0,...,disl%ntheta]`.
     !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
+    !> If option `lowest_only=.true.` and `disl%sym`='fcc', we also fast-track the calculation of the edge dislocation using
+    !> the analytical result for the 12 fcc slip planes of sqrt(min(c',c44)/rho). Set `disl%sym`='cubic' to avoid this.
     subroutine computevcrit(disl,vlim,lowest_only)
       class(disloc), intent(in) :: disl
       logical, intent(in), optional   :: lowest_only
