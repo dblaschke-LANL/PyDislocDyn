@@ -8,11 +8,12 @@ Features and improvements:
 
 Fix:
 
- - replace Pandas' `.fillna(method=)` with modern alternative (now need Pandas >=2.2) 
+ - replace Pandas' `.fillna(method=)` with modern alternative (now need Pandas >=2.2) and address a Pandas 3.1 deprecation warning
 
 Other:
 
  - `dislocdynlib`: keep more things private to simplify the API, make `checkvoigt()` available in the library (previously in testsuite)
+ - improve the ford-generated API documentation for `dislocdynlib`; doxygen no longer recommended
  - make path to `dislocdyn` executable configurable in test suite
 
 
