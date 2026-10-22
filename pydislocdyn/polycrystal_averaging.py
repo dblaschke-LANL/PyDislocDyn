@@ -2,7 +2,7 @@
 # Compute averages of elastic constants for polycrystals
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 7, 2017 - Sept. 22, 2026
+# Date: Nov. 7, 2017 - Oct. 22, 2026
 '''This script will compute polycrystal averages of second and third order elastic constants;
    it is not meant to be used as a module. By default, all metals predefined in pydislocdyn.metal_data
    will be taken into account unless the user passes input files (or keywords for some of 
@@ -42,7 +42,7 @@ def writelatex(data,caption="",soec_only=False,dropna=False,precision=1):
     if soec_only:
         out = out.iloc[:,:2]
     if dropna:
-        out.dropna(inplace=True)
+        out = out.dropna()
     out = out.style.format(precision=precision)
     if not soec_only:
         out = out.format('{:.0f}',subset=['$l$','$m$','$n$'])
