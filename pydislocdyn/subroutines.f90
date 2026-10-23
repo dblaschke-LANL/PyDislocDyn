@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 19, 2026
+! Date: July 23, 2018 - Oct. 22, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
   implicit none
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20261019
+  integer,parameter :: version = 20261022
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !! Boltzmann constant
@@ -111,29 +111,29 @@ module dislocdyn_utilities
     !!**********************************************************************
 
     !> integrate using the trapezoidal rule
-    pure SUBROUTINE trapz(f,x,n,intf)
+    pure function trapz(f,x,n) result(intf)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: n
       REAL(KIND=sel), INTENT(IN), DIMENSION(n)  :: f, x
-      REAL(KIND=sel), INTENT(OUT) :: intf
+      real(sel) :: intf
      
       intf = sum(0.5d0*(f(2:n)+f(1:n-1))*(x(2:n)-x(1:n-1)))
-    END SUBROUTINE trapz
+    end function trapz
 
     !!**********************************************************************
 
     !> cumulatively integrate using the trapezoidal rule
-    pure SUBROUTINE cumtrapz(f,x,n,intf)
+    pure function cumtrapz(f,x,n) result(intf)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: n
       REAL(KIND=sel), INTENT(IN), DIMENSION(n)  :: f, x
-      REAL(KIND=sel), INTENT(OUT), DIMENSION(n) :: intf
+      real(sel), dimension(n) :: intf
       REAL(KIND=sel) :: tmp
       INTEGER :: i
      
@@ -143,7 +143,7 @@ module dislocdyn_utilities
         intf(i+1) = tmp
       end do
       
-    END SUBROUTINE cumtrapz
+    end function cumtrapz
 
     !!**********************************************************************
 
@@ -191,14 +191,14 @@ module dislocdyn_utilities
     !!**********************************************************************
 
     !> fortran implementation of np.linspace() for real numbers
-    pure SUBROUTINE linspace(start,finish,num,output)
+    pure function linspace(start,finish,num) result(output)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       real(kind=sel), intent(in) :: start, finish
       integer, intent(in) :: num
-      real(kind=sel), intent(out), dimension(num) :: output
+      real(kind=sel), dimension(num) :: output
     !--------- local vars --------------------------------------------------
       integer :: i
       real(kind=sel) :: step
@@ -209,7 +209,7 @@ module dislocdyn_utilities
         step = (finish - start) / (num-1.d0)
         output = [(start + (i-1)*step, i=1,num)]
       end if
-    END SUBROUTINE linspace
+    END function linspace
 
 end module dislocdyn_utilities
 
@@ -284,7 +284,7 @@ module dislocdyn_subroutines
             end do
           end do
         end do
-        call trapz(Wdensity,phi,Nphi,Wtot(th))
+        Wtot(th) = trapz(Wdensity,phi,Nphi)
       end do
       !$OMP END PARALLEL DO
       
@@ -369,8 +369,8 @@ module dislocdyn_subroutines
         end do
       end do; end do; end do
         do i=1,3; do j=1,3
-          call trapz(Sphi(:,j,i),phi,Nphi,S(j,i))
-          call trapz(Bphi(:,j,i),phi,Nphi,BB(j,i))
+          S(j,i) = trapz(Sphi(:,j,i),phi,Nphi)
+          BB(j,i) = trapz(Bphi(:,j,i),phi,Nphi)
         end do; end do
         Sb(:) = (0.25d0/pi2)*MATMUL(S(:,:),b)
         BBb(:) = (0.25d0/pi2)*MATMUL(BB(:,:),b)
@@ -379,7 +379,7 @@ module dislocdyn_subroutines
       end do; end do
       uiphi = 0d0
       do i=1,3
-        call cumtrapz(tmpu(:,i),phi,Nphi,uiphi(:,i))
+        uiphi(:,i) = cumtrapz(tmpu(:,i),phi,Nphi)
       end do
       do i=1,3; do j=1,Nr
         uk(:,i,th,j) = uiphi(:,i) - Sb(i)*log(r(j)/r(1))
@@ -431,8 +431,8 @@ module dislocdyn_subroutines
         end do
       end do; end do; end do
         do i=1,3; do j=1,3
-          call trapz(Sphi(:,j,i),phi,Nphi,S(j,i))
-          call trapz(Bphi(:,j,i),phi,Nphi,BB(j,i))
+          S(j,i) = trapz(Sphi(:,j,i),phi,Nphi)
+          BB(j,i) = trapz(Bphi(:,j,i),phi,Nphi)
         end do; end do
         Sb(:) = (0.25d0/pi2)*MATMUL(S(:,:),b)
         BBb(:) = (0.25d0/pi2)*MATMUL(BB(:,:),b)

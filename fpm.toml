@@ -1,5 +1,5 @@
 name = "dislocdynlib"
-version = "20261019"
+version = "20261022"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
@@ -15,10 +15,10 @@ openmp = "*"
 #test-drive.tag = "v0.6.1"
 
 [features]
-baseline.gfortran.flags = "-O3 -march=native"
+baseline.gfortran.flags = "-O3 -march=native -std=f2023"
 baseline.flang.flags = "-O3 -march=native"
-baseline.lfortran.flags = "--fast --realloc-lhs-arrays"
-baseline.ifx.flags = "-O3 -heap-arrays"
+baseline.lfortran.flags = "--fast --realloc-lhs-arrays --std=f23"
+baseline.ifx.flags = "-O3 -heap-arrays -stand f23"
 
 [profiles]
 default = ["baseline"]

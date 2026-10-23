@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 20, 2026
+! Date: July 23, 2018 - Oct. 22, 2026
 
 !> this module contains subroutines for `phononwind_xx()` and `phononwind_xy()`
 module dislocdyn_phononwind_subroutines
@@ -198,11 +198,11 @@ module dislocdyn_phononwind_subroutines
           if (updatet.eqv..True.) then
             Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
           end if
-          call trapz(Btmp(:),t1(:),NBtmp,Bt(p))
+          Bt(p) = trapz(Btmp(:),t1(:),NBtmp)
         end if
       end do
       !$OMP END PARALLEL DO
-      call trapz(Bt,phi,Nphi,Bresult)
+      Bresult = trapz(Bt,phi,Nphi)
       
     END SUBROUTINE integratetphi
 
@@ -241,11 +241,11 @@ module dislocdyn_phononwind_subroutines
           if ((updatet.eqv..True.).or.(kthchk==(Nchunks-1))) then
             Btmp(ubound(Btmp)) = 2.d0*Btmp(ubound(Btmp))
           end if
-          call trapz(Btmp(:),qt(:),NBtmp,Bt(p))
+          Bt(p) = trapz(Btmp(:),qt(:),NBtmp)
         end if
       end do
       !$OMP END PARALLEL DO
-      call trapz(Bt,phi,Nphi,Bresult)
+      Bresult = trapz(Bt,phi,Nphi)
       
     END SUBROUTINE integrateqtildephi
 
@@ -315,7 +315,7 @@ module dislocdyn_phononwind
       integer i,j,th,ph
       
       do concurrent (th=1:ntheta, j=1:3, i=1:3, ph=1:phres)
-        call trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres,fourieruij(ph,i,j,th))
+        fourieruij(ph,i,j,th) = trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres)
       end do
       
     END SUBROUTINE fourieruij_nocut
@@ -349,9 +349,9 @@ module dislocdyn_phononwind
       
       Nchunks = chunks(1)
       kthchk = chunks(2)
-      call linspace(0.d0,2.d0*pi,lenph,phi)
-      call linspace(0.d0,2.d0*pi,lenph1,phi1)
-      call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
+      phi = linspace(0.d0,2.d0*pi,lenph)
+      phi1 = linspace(0.d0,2.d0*pi,lenph1)
+      q1 = linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1)
       qvec(:,1) = cos(phi)
       qvec(:,2) = sin(phi)
       qvec(:,3) = 0.d0
@@ -378,16 +378,16 @@ module dislocdyn_phononwind
         tmax = (1.d0+kthchk)/Nchunks
         if (updatet) then
           dt = (tmax-tmin)/(2.d0*lent)
-          call linspace(tmin+dt,tmax-dt,lent,t)
+          t = linspace(tmin+dt,tmax-dt,lent)
         else
-          call linspace(tmin,tmax,lent,t)
+          t = linspace(tmin,tmax,lent)
         end if
       else
         if (updatet) then
           dt = 1.d0/(2.d0*lent)
-          call linspace(dt,1.d0-dt,lent,t)
+          t = linspace(dt,1.d0-dt,lent)
         else
-          call linspace(0.d0,1.d0,lent,t)
+          t = linspace(0.d0,1.d0,lent)
         end if
       end if
       
@@ -508,9 +508,9 @@ module dislocdyn_phononwind
       
       Nchunks = chunks(1)
       kthchk = chunks(2)
-      call linspace(0.d0,2.d0*pi,lenph,phi)
-      call linspace(0.d0,2.d0*pi,lenph1,phi1)
-      call linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1,q1)
+      phi = linspace(0.d0,2.d0*pi,lenph)
+      phi1 = linspace(0.d0,2.d0*pi,lenph1)
+      q1 = linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1)
       qvec(:,1) = cos(phi)
       qvec(:,2) = sin(phi)
       qvec(:,3) = 0.d0
@@ -545,16 +545,16 @@ module dislocdyn_phononwind
         subqtmax = qt_min + (qt_max-qt_min)*(1.d0+kthchk)/Nchunks
         if (updatet) then
           dt = (subqtmax-subqtmin)/(2.d0*lent)
-          call linspace(subqtmin+dt,subqtmax-dt,lent,qtilde)
+          qtilde = linspace(subqtmin+dt,subqtmax-dt,lent)
         else
-          call linspace(subqtmin,subqtmax,lent,qtilde)
+          qtilde = linspace(subqtmin,subqtmax,lent)
         end if
       else
         if (updatet) then
           dt = 1.d0/(2.d0*lent)
-          call linspace(qt_min+dt,qt_max-dt,lent,qtilde)
+          qtilde = linspace(qt_min+dt,qt_max-dt,lent)
         else
-          call linspace(qt_min,qt_max,lent,qtilde)
+          qtilde = linspace(qt_min,qt_max,lent)
         end if
       end if
       
