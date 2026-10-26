@@ -21,7 +21,7 @@ jobs:
           - {compiler: intel, version: '2025.0'}
           - {compiler: intel, version: 'latest'}
           #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
-          - {compiler: lfortran, version: '0.66.0'}
+          - {compiler: lfortran, version: '0.68.0'}
           #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
         exclude:
           #~ - os: macos-latest
