@@ -282,13 +282,15 @@ module dislocdyn_dislocations
     !> the results are assembled into a 2-dim array where each row represents the 3 branches (lowest, 2nd and highest vlim) for
     !> a character angle `theta = [0,...,disl%ntheta]`.
     !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
+    !> If option `lowest_only=.true.` and `disl%sym`='fcc', we also fast-track the calculation of the edge dislocation using
+    !> the analytical result for the 12 fcc slip planes of sqrt(min(c',c44)/rho). Set `disl%sym`='cubic' to avoid this.
     subroutine computevcrit(disl,vlim,lowest_only)
       class(disloc), intent(in) :: disl
       logical, intent(in), optional   :: lowest_only
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp
-      integer th, sth
-      logical :: nohigh
+      integer th, sth, eth
+      logical :: nohigh, reflect
       nohigh = .false.
       if (present(lowest_only)) then
         nohigh = lowest_only
@@ -296,21 +298,33 @@ module dislocdyn_dislocations
       vlim = 0.d0
       tmp = 0.d0
       sth = 1
+      eth = disl%ntheta
       if (CheckReflectionSymmetry(disl%C2aligned(:,:,1))) then
         call disl%computevcrit_screw(tmp)
         vlim(1,:) = tmp
         sth=2 ! skip barnett routine for this character
       end if
+      reflect = .false. ! check edge for reflection symmetry
+      if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
+        reflect = .true.
+      end if
+      if ( (nohigh) .and. ( (reflect) .or. (disl%sym=="fcc") ) ) then
+        eth = eth-1
+      end if
       !$OMP PARALLEL DO
-      do th=sth,disl%ntheta
+      do th=sth,eth
         call computevcrit_barnett(disl,th,vlim(th,:),nohigh)
       end do
       !$OMP END PARALLEL DO
-      if (CheckReflectionSymmetry(disl%C2aligned(:,:,disl%ntheta))) then
+      if (reflect) then
         call disl%computevcrit_edge(tmp)
         vlim(disl%ntheta,:2) = tmp
-      !else if (disl%sym=="fcc") then  ! would need to check the slip system as well and computevcrit_barnett() is accurate enough
-      !  vlim(1) = sqrt(min(disl%cij(3),0.5d0*(disl%cij(1)-disl%cij(2)))/disl%rho)
+      else if ( (disl%sym=="fcc") .and. (nohigh) ) then
+        ! in general, we would need to check the slip system as well and computevcrit_barnett() is accurate enough
+        ! users setting 'lowest_only' want this to be fast, so just assume the 12 fcc slip systems if sym=fcc
+        ! (user can set 'cubic' to bypass)
+        vlim(disl%ntheta,1) = sqrt(min(disl%cij(3),0.5d0*(disl%cij(1)-disl%cij(2)))/disl%rho)
+      !  vlim(disl%ntheta,2) = sqrt(max(disl%cij(3),0.5d0*(disl%cij(1)-disl%cij(2)))/disl%rho)
       end if
     end subroutine computevcrit
     !-------------------------
