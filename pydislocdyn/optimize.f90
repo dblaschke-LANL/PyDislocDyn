@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 28, 2026
+! Date: July 28, 2026 - Oct. 22, 2026
 
 !> contains optimiziation algorithms; we use very simple ones to be self-contained
 !> once better external Fortran libraries become available, we will switch
@@ -31,7 +31,7 @@ module dislocdyn_opt
     i = 0
     w1 = l
     w2 = u
-    call linspace(l,u,n0,c0)
+    c0 = linspace(l,u,n0)
     do concurrent (j=1:n0)
       y0(j) = fct(c0(j))
     end do
@@ -43,7 +43,7 @@ module dislocdyn_opt
     if ((idx==1) .or. (idx==n0)) i = maxiter
     do while (i<maxiter)
       fmin_old = fmin
-      call linspace(w1,w2,n,c)
+      c = linspace(w1,w2,n)
       do concurrent (j=1:n)
         y(j) = fct(c(j))
       end do

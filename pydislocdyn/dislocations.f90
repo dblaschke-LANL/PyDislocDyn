@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Oct. 20, 2026
+! Date: Mar. 31, 2026 - Oct. 22, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -66,7 +66,7 @@ module dislocdyn_dislocations
       if (allocated(disl%theta)) deallocate(disl%theta)
       if (allocated(disl%C2aligned)) deallocate(disl%C2aligned)
       allocate(disl%theta(disl%ntheta),disl%C2aligned(6,6,disl%ntheta))
-      call linspace(0.d0,pi/2.d0,disl%ntheta,disl%theta)
+      disl%theta = linspace(0.d0,pi/2.d0,disl%ntheta)
       if (.not. positive_character) then
         disl%theta = -disl%theta
       end if
@@ -80,7 +80,7 @@ module dislocdyn_dislocations
       if (allocated(disl%M)) deallocate(disl%M); if (allocated(disl%N)) deallocate(disl%N)
       allocate(disl%t(3,disl%ntheta),disl%m0(3,disl%ntheta),disl%phi(disl%nphi))
       allocate(disl%M(disl%nphi,3,disl%ntheta),disl%N(disl%nphi,3,disl%ntheta),disl%Cv(3,3,3,3,disl%ntheta))
-      call linspace(0.d0,2.d0*pi,disl%nphi,disl%phi)
+      disl%phi = linspace(0.d0,2.d0*pi,disl%nphi)
       call strohgeometry(disl%b,disl%n0,disl%t,disl%m0,disl%M,disl%N,disl%Cv,disl%theta,disl%phi,disl%ntheta,disl%nphi)
     end subroutine computestroh
     !>determines the rotation matrices necessary to align each dislocation of character angle theta with z 
@@ -346,8 +346,8 @@ module dislocdyn_dislocations
       call unvoigt(disl%C3/disl%mu,C3norm)
       call elasticA3(disl%C2norm, C3norm, A3)
       ! -- some additional preparations for anisotropic case:
-      call linspace(0.d0,2.d0*pi,lenph,phi)
-      call linspace(0.d0,1.d0,lenq,q)
+      phi = linspace(0.d0,2.d0*pi,lenph)
+      q = linspace(0.d0,1.d0,lenq)
       call fourieruij_sincos(sincos,0.d0,250.d0*pi,disl%phi,q(4:lenq-4),phi,disl%nphi,lenq-7,lenph)
       A3rot = 0.d0
       do th=1,disl%ntheta

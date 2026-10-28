@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Sept. 23, 2026
+! Date: Apr. 10, 2026 - Oct. 22, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -150,10 +150,10 @@ module dislocdyn_readinputfiles
 
       if (.not.allocated(sim_plan%beta)) then
         allocate(sim_plan%beta(sim_plan%nbeta))
-        call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
+        sim_plan%beta = linspace(sim_plan%betamin, sim_plan%betamax, sim_plan%nbeta)
       else if (all(abs(sim_plan%beta)<rzero)) then
         if (allocated(sim_plan%beta)) deallocate(sim_plan%beta); allocate(sim_plan%beta(sim_plan%nbeta))
-        call linspace(sim_plan%betamin,sim_plan%betamax,sim_plan%nbeta,sim_plan%beta)
+        sim_plan%beta = linspace(sim_plan%betamin, sim_plan%betamax, sim_plan%nbeta)
       end if
     end subroutine read_inputdeck
 

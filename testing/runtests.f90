@@ -1,8 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Oct. 20, 2026
-! NOTE: this file uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
+! Date: Mar. 25, 2026 - Oct. 22, 2026
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
@@ -275,16 +274,16 @@ program runtests
   end if
   
   ! test linspace
-  call linspace(0.2d0,1.d0,5,array1)
+  array1 = linspace(0.2d0,1.d0,5)
   array2 = [0.2d0,0.4d0,0.6d0,0.8d0,1.d0]
   call testequalarray(array1,array2,5,"linspace",1.d-15,count_pass,count_fail)
   
   ! test cumtrapz / trapz
-  call linspace(1.d-15, 100.d0, resol, x)
+  x = linspace(1.d-15, 100.d0, resol)
   func(:) = sin(pi*x(:)/25.d0) + x(:)**3 / (exp(x(:))-1.d0)
-  call cumtrapz(func,x,resol,integral)
+  integral = cumtrapz(func,x,resol)
   call testzero(pi**4/15.d0 - integral(resol),"cumtrapz",1.d-6,count_pass,count_fail)
-  call trapz(func,x,resol,tmpintegral)
+  tmpintegral = trapz(func,x,resol)
   call testzero(tmpintegral - integral(resol),"trapz",1.d-13,count_pass,count_fail)
   
   ! test inv
@@ -316,7 +315,7 @@ program runtests
   call testtrue(.not. istrue,"checkvoigt_asym (intended error printing in above line)",count_pass,count_fail)
   
   ! test C2
-  call linspace(1.d0,21.d0,21,xtric)
+  xtric = linspace(1.d0,21.d0,21)
   call elasticC2(xtric,'tric',b2)
   call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
   

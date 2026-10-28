@@ -3,7 +3,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ! Date: Apr. 10, 2026 - Sept. 29, 2026
-! NOTE: this program uses features of the fortran 2018 standard (such as assumed ranks of arrays); a recent compiler is required!
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
   use dislocdyn_parameters, only : sel, rzero, pi, prog_version=>version
