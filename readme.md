@@ -102,7 +102,7 @@ dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
 * the standalone fortran code has been tested with the following compilers:
     - gfortran 15 &mdash; 16 (linux and macos)
     - flang 22 (linux), needs this workaround at runtime: `ulimit -s unlimited`
-    - lfortran 0.66 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
+    - lfortran 0.68 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
     - ifx intel oneapi 2025.0 &mdash; 2026.2 (linux)
     - cray fortran compiler 17 (linux)
 
