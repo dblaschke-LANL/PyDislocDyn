@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 1, 2026
+# Date: Nov. 5, 2017 - Oct. 29, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import copy
@@ -12,7 +12,8 @@ import glob
 import argparse
 import math
 from fractions import Fraction
-import multiprocessing
+import multiprocessing   
+import tomllib
 Ncpus = multiprocessing.cpu_count()
 def _ompthreads_auto():
     '''finds a optimal value for openmp parallelization of the fortran subroutines, i.e. OMP_NUM_THREADS'''
@@ -107,12 +108,6 @@ try:
     knowyaml = True
 except ImportError:
     knowyaml = False
-    
-if sys.version_info < (3,11):
-    ## if we're running python 3.10, fall back to tomlit:
-    import tomli as tomllib
-else:
-    import tomllib
 
 dir_path = str(pathlib.Path(__file__).resolve().parents[1])
 if dir_path not in sys.path:
