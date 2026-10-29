@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Sept. 29, 2026
+! Date: Apr. 10, 2026 - Oct. 29, 2026
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
   use dislocdyn_parameters, only : sel, rzero, pi, prog_version=>version
@@ -121,7 +121,7 @@ program dislocdyn
     do p=1,size(sim_plan%sim_type)
       if (sim_plan%sim_type(p)%str=='drag') then
         if (sim_plan%include_negative_theta) then
-          call phonondrag(B,disl_neg(i),sim_plan%beta)
+          call phonondrag(B, disl_neg(i), sim_plan%beta, nphi=sim_plan%drag%nphi, nq=sim_plan%drag%nq, ntbase=sim_plan%drag%ntbase)
           do k=1,2
             write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind, negative character angles ---"
             write(un(k),'(a)') "character angles in units of pi (theta=0 is pure screw, theta=-pi/2 is pure edge):"
@@ -132,7 +132,7 @@ program dislocdyn
             end do
           end do
         end if
-        call phonondrag(B,disl(i),sim_plan%beta)
+        call phonondrag(B, disl(i), sim_plan%beta, nphi=sim_plan%drag%nphi, nq=sim_plan%drag%nq, ntbase=sim_plan%drag%ntbase)
         do k=1,2
           write(un(k),*) new_line('a')//"--- Dislocation drag from phonon wind ---"
           write(un(k),'(a)') "character angles in units of pi (theta=0 is pure screw, theta=pi/2 is pure edge):"
