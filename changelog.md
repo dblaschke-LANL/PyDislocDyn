@@ -1,20 +1,27 @@
 # Changelog
 
-## wip
+## 1.4.1 (wip)
 
 Features and improvements:
 
- - `dislocdynlib`: speedup `computevcrit()` and new option to skip higher limiting velocities
+ - `dislocdynlib`:
+     * speedup `computevcrit()`
+     * new option to skip higher limiting velocities
+     * new options to change the resolution of phi, q, and t within `phonondrag()` calculations (the frontend accepts drag_nphi/_nq/_ntbase keywords)
+     * make `checkvoigt()` available in the library (previously in testsuite)
 
 Fix:
 
- - replace Pandas' `.fillna(method=)` with modern alternative (now need Pandas >=2.2) and address a Pandas 3.1 deprecation warning
+ - replace Pandas' `.fillna(method=)` with modern alternative (now need Pandas >=2.2)
+ - address a Pandas 3.1 deprecation warning
 
 Other:
 
- - `dislocdynlib`: keep more things private to simplify the API, make `checkvoigt()` available in the library (previously in testsuite)
+ - `dislocdynlib`:
+     * keep more things private to simplify the API
+     * changed: linspace(), trapz(), and cumtrapz() are now pure functions (instead of subroutines)
  - improve the ford-generated API documentation for `dislocdynlib`; doxygen no longer recommended
- - make path to `dislocdyn` executable configurable in test suite
+ - make path to `dislocdyn` executable configurable in python (pytest) test suite
 
 
 ## 1.4.0.1 (2026-10-01)

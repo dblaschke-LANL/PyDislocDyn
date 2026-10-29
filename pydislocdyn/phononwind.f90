@@ -351,12 +351,10 @@ module dislocdyn_phononwind
       kthchk = chunks(2)
       phi = linspace(0.d0,2.d0*pi,lenph)
       phi1 = linspace(0.d0,2.d0*pi,lenph1)
-      q1 = linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1)
       qvec(:,1) = cos(phi)
       qvec(:,2) = sin(phi)
       qvec(:,3) = 0.d0
       csphi = abs(cos(phi))
-      q1h4 = (qBZ*q1)**4
       ! if mode=LL, multiply by ct/cl in many places and keep delta=0, if mode=TT (i.e. cl=0) then delta-identity
       delta = 0.d0
       if (cl>0) then
@@ -420,6 +418,8 @@ module dislocdyn_phononwind
           end do
         end if
       else
+        q1 = linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1)
+        q1h4 = (qBZ*q1)**4
         call phonondistri(prefac/beta,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
@@ -510,12 +510,10 @@ module dislocdyn_phononwind
       kthchk = chunks(2)
       phi = linspace(0.d0,2.d0*pi,lenph)
       phi1 = linspace(0.d0,2.d0*pi,lenph1)
-      q1 = linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1)
       qvec(:,1) = cos(phi)
       qvec(:,2) = sin(phi)
       qvec(:,3) = 0.d0
       csphi = abs(cos(phi))
-      q1h4 = (qBZ*q1)**4
       delta1 = 0.d0
       delta2 = 0.d0
       cqBZ = cx*qBZ ! energy-cons delta fct. relating omega_2 to omega_1-Omega_q eliminated c2, beta from phonon-distri
@@ -606,6 +604,8 @@ module dislocdyn_phononwind
           end do
         end if
       else
+        q1 = linspace(1.d0/(lenq1-1.d0),1.d0,lenq1-1)
+        q1h4 = (qBZ*q1)**4
         call phonondistri(prefac/beta1,Temp,cqBZ,cqBZ,q1,q1h4,OneMinBtqcosph1,lenq1-1,lent,lenph,distri)
         ! we cut off q1=0 to prevent divisions by zero, so compensate by doubling first interval
         distri(:,:,1) = 2.d0*distri(:,:,1)
