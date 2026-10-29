@@ -283,7 +283,7 @@ module dislocdyn_dislocations
     !> a character angle `theta = [0,...,disl%ntheta]`.
     !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
     !> If option `lowest_only=.true.` and `disl%sym`='fcc', we also fast-track the calculation of the edge dislocation using
-    !> the analytical result for the 12 fcc slip planes of sqrt(min(c',c44)/rho). Set `disl%sym`='cubic' to avoid this.
+    !> the analytical result for the 12 fcc slip planes of \(\sqrt{(\min(c',c_{44})/\rho)}\). Set `disl%sym`='cubic' to avoid this.
     subroutine computevcrit(disl,vlim,lowest_only)
       class(disloc), intent(in) :: disl
       logical, intent(in), optional   :: lowest_only
@@ -330,14 +330,15 @@ module dislocdyn_dislocations
     !-------------------------
     !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation `disl` 
     !>and gliding velocities `beta`=v/ct
-    !>Optional variables nphi (default: 50), nq (default: 50), and ntbase (default: 321) set the resolution of various arrays
-    !>used in the calculation. ntbase is used for beta=0 and linearly increased with larger beta from its base value
+    !>Optional variables `nphi` (default: 50), `nq` (default: 50), and `ntbase` (default: 321) set the resolution of various arrays
+    !>used in the calculation. `ntbase` is used for `beta`=0 and linearly increased with larger beta from its base value
     !>(the default matches ntbase in the python implementation where this grid is fully adaptive).
     !>Increase the resolution for higher accuracy, decrease it for faster computations.
     subroutine phonondrag(drag,disl,beta,nphi,nq,ntbase)
       use dislocdyn_phononwind
-      type(disloc), intent(in) :: disl
-      real(sel), intent(in) :: beta(:)
+      type(disloc), intent(in) :: disl !! the dislocation (contains all material properties, slip system, etc.)
+      real(sel), intent(in) :: beta(:) !! list of velocities (normalized by transverse sound speed of `disl`) to calculate for
+      !> drag coefficient as function of `theta` and `beta`, i.e. `drag(disl%ntheta,nbeta)`
       real(sel), intent(out), allocatable :: drag(:,:)
       integer, optional :: nphi, nq, ntbase
       real(sel) :: uij(disl%nphi,3,3,disl%ntheta), C3norm(3,3,3,3,3,3), A3(3,3,3,3,3,3), A3rot(3,3,3,3,3,3,disl%ntheta)
