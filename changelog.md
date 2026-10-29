@@ -7,8 +7,9 @@ Features and improvements:
  - `dislocdynlib`:
      * speedup `computevcrit()`
      * new option to skip higher limiting velocities
-     * new options to change the resolution of phi, q, and t within `phonondrag()` calculations (the frontend accepts drag_nphi/_nq/_ntbase keywords)
-     * make `checkvoigt()` available in the library (previously in testsuite)
+     * new options to change the resolution of `phi`, `q`, and `t` within `phonondrag()` calculations
+       (the frontend accepts keywords `drag_nphi/_nq/_ntbase`)
+     * make `checkvoigt()` available in the library (previously in the test suite)
 
 Fix:
 
@@ -19,9 +20,9 @@ Other:
 
  - `dislocdynlib`:
      * keep more things private to simplify the API
-     * changed: linspace(), trapz(), and cumtrapz() are now pure functions (instead of subroutines)
- - improve the ford-generated API documentation for `dislocdynlib`; doxygen no longer recommended
- - make path to `dislocdyn` executable configurable in python (pytest) test suite
+     * **changed**: `linspace()`, `trapz()`, and `cumtrapz()` are now pure functions (instead of subroutines)
+ - improve the ford-generated API documentation for `dislocdynlib`; doxygen is no longer recommended
+ - make the path to the `dislocdyn` executable configurable in the Python (pytest) test suite
 
 
 ## 1.4.0.1 (2026-10-01)

@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 22, 2026
+! Date: July 23, 2018 - Oct. 29, 2026
 
 !> this module contains subroutines for `phononwind_xx()` and `phononwind_xy()`
 module dislocdyn_phononwind_subroutines
