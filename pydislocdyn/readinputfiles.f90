@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Oct. 29, 2026
+! Date: Apr. 10, 2026 - Oct. 30, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -10,13 +10,10 @@ module dislocdyn_readinputfiles
   type :: string_t
     character(:), allocatable :: str
   end type string_t
-  type :: drag_opts
-    integer :: nphi, nq, ntbase
-  end type drag_opts
   !>data structure to store the input deck information
   type, public :: inputdeck
     type(string_t), allocatable :: sim_type(:) ! choose between 'drag' and 'vlimit'
-    type(drag_opts) :: drag
+    type(phonondrag_opts) :: drag
     character(:), allocatable :: logfile
     real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
@@ -90,10 +87,6 @@ module dislocdyn_readinputfiles
       sim_plan%nphi = 500
       sim_plan%betamin = 0.01d0
       sim_plan%betamax = 0.99d0
-      ! drag options:
-      sim_plan%drag%nphi = 50
-      sim_plan%drag%nq = 50
-      sim_plan%drag%ntbase = 321
       ! will divide Millerb by this number so as to avoid having things like 0.333333 in the inputdeck:
       sim_plan%Millernorm = 1.d0
       sim_plan%echoinput = .true.
@@ -153,9 +146,14 @@ module dislocdyn_readinputfiles
         end if
         if (key=='ntheta') read(values,*) sim_plan%ntheta
         if (key=='nphi') read(values,*) sim_plan%nphi
+        ! drag options:
         if (key=='drag_nphi') read(values,*) sim_plan%drag%nphi
         if (key=='drag_nq') read(values,*) sim_plan%drag%nq
         if (key=='drag_ntbase') read(values,*) sim_plan%drag%ntbase
+        if (key=='drag_nph1') read(values,*) sim_plan%drag%nph1
+        if (key=='drag_nq1') read(values,*) sim_plan%drag%nq1
+        if (key=='drag_debye') read(values,*) sim_plan%drag%debye
+        if (key=='drag_r0cut') read(values,*) sim_plan%drag%r0cut
       
       end do ! read file
       close(unit=42)

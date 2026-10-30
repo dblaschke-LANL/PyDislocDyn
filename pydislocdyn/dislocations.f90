@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Oct. 29, 2026
+! Date: Mar. 31, 2026 - Oct. 30, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -35,7 +35,27 @@ module dislocdyn_dislocations
       procedure :: computevcrit_barnett => computevcrit_barnett
       procedure :: computevcrit => computevcrit
   end type
-  public :: phonondrag
+  !>Options for the `phonondrag()` subroutine. Integers `nphi`, `nq`, `ntbase`, `nph1`, and `nq1` set the resolution
+  !>of various arrays used in the phonondrag calculation.
+  type :: phonondrag_opts
+    integer :: nphi = 50
+    integer :: nq = 50
+    integer :: ntbase = 321
+    integer :: nph1 = 50
+    integer :: nq1 = 400
+    !>Boolean variable `debye` controls whether to use the high temperature Debye expansion (fast, `nq1` ignored, requires 
+    !>\(2\pi T > \) Debye temperature), or to numerically integrate the phonon spectrum (slow, resolution controlled by nq1).
+    !>While `debye=.true.` (default) is compatible with beta=0, `debye=.false.` rquires beta>0.
+    !>Note: the Debye expansion is not compatible with a core cutoff and option `r0cut` will be ignored if `debye=.true.`.
+    logical :: debye = .true.
+    !>If option `r0cut`>0 (turned off by default) and `debye=.false.`, a soft dislocation core cutoff is included following 
+    !>[[Alshits et al., Arch. Mech. 31, 91 (1979)](https://rcin.org.pl/dlibra/publication/90447)], 
+    !>i.e. multiplying the dislocation field by \((1-\exp(r/r_0))\) which leads to \(1/\sqrt{(1-q^2/r_0^2)}\) in Fourier space.
+    !>Note: this cutoff is intended only for an isotropic dislocation field at low gliding velocity, as the shape of the cutoff
+    !>is beta-dependent the way it is introduced (i.e. a circle only at beta=0).
+    real(sel) :: r0cut = -1.d0
+  end type phonondrag_opts
+  public :: phonondrag, phonondrag_opts
   !-------------------------
   contains
     subroutine update_slipplane(disl,Millerb,Millern0)
@@ -334,33 +354,25 @@ module dislocdyn_dislocations
     !>used in the calculation. `ntbase` is used for `beta`=0 and linearly increased with larger beta from its base value
     !>(the default matches ntbase in the python implementation where this grid is fully adaptive).
     !>Increase the resolution for higher accuracy, decrease it for faster computations.
-    subroutine phonondrag(drag,disl,beta,nphi,nq,ntbase)
+    subroutine phonondrag(drag,disl,beta,options)
       use dislocdyn_phononwind
       type(disloc), intent(in) :: disl !! the dislocation (contains all material properties, slip system, etc.)
       real(sel), intent(in) :: beta(:) !! list of velocities (normalized by transverse sound speed of `disl`) to calculate for
+      type(phonondrag_opts), intent(in), optional :: options !! contains optional parameters (with default values)
       !> drag coefficient as function of `theta` and `beta`, i.e. `drag(disl%ntheta,nbeta)`
       real(sel), intent(out), allocatable :: drag(:,:)
-      integer, optional :: nphi, nq, ntbase
+      type(phonondrag_opts) :: opts
       real(sel) :: uij(disl%nphi,3,3,disl%ntheta), C3norm(3,3,3,3,3,3), A3(3,3,3,3,3,3), A3rot(3,3,3,3,3,3,disl%ntheta)
       real(sel) :: rot(3,3), uijaligned(disl%nphi,3,3,disl%ntheta), ct, cl, qBZ
       real(sel), allocatable :: phi(:), q(:), sincos(:,:), fourieruij(:,:,:,:), dragTT(:), dragLL(:), dragTL(:), dragLT(:)
       integer :: lenph, lenq, th, nbeta, bt, lent, ntdyn, i, ii, j, jj, k, kk, l, ll
-      if (present(nphi)) then
-        lenph = nphi
-      else
-        lenph = 50
-      end if
-      if (present(nq)) then
-        lenq = nq
-      else
-        lenq = 50
+      if (present(options)) then
+        opts = options
       end if
       nbeta = size(beta)
-      if (present(ntbase)) then
-        lent = ntbase
-      else
-        lent = 321
-      end if
+      lenph = opts%nphi
+      lenq = opts%nq
+      lent = opts%ntbase
       allocate(phi(lenph),q(lenq),sincos(disl%nphi,lenph),fourieruij(lenph,3,3,disl%ntheta),drag(disl%ntheta,nbeta))
       allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta))
       ct = sqrt(disl%mu/disl%rho)
@@ -406,15 +418,15 @@ module dislocdyn_dislocations
         end do
         call fourieruij_nocut(fourieruij,uijaligned,disl%phi,sincos,disl%ntheta,lenph,disl%nphi)
         ntdyn = int((1.d0+beta(bt))*lent)
-        call phononwind_xx(fourieruij,A3rot,qBZ,ct,0.d0,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
-                          .false.,[1,0],-1.d0,.true.,dragTT)
-        call phononwind_xy(fourieruij,A3rot,qBZ,cl,ct,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
-                          .false.,[1,0],-1.d0,.true.,dragLT)
+        call phononwind_xx(fourieruij, A3rot, qBZ, ct, 0.d0, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+                          opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragTT)
+        call phononwind_xy(fourieruij, A3rot, qBZ, cl, ct, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+                          opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragLT)
         ntdyn = int((1.d0+0.5d0*beta(bt))*lent)
-        call phononwind_xx(fourieruij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
-                          .false.,[1,0],-1.d0,.true.,dragLL)
-        call phononwind_xy(fourieruij,A3rot,qBZ,ct,cl,beta(bt),disl%burgers,disl%Temp,disl%ntheta,ntdyn,lenph,400,50,&
-                          .false.,[1,0],-1.d0,.true.,dragTL)
+        call phononwind_xx(fourieruij, A3rot, qBZ, ct, cl, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+                          opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragLL)
+        call phononwind_xy(fourieruij, A3rot, qBZ, ct, cl, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+                          opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragTL)
         drag(:,bt) = dragTT+dragLL+dragTL+dragLT
       end do
     end subroutine phonondrag
