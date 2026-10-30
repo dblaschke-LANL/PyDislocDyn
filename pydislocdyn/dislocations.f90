@@ -35,8 +35,11 @@ module dislocdyn_dislocations
       procedure :: computevcrit_barnett => computevcrit_barnett
       procedure :: computevcrit => computevcrit
   end type
-  !>Options for the `phonondrag()` subroutine. Integers `nphi`, `nq`, `ntbase`, `nph1`, and `nq1` set the resolution
-  !>of various arrays used in the phonondrag calculation.
+  !>Options for the `phonondrag(drag,disl,beta,options)` subroutine. Integers `nphi`, `nq`, `ntbase`, `nph1`, and `nq1` set
+  !>the resolution of various arrays used in the phonondrag calculation.
+  !>`ntbase` is used for `beta`=0 and linearly increased with larger beta from its base value
+  !>(the default matches ntbase in the python implementation where this grid is fully adaptive).
+  !>Increase the resolution for higher accuracy, decrease it for faster computations.
   type :: phonondrag_opts
     integer :: nphi = 50
     integer :: nq = 50
@@ -350,10 +353,6 @@ module dislocdyn_dislocations
     !-------------------------
     !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation `disl` 
     !>and gliding velocities `beta`=v/ct
-    !>Optional variables `nphi` (default: 50), `nq` (default: 50), and `ntbase` (default: 321) set the resolution of various arrays
-    !>used in the calculation. `ntbase` is used for `beta`=0 and linearly increased with larger beta from its base value
-    !>(the default matches ntbase in the python implementation where this grid is fully adaptive).
-    !>Increase the resolution for higher accuracy, decrease it for faster computations.
     subroutine phonondrag(drag,disl,beta,options)
       use dislocdyn_phononwind
       type(disloc), intent(in) :: disl !! the dislocation (contains all material properties, slip system, etc.)
