@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Oct. 29, 2026
+! Date: Mar. 25, 2026 - Oct. 30, 2026
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
@@ -86,6 +86,7 @@ module dislocdyn_tests
       use dislocdyn_dislocations
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti, Fe
+      type(phonondrag_opts) :: dragopts
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener, soundinvariant
       real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:), vlim_low(:,:)
       logical :: istrue
@@ -149,7 +150,7 @@ module dislocdyn_tests
       call Ti%init(Millerb=[0.d0,1.d0,1.d0,0.d0], Millern0=[-1.d0,0.d0,1.d0,1.d0]) ! init with pyramidal slip
       call Ti%anisotropy_index(anisidx)
       call testzero(anisidx-0.075440166736d0,"Ti_anisotropy-index",1.d-9,count_pass,count_fail)
-      call phonondrag(B,Ti,[0.5d0],nphi=50,nq=50)
+      call phonondrag(B,Ti,[0.5d0],options=dragopts)
       call testzero(sum(B)-0.0293866,"disloc_Tipyr_drag",1.d-5,count_pass,count_fail)
       soundinvariant = 0.d0
       call unvoigt(Ti%C2,C2)
@@ -201,7 +202,8 @@ module dislocdyn_tests
       call Fe%update_elasticE(Etot)
       call testzero(sum(vlim)/1.d5 + sum(Etot) - 0.5059065d0 - 0.6158183d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(:,2:)), &
                     "disloc_Fe_neg-theta",1.d-5,count_pass,count_fail)
-      call phonondrag(B,Fe,[0.25d0],ntbase=200)
+      dragopts%ntbase = 200
+      call phonondrag(B,Fe,[0.25d0],options=dragopts)
       call testzero(sum(B)-0.0846864,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
       
     end subroutine test_disloc

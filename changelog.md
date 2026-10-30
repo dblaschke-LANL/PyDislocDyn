@@ -7,8 +7,8 @@ Features and improvements:
  - `dislocdynlib`:
      * speedup `computevcrit()`
      * new option to skip higher limiting velocities
-     * new options to change the resolution of `phi`, `q`, and `t` within `phonondrag()` calculations
-       (the frontend accepts keywords `drag_nphi/_nq/_ntbase`)
+     * new options to change the resolution within `phonondrag()` calculations, as well as to control the use of the Debye expansion
+       or a core cutoff (the frontend accepts keywords `drag_nphi/_nq/_ntbase/...`, see `phonondrag_opts` type for details)
      * make `checkvoigt()` available in the library (previously in the test suite)
 
 Fix:
