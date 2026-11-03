@@ -23,6 +23,7 @@ Other:
      * **changed**: `linspace()`, `trapz()`, and `cumtrapz()` are now pure functions (instead of subroutines)
  - improve the ford-generated API documentation for `dislocdynlib`; doxygen is no longer recommended
  - make the path to the `dislocdyn` executable configurable in the Python (pytest) test suite
+ - drop Python 3.10 support; drop numpy 1.x support
 
 
 ## 1.4.0.1 (2026-10-01)
