@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Sept. 30, 2026
+! Date: Mar. 30, 2026 - Oct. 20, 2026
 module dislocdyn_elasticconstants
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   implicit none
@@ -9,7 +9,7 @@ module dislocdyn_elasticconstants
                 "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
   private VoigtIndices, UnVoigtIndices, vgt_two, vgt_four, vgt_six, unvgt_one, unvgt_two, unvgt_three
   public symkwerror, voigt, unvoigt, elasticC2, elasticC3, CheckReflectionSymmetry, number_of_elasticC, &
-          voigtaverage, reussaverage, hillaverage!, checkvoigt
+          voigtaverage, reussaverage, hillaverage, checkvoigt
   !> converts the input to Voigt notation
   interface voigt
     module procedure vgt_two, vgt_four, vgt_six

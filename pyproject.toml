@@ -11,25 +11,24 @@ authors = [
 description = "PyDislocDyn is a suite of python programs designed to perform various calculations for basic research in dislocation dynamics in metals with various crystal symmetries in the continuum limit."
 readme = {file = "readme.md", content-type = "text/markdown"}
 license = {file = "LICENSE.md"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: BSD License",
     "Private :: Do Not Upload",
 ]
 dependencies = [
-  "numpy>=1.26",
-  "scipy>=1.10",
-  "sympy>=1.12",
-  "matplotlib>=3.8",
-  "pandas>=2.2",
-  "jinja2>=3.1",
-  "tomli>=2.0; python_version < '3.11'",
+  "numpy>=2.2",
+  "scipy>=1.13",
+  "sympy>=1.13",
+  "matplotlib>=3.8.4",
+  "pandas>=2.2.3",
+  "jinja2>=3.1.2",
 ]
 [project.optional-dependencies]
 fast = [
-  "numba>=0.58.1",
-  "joblib>=1.1",
+  "numba>=0.61.2",
+  "joblib>=1.2",
   "threadpoolctl>=3.1"
 ]
 dev = [
