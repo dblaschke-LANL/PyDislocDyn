@@ -12,13 +12,19 @@ module dislocdyn_readinputfiles
   end type string_t
   !>data structure to store the input deck information
   type, public :: inputdeck
-    type(string_t), allocatable :: sim_type(:) ! choose between 'drag' and 'vlimit'
+    type(string_t), allocatable :: sim_type(:) !! choose between 'drag' and 'vlimit'
     type(phonondrag_opts) :: drag
     character(:), allocatable :: logfile
-    real(sel) :: betamin, betamax, Millernorm
     real(sel), allocatable :: b(:), n0(:), beta(:)
-    integer :: nbeta, ntheta, nphi
-    logical :: echoinput, include_negative_theta
+    integer :: nbeta = 1
+    integer :: ntheta = 2
+    integer :: nphi = 500
+    real(sel) :: betamin = 0.01d0
+    real(sel) :: betamax = 0.99d0
+    !> will divide Millerb by this number so as to avoid having things like 0.333333 in the inputdeck:
+    real(sel) :: Millernorm = 1.d0
+    logical :: echoinput = .true.
+    logical :: include_negative_theta = .false.
   end type inputdeck
   
   !-------------------------
@@ -79,19 +85,9 @@ module dislocdyn_readinputfiles
       if (filename(lentxt-4:lentxt)=='.toml') then
         istoml=.true.
       end if
-      ! default values:
       allocate(sim_plan%sim_type(nsims))
       sim_plan%sim_type(1)%str = ''
-      sim_plan%nbeta = 1
-      sim_plan%ntheta = 2
-      sim_plan%nphi = 500
-      sim_plan%betamin = 0.01d0
-      sim_plan%betamax = 0.99d0
-      ! will divide Millerb by this number so as to avoid having things like 0.333333 in the inputdeck:
-      sim_plan%Millernorm = 1.d0
-      sim_plan%echoinput = .true.
-      sim_plan%include_negative_theta = .false.
-      sim_plan%logfile = 'dislocdyn.log'
+      sim_plan%logfile = 'dislocdyn.log' ! default value
       n = 3 ! expect 3 Miller indices for each b and n0 in the file
       if (present(sym) .and. trim(sym)=='hcp') n = 4 ! expect 4 Miller indices for each b and n0 in the file
       allocate(sim_plan%b(n),sim_plan%n0(n))
