@@ -12,7 +12,7 @@ import glob
 import argparse
 import math
 from fractions import Fraction
-import multiprocessing   
+import multiprocessing
 import tomllib
 Ncpus = multiprocessing.cpu_count()
 def _ompthreads_auto():
