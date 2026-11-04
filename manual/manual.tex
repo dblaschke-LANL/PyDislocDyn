@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{October 1, 2026}
+\date{November 4, 2026}
 
 \begin{document}
 \maketitle
@@ -169,6 +169,7 @@ Results are written to text files `\verb|drag_metalname.dat|', and additionally 
 Supported command line options (to change defaults, all optional) include:
 the resolution of the normalized velocities \verb|--Nbeta|,
 the resolution of various discretized variables, \verb|--Nphi|, \verb|--Nphi1|, \verb|--Nq1|, \verb|--Nt| (just the base value as variable t is adaptively refined),
+an option \verb|--r0cut| to include a core cutoff (which is a circle only in the isotropic low gliding velocity limit) following \cite{Alshits:1979} (turned off by default),
 an option to skip generating the plots via keyword \verb|--skip_plots|,
 an option to override the automatic number of parallel (joblib) processes to spawn via \verb|--Ncores|,
 additional options to be passed on to subroutine \verb|dragcoeff_iso| (defined in the \verb|phononwind.py| module) via \verb|--phononwind_opts="{'keyword':value,...}"|,
@@ -227,10 +228,8 @@ Miller indices \verb|Millerb| are automatically converted to Cartesian coordinat
 \end{itemize}
 \end{itemize}
 \noindent
-The following keywords are optional (depending on the intended use case)\footnote{Legacy keywords `\texttt{burgers}' (for overriding the Burgers vector length), `\texttt{b}' (Burgers vector in Cartesian coordinates), and `\texttt{n0}' (slip plane normal in Cartesian coordinates) for input files are deprecated in PyDislocDyn 1.4.0, users should use Miller indices instead.}:
+The following keywords are optional (depending on the intended use case)\footnote{Legacy keywords `\texttt{burgers}' (for overriding the Burgers vector length), `\texttt{b}' (Burgers vector in Cartesian coordinates), and `\texttt{n0}' (slip plane normal in Cartesian coordinates) for input files are deprecated in PyDislocDyn 1.4.x, users should use Miller indices instead.}:
 \begin{itemize}
-%\item \verb|burgers| defines the Burgers vector length; if omitted it is inferred from \verb|Millerb| or \verb|b| (in which case their length matters).
-%
 \item \verb|name|: a name for your instance of the \verb|Dislocation| class; defaults to the file name of the input file.
 Though not strictly necessary it is recommended to set a name.
 
@@ -417,10 +416,13 @@ Therefore, under the hood, the frontend will initialize two dislocation variable
 \item \verb|betamax| $\ldots$ largest dislocation gliding velocity in units of $c_T$ to consider in dislocation drag calculations (defaults to 0.99)
 \item \verb|nbeta| $\ldots$ number of  dislocation gliding velocities to consider between \verb|betamin| and \verb|betamax| (defaults to 1, meaning only \verb|betamin| is calculated)
 \end{itemize}
+and some advanced options controlling the accuracy and computation speed of the drag coefficient from phonon wind, such as \verb|drag_nphi|, \verb|drag_nq|, \verb|drag_ntbase|, \verb|drag_nph1|, \verb|drag_nq1|, and \verb|drag_debye| (see the \verb|ford| documentation on the \verb|phonondrag_opts| type for more details).
+A core cutoff (which is a circle only in the isotropic low gliding velocity limit) following \cite{Alshits:1979} can be set for drag calculations by using keyword \verb|drag_r0cut| (turned off by default).
+
 The instructions in the input deck apply to all material files included in a run, i.e. limiting velocities and/or drag coefficients are computed for all material files in order of appearance on the command line.
 Since the slip plane is defined in the input deck, an important limitation is that all material files included in a run must have the same crystal symmetry \verb|sym|.
 
-For the drag coefficient calculations, the Fortran version prioritizes speed over accuracy and therefore uses the high temperature Debye expansion of the phonon distributions to skip one of the numeric integrations.
+For the drag coefficient calculations, the Fortran version prioritizes speed over accuracy with its default settings and therefore uses the high temperature Debye expansion of the phonon distributions to skip one of the numeric integrations.
 Also, the adaptive grid present in the Python version is not implemented in the Fortran code at this point.
 Therefore, the Fortran results will match the Python results only if the latter's \verb|phonondrag()| function is called with options \verb|Debye_series=True| and \verb|maxrec=-1|.
 

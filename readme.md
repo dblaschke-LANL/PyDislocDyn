@@ -74,7 +74,7 @@ Note: installation is optional, i.e. pydislocdyn can also be run locally (in whi
 
 * then compile the Fortran submodule (optional) via</br>
 `python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule()'` </br></br>
-Note: on Linux with gfortran and numpy>=2.1, the best performance is achieved by passing the additional option</br>
+Note: on Linux with gfortran, the best performance is achieved by passing the additional option</br>
 `pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")`</br>
 Also, if you have chosen not to install PyDislocDyn, run the compilation command from within the PyDislocDyn folder, </br>
 otherwise if PyDislocDyn is installed, make sure to change your current working directory so that it is <i>not</i> the one you ran 'pip install .' from.</br>
@@ -143,7 +143,7 @@ Presents some simple examples of how PyDislocDyn can be used as a module.
 ### Fortran library and frontend
 
 A shared library, `dislocdynlib`, implementing a subset of PyDislocDyn features in Fortran is now available, as well as a Fortran frontend that currently can compute dislocation limiting velocities and the drag coefficient from phonon wind.
-Note that the Fortran version prioritizes computation speed over accuracy for dislocation drag.
+Note that (with its default settings) the Fortran version prioritizes computation speed over accuracy for dislocation drag.
 
 
 ## Feedback
