@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Oct. 30, 2026
+! Date: Mar. 31, 2026 - Nov. 4, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -57,6 +57,13 @@ module dislocdyn_dislocations
     !>Note: this cutoff is intended only for an isotropic dislocation field at low gliding velocity, as the shape of the cutoff
     !>is beta-dependent the way it is introduced (i.e. a circle only at beta=0).
     real(sel) :: r0cut = -1.d0
+    !>Option `modes` is a length-4 logical array controlling which phonon scattering modes are included in phonon wind calculations
+    !>(all four by default). Using shorthand 'T' for transverse and 'L' for longitudinal phonon, the order of the entries is 
+    !>TT, LL, TL, LT (i.e. purely transverse mode, purely longitudinal mode, and mixed modes where (from right to left) an
+    !>incoming longitudinal phonon scatters on the dislocation into a transverse phonon and vice versa.
+    !>At low gliding velocity TT dominates, whereas at high gliding velocity both TT and LT (i.e. the 1st and last entry) dominate.
+    !>Skipping entries LL, TL yields a 2x speedup at the cost of underestimating the drag coefficient by typically 10-20%.
+    logical, dimension(4) :: modes = [.true., .true., .true., .true.]
   end type phonondrag_opts
   public :: phonondrag, phonondrag_opts
   !-------------------------
@@ -373,7 +380,7 @@ module dislocdyn_dislocations
       lenq = opts%nq
       lent = opts%ntbase
       allocate(phi(lenph),q(lenq),sincos(disl%nphi,lenph),fourieruij(lenph,3,3,disl%ntheta),drag(disl%ntheta,nbeta))
-      allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta))
+      allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta), source=0.d0)
       ct = sqrt(disl%mu/disl%rho)
       cl = sqrt((disl%lam+2.d0*disl%mu)/disl%rho)
       qBZ = (6.d0*pi**2/disl%Vc)**(1.d0/3.d0)
@@ -417,15 +424,26 @@ module dislocdyn_dislocations
         end do
         call fourieruij_nocut(fourieruij,uijaligned,disl%phi,sincos,disl%ntheta,lenph,disl%nphi)
         ntdyn = int((1.d0+beta(bt))*lent)
-        call phononwind_xx(fourieruij, A3rot, qBZ, ct, 0.d0, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+        !print*,"MODES (TT, LL, TL, LT)",opts%modes
+        if (opts%modes(1)) then
+          call phononwind_xx(fourieruij, A3rot, qBZ, ct, 0.d0, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
                           opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragTT)
-        call phononwind_xy(fourieruij, A3rot, qBZ, cl, ct, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+        end if
+        if (opts%modes(4)) then
+          call phononwind_xy(fourieruij, A3rot, qBZ, cl, ct, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
                           opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragLT)
+        end if
         ntdyn = int((1.d0+0.5d0*beta(bt))*lent)
-        call phononwind_xx(fourieruij, A3rot, qBZ, ct, cl, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+        if (opts%modes(2)) then
+          call phononwind_xx(fourieruij, A3rot, qBZ, ct, cl, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
                           opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragLL)
-        call phononwind_xy(fourieruij, A3rot, qBZ, ct, cl, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
+        end if
+        if (opts%modes(3)) then
+          call phononwind_xy(fourieruij, A3rot, qBZ, ct, cl, beta(bt), disl%burgers, disl%Temp, disl%ntheta, ntdyn, lenph, &
                           opts%nq1, opts%nph1, .false., [1,0], opts%r0cut, opts%debye, dragTL)
+        end if
+!~         print*,"TT / 1, LL / 2, TL / 3, LT / 4"
+!~         print*,dragTT,dragLL,dragTL,dragLT
         drag(:,bt) = dragTT+dragLL+dragTL+dragLT
       end do
     end subroutine phonondrag
