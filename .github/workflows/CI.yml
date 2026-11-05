@@ -65,7 +65,8 @@ jobs:
         run: |
           fpm test --profile release
           echo 'N' | pytest -s --collect-only testing
-          pytest -n auto -rP --durations=0 testing/
+          pytest -s --durations=0 testing/test_vlim.py testing/test_fastdrag.py
+          pytest -n auto -rP --durations=0 testing/test_regression.py testing/test_unit.py
         if: runner.os == 'Windows'
       - name: Upload log files as artifacts
         uses: actions/upload-artifact@v7
