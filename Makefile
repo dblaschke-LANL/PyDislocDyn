@@ -31,7 +31,7 @@ endif
 ## name of executable
 EXEC = dislocdyn
 EXEC_tests = runtests
-SHARED = dislocdyn
+SHARED = dislocdynlib
 
 ## define colors for output via echo below
 COL_YELLOW = \033[33m
@@ -42,12 +42,12 @@ all:  runtests build clean
 
 help:
 	@echo "\n$(COL_YELLOW)TARGETS:$(COL_RESET)"
-	@echo "make all             build $(EXEC_tests) and $(EXEC), then delete all object files"
-	@echo "make runtests        only build the testsuite $(EXEC_tests)"
-	@echo "make build           only build $(EXEC)"
-	@echo "make shared          build the shared library $(SHARED) and $(EXEC) linked against it"
-	@echo "make clean           delete all object files"
-	@echo "make cleanall        delete all object files and executables\n"
+	@echo "make all             build $(EXEC_tests).x and $(EXEC).x, then delete all object files"
+	@echo "make runtests        only build the testsuite $(EXEC_tests).x"
+	@echo "make build           only build $(EXEC).x"
+	@echo "make shared          build the shared library lib$(SHARED).so and $(EXEC)_sh.x linked against it"
+	@echo "make clean           delete all object and mod files"
+	@echo "make cleanall        delete all object files, mod files, the library, and executables\n"
 	@echo "default build is with gfortran, set environment variable FC=lfortran, flang, ftn, or ifx"
 	@echo "to use another compiler (or edit this Makefile as needed)\n"
 
@@ -101,11 +101,11 @@ shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn
 	@echo "\n$(COL_PURPLE)-> On linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x $(COL_RESET)\n"
 
 static: build
-	ar rcs libdislocdyn.a subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o
+	ar rcs lib$(SHARED).a subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o
 
 clean: 
 	rm -f subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
 	dislocdyn_*.mod
 
 cleanall: clean
-	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so libdislocdyn.a
+	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so lib$(SHARED).a

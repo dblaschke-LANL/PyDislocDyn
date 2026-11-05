@@ -23,11 +23,13 @@ Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 * [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build this documentation
 
 ## Compiling
-* either run</br>
-`make shared`</br>
-(Linux and MacOS only),
-* or use the Fortran package manager:</br>
+* use the Fortran package manager:</br>
 `fpm build --profile release`
+
+* or run</br>
+`make shared`</br>
+(Linux and MacOS only); for a list of build targets run</br>
+`make help`</br>
 
 * to use the standalone Fortran library `dislocdynlib` within your fpm project, add the following to your `fpm.toml` file:</br>
 ```toml

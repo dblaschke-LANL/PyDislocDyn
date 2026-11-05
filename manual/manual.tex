@@ -50,7 +50,7 @@ colorlinks=true,linkcolor=DarkBlue,citecolor=DarkGreen,urlcolor=Maroon]{hyperref
 		\end{flushright}\vspace{2em}}{}%
 	PyDislocDyn --- Code Manual}
 \author{Daniel N. Blaschke}
-\date{November 4, 2026}
+\date{November 5, 2026}
 
 \begin{document}
 \maketitle
@@ -203,7 +203,7 @@ these can be conveniently read into a pandas dataframe by using function `\verb|
 \subsection{Anatomy of an input file}
 \label{sec:inputfiles}
 
-PyDislocDyn 1.4.x input files are toml files assigning values to keywords known to PyDislocDyn.
+PyDislocDyn 1.4.x input files are \verb|toml| files assigning values to keywords known to PyDislocDyn.
 All numerical values must be set in SI units.
 Comments are allowed and start with `\verb|#|'.
 Required keywords include:
@@ -359,7 +359,7 @@ In particular this includes the following objects:
 	\item \verb|elasticS2| and \verb|elasticS3| to calculate the second and third order compliance tensors from the elastic (or stiffness) tensors in Voigt notation (default) or in Cartesian coordinates (set \verb|voigt=False|).
 	\item \verb|convert_SOECiso| and \verb|convert_TOECiso| to convert between common sets of isotropic elastic constants at second (bulk, shear, and Young's modulus, Poisson's ratio, Lam\'e constants) and third (Standard rep., Murnaghan, and Tupin/Bernstein constants) order.
 	\item the \verb|strain_poly| class as described above in Section \ref{sec:strain_poly}.
-   \item helper functions \verb|writeinputfile| and \verb|writeallinputfiles|  to write data defined in the python dictionaries of sub-module \verb|metaldata| to PyDislocDyn input files.
+   \item helper functions \verb|writeinputfile| and \verb|writeallinputfiles|  to write data defined in the python dictionaries of sub-module \verb|metal_data| to PyDislocDyn input files.
    \item  the \verb|Dislocation| class as well as a function, \verb|readinputfile()|, to populate an instance from an input file, see Sections \ref{sec:Dislocation} and \ref{sec:inputfiles}.
    \item \verb|read_2dresults|, to read files containing results from line tension or drag coefficient calculations into a \verb|pandas.DataFrame| as described in Section \ref{sec:frontends}.
    \item the \verb|metal_props| class, see Section \ref{sec:metal_props}; function \verb|readinputfile()| will fall back to populating an instance of this class from an input file if no slip system is defined in that file.
@@ -373,7 +373,7 @@ In particular this includes the following objects:
 Additional functions are available within the sub-modules:
 \begin{itemize}
 	\item \verb|pydislocdyn.elasticconstants| with functions related to elastic constants,
-	\item \verb|pydislocdyn.metaldata| which contains a number of python dictionaries of material data included in PyDislocDyn (see \verb|pydislocdyn.metaldata.all_metals|, which is a set of keywords for metals included in this sub-module),
+	\item \verb|pydislocdyn.metal_data| which contains a number of python dictionaries of material data included in PyDislocDyn (see \verb|pydislocdyn.metal_data.all_metals|, which is a set of keywords for metals included in this sub-module),
 	\item \verb|pydislocdyn.utilities| contains various functions and definitions used by other parts of the package,
 	\item \verb|pydislocdyn.crystals| contains the \verb|metal_props| class (which is one of two parents of the \verb|Dislocation| class) and a function to populate an instance from an input file,
 	\item \verb|pydislocdyn.dislocations| contains the \verb|StrohGeometry| class (one of two parents of the \verb|Dislocation| class),  the \verb|Dislocation| class and various subroutines.
