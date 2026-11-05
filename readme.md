@@ -38,7 +38,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 * Python >=3.11,</br>
 * [numpy](https://numpy.org/doc/stable/user/) >=2.2,</br>
-* [scipy](https://docs.scipy.org/doc/scipy/reference/) >=1.13,</br>
+* [scipy](https://docs.scipy.org/doc/scipy/) >=1.13,</br>
 * [sympy](https://www.sympy.org) >=1.13,</br>
 * [matplotlib](https://matplotlib.org/) >=3.8.4</br>
 * [pandas](https://pandas.pydata.org/) >=2.2.3 (and Jinja2 >=3.1.2)</br>
@@ -47,12 +47,11 @@ The LANL development team asks that any forks or derivative works include approp
 ### Optional (but recommended):
 
 * a Fortran 2018 capable compiler (such as gfortran>=10) and meson
-to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);</br>
+to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
-* [joblib](https://joblib.readthedocs.io) >=1.2 (for parallelization),</br>
+* [joblib](https://joblib.readthedocs.io) >=1.2 (for parallelization),
 * [threadpoolctl](https://github.com/joblib/threadpoolctl) >=3.1 (for automatically adjusting the number of OpenMP threads in the Fortran subroutines and numpy to avoid overcommitting if joblib is used)
-* [numba](https://numba.pydata.org/) >=0.61.2 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),</br>
-* [pyyaml](https://github.com/yaml/pyyaml) >=6.0 (to read/write/convert input files in non-default .yaml format)
+* [numba](https://numba.pydata.org/) >=0.61.2 (for speedup via just-in-time compilation of some subroutines, although the Fortran subroutines are faster and thus preferred),
 * [hatchling](https://hatch.pypa.io/latest/) >=1.26 (to install via pip)
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
@@ -88,10 +87,14 @@ If compilation was successful, the following command will print 'True':</br>
 Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compiled Fortran module and if it is omitted, the compiled Fortran module has to be deleted manually upon uninstalling
 (in which case pip will let the user know its location).
 
-* to compile the standalone Fortran library and frontend, either run</br>
-`make shared`</br>
-(Linux and MacOS only), or use the Fortran package manager:</br>
-`fpm build --profile release`
+* to compile the standalone Fortran library and frontend, either
+    * use the Fortran package manager:</br>
+    `fpm build --profile release`
+
+    * or run</br>
+    `make shared`</br>
+    (Linux and MacOS only); for a list of build targets run</br>
+    `make help`</br>
 
 * to use the standalone Fortran library `dislocdynlib` within your fpm project, add the following to your `fpm.toml` file:</br>
 ```toml
@@ -142,7 +145,9 @@ Presents some simple examples of how PyDislocDyn can be used as a module.
 
 ### Fortran library and frontend
 
-A shared library, `dislocdynlib`, implementing a subset of PyDislocDyn features in Fortran is now available, as well as a Fortran frontend that currently can compute dislocation limiting velocities and the drag coefficient from phonon wind.
+* the shared library, `dislocdynlib`, implements a subset of PyDislocDyn features in Fortran and is most conveniently used in your project via Fortran Package Manager (fpm) as described above
+
+* the Fortran frontend, `dislocdyn`, can currently compute dislocation limiting velocities and the drag coefficient from phonon wind.
 Note that (with its default settings) the Fortran version prioritizes computation speed over accuracy for dislocation drag.
 
 
