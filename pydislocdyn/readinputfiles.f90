@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Oct. 30, 2026
+! Date: Apr. 10, 2026 - Nov. 4, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
@@ -150,6 +150,7 @@ module dislocdyn_readinputfiles
         if (key=='drag_nq1') read(values,*) sim_plan%drag%nq1
         if (key=='drag_debye') read(values,*) sim_plan%drag%debye
         if (key=='drag_r0cut') read(values,*) sim_plan%drag%r0cut
+        if (key=='drag_modes') read(values,*) sim_plan%drag%modes
       
       end do ! read file
       close(unit=42)
