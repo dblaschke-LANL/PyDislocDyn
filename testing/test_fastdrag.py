@@ -49,9 +49,9 @@ if not executable.exists():
     if fpm is None:
         fpmoutput = "    "
     else:
-        assert runcommand(basecommand+["-h"],'fpmoutput.log')==0, \
+        assert runcommand(basecommand+["-h"],'fpmoutput_drag.log')==0, \
             f"failed to compile the fortran frontend with {compiler=}"
-        with open("fpmoutput.log", "r", encoding="utf-8") as file:
+        with open("fpmoutput_drag.log", "r", encoding="utf-8") as file:
             fpmoutput = file.readlines()
     os.chdir(cwd)
     if any('DislocDyn' in s for s in fpmoutput):
