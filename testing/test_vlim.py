@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Sept. 25, 2026
+# Date: Aug. 6, 2026 - Nov. 4, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -31,16 +31,34 @@ reason  = ""
 executable = pathlib.Path(os.environ.get("DISLOCDYNEXE",dir_path / "dislocdyn.x"))
 
 fpm = shutil.which('fpm')
+compiler = os.getenv("FC")
+if compiler is None:
+    basecommand = [fpm,"run","--profile","release","--"]
+else:
+    basecommand = [fpm,"run","--profile","release","--compiler",compiler,"--"]
+
+def runcommand(command,logfname):
+    '''Run "command" as a subprocess and saving its stdout to a file "logfname"'''
+    out = -1
+    with open(logfname, 'w', encoding="utf8") as logfile:
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+            logfile.writelines(subproc.stdout)
+            subproc.wait()
+            out = subproc.returncode
+    if out !=0:
+        with open(logfname, 'r', encoding="utf8") as logfile:
+            print(logfile.read(), end="")
+    return out
+
 if not executable.exists():
     os.chdir(dir_path)
     if fpm is None:
         fpmoutput = "    "
     else:
-        with subprocess.Popen([fpm,"run","--profile","release","--","-v"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-            fpmoutput = []
-            for line in subproc.stdout:
-                fpmoutput.append(line)
-            subproc.wait()
+        assert runcommand(basecommand+["-v"],'fpmoutput.log')==0, \
+            f"failed to compile the fortran frontend with {compiler=}"
+        with open("fpmoutput.log", "r", encoding="utf-8") as file:
+            fpmoutput = file.readlines()
     os.chdir(cwd)
     if fpmoutput[-1].strip()[:4]=='2026':
         usefpm = True
@@ -57,9 +75,8 @@ os.chdir(example_path)
 prepare_inputfiles(tmpfolder)
 tmpfolder = example_path / tmpfolder
 os.chdir(cwd)
-basecommand = [executable]
-if usefpm:
-    basecommand = [fpm,"run","--profile","release","--"]
+if not usefpm:
+    basecommand = [executable]
 
 @pytest.mark.skipif(skiptests, reason=reason)
 def test_fortran_vlim_fcc(rnd=2):
@@ -74,11 +91,7 @@ def test_fortran_vlim_fcc(rnd=2):
     for X in sorted(pydislocdyn.metal_data.fcc_metals):
         command.append(tmpfolder / (X+".toml"))
     command.append(example_path / "vlim_fcc.toml")
-    with open("vlim_fcc.log", 'w', encoding="utf8") as logfile:
-        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-            for line in subproc.stdout:
-                logfile.write(line)
-            subproc.wait()
+    assert runcommand(command,'vlim_fcc.log')==0, "running the fortran executable failed"
     vlim_f_raw = read_dislocdyn_output("vlim_fcc.log",postprocess=True)
     for X in sorted(pydislocdyn.metal_data.fcc_metals):
         Y[X] = pydislocdyn.readinputfile(tmpfolder / (X+".toml"),Ntheta=99)
@@ -114,11 +127,7 @@ def test_fortran_vlim_bcc(rnd=2):
                 value = np.array(value,dtype=float)
                 infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
-        with open(f"vlim_bcc{slip}.log", 'w', encoding="utf8") as logfile:
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-                for line in subproc.stdout:
-                    logfile.write(line)
-                subproc.wait()
+        assert runcommand(command,f"vlim_bcc{slip}.log")==0, "running the fortran executable failed"
         vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_bcc{slip}.log",postprocess=True)
     for Xm in sorted(pydislocdyn.metal_data.bcc_metals):
         for slip in ["110", "112", "123"]:
@@ -163,11 +172,7 @@ def test_fortran_vlim_hcp(rnd=2):
                 value = np.array(value,dtype=int)# our present slip systems have only integer values
                 infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
-        with open(f"vlim_hcp{slip}.log", 'w', encoding="utf8") as logfile:
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-                for line in subproc.stdout:
-                    logfile.write(line)
-                subproc.wait()
+        assert runcommand(command,f"vlim_hcp{slip}.log")==0, "running the fortran executable failed"
         vlim_f_raw[slip] = read_dislocdyn_output(f"vlim_hcp{slip}.log",postprocess=True)
     for Xm in sorted(pydislocdyn.metal_data.hcp_metals):
         for slip, slipL in hcpslip.items():
@@ -207,11 +212,7 @@ def test_fortran_vlim_tetr(rnd=2):
                 value = np.array(value,dtype=float)
                 infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
-        with open(f"{fname[:-4]}log", 'w', encoding="utf8") as logfile:
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-                for line in subproc.stdout:
-                    logfile.write(line)
-                subproc.wait()
+        assert runcommand(command,f"{fname[:-4]}log")==0, "running the fortran executable failed"
         vlim_f_raw['bct'+slip] = read_dislocdyn_output(f"{fname[:-4]}log",postprocess=True)
     # fct metals:
     for islip in range(3):
@@ -229,11 +230,7 @@ def test_fortran_vlim_tetr(rnd=2):
                 value = np.array(value,dtype=float)
                 infile.write(', '.join(map(str,value))+'"\n')
         command.append(testfolder / fname)
-        with open(f"{fname[:-4]}log", 'w', encoding="utf8") as logfile:
-            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-                for line in subproc.stdout:
-                    logfile.write(line)
-                subproc.wait()
+        assert runcommand(command,f"{fname[:-4]}log")==0, "running the fortran executable failed"
         vlim_f_raw['fct'+slip] = read_dislocdyn_output(f"{fname[:-4]}log",postprocess=True)
     # the same with python, then compare:
     for Xm in sorted(pydislocdyn.metal_data.tetr_metals):
