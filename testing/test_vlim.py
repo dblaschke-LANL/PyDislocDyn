@@ -55,12 +55,12 @@ if not executable.exists():
     if fpm is None:
         fpmoutput = "    "
     else:
-        assert runcommand(basecommand+["-v"],'fpmoutput.log')==0, \
+        assert runcommand(basecommand+["-h"],'fpmoutput.log')==0, \
             f"failed to compile the fortran frontend with {compiler=}"
         with open("fpmoutput.log", "r", encoding="utf-8") as file:
             fpmoutput = file.readlines()
     os.chdir(cwd)
-    if fpmoutput[-1].strip()[:4]=='2026':
+    if any('DislocDyn' in s for s in fpmoutput):
         usefpm = True
 
 ## check if fortran executable exists, skip these tests if not:
