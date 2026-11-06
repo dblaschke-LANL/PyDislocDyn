@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Oct. 30, 2026
+! Date: Mar. 25, 2026 - Nov. 5, 2026
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
@@ -88,7 +88,7 @@ module dislocdyn_tests
       type(disloc) :: Cu, Ti, Fe
       type(phonondrag_opts) :: dragopts
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener, soundinvariant
-      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), vlim(:,:), vlim_low(:,:)
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), Btmp(:,:), vlim(:,:), vlim_low(:,:)
       logical :: istrue
       integer :: i, j
       ! in parts of this test we validate against results of the Python code PyDislocDyn
@@ -203,7 +203,14 @@ module dislocdyn_tests
       call testzero(sum(vlim)/1.d5 + sum(Etot) - 0.5059065d0 - 0.6158183d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(:,2:)), &
                     "disloc_Fe_neg-theta",1.d-5,count_pass,count_fail)
       dragopts%ntbase = 200
+      dragopts%modes = [.true.,.false.,.false.,.true.]
       call phonondrag(B,Fe,[0.25d0],options=dragopts)
+      dragopts%modes = [.false.,.true.,.true.,.false.]
+      call phonondrag(Btmp,Fe,[0.25d0],options=dragopts)
+      B = B + Btmp
+      dragopts%modes = [.false.,.false.,.false.,.false.]
+      call phonondrag(Btmp,Fe,[0.25d0],options=dragopts)
+      B = B + Btmp
       call testzero(sum(B)-0.0846864,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
       
     end subroutine test_disloc
