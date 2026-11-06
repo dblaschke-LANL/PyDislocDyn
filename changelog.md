@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.1 (wip)
+## 1.4.1 (2026-11-06)
 
 Features and improvements:
 

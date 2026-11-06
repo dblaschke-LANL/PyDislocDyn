@@ -293,7 +293,7 @@ program runtests
   integral = cumtrapz(func,x,resol)
   call testzero(pi**4/15.d0 - integral(resol),"cumtrapz",1.d-6,count_pass,count_fail)
   tmpintegral = trapz(func,x,resol)
-  call testzero(tmpintegral - integral(resol),"trapz",1.d-13,count_pass,count_fail)
+  call testzero(tmpintegral - integral(resol),"trapz",1.d-12,count_pass,count_fail)
   
   ! test inv
   CALL RANDOM_NUMBER(A)

@@ -10,8 +10,8 @@ else ifeq ($(FC),flang)
   FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
-else ifeq ($(FC),ftn)
-  FC = ftn
+else ifeq ($(FC),crayftn)
+  FC = crayftn
   FFLAGS = -O3 -fopenmp
   LDFLAGS = -fopenmp
   LD_SH = -shared $(LDFLAGS)
