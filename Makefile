@@ -1,4 +1,4 @@
-## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.66, ifx>=2024
+## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.68, ifx>=2024
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
@@ -38,7 +38,7 @@ COL_YELLOW = \033[33m
 COL_PURPLE = \033[35m
 COL_RESET = \033[0m
 
-all:  runtests build clean
+all:  build runtests clean
 
 help:
 	@echo "\n$(COL_YELLOW)TARGETS:$(COL_RESET)"
@@ -51,29 +51,32 @@ help:
 	@echo "default build is with gfortran, set environment variable FC=lfortran, flang, ftn, or ifx"
 	@echo "to use another compiler (or edit this Makefile as needed)\n"
 
-runtests: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
-          pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90  pydislocdyn/readinputfiles.f90 testing/runtests.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/optimize.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/crystals.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
-	$(FC) -c $(FFLAGS) pydislocdyn/readinputfiles.f90
+runtests: _builddisl testing/runtests.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	# Link
 	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \
   runtests.o $(LDFLAGS)
 
-build: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
-       pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90 app/dislocdyn.f90
+_buildsubrtn: pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
+
+_buildelastic: _buildsubrtn pydislocdyn/elasticconstants.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
+
+_buildopt: _buildsubrtn pydislocdyn/optimize.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/optimize.f90
+
+_buildphonon: _buildsubrtn pydislocdyn/phononwind.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/phononwind.f90
+
+_buildcryst: _buildsubrtn _buildelastic pydislocdyn/crystals.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/crystals.f90
+
+_builddisl: _buildcryst _buildopt _buildphonon pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/dislocations.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/readinputfiles.f90
+
+build: _builddisl app/dislocdyn.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link
 	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \

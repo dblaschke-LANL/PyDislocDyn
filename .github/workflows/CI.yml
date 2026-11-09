@@ -50,7 +50,7 @@ jobs:
       - name: Run tests Linux
         run: |
           fpm test --profile release
-          make
+          make -j
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'Linux'

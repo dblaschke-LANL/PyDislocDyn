@@ -1,6 +1,6 @@
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Nov. 5, 2017 - Oct. 29, 2026
+# Date: Nov. 5, 2017 - Nov. 5, 2026
 '''This module contains various utility functions used by other submodules.'''
 #################################
 import copy
@@ -43,14 +43,12 @@ import matplotlib.pyplot as plt
 ##### use pdflatex and specify font through preamble:
 if shutil.which('latex') and 'ipykernel' not in sys.modules:
     mpl.use("pgf")
-    texpreamble = "\n".join([
-          r"\usepackage[utf8x]{inputenc}",
-          r"\usepackage[T1]{fontenc}",
-          r"\DeclareUnicodeCharacter{2212}{-}",
-          r"\IfFileExists{fouriernc.sty}",
-          r"{\usepackage{fouriernc}}{}",
-          r"\usepackage{amsmath}",
-    ])
+    texpreamble = r"""\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\DeclareUnicodeCharacter{2212}{-}
+\IfFileExists{fouriernc.sty}
+{\usepackage{fouriernc}}{}
+\usepackage{amsmath}"""
     plt.rcParams.update({
         "text.usetex": True,
         "text.latex.preamble": texpreamble,

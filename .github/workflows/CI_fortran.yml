@@ -64,6 +64,6 @@ jobs:
       - name: Run tests MAKE
         run: |
           ${{ env.FC }}  --version
-          FC=${{ env.FC }} make
+          FC=${{ env.FC }} make -j
           ./runtests.x
         if: runner.os  != 'Windows'
