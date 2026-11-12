@@ -1,4 +1,4 @@
-## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.66, ifx>=2025
+## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.68, ifx>=2025
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
@@ -7,11 +7,11 @@ ifeq ($(FC),lfortran)
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
   FC = flang -v# -flto -ffree-line-length-225
-  FFLAGS = -O3 -pedantic -fopenmp -march=native# -ffast-math
+  FFLAGS = -O3 -pedantic -fopenmp -march=native# -mmlir -fdynamic-heap-array -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
-else ifeq ($(FC),ftn)
-  FC = ftn
+else ifeq ($(FC),crayftn)
+  FC = crayftn
   FFLAGS = -O3 -fopenmp
   LDFLAGS = -fopenmp
   LD_SH = -shared $(LDFLAGS)
@@ -38,7 +38,7 @@ COL_YELLOW = \033[33m
 COL_PURPLE = \033[35m
 COL_RESET = \033[0m
 
-all:  build runtests clean
+all:  build runtests
 
 help:
 	@echo "\n$(COL_YELLOW)TARGETS:$(COL_RESET)"
