@@ -1,4 +1,4 @@
-## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.68, ifx>=2024
+## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.68, ifx>=2024.1
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
@@ -7,7 +7,7 @@ ifeq ($(FC),lfortran)
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
   FC = flang -v# -flto -ffree-line-length-225
-  FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -ffast-math
+  FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -mmlir -fdynamic-heap-array -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),crayftn)

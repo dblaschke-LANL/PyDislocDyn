@@ -56,7 +56,7 @@ jobs:
         if: runner.os  == 'Linux'
       - name: Run tests MacOS
         run: |
-          make
+          make -j
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'MacOS'
