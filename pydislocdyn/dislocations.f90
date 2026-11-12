@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Nov. 4, 2026
+! Date: Mar. 31, 2026 - Nov. 12, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -368,8 +368,9 @@ module dislocdyn_dislocations
       !> drag coefficient as function of `theta` and `beta`, i.e. `drag(disl%ntheta,nbeta)`
       real(sel), intent(out), allocatable :: drag(:,:)
       type(phonondrag_opts) :: opts
-      real(sel) :: uij(disl%nphi,3,3,disl%ntheta), C3norm(3,3,3,3,3,3), A3(3,3,3,3,3,3), A3rot(3,3,3,3,3,3,disl%ntheta)
-      real(sel) :: rot(3,3), uijaligned(disl%nphi,3,3,disl%ntheta), ct, cl, qBZ
+      real(sel) :: C3norm(3,3,3,3,3,3), A3(3,3,3,3,3,3), A3rot(3,3,3,3,3,3,disl%ntheta)
+      real(sel) :: rot(3,3), ct, cl, qBZ
+      real(sel), allocatable :: uij(:,:,:,:), uijaligned(:,:,:,:)
       real(sel), allocatable :: phi(:), q(:), sincos(:,:), fourieruij(:,:,:,:), dragTT(:), dragLL(:), dragTL(:), dragLT(:)
       integer :: lenph, lenq, th, nbeta, bt, lent, ntdyn, i, ii, j, jj, k, kk, l, ll
       if (present(options)) then
@@ -379,6 +380,7 @@ module dislocdyn_dislocations
       lenph = opts%nphi
       lenq = opts%nq
       lent = opts%ntbase
+      allocate(uij(disl%nphi,3,3,disl%ntheta), uijaligned(disl%nphi,3,3,disl%ntheta))
       allocate(phi(lenph),q(lenq),sincos(disl%nphi,lenph),fourieruij(lenph,3,3,disl%ntheta),drag(disl%ntheta,nbeta))
       allocate(dragTT(disl%ntheta),dragLL(disl%ntheta),dragLT(disl%ntheta),dragTL(disl%ntheta), source=0.d0)
       ct = sqrt(disl%mu/disl%rho)

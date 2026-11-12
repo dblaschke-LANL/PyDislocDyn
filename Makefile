@@ -17,11 +17,11 @@ else ifeq ($(FC),crayftn)
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),ifx)
   FC = ifx
-  FFLAGS = -O3 -stand f23 -qopenmp -heap-arrays# -qno-openmp-simd -fp-model=precise -fno-fast-math
+  FFLAGS = -O3 -stand f23 -qopenmp -heap-arrays 1000# -qno-openmp-simd -fp-model=precise -fno-fast-math
   LDFLAGS = -qopenmp 
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
-  FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225
+  FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225 -fstack-usage
   FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2023 -march=native -fopenmp# -funroll-loops -finit-real=snan
 #  FFLAGS = -O0  -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp

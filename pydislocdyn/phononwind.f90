@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Oct. 29, 2026
+! Date: July 23, 2018 - Nov. 12, 2026
 
 !> this module contains subroutines for `phononwind_xx()` and `phononwind_xy()`
 module dislocdyn_phononwind_subroutines
@@ -17,8 +17,10 @@ module dislocdyn_phononwind_subroutines
       REAL(KIND=sel), INTENT(IN) :: q1(lenq1), q1h4(lenq1), prefac(lent,lenphi), OneMinBtqcosph1(lent,lenphi)
       REAL(KIND=sel), INTENT(OUT), DIMENSION(lent,lenphi,lenq1) :: distri
       INTEGER :: i
-      REAL(KIND=sel) :: phonon1, phonon2(lent,lenphi), beta
+      real(sel) :: phonon1, beta
+      real(sel), allocatable :: phonon2(:,:)
       
+      allocate(phonon2(lent,lenphi))
       beta = hbar/(kB*T)
       !$OMP PARALLEL DO PRIVATE(i,phonon1,phonon2)
       do i=1,lenq1
@@ -35,16 +37,19 @@ module dislocdyn_phononwind_subroutines
     subroutine thesum(output,tcosphi,sqrtsinphi,tsinphi,sqrtcosphi,sqrtt,qv,delta1,delta2,mag,A3,phi1,dphi1,lenph1,lentph)
     use dislocdyn_parameters, only : selsm
     implicit none
-    integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
     integer, intent(in) :: lentph, lenph1
     real(kind=selsm), intent(in), dimension(lenph1) :: phi1, dphi1
-    real(kind=selsm), dimension(lentph,3) :: qt, qtshift
-    real(kind=selsm), dimension(lentph,3,3,3,3) :: A3qt2, part1, part2
     real(kind=selsm), intent(in), dimension(lentph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
     real(kind=selsm), intent(in), dimension(lentph,3) :: qv
     real(kind=selsm), intent(in), dimension(3,3) :: delta1, delta2
     real(kind=selsm), intent(in), dimension(3,3,3,3,3,3) :: A3
     real(kind=selsm), intent(inout), dimension(lentph,3,3,3,3) :: output
+    ! local
+    integer :: i, j, k, l, ii, jj, kk, n, nn, m, p
+    real(selsm), dimension(:,:), allocatable :: qt, qtshift
+    real(selsm), dimension(:,:,:,:,:), allocatable :: A3qt2, part1, part2
+    
+    allocate(A3qt2(lentph,3,3,3,3), part1(lentph,3,3,3,3), part2(lentph,3,3,3,3), qt(lentph,3), qtshift(lentph,3))
 
     !~ ! problem: openmp puts private variables in the stack, and if maxrec>3 arrays can get too large and cause a segfault
     !~ !$OMP PARALLEL DO default(shared), private(i, j, k, l, ii, jj, kk, n, nn, m, p, &
@@ -339,14 +344,18 @@ module dislocdyn_phononwind
       real(kind=sel), intent(out), dimension(lentheta) :: dragb
     !----------- local vars ------------------------------------------------
       real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), t(lent), q1h4(lenq1-1), betafactor(lent), otherfactor(lent)
-      real(kind=sel) :: qvec(lenph,3), csphi(lenph), distri(lent,lenph,lenq1-1)
-      real(kind=sel) :: qtilde(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph)
+      real(kind=sel) :: qvec(lenph,3), csphi(lenph)
+      real(kind=sel), allocatable :: distri(:,:,:), qtilde(:,:), prefac(:,:), OneMinBtqcosph1(:,:), Bmx(:,:)
       real(kind=sel) :: dt, tmin, tmax, prefac1, ctovcl, cqBZ, hbarcsqBZ_TkB
-      real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
-      real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta(3,3)
-      real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+      real(kind=selsm), allocatable :: Bmix(:,:), prefactor1(:,:), flatpoly(:,:,:,:,:), qv(:,:)
+      real(kind=selsm) :: dijc(lenph,3,3), dphi1(lenph1-1), ph1(lenph1-1), delta(3,3), a3sm(3,3,3,3,3,3)
+      real(kind=selsm), dimension(:), allocatable :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
       integer :: Nchunks, kthchk, i, j, k, th
       
+      allocate(distri(lent,lenph,lenq1-1), qtilde(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph))
+      allocate(Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), qv(lent*lenph,3), mag(lent*lenph))
+      allocate(tcosphi(lent*lenph), sqrtsinphi(lent*lenph), tsinphi(lent*lenph), sqrtcosphi(lent*lenph), sqrtt(lent*lenph))
+
       Nchunks = chunks(1)
       kthchk = chunks(2)
       phi = linspace(0.d0,2.d0*pi,lenph)
@@ -498,13 +507,18 @@ module dislocdyn_phononwind
       real(kind=sel), intent(out), dimension(lentheta) :: dragb
     !----------- local vars ------------------------------------------------
       real(kind=sel) :: phi(lenph), q1(lenq1-1), phi1(lenph1), qtilde(lent), q1h4(lenq1-1), betafactor(lent), otherfactor(lent)
-      real(kind=sel) :: qvec(lenph,3), csphi(lenph), distri(lent,lenph,lenq1-1), q1limit(lent,lenph), qlimitratio(lent)
-      real(kind=sel) :: t(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph)
+      real(kind=sel) :: qvec(lenph,3), csphi(lenph), qlimitratio(lent)
+      real(sel), allocatable :: distri(:,:,:), t(:,:), prefac(:,:), OneMinBtqcosph1(:,:), Bmx(:,:), q1limit(:,:)
       real(kind=sel) :: dt, subqtmin, subqtmax, prefac1, ctovcl, cqBZ, beta1, beta2, qt_min, qt_max, hbarcsqBZ_TkB
-      real(kind=selsm) :: Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), a3sm(3,3,3,3,3,3)
-      real(kind=selsm) :: dijc(lenph,3,3), qv(lent*lenph,3), dphi1(lenph1-1), ph1(lenph1-1), delta1(3,3), delta2(3,3)
-      real(kind=selsm), dimension(lent*lenph) :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
+      real(selsm), allocatable :: Bmix(:,:), prefactor1(:,:), flatpoly(:,:,:,:,:), qv(:,:)
+      real(kind=selsm) :: dijc(lenph,3,3), dphi1(lenph1-1), ph1(lenph1-1), delta1(3,3), delta2(3,3), a3sm(3,3,3,3,3,3)
+      real(selsm), dimension(:), allocatable :: mag, tcosphi, sqrtsinphi, tsinphi, sqrtcosphi, sqrtt
       integer :: Nchunks, kthchk, i, j, k, th
+      
+      allocate(distri(lent,lenph,lenq1-1), t(lent,lenph), prefac(lent,lenph), OneMinBtqcosph1(lent,lenph), Bmx(lent,lenph))
+      allocate(q1limit(lent,lenph), Bmix(lent,lenph), prefactor1(lent,lenph), flatpoly(lent*lenph,3,3,3,3), qv(lent*lenph,3))
+      allocate(mag(lent*lenph), tcosphi(lent*lenph), sqrtsinphi(lent*lenph), tsinphi(lent*lenph))
+      allocate(sqrtcosphi(lent*lenph), sqrtt(lent*lenph))
       
       Nchunks = chunks(1)
       kthchk = chunks(2)
