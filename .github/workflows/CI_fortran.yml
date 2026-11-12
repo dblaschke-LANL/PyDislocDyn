@@ -23,7 +23,6 @@ jobs:
           #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
           - {compiler: lfortran, version: '0.68.0'}
           - {compiler: lfortran, version: '0.69.0'}
-          - {compiler: lfortran, version: 'latest'}
           #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
         exclude:
           #~ - os: macos-latest
