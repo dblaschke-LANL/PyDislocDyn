@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Fortran Package Manager
-        uses: fortran-lang/setup-fpm@v10
+        uses: fortran-lang/setup-fpm@v11
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         if: runner.os  == 'Linux' || runner.os == 'Windows'
