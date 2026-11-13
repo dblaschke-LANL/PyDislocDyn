@@ -23,6 +23,8 @@ jobs:
           #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
           - {compiler: lfortran, version: '0.68.0'}
           - {compiler: lfortran, version: '0.69.0'}
+          - {compiler: flang, version: '21'}
+          - {compiler: flang, version: 'latest'}
           #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
         exclude:
           #~ - os: macos-latest
@@ -32,9 +34,13 @@ jobs:
           - os: macos-latest
             toolchain: {compiler: intel}
           - os: macos-latest
+            toolchain: {compiler: flang}
+          - os: macos-latest
             toolchain: {compiler: gcc, version: '10'}
           - os: windows-latest
             toolchain: {compiler: intel}
+          - os: windows-latest
+            toolchain: {compiler: flang}
           #~ - os: windows-latest
             #~ toolchain: {compiler: nvidia-hpc}
           #~ - os: windows-latest
@@ -49,7 +55,7 @@ jobs:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
       - name: Setup Fortran Package Manager
-        uses: fortran-lang/setup-fpm@v10
+        uses: fortran-lang/setup-fpm@v11
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fpm-version: 'current'
