@@ -17,11 +17,11 @@ else ifeq ($(FC),crayftn)
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),ifx)
   FC = ifx
-  FFLAGS = -O3 -stand f23 -qopenmp -heap-arrays# -qno-openmp-simd -fp-model=precise -fno-fast-math
+  FFLAGS = -O3 -stand f23 -qopenmp -heap-arrays 1000# -qno-openmp-simd -fp-model=precise -fno-fast-math
   LDFLAGS = -qopenmp 
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
-  FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225
+  FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225 -fstack-usage
   FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native# -funroll-loops
 #  FFLAGS = -O0  -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp
@@ -38,7 +38,7 @@ COL_YELLOW = \033[33m
 COL_PURPLE = \033[35m
 COL_RESET = \033[0m
 
-all:  build runtests clean
+all:  build runtests
 
 help:
 	@echo "\n$(COL_YELLOW)TARGETS:$(COL_RESET)"

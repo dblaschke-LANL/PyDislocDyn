@@ -53,10 +53,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fpm-version: 'current'
-      - name: increase stack size
-        run: |
-          ulimit -s unlimited
-        if: runner.os  == 'Linux'
       - name: Run tests fpm
         run: |
           fpm --version
