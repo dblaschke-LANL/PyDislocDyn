@@ -19,7 +19,7 @@ jobs:
           #~ - {compiler: gcc, version: '10'}
           - {compiler: gcc, version: '15'}
           - {compiler: gcc, version: '16'}
-          - {compiler: intel, version: '2025.0'}
+          - {compiler: intel, version: '2025.1'}
           - {compiler: intel, version: 'latest'}
           #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
           - {compiler: lfortran, version: '0.68.0'}
