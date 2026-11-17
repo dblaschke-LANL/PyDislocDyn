@@ -14,42 +14,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         toolchain:
-          - {compiler: gcc, version: '10'}
-          - {compiler: gcc, version: 'latest'}
-          - {compiler: intel, version: '2024.1'}
-          - {compiler: intel, version: 'latest'}
-          #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
+          - {compiler: gfortran, version: '11'}
+          - {compiler: gfortran, version: 'latest'}
+          - {compiler: ifx, version: '2024.1'}
+          - {compiler: ifx, version: 'latest'}
+          #~ - {compiler: nvfortran, version: 'latest'} # does not support 'select rank'
           - {compiler: lfortran, version: '0.68.0'}
           - {compiler: lfortran, version: '0.69.0'}
           - {compiler: flang, version: '21'}
           - {compiler: flang, version: 'latest'}
-          #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
+          - {compiler: aocc, version: 'latest'} # <6.0 does not support fortran 2018, aof 6.0 not supported by fpm (yet)
         exclude:
           #~ - os: macos-latest
-            #~ toolchain: {compiler: nvidia-hpc}
-          #~ - os: macos-latest
-            #~ toolchain: {compiler: aocc}
+            #~ toolchain: {compiler: nvfortran}
           - os: macos-latest
-            toolchain: {compiler: intel}
+            toolchain: {compiler: aocc}
           - os: macos-latest
-            toolchain: {compiler: flang}
-          - os: macos-latest
-            toolchain: {compiler: gcc, version: '10'}
+            toolchain: {compiler: ifx}
           - os: windows-latest
-            toolchain: {compiler: intel}
+            toolchain: {compiler: ifx}
+          #~ - os: windows-latest
+            #~ toolchain: {compiler: nvfortran}
           - os: windows-latest
-            toolchain: {compiler: flang}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: nvidia-hpc}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: aocc}
+            toolchain: {compiler: aocc}
           - os: windows-latest
             toolchain: {compiler: lfortran} # broken on windows runner
     steps:
       - uses: actions/checkout@v7
-      - uses: fortran-lang/setup-fortran@v1
+      - uses: fortran-lang/setup-fortran@v2.0.0-beta.17
         id: setup-fortran
         with:
           compiler: ${{ matrix.toolchain.compiler }}
@@ -62,11 +56,18 @@ jobs:
       - name: Run tests fpm
         run: |
           fpm --version
-          fpm test --profile release --compiler ${{ env.FC }} 
-        if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
+          ${{ env.FC }}  --version
+          fpm test --profile release --compiler ${{ env.FC }}
+        #if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
+        if: matrix.toolchain.compiler != 'aocc'
       - name: Run tests MAKE
         run: |
-          ${{ env.FC }}  --version
-          FC=${{ env.FC }} make -j
+          if [[ "$TOOLCHAIN_COMPILER" == "aocc" ]]; then
+            aof  --version
+            FC='aof' make -j
+          else
+            ${{ env.FC }}  --version
+            FC=${{ env.FC }} make -j
+          fi
           ./runtests.x
         if: runner.os  != 'Windows'

@@ -10,6 +10,11 @@ else ifeq ($(FC),flang)
   FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -mmlir -fdynamic-heap-array -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
+else ifeq ($(FC),aof)
+  FC = aof -v
+  FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native
+  LDFLAGS = -lomp
+  LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),crayftn)
   FC = crayftn
   FFLAGS = -O3 -fopenmp
