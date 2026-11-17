@@ -47,9 +47,7 @@ jobs:
           - os: ubuntu-latest
             toolchain: {compiler: ifx, version: '2024.1'}
           - os: macos-latest
-            toolchain: {compiler: flang, version: '22'}
-          - os: macos-latest
-            toolchain: {compiler: flang, version: 'latest'} # unclear why it fails
+            toolchain: {compiler: flang} # unclear why it fails with 23 (21 missing omp, 22 not supported by action)
           - os: macos-latest
             toolchain: {compiler: gfortran, version: '11'}
           - os: macos-latest
@@ -68,6 +66,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: fortran-lang/setup-fortran@v2.0.0-beta.17
         id: setup-fortran
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
@@ -89,8 +89,8 @@ jobs:
             aof  --version
             FC='aof' make -j
           else
-            ${{ env.FC }}  --version
-            FC=${{ env.FC }} make -j
+            ${{matrix.toolchain.compiler}}  --version
+            FC=${{matrix.toolchain.compiler}} make -j
           fi
           ./runtests.x
         if: runner.os  != 'Windows'
