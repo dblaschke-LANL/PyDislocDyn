@@ -1,4 +1,4 @@
-## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.68, ifx>=2025
+## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.68, ifx>=2025, aof>=6.0, crayftn>=17
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
@@ -9,6 +9,11 @@ else ifeq ($(FC),flang)
   FC = flang -v# -flto -ffree-line-length-225
   FFLAGS = -O3 -pedantic -fopenmp -march=native# -mmlir -fdynamic-heap-array -ffast-math
   LDFLAGS = -lomp
+  LD_SH = -shared $(LDFLAGS)
+else ifeq ($(FC),aof)
+  FC = aof -v
+  FFLAGS = -O3 -pedantic -fopenmp -march=native
+  LDFLAGS = -Wl,-z,execstack -lomp
   LD_SH = -shared $(LDFLAGS)
 else ifeq ($(FC),crayftn)
   FC = crayftn

@@ -49,6 +49,7 @@ jobs:
           pip install .
       - name: Run tests Linux
         run: |
+          fpm --version
           fpm test --profile release
           make -j
           ./runtests.x
