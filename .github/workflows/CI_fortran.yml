@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-24.04, ubuntu-latest, macos-latest, windows-latest]
         toolchain:
           - {compiler: gfortran, version: '15'}
           - {compiler: gfortran, version: 'latest'}
@@ -27,6 +27,18 @@ jobs:
           - {compiler: flang, version: 'latest'}
           - {compiler: aocc, version: 'latest'} # <6.0 does not support fortran 2018, aof 6.0 not supported by fpm (yet)
         exclude:
+          - os: ubuntu-24.04
+            toolchain: {compiler: flang}
+          - os: ubuntu-24.04
+            toolchain: {compiler: gfortran}
+          - os: ubuntu-24.04
+            toolchain: {compiler: ifx, version: 'latest'}
+          - os: ubuntu-24.04
+            toolchain: {compiler: aocc}
+          - os: ubuntu-24.04
+            toolchain: {compiler: lfortran}
+          - os: ubuntu-latest
+            toolchain: {compiler: ifx, version: '2025.0'}
           - os: macos-latest
             toolchain: {compiler: flang} # unclear why it fails with 23 (21 missing omp, 22 not supported by action)
           - os: macos-latest
