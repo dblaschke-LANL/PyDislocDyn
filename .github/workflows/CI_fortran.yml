@@ -24,12 +24,9 @@ jobs:
           - {compiler: lfortran, version: '0.68.0'}
           - {compiler: lfortran, version: '0.69.0'}
           - {compiler: flang, version: '21'}
-          - {compiler: flang, version: '22'}
           - {compiler: flang, version: 'latest'}
           - {compiler: aocc, version: 'latest'} # <6.0 does not support fortran 2018, aof 6.0 not supported by fpm (yet)
         exclude:
-          - os: ubuntu-24.04
-            toolchain: {compiler: flang, version: '22'}
           - os: ubuntu-24.04
             toolchain: {compiler: flang, version: 'latest'}
           - os: ubuntu-24.04
