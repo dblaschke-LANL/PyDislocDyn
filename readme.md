@@ -108,6 +108,7 @@ dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
     - lfortran 0.68 &mdash; 0.69 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
     - ifx intel oneapi 2024.1 &mdash; 2026.2 (linux)
     - cray fortran compiler 17 (linux)
+    - aof (AMD aocc) 6.0 (linux)
 
 
 ## PyDislocDyn consists of:
