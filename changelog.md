@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.2 (wip)
+
+Fix:
+
+ - `dislocdynlib` and Fortran subroutines:
+     * fix stacksize-related crash on flang ('ulimit -s unlimited' workaround no longer necessary) 
+        <!-- Known issue: while flang now works fine on linux, it crashes on Windows and MacOS due to a missing implementation of a fortran callback-feature which we use in `computevcrit()` -->
+
+
 ## 1.4.1 (2026-11-06)
 
 Features and improvements:

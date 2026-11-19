@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Nov. 12, 2026
+! Date: July 23, 2018 - Nov. 18, 2026
 
 !> this module contains subroutines for `phononwind_xx()` and `phononwind_xy()`
 module dislocdyn_phononwind_subroutines
@@ -338,7 +338,7 @@ module dislocdyn_phononwind
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
-      real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:) :: A3
+      real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:), contiguous :: A3
       real(kind=sel), intent(in) :: qBZ, ct, cl, beta, burgers, Temp, r0cut
       logical, intent(in) :: updatet, debye
       integer, intent(in), dimension(2) :: chunks
@@ -501,7 +501,7 @@ module dislocdyn_phononwind
       IMPLICIT NONE
     !-----------------------------------------------------------------------
       integer, intent(in) :: lentheta, lent, lenph, lenq1, lenph1
-      real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:) :: A3
+      real(kind=sel), intent(in), dimension(:,:,:,:,:,:,:), contiguous :: A3
       real(kind=sel), intent(in) :: qBZ, cx, cy, beta, burgers, Temp, r0cut
       logical, intent(in) :: updatet, debye
       integer, intent(in), dimension(2) :: chunks

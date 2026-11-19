@@ -25,7 +25,7 @@ jobs:
           - {compiler: lfortran, version: '0.69.0'}
           - {compiler: flang, version: '21'}
           - {compiler: flang, version: 'latest'}
-          #~ - {compiler: aocc, version: 'latest'} # does not support fortran 2018
+          #~ - {compiler: aocc, version: 'latest'} # <6.0 does not support fortran 2018, aof 6.0 not supported by fpm (yet)
         exclude:
           #~ - os: macos-latest
             #~ toolchain: {compiler: nvidia-hpc}
@@ -51,6 +51,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: fortran-lang/setup-fortran@v1
         id: setup-fortran
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
@@ -62,8 +64,9 @@ jobs:
       - name: Run tests fpm
         run: |
           fpm --version
-          fpm test --profile release --compiler ${{ env.FC }} 
-        if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
+          ${{ env.FC }}  --version
+          fpm test --profile release --compiler ${{ env.FC }}
+        #if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
       - name: Run tests MAKE
         run: |
           ${{ env.FC }}  --version
