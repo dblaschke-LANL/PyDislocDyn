@@ -1,4 +1,4 @@
-## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.68, ifx>=2024.1
+## required compiler versions: gfortran>=10, flang>=21, lfortran>=0.68, ifx>=2024.1, aof>=6.0, crayftn>=17
 ifeq ($(FC),lfortran)
   FC = lfortran -v
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
@@ -27,7 +27,7 @@ else ifeq ($(FC),ifx)
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
   FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225 -fstack-usage
-  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -fopenmp -march=native# -funroll-loops
+  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -march=native -fopenmp# -Warray-temporaries -funroll-loops -finit-real=snan
 #  FFLAGS = -O0  -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
