@@ -14,42 +14,50 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest, windows-latest]
+        os: [ubuntu-24.04, ubuntu-latest, macos-latest, windows-latest]
         toolchain:
-          - {compiler: gcc, version: '10'}
-          - {compiler: gcc, version: 'latest'}
-          - {compiler: intel, version: '2024.1'}
-          - {compiler: intel, version: 'latest'}
-          #~ - {compiler: nvidia-hpc, version: 'latest'} # does not support 'select rank'
+          - {compiler: gfortran, version: '11'}
+          - {compiler: gfortran, version: 'latest'}
+          - {compiler: ifx, version: '2024.1'}
+          - {compiler: ifx, version: 'latest'}
+          #~ - {compiler: nvfortran, version: 'latest'} # does not support 'select rank'
           - {compiler: lfortran, version: '0.68.0'}
           - {compiler: lfortran, version: '0.69.0'}
           - {compiler: flang, version: '21'}
           - {compiler: flang, version: 'latest'}
-          #~ - {compiler: aocc, version: 'latest'} # <6.0 does not support fortran 2018, aof 6.0 not supported by fpm (yet)
+          - {compiler: aocc, version: 'latest'} # <6.0 does not support fortran 2018, aof 6.0 not supported by fpm (yet)
         exclude:
-          #~ - os: macos-latest
-            #~ toolchain: {compiler: nvidia-hpc}
-          #~ - os: macos-latest
-            #~ toolchain: {compiler: aocc}
-          - os: macos-latest
-            toolchain: {compiler: intel}
-          - os: macos-latest
+          - os: ubuntu-24.04
             toolchain: {compiler: flang}
+          - os: ubuntu-24.04
+            toolchain: {compiler: gfortran}
+          - os: ubuntu-24.04
+            toolchain: {compiler: ifx, version: 'latest'}
+          - os: ubuntu-24.04
+            toolchain: {compiler: aocc}
+          - os: ubuntu-24.04
+            toolchain: {compiler: lfortran}
+          - os: ubuntu-latest
+            toolchain: {compiler: ifx, version: '2024.1'}
           - os: macos-latest
-            toolchain: {compiler: gcc, version: '10'}
+            toolchain: {compiler: flang} # unclear why it fails with 23 (21 missing omp, 22 not supported by action)
+          - os: macos-latest
+            toolchain: {compiler: gfortran, version: '11'}
+          - os: macos-latest
+            toolchain: {compiler: aocc}
+          - os: macos-latest
+            toolchain: {compiler: ifx}
           - os: windows-latest
-            toolchain: {compiler: intel}
+            toolchain: {compiler: ifx}
           - os: windows-latest
-            toolchain: {compiler: flang}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: nvidia-hpc}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: aocc}
+            toolchain: {compiler: flang} # linking fails with shared lib, fpm issue?
+          - os: windows-latest
+            toolchain: {compiler: aocc}
           - os: windows-latest
             toolchain: {compiler: lfortran} # broken on windows runner
     steps:
       - uses: actions/checkout@v7
-      - uses: fortran-lang/setup-fortran@v1
+      - uses: fortran-lang/setup-fortran@v2.0.0-beta.17
         id: setup-fortran
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,10 +74,15 @@ jobs:
           fpm --version
           ${{ env.FC }}  --version
           fpm test --profile release --compiler ${{ env.FC }}
-        #if: runner.os  != 'MacOS' && matrix.toolchain.compiler != 'lfortran'
+        if: matrix.toolchain.compiler != 'aocc'
       - name: Run tests MAKE
         run: |
-          ${{ env.FC }}  --version
-          FC=${{ env.FC }} make -j
+          if [[ "${{matrix.toolchain.compiler}}" == "aocc" ]]; then
+            aof  --version
+            FC='aof' make -j
+          else
+            ${{matrix.toolchain.compiler}}  --version
+            FC=${{matrix.toolchain.compiler}} make -j
+          fi
           ./runtests.x
         if: runner.os  != 'Windows'
