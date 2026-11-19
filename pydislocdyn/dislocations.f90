@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Nov. 12, 2026
+! Date: Mar. 31, 2026 - Nov. 18, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -363,7 +363,7 @@ module dislocdyn_dislocations
     subroutine phonondrag(drag,disl,beta,options)
       use dislocdyn_phononwind
       type(disloc), intent(in) :: disl !! the dislocation (contains all material properties, slip system, etc.)
-      real(sel), intent(in) :: beta(:) !! list of velocities (normalized by transverse sound speed of `disl`) to calculate for
+      real(sel), intent(in), contiguous :: beta(:) !! list of velocities (normalized by transverse sound speed of `disl`) to calculate for
       type(phonondrag_opts), intent(in), optional :: options !! contains optional parameters (with default values)
       !> drag coefficient as function of `theta` and `beta`, i.e. `drag(disl%ntheta,nbeta)`
       real(sel), intent(out), allocatable :: drag(:,:)

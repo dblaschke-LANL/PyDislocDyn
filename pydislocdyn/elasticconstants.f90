@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Oct. 20, 2026
+! Date: Mar. 30, 2026 - Nov. 18, 2026
 module dislocdyn_elasticconstants
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   implicit none
@@ -58,7 +58,7 @@ module dislocdyn_elasticconstants
     end subroutine number_of_elasticC
     !> takes a list of independent elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC2(cij,sym,vc)
-      real(sel), intent(in) :: cij(:)
+      real(sel), intent(in), contiguous :: cij(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6)
       real(sel) :: x, xij(21)
@@ -147,7 +147,7 @@ module dislocdyn_elasticconstants
     !-------------------------
     !> takes a list of independent elastic constants and returns the 2nd order tensor in Voigt notation
     subroutine elasticC3(cijk,sym,vc)
-      real(sel), intent(in) :: cijk(:)
+      real(sel), intent(in), contiguous :: cijk(:)
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6,6)
       real(sel) :: xijk(56)
@@ -323,7 +323,7 @@ module dislocdyn_elasticconstants
   !-------------------------------------
   subroutine checkvoigt(x,b)
     !> checks if Cartesian tensor x has Voigt symmetry
-    real(kind=sel), intent(in) :: x(..)
+    real(kind=sel), intent(in), contiguous :: x(..)
     logical, intent(out) :: b
     real(kind=sel) :: y2(3,3), y4(3,3,3,3), y6(3,3,3,3,3,3)
     real(kind=sel) :: z1(6), z2(6,6), z3(6,6,6)
