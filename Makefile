@@ -1,12 +1,14 @@
 ## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.68, ifx>=2025, aof>=6.0, crayftn>=17
+PPFLAGS = 
 ifeq ($(FC),lfortran)
   FC = lfortran -v
+  PPFLAGS = --cpp
   FFLAGS = --fast --std=f23 --realloc-lhs-arrays#--openmp
 #   FFLAGS = --realloc-lhs-arrays --detect-leaks -g --fpe-trap invalid, zero, overflow, underflow, inexact, denormal
   LDFLAGS = 
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
-  FC = flang -v# -flto -ffree-line-length-225
+  FC = flang# -v -flto -ffree-line-length-225
   FFLAGS = -O3 -pedantic -fopenmp -march=native# -mmlir -fdynamic-heap-array -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
@@ -38,6 +40,10 @@ EXEC = dislocdyn
 EXEC_tests = runtests
 SHARED = dislocdynlib
 
+ifeq ($(FMIN_PATH),)
+	FMIN_PATH = ../fmin/src
+endif
+
 ## define colors for output via echo below
 COL_YELLOW = \033[33m
 COL_PURPLE = \033[35m
@@ -59,8 +65,8 @@ help:
 runtests: _builddisl testing/runtests.f90
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	# Link
-	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \
-  runtests.o $(LDFLAGS)
+	$(FC) -o $(EXEC_tests).x subroutines.o elasticconstants.o fmin_module.o optimize.o phononwind.o crystals.o dislocations.o \
+  readinputfiles.o runtests.o $(LDFLAGS)
 
 _buildsubrtn: pydislocdyn/subroutines.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/subroutines.f90
@@ -68,7 +74,8 @@ _buildsubrtn: pydislocdyn/subroutines.f90
 _buildelastic: _buildsubrtn pydislocdyn/elasticconstants.f90
 	$(FC) -c $(FFLAGS) pydislocdyn/elasticconstants.f90
 
-_buildopt: _buildsubrtn pydislocdyn/optimize.f90
+_buildopt: _buildsubrtn $(FMIN_PATH)/fmin_module.F90 pydislocdyn/optimize.f90
+	$(FC) -c $(PPFLAGS) $(FFLAGS) $(FMIN_PATH)/fmin_module.F90
 	$(FC) -c $(FFLAGS) pydislocdyn/optimize.f90
 
 _buildphonon: _buildsubrtn pydislocdyn/phononwind.f90
@@ -84,13 +91,14 @@ _builddisl: _buildcryst _buildopt _buildphonon pydislocdyn/dislocations.f90 pydi
 build: _builddisl app/dislocdyn.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link
-	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \
-	dislocdyn.o $(LDFLAGS)
+	$(FC) -o $(EXEC).x subroutines.o elasticconstants.o fmin_module.o optimize.o phononwind.o crystals.o dislocations.o \
+	readinputfiles.o dislocdyn.o $(LDFLAGS)
 	
-shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn/optimize.f90 \
+shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 $(FMIN_PATH)/fmin_module.F90 pydislocdyn/optimize.f90 \
         pydislocdyn/crystals.f90 pydislocdyn/dislocations.f90 pydislocdyn/readinputfiles.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/subroutines.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/elasticconstants.f90
+	$(FC) -c -fPIC $(PPFLAGS) $(FFLAGS) $(FMIN_PATH)/fmin_module.F90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/optimize.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/phononwind.f90
 	$(FC) -c -fPIC $(FFLAGS) pydislocdyn/crystals.f90
@@ -99,7 +107,7 @@ shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn
 	$(FC) -c $(FFLAGS) testing/runtests.f90
 	$(FC) -c $(FFLAGS) app/dislocdyn.f90
 	# Link for linux
-	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o \
+	$(FC) -o lib$(SHARED).so subroutines.o elasticconstants.o fmin_module.o optimize.o phononwind.o crystals.o dislocations.o \
 	readinputfiles.o $(LD_SH)
 
 	$(FC) -o $(EXEC_tests)_sh.x runtests.o $(LDFLAGS) -l$(SHARED) -L.
@@ -109,11 +117,12 @@ shared: pydislocdyn/subroutines.f90 pydislocdyn/elasticconstants.f90 pydislocdyn
 	@echo "\n$(COL_PURPLE)-> On linux run with: LD_LIBRARY_PATH="." ./dislocdyn_sh.x $(COL_RESET)\n"
 
 static: build
-	ar rcs lib$(SHARED).a subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o
+	ar rcs lib$(SHARED).a subroutines.o elasticconstants.o fmin_module.o optimize.o phononwind.o crystals.o dislocations.o \
+	readinputfiles.o
 
 clean: 
-	rm -f subroutines.o elasticconstants.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o runtests.o dislocdyn.o \
-	dislocdyn_*.mod
+	rm -f subroutines.o elasticconstants.o fmin_module.o optimize.o phononwind.o crystals.o dislocations.o readinputfiles.o \
+	runtests.o dislocdyn.o dislocdyn_*.mod fmin_module.mod
 
 cleanall: clean
 	rm -f $(EXEC_tests).x $(EXEC_tests)_sh.x $(EXEC).x $(EXEC)_sh.x lib$(SHARED).so lib$(SHARED).a

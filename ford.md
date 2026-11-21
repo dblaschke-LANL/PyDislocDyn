@@ -19,15 +19,15 @@ Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 ## Requirements
 
 * a Fortran 2023 capable compiler (such as gfortran 15 or higher)
-* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make
+* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make and [fmin](https://github.com/jacobwilliams/fmin)
 * [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build this documentation
 
 ## Compiling
 * use the Fortran package manager:</br>
 `fpm build --profile release`
 
-* or run</br>
-`make shared`</br>
+* or manually download [fmin](https://github.com/jacobwilliams/fmin) and run</br>
+`FMIN_PATH=path-to-fmin make shared -j`</br>
 (Linux and MacOS only); for a list of build targets run</br>
 `make help`</br>
 

@@ -2,7 +2,7 @@
 ! this Fortran implementation features only a subset of what the Python module can do
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Oct. 30, 2026
+! Date: Apr. 10, 2026 - Nov. 20, 2026
 program dislocdyn
   use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
   use dislocdyn_parameters, only : sel, rzero, pi, prog_version=>version
@@ -145,7 +145,9 @@ program dislocdyn
       else if (sim_plan%sim_type(p)%str=='vlimit') then
         if (allocated(vlim)) deallocate(vlim)
         allocate(vlim(disl(i)%ntheta,3))
+        disl(i)%vlim_minimizer = sim_plan%vlim_minimizer
         if (sim_plan%include_negative_theta) then
+          disl_neg(i)%vlim_minimizer = sim_plan%vlim_minimizer
           call disl_neg(i)%computevcrit(vlim)
           do k=1,2
             write(un(k),*) new_line('a')//"--- Limiting dislocation velocities, negative character angles ---"

@@ -55,7 +55,7 @@ A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included t
 * [hatchling](https://hatch.pypa.io/latest/) >=1.26 (to install via pip)
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
-* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make to build the standalone Fortran frontend and library 
+* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make and [fmin](https://github.com/jacobwilliams/fmin) to build the standalone Fortran frontend and library 
 * [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build the documentation detailing the API of the Fortran library
 
 ## Documentation
@@ -91,8 +91,8 @@ Note: the first command (introduced in PyDislocDyn>1.3.3) will remove the compil
     * use the Fortran package manager:</br>
     `fpm build --profile release`
 
-    * or run</br>
-    `make shared`</br>
+    * or manually download [fmin](https://github.com/jacobwilliams/fmin) and run</br>
+    `FMIN_PATH=path-to-fmin make shared -j`</br>
     (Linux and MacOS only); for a list of build targets run</br>
     `make help`</br>
 

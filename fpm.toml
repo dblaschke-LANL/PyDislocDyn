@@ -1,5 +1,5 @@
 name = "dislocdynlib"
-version = "20261118"
+version = "20261120"
 license = "LICENSE.md"
 author = "Daniel N. Blaschke"
 maintainer = "40176390+dblaschke-LANL@users.noreply.github.com"
@@ -9,6 +9,7 @@ homepage = "https://github.com/dblaschke-LANL/PyDislocDyn"
 [dependencies]
 #stdlib = "*"
 openmp = "*"
+fmin = { git="https://github.com/jacobwilliams/fmin.git" }
 
 #[dev-dependencies]
 #test-drive.git = "https://github.com/fortran-lang/test-drive"
@@ -17,14 +18,14 @@ openmp = "*"
 [features]
 baseline.gfortran.flags = "-O3 -march=native -std=f2023"
 baseline.flang.flags = "-O3 -march=native"
-baseline.lfortran.flags = "--fast --realloc-lhs-arrays --std=f23"
+baseline.lfortran.flags = "--fast --realloc-lhs-arrays --std=f23 --cpp"
 baseline.ifx.flags = "-O3 -heap-arrays 1000 -stand f23"
 
 [profiles]
 default = ["baseline"]
 
 [library]
-type = ["shared", "static"]
+#~ type = ["shared", "static"]
 source-dir = "pydislocdyn"
 
 [[executable]]
@@ -37,8 +38,8 @@ name = "runtests"
 source-dir = "testing"
 main = "runtests.f90"
 
-[install]
-library = true
+#~ [install]
+#~ library = true
 
 [extra.ford]
 project = "dislocdynlib"

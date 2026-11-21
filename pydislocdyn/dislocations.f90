@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Nov. 18, 2026
+! Date: Mar. 31, 2026 - Nov. 20, 2026
 module dislocdyn_dislocations
   use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
   use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
@@ -22,6 +22,10 @@ module dislocdyn_dislocations
     real(sel), allocatable :: theta(:), phi(:), rot(:,:,:), t(:,:), C2aligned(:,:,:)
     real(sel), allocatable :: m0(:,:), M(:,:,:), N(:,:,:), Cv(:,:,:,:,:)
     real(sel), allocatable :: uij(:,:,:,:)
+    !> configure optimiztion algorithm to use for limiting velocity calcultaions. Choose between these presets:
+    !> 1 ... brute force minimizer 'minimize_simple()' optimized for speed (default)
+    !> 2 ... multi-start Brent method using fmin() on multiple overlapping sub-intervals, optimized for speed
+    integer :: vlim_minimizer=1
     contains
       procedure :: update_slipplane => update_slipplane
       procedure :: update_theta => set_character_angles
@@ -207,7 +211,7 @@ module dislocdyn_dislocations
     !>Otherwise, we adapt the method of [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)]
     !>to the present decoupled 2D special case.
     subroutine computevcrit_edge(disl,vlim)
-      use dislocdyn_opt, only : minimize_simple
+      use dislocdyn_opt, only : minimize_simple, minimize_fmin
       use dislocdyn_utilities, only : elbrak1d
       use dislocdyn_subroutines, only : edgevlim_of_phi
       class(disloc), intent(in) :: disl
@@ -233,7 +237,13 @@ module dislocdyn_dislocations
       else
         call unvoigt(disl%C2aligned(:,:,disl%ntheta)/disl%C2(4,4),C2)
         norm=(disl%C2(4,4)/disl%rho)
-        vlim = f_edge_l(minimize_simple(f_edge_l,-0.5d0*pi,0.5d0*pi,2,1.d-4,int(disl%nphi/5),20))
+        if (disl%vlim_minimizer==1) then
+          vlim = f_edge_l(minimize_simple(f_edge_l,-0.5d0*pi,0.5d0*pi,2,1.d-4,int(disl%nphi/5),20))
+        else if (disl%vlim_minimizer==2) then
+          vlim = f_edge_l(minimize_fmin(f_edge_l,-0.5d0*pi,0.5d0*pi,1.d-5,8,overlap=0.25d0))
+        else
+          error stop "Undefined preset: vlim_minimizer must be 1 (for minimize_simple) or 2 (for minimize_fmin)"
+        end if
       end if
       contains
         pure function f_edge_l(x) result(y)
@@ -245,8 +255,8 @@ module dislocdyn_dislocations
     !-------------------------
     !> Computes the limiting velocities following [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)].
     !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
-    pure subroutine computevcrit_barnett(disl,th,vlim,lowest_only)
-      use dislocdyn_opt, only : minimize_simple
+    subroutine computevcrit_barnett(disl,th,vlim,lowest_only)
+      use dislocdyn_opt, only : minimize_simple, minimize_fmin
       use dislocdyn_utilities, only : elbrak1d
       use dislocdyn_subroutines, only : vlim_of_phi
       class(disloc), intent(in) :: disl
@@ -264,13 +274,26 @@ module dislocdyn_dislocations
       norm=(disl%C2(4,4)/disl%rho)
       lb = -0.5d0*pi
       ub = 0.5d0*pi
-      vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),60))
+      if (disl%vlim_minimizer==1) then
+        vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),60))
+      else if (disl%vlim_minimizer==2) then
+        vlim(1) = f1(minimize_fmin(f1,lb,ub,1.d-5,8,overlap=0.25d0))
+      else
+        error stop "Undefined preset: vlim_minimizer must be 1 (for minimize_simple) or 2 (for minimize_fmin)"
+      end if
       if (nohigh) then
         vlim(2) = vlim(1) ! don't set to zero before the sorting is done
         vlim(3) = vlim(1)
       else
-        vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),40))
-        vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+        if (disl%vlim_minimizer==1) then
+          vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),40))
+          vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+        else if (disl%vlim_minimizer==2) then
+          vlim(2) = f2(minimize_fmin(f2,lb,ub,1.d-5,5,overlap=0.2d0))
+          vlim(3) = f3(minimize_fmin(f3,lb,ub,1.d-5,5,overlap=0.2d0))
+        else
+          error stop "Undefined preset: vlim_minimizer must be 1 (for minimize_simple) or 2 (for minimize_fmin)"
+        end if
       end if
       if (.not. ((vlim(1)<=vlim(2)) .and. (vlim(2)<=vlim(3)))) then
         do i = 1, 2

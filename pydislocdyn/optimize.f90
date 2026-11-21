@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 28, 2026 - Oct. 22, 2026
+! Date: July 28, 2026 - Nov. 20, 2026
 
 !> contains optimiziation algorithms; we use very simple ones to be self-contained
 !> once better external Fortran libraries become available, we will switch
@@ -59,4 +59,37 @@ module dislocdyn_opt
       end if
     end do
     end function minimize_simple
+
+    !> devide the 1D space u-l into n intervals, call fmin() (from fmin_module) for each interval and evaluate the fct(x) at
+    !> the end points as well as the points separating the n intervals. Return x for the smallest result. If n=1, the only 
+    !> difference to calling fmin() directly is the additional check if fct(l) or fct(u) is even smaller.
+    !> Option 0<=olap<1/2 defines the fraction of an interval that is included also in its neighboring fmin() call
+    function minimize_fmin(fct,l,u,tol,n,overlap) result(x)
+    use dislocdyn_parameters, only : sel
+    use dislocdyn_utilities, only : linspace
+    use fmin_module, only: opt_fmin => fmin
+    procedure(callback_func) :: fct
+    real(sel), intent(in) :: l,u, overlap, tol
+    integer, intent(in) :: n
+    real(sel) :: x, olap
+    ! local vars:
+    real(sel) :: c0(n+1), y0(n+1), fmin, xn, fmin_new
+    integer :: j, idx
+    c0 = linspace(l,u,n+1)
+    olap = overlap*(c0(2)-c0(1))
+    do concurrent (j=1:n+1)
+      y0(j) = fct(c0(j))
+    end do
+    idx = minloc(y0,dim=1)
+    fmin = y0(idx)
+    x = c0(idx)
+    do j=1,n
+      xn = opt_fmin(fct,c0(j)-olap,c0(j+1)+olap,tol)
+      fmin_new = fct(xn)
+      if (fmin_new<fmin) then
+        fmin = fmin_new
+        x = xn
+      end if
+    end do
+    end function minimize_fmin
 end module dislocdyn_opt

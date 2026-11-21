@@ -25,6 +25,7 @@ module dislocdyn_readinputfiles
     real(sel) :: Millernorm = 1.d0
     logical :: echoinput = .true.
     logical :: include_negative_theta = .false.
+    integer :: vlim_minimizer=1 !! choose a preset of a minimization algorithms for use in `computevcrit()` calcs
   end type inputdeck
   
   !-------------------------
@@ -120,6 +121,7 @@ module dislocdyn_readinputfiles
         if (key=='logfile') sim_plan%logfile = trim(values)
         if (key=='echoinput') read(values,*) sim_plan%echoinput
         if (key=='include_negative_theta') read(values,*) sim_plan%include_negative_theta
+        if (key=='vlim_minimizer') read(values,*) sim_plan%vlim_minimizer
         if (istoml) then
           if (key=='b' .or. key=='Millerb') read(values,*) sim_plan%b(1:n)
           if (key=='n0' .or. key=='Millern0') read(values,*) sim_plan%n0(1:n)
