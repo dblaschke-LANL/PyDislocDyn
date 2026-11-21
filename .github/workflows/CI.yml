@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Fortran Compiler
-        uses: fortran-lang/setup-fortran@v1
+        uses: fortran-lang/setup-fortran@v2.0.0-beta.17
         if: runner.os == 'MacOS' || runner.os == 'Windows'
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7

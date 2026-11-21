@@ -77,8 +77,8 @@ jobs:
         run: |
           if [[ "${{matrix.toolchain.compiler}}" == "aocc" ]]; then
             aof  --version
-            FC=gfortran fpm build
-            FC='aof' make -j
+            fpm build --compiler gfortran
+            FC='aof' FMIN_PATH=build/dependencies/fmin/src make -j
           else
             ${{matrix.toolchain.compiler}}  --version
             FC=${{matrix.toolchain.compiler}} FMIN_PATH=build/dependencies/fmin/src make -j
