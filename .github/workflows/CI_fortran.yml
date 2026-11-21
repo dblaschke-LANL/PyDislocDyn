@@ -80,7 +80,7 @@ jobs:
             FC='aof' make -j
           else
             ${{matrix.toolchain.compiler}}  --version
-            FC=${{matrix.toolchain.compiler}} make -j
+            FC=${{matrix.toolchain.compiler}} FMIN_PATH=build/dependencies/fmin/src make -j
           fi
           ./runtests.x
         if: runner.os  != 'Windows'

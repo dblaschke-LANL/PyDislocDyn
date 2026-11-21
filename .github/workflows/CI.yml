@@ -51,13 +51,15 @@ jobs:
         run: |
           fpm --version
           fpm test --profile release
-          make -j
+          FMIN_PATH=build/dependencies/fmin/src make -j
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'Linux'
       - name: Run tests MacOS
         run: |
-          make -j
+          fpm --version
+          fpm test --profile release
+          FMIN_PATH=build/dependencies/fmin/src make -j
           ./runtests.x
           yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'MacOS'
