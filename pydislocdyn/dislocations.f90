@@ -206,14 +206,19 @@ module dislocdyn_dislocations
     !>If elastic constants c16 and c26 are zero, we use the analytic solution of [[L. J. Teutonico 1961, Phys. Rev. 124:1039](https://doi.org/10.1103/PhysRev.124.1039)].
     !>Otherwise, we adapt the method of [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)]
     !>to the present decoupled 2D special case.
-    subroutine computevcrit_edge(disl,vlim)
+    subroutine computevcrit_edge(disl,vlim,tolerance)
       use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
       use dislocdyn_subroutines, only : edgevlim_of_phi
       class(disloc), intent(in) :: disl
+      real(sel), intent(in), optional :: tolerance
       real(sel), intent(out) :: vlim
       real(sel) :: c11, c12, c22, c66, c16, c26, tmpvlim, norm
-      real(sel) :: C2(3,3,3,3)
+      real(sel) :: C2(3,3,3,3), tol
+      tol = 1.d-4
+      if (present(tolerance)) then
+        tol = tolerance
+      end if
       c11=disl%C2aligned(1,1,disl%ntheta)
       c22=disl%C2aligned(2,2,disl%ntheta)
       c66=disl%C2aligned(6,6,disl%ntheta)
@@ -233,7 +238,7 @@ module dislocdyn_dislocations
       else
         call unvoigt(disl%C2aligned(:,:,disl%ntheta)/disl%C2(4,4),C2)
         norm=(disl%C2(4,4)/disl%rho)
-        vlim = f_edge_l(minimize_simple(f_edge_l,-0.5d0*pi,0.5d0*pi,2,1.d-4,int(disl%nphi/5),20))
+        vlim = f_edge_l(minimize_simple(f_edge_l,-0.5d0*pi,0.5d0*pi,2,tol,int(disl%nphi/5),20))
       end if
       contains
         pure function f_edge_l(x) result(y)
@@ -245,32 +250,37 @@ module dislocdyn_dislocations
     !-------------------------
     !> Computes the limiting velocities following [[Barnett et al., J. Phys. F, 3 (1973) 1083, sec. 5](https://doi.org/10.1088/0305-4608/3/6/001)].
     !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
-    pure subroutine computevcrit_barnett(disl,th,vlim,lowest_only)
+    pure subroutine computevcrit_barnett(disl,th,vlim,lowest_only,tolerance)
       use dislocdyn_opt, only : minimize_simple
       use dislocdyn_utilities, only : elbrak1d
       use dislocdyn_subroutines, only : vlim_of_phi
       class(disloc), intent(in) :: disl
       integer, intent(in) :: th !! index of the character angle `disl%theta(th)`
       logical, intent(in), optional   :: lowest_only
+      real(sel), intent(in), optional :: tolerance
       real(sel), intent(out) :: vlim(3) !! 3 branches to consider, the lowest value is the (lowest) limiting velocity
-      real(sel) :: norm, C2(3,3,3,3), tmp, ub, lb
+      real(sel) :: norm, C2(3,3,3,3), tmp, ub, lb, tol
       integer :: i, j
       logical :: nohigh
       nohigh = .false.
       if (present(lowest_only)) then
         nohigh = lowest_only
       end if
+      tol = 1.d-4
+      if (present(tolerance)) then
+        tol = tolerance
+      end if
       call unvoigt(disl%C2/disl%C2(4,4),C2)
       norm=(disl%C2(4,4)/disl%rho)
       lb = -0.5d0*pi
       ub = 0.5d0*pi
-      vlim(1) = f1(minimize_simple(f1,lb,ub,2,1.d-4,int(disl%nphi/5),60))
+      vlim(1) = f1(minimize_simple(f1,lb,ub,2,tol,int(disl%nphi/5),60))
       if (nohigh) then
         vlim(2) = vlim(1) ! don't set to zero before the sorting is done
         vlim(3) = vlim(1)
       else
-        vlim(2) = f2(minimize_simple(f2,lb,ub,2,1.d-4,int(disl%nphi/5),40))
-        vlim(3) = f3(minimize_simple(f3,lb,ub,2,1.d-4,int(disl%nphi/5),20))
+        vlim(2) = f2(minimize_simple(f2,lb,ub,2,tol,int(disl%nphi/5),40))
+        vlim(3) = f3(minimize_simple(f3,lb,ub,2,tol,int(disl%nphi/5),20))
       end if
       if (.not. ((vlim(1)<=vlim(2)) .and. (vlim(2)<=vlim(3)))) then
         do i = 1, 2
@@ -314,16 +324,21 @@ module dislocdyn_dislocations
     !> If option `lowest_only=.true.`, we only compute the lowest limiting velocities, and other entries are zero.
     !> If option `lowest_only=.true.` and `disl%sym`='fcc', we also fast-track the calculation of the edge dislocation using
     !> the analytical result for the 12 fcc slip planes of \(\sqrt{(\min(c',c_{44})/\rho)}\). Set `disl%sym`='cubic' to avoid this.
-    subroutine computevcrit(disl,vlim,lowest_only)
+    subroutine computevcrit(disl,vlim,lowest_only,tolerance)
       class(disloc), intent(in) :: disl
       logical, intent(in), optional   :: lowest_only
+      real(sel), intent(in), optional :: tolerance
       real(sel), intent(out) :: vlim(disl%ntheta,3)
-      real(sel) :: tmp
+      real(sel) :: tmp, tol
       integer th, sth, eth
       logical :: nohigh, reflect
       nohigh = .false.
       if (present(lowest_only)) then
         nohigh = lowest_only
+      end if
+      tol = 1.d-4
+      if (present(tolerance)) then
+        tol = tolerance
       end if
       vlim = 0.d0
       tmp = 0.d0
@@ -343,11 +358,11 @@ module dislocdyn_dislocations
       end if
       !$OMP PARALLEL DO
       do th=sth,eth
-        call computevcrit_barnett(disl,th,vlim(th,:),nohigh)
+        call computevcrit_barnett(disl,th,vlim(th,:),nohigh,tolerance=tol)
       end do
       !$OMP END PARALLEL DO
       if (reflect) then
-        call disl%computevcrit_edge(tmp)
+        call disl%computevcrit_edge(tmp,tolerance=tol)
         vlim(disl%ntheta,:2) = tmp
       else if ( (disl%sym=="fcc") .and. (nohigh) ) then
         ! in general, we would need to check the slip system as well and computevcrit_barnett() is accurate enough

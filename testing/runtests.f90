@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Nov. 5, 2026
+! Date: Mar. 25, 2026 - Nov. 23, 2026
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
@@ -174,7 +174,7 @@ module dislocdyn_tests
       deallocate(vlim,vlim_low)
       allocate(vlim(Ti%ntheta,3),vlim_low(Ti%ntheta,3))
       call Ti%computevcrit(vlim)
-      call Ti%computevcrit(vlim_low,lowest_only=.true.)
+      call Ti%computevcrit(vlim_low,lowest_only=.true.,tolerance=1.d-3)
       call testzero(vlim_s+vlim_e-6014.271264d0 + sum(vlim)-33723.904944d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(2,2:)) + &
                     sum(vlim_low(2:,3)), "disloc_Tipris_vlimit", 1.d-6, count_pass, count_fail)
       

@@ -6,7 +6,7 @@ ifeq ($(FC),lfortran)
   LDFLAGS = 
   LD_SH = --shared $(LDFLAGS)
 else ifeq ($(FC),flang)
-  FC = flang -v# -flto -ffree-line-length-225
+  FC = flang# -v -flto -ffree-line-length-225
   FFLAGS = -O3 -pedantic -std=f2018 -fopenmp -march=native# -mmlir -fdynamic-heap-array -ffast-math
   LDFLAGS = -lomp
   LD_SH = -shared $(LDFLAGS)
