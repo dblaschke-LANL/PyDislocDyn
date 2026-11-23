@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 28, 2026 - Oct. 22, 2026
+! Date: July 28, 2026 - Nov. 23, 2026
 
 !> contains optimiziation algorithms; we use very simple ones to be self-contained
 !> once better external Fortran libraries become available, we will switch
@@ -38,9 +38,11 @@ module dislocdyn_opt
     idx = minloc(y0,dim=1)
     fmin = y0(idx)
     x = c0(idx)
+    if ((idx==1) .or. (idx==n0)) then
+      return
+    end if
     w1 = c0(idx-1)
     w2 = c0(idx+1)
-    if ((idx==1) .or. (idx==n0)) i = maxiter
     do while (i<maxiter)
       fmin_old = fmin
       c = linspace(w1,w2,n)
@@ -50,13 +52,11 @@ module dislocdyn_opt
       idx = minloc(y,dim=1)
       fmin = y(idx)
       x = c(idx)
+      if ( (abs(fmin-fmin_old)<tol) .or. (idx==1) .or. (idx==n) ) then
+        return
+      end if
       w1 = c(idx-1)
       w2 = c(idx+1)
-      if (abs(fmin-fmin_old)<tol) then
-        i = maxiter
-      else if ((idx==1) .or. (idx==n)) then
-        i = maxiter
-      end if
     end do
     end function minimize_simple
 end module dislocdyn_opt
