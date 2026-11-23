@@ -1,7 +1,7 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Nov. 5, 2026
+! Date: Mar. 25, 2026 - Nov. 23, 2026
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
   implicit none
@@ -88,7 +88,7 @@ module dislocdyn_tests
       type(disloc) :: Cu, Ti, Fe
       type(phonondrag_opts) :: dragopts
       real(sel) :: C2(3,3,3,3), C3(3,3,3,3,3,3), vlim_s, vlim_e, Millerv(3,4), v(3),vsound(3), anisidx, zener, soundinvariant
-      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), Btmp(:,:), vlim(:,:), vlim_low(:,:)
+      real(sel), allocatable :: zeros(:), Etot(:), B(:,:), Btmp(:,:), vlim(:,:), vlim_tmp(:,:), vlim_low(:,:)
       logical :: istrue
       integer :: i, j
       ! in parts of this test we validate against results of the Python code PyDislocDyn
@@ -174,7 +174,7 @@ module dislocdyn_tests
       deallocate(vlim,vlim_low)
       allocate(vlim(Ti%ntheta,3),vlim_low(Ti%ntheta,3))
       call Ti%computevcrit(vlim)
-      call Ti%computevcrit(vlim_low,lowest_only=.true.)
+      call Ti%computevcrit(vlim_low,lowest_only=.true.,tolerance=1.d-3)
       call testzero(vlim_s+vlim_e-6014.271264d0 + sum(vlim)-33723.904944d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(2,2:)) + &
                     sum(vlim_low(2:,3)), "disloc_Tipris_vlimit", 1.d-6, count_pass, count_fail)
       
@@ -182,9 +182,17 @@ module dislocdyn_tests
       Fe%cij = [226.0d9, 140.0d9, 116.0d9]
       call Fe%init(Millerb=[0.5d0,-0.5d0,0.5d0],Millern0=[1.d0,-1.d0,-2.d0])
       deallocate(vlim)
-      allocate(vlim(Fe%ntheta,3))
+      allocate(vlim(Fe%ntheta,3),vlim_tmp(Fe%ntheta,3))
+      Fe%vlim_minimizer = 1
       call Fe%computevcrit(vlim)
       call testzero((sum(vlim)-1199413.936164d0)/real(Fe%ntheta,sel),"disloc_Fe112_vlimit",1.d-6,count_pass,count_fail)
+      ! compare minimizers used in vlim calcs
+      Fe%vlim_minimizer = 2
+      call Fe%computevcrit(vlim_tmp)
+      call testzero(sum(abs(vlim-vlim_tmp))/real(Fe%ntheta,sel),"compare minimizers",1.d-6,count_pass,count_fail)
+!~       vlim_tmp = vlim-vlim_tmp
+!~       print*,count(vlim_tmp > 0),count(vlim_tmp < 0), count(vlim_tmp == 0),count(vlim_tmp > 1.d-7),count(vlim_tmp < -1.d-7)
+
       ! test init with negative theta
       Fe%ntheta = 5
       Fe%mu = 81.6d9
