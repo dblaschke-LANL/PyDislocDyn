@@ -18,11 +18,21 @@ jobs:
         python-version: ["3.11", "3.15"]
         toolchain:
           - {compiler: gcc, version: 'latest'}
+          - {compiler: flang, version: 'latest'}
+          - {compiler: ifx, version: 'latest'}
         exclude:
           - os: macos-latest
             python-version: '3.11'
           - os: windows-latest
             python-version: '3.11'
+          - os: macos-latest
+            toolchain: {compiler: flang}
+          - os: macos-latest
+            toolchain: {compiler: ifx}
+          - os: windows-latest
+            toolchain: {compiler: ifx}
+          - os: windows-latest
+            toolchain: {compiler: flang}
         include:
           - python-version: '3.11'
             module-versions: "numpy==2.2 scipy==1.13 sympy==1.13 matplotlib==3.8.4 pandas==2.2.3 jinja2==3.1.2 joblib==1.2 threadpoolctl==3.1 gmpy2==2.2.1 numba==0.61.2 meson ninja pytest==8.3"
@@ -32,13 +42,13 @@ jobs:
       - uses: actions/checkout@v7
       - name: Setup Fortran Compiler
         uses: fortran-lang/setup-fortran@v2.0.0-beta.17
-        if: runner.os == 'MacOS' || runner.os == 'Windows'
+        #~ if: runner.os == 'MacOS' || runner.os == 'Windows'
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Fortran Package Manager
-        uses: fortran-lang/setup-fpm@v11
+        uses: fortran-lang/setup-fpm@v12
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
@@ -49,13 +59,20 @@ jobs:
       - name: Run tests Linux and MacOS
         run: |
           fpm --version
+          ${{ env.FC }} --version
           fpm test --profile release
           make -j
           ./runtests.x
-          yes 2>/dev/null | pytest -s --durations=0 testing/
+          yes 2>/dev/null | pytest -s --collect-only testing/
+          if [[ "${{matrix.toolchain.compiler}}" != "ifx" ]]; then
+            python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")'
+          fi
+          pytest -s --durations=0 testing/
         if: runner.os  == 'Linux' || runner.os  == 'MacOS'
       - name: Run tests windows
         run: |
+          fpm --version
+          ${{ env.FC }} --version
           fpm test --profile release
           echo 'N' | pytest -s --collect-only testing
           pytest -s --durations=0 testing/test_vlim.py testing/test_fastdrag.py

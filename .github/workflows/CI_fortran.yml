@@ -85,13 +85,4 @@ jobs:
             FC=${{matrix.toolchain.compiler}} make -j
           fi
           ./runtests.x
-          # try out a workaround for fpm:
-          if [[ "${{matrix.toolchain.compiler}}" == "aocc" ]]; then
-            mkdir -p "$HOME/.local/bin"
-            ln -sf "$(which aof)" "$HOME/.local/bin/flang"
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-            echo "FPM_FC=flang" >> "$GITHUB_ENV"
-            flang --version
-            fpm test --profile release --compiler flang --link-flag "-Wl,-z,execstack"
-          fi
         if: runner.os  != 'Windows'
