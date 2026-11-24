@@ -49,8 +49,8 @@ jobs:
             toolchain: {compiler: ifx}
           - os: windows-latest
             toolchain: {compiler: ifx}
-          #~ - os: windows-latest
-            #~ toolchain: {compiler: flang} # linking fails with shared lib, fpm issue?
+          - os: windows-latest
+            toolchain: {compiler: flang} # linking fails with shared lib, fpm issue?
           - os: windows-latest
             toolchain: {compiler: aocc}
           - os: windows-latest
@@ -93,5 +93,5 @@ jobs:
             echo "FPM_FC=flang" >> "$GITHUB_ENV"
             flang --version
             fpm test --profile release --compiler flang
-          end if
+          fi
         if: runner.os  != 'Windows'
