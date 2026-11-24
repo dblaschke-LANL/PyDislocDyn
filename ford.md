@@ -27,7 +27,7 @@ Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
 `fpm build --profile release`
 
 * or run</br>
-`make shared`</br>
+`make shared -j`</br>
 (Linux and MacOS only); for a list of build targets run</br>
 `make help`</br>
 

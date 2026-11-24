@@ -5,7 +5,7 @@
 Fix:
 
  - `dislocdynlib` and Fortran subroutines:
-     * fix stacksize-related crash on flang ('ulimit -s unlimited' workaround no longer necessary) 
+     * fix stacksize-related crash on flang ('`ulimit -s unlimited`' workaround no longer necessary) 
         <!-- Known issue: while flang now works fine on linux, it crashes on Windows and MacOS due to a missing implementation of a fortran callback-feature which we use in `computevcrit()` -->
 
 
