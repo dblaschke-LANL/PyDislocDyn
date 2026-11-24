@@ -42,6 +42,12 @@ jobs:
       - uses: actions/checkout@v7
       - name: Setup Fortran Compiler
         uses: fortran-lang/setup-fortran@v2.0.0-beta.17
+        id: setup-fortran
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
         #~ if: runner.os == 'MacOS' || runner.os == 'Windows'
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
@@ -63,11 +69,7 @@ jobs:
           fpm test --profile release
           make -j
           ./runtests.x
-          yes 2>/dev/null | pytest -s --collect-only testing/
-          if [[ "${{matrix.toolchain.compiler}}" != "ifx" ]]; then
-            python -c 'import pydislocdyn; pydislocdyn.utilities.compilefortranmodule(buildopts="--f90flags='-march=native'")'
-          fi
-          pytest -s --durations=0 testing/
+          yes 2>/dev/null | pytest -s --durations=0 testing/
         if: runner.os  == 'Linux' || runner.os  == 'MacOS'
       - name: Run tests windows
         run: |
