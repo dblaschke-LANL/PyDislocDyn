@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Aug. 6, 2026 - Nov. 4, 2026
+# Date: Aug. 6, 2026 - Nov. 24, 2026
 '''This script verifies that both the Python code and the Fortran code give the same results
    for the dislocation limiting velocities up to the defined precision; it is meant to be run with pytest.'''
 import os
@@ -40,11 +40,10 @@ else:
 def runcommand(command,logfname):
     '''Run "command" as a subprocess and saving its stdout to a file "logfname"'''
     out = -1
-    with open(logfname, 'w', encoding="utf8") as logfile:
-        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
-            logfile.writelines(subproc.stdout)
-            subproc.wait()
-            out = subproc.returncode
+    with open(logfname, 'w', encoding="utf8") as logfile, subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as subproc:
+        logfile.writelines(subproc.stdout)
+        subproc.wait()
+        out = subproc.returncode
     if out !=0:
         with open(logfname, 'r', encoding="utf8") as logfile:
             print(logfile.read(), end="")

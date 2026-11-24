@@ -1,4 +1,5 @@
-## required compiler versions: gfortran>=15, flang>=22 (do concurrent with locality and reduce statement), lfortran>=0.68, ifx>=2025, aof>=6.0, crayftn>=17
+## required compiler versions: gfortran>=15, flang>=22, lfortran>=0.68, ifx>=2025, aof>=6.0, crayftn>=17
+## (do concurrent with locality and reduce statement implemented in gfortran 15)
 PPFLAGS = 
 ifeq ($(FC),lfortran)
   FC = lfortran
@@ -33,8 +34,8 @@ else ifeq ($(FC),ifx)
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
   FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225 -fstack-usage
-  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2023 -march=native -fopenmp# -Warray-temporaries -funroll-loops -finit-real=snan
-  FFLAGS_dbg = -O0  -fcheck=all -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
+  FFLAGS = -O3 -Wall -pedantic -Wextra -std=f2023 -march=native -fopenmp# -Warray-temporaries -funroll-loops -finit-real=snan
+  FFLAGS_dbg = -O0 -fcheck=all -Wall -pedantic -Wextra -std=f2023 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
 endif

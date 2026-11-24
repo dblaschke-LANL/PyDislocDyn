@@ -1,10 +1,8 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 28, 2026 - Nov. 23, 2026
+! Date: July 28, 2026 - Nov. 24, 2026
 
-!> contains optimiziation algorithms; we use very simple ones to be self-contained
-!> once better external Fortran libraries become available, we will switch
-!> (c-library nlopt is a pain to integrate and fmin gets stuck in local minima)
+!> contains optimiziation algorithms to be used in `computevcrit()` calculations
 module dislocdyn_opt
   implicit none
   abstract interface

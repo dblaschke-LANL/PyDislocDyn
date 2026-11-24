@@ -2,7 +2,7 @@
 # test suite for PyDislocDyn
 # Author: Daniel N. Blaschke
 # Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-# Date: Mar. 6, 2023 - Sept. 30, 2026
+# Date: Mar. 6, 2023 - Nov. 24, 2026
 '''This script implements several unit tests for PyDislocyn meant to be called by pytest.'''
 import copy
 import os
@@ -261,7 +261,7 @@ def test_inputfiles(metal_list=None):
         Ytstrip.pop('slip')
         for k,v in Ytstrip.items():
             if k in ('lattice','soec','toec'):
-                for kk,vv in Ytstrip[k].items():
+                for kk,vv in v.items():
                     Ytstrip[k][kk] = str(vv)
             else:
                 Ytstrip[k] = str(v)
