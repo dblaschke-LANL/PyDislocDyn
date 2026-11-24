@@ -92,6 +92,6 @@ jobs:
             echo "$HOME/.local/bin" >> "$GITHUB_PATH"
             echo "FPM_FC=flang" >> "$GITHUB_ENV"
             flang --version
-            fpm test --profile release --compiler flang
+            fpm test --profile release --compiler flang --link-flag "-Wl,-z,execstack"
           fi
         if: runner.os  != 'Windows'
