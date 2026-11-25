@@ -1,5 +1,5 @@
-## required compiler versions: gfortran>=16, flang>=22, lfortran>=0.68, ifx>=2025, aof>=6.0, crayftn>=17
-##  (do concurrent with locality and reduce statement implemented in gfortran 15, inline type specifiers in do concurrent headers implemented in gfortran 16)
+## required compiler versions: gfortran>=15, flang>=22, lfortran>=0.68, ifx>=2025, aof>=6.0, crayftn>=17
+## (do concurrent with locality and reduce statement implemented in gfortran 15, inline type specifiers in do concurrent headers implemented in gfortran 16)
 PPFLAGS = 
 ifeq ($(FC),lfortran)
   FC = lfortran
