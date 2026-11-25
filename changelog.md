@@ -2,11 +2,22 @@
 
 ## 1.4.2 (wip)
 
+Features and improvements:
+
+ - `dislocdynlib`:
+     * additional options for `computevcrit()`
+
 Fix:
 
- - `dislocdynlib` and Fortran subroutines:
+ - `dislocdynlib` (and Fortran subroutines):
+     * fix `minimize_simple()` for edge cases
      * fix stacksize-related crash on flang ('`ulimit -s unlimited`' workaround no longer necessary) 
         <!-- Known issue: while flang now works fine on linux, it crashes on Windows and MacOS due to a missing implementation of a fortran callback-feature which we use in `computevcrit()` -->
+
+Other:
+
+ - `dislocdynlib`:
+     * improve the Makefile: support more compilers and parallel builds
 
 
 ## 1.4.1 (2026-11-06)

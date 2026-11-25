@@ -42,7 +42,7 @@ jobs:
           - os: ubuntu-latest
             toolchain: {compiler: ifx, version: '2024.1'}
           - os: macos-latest
-            toolchain: {compiler: flang} # unclear why it fails with 23 (21 missing omp, 22 not supported by action)
+            toolchain: {compiler: flang} # callback fct not supported on MacOS up to 23 (21 missing omp, 22 not supported by action)
           - os: macos-latest
             toolchain: {compiler: gfortran, version: '11'}
           - os: macos-latest
@@ -67,10 +67,10 @@ jobs:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
       - name: Setup Fortran Package Manager
-        uses: fortran-lang/setup-fpm@v11
+        uses: fortran-lang/setup-fpm@v12
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          fpm-version: 'current'
+          #~ fpm-version: 'current'
       - name: Run tests fpm
         run: |
           fpm --version

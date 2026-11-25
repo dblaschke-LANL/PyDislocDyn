@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Fortran Package Manager
-        uses: fortran-lang/setup-fpm@v11
+        uses: fortran-lang/setup-fpm@v12
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
@@ -49,6 +49,7 @@ jobs:
       - name: Run tests Linux and MacOS
         run: |
           fpm --version
+          ${{ env.FC }} --version
           fpm test --profile release
           make -j
           ./runtests.x
@@ -56,6 +57,8 @@ jobs:
         if: runner.os  == 'Linux' || runner.os  == 'MacOS'
       - name: Run tests windows
         run: |
+          fpm --version
+          ${{ env.FC }} --version
           fpm test --profile release
           echo 'N' | pytest -s --collect-only testing
           pytest -s --durations=0 testing/test_vlim.py testing/test_fastdrag.py

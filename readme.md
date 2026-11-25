@@ -55,7 +55,7 @@ A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included t
 * [hatchling](https://hatch.pypa.io/latest/) >=1.26 (to install via pip)
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
-* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make to build the standalone Fortran frontend and library 
+* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.14 or GNU Make to build the standalone Fortran frontend and library
 * [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build the documentation detailing the API of the Fortran library
 
 ## Documentation

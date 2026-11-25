@@ -31,8 +31,8 @@ else ifeq ($(FC),ifx)
   LD_SH = -shared $(LDFLAGS)
 else # always fall back to gfortran
   FC = gfortran -fimplicit-none# -flto=auto -ffree-line-length-225 -fstack-usage
-  FFLAGS = -O3  -Wall -pedantic -Wextra -std=f2018 -march=native -fopenmp# -Warray-temporaries -funroll-loops -finit-real=snan
-  FFLAGS_dbg = -O0  -fcheck=all -Wall -pedantic -Wextra -std=f2018 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
+  FFLAGS = -O3 -Wall -pedantic -Wextra -std=f2018 -march=native -fopenmp# -Warray-temporaries -funroll-loops -finit-real=snan
+  FFLAGS_dbg = -O0 -fcheck=all -Wall -pedantic -Wextra -std=f2018 -finit-real=nan -g -fbacktrace -ffpe-trap=invalid,zero,overflow
   LDFLAGS = -lgomp
   LD_SH = -shared $(LDFLAGS)
 endif
