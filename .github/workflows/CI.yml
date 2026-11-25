@@ -49,7 +49,6 @@ jobs:
       - name: Run tests Linux and MacOS
         run: |
           fpm --version
-          ${{ env.FC }} --version
           fpm test --profile release
           make -j
           ./runtests.x
