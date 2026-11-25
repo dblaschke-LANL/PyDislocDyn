@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Nov. 18, 2026
+! Date: Mar. 31, 2026 - Nov. 25, 2026
 module dislocdyn_dislocations
-  use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
-  use dislocdyn_utilities, only : linspace, operator(.cross.) ! defined in subroutines.f90
-  use dislocdyn_subroutines, only : strohgeometry, computeuij, computeEtot ! defined in subroutines.f90
-  use dislocdyn_elasticconstants ! defined in elasticconstants.f90
+  use dislocdyn_parameters, only: sel, rzero, pi ! defined in subroutines.f90
+  use dislocdyn_utilities, only: linspace, operator(.cross.) ! defined in subroutines.f90
+  use dislocdyn_subroutines, only: strohgeometry, computeuij, computeEtot ! defined in subroutines.f90
+  use dislocdyn_elasticconstants, only: voigt, unvoigt, CheckReflectionSymmetry ! defined in elasticconstants.f90
   use dislocdyn_crystals, only : crystal
-  implicit none
+  implicit none (type,external)
   private
   !> The `disloc` derived type extends `crystal` by including information about a dislocation (slip plane etc.).
   !> It represents the fortran version of the Dislocation class found in PyDislocDyn, implementing a subset of the latter.
@@ -34,7 +34,7 @@ module dislocdyn_dislocations
       procedure :: computevcrit_edge => computevcrit_edge
       procedure :: computevcrit_barnett => computevcrit_barnett
       procedure :: computevcrit => computevcrit
-  end type
+  end type disloc
   !>Options for the `phonondrag(drag,disl,beta,options)` subroutine. Integers `nphi`, `nq`, `ntbase`, `nph1`, and `nq1` set
   !>the resolution of various arrays used in the phonondrag calculation.
   !>`ntbase` is used for `beta`=0 and linearly increased with larger beta from its base value
@@ -46,19 +46,19 @@ module dislocdyn_dislocations
     integer :: ntbase = 321
     integer :: nph1 = 50
     integer :: nq1 = 400
-    !>Boolean variable `debye` controls whether to use the high temperature Debye expansion (fast, `nq1` ignored, requires 
+    !>Boolean variable `debye` controls whether to use the high temperature Debye expansion (fast, `nq1` ignored, requires
     !>\(2\pi T > \) Debye temperature), or to numerically integrate the phonon spectrum (slow, resolution controlled by nq1).
     !>While `debye=.true.` (default) is compatible with beta=0, `debye=.false.` rquires beta>0.
     !>Note: the Debye expansion is not compatible with a core cutoff and option `r0cut` will be ignored if `debye=.true.`.
     logical :: debye = .true.
-    !>If option `r0cut`>0 (turned off by default) and `debye=.false.`, a soft dislocation core cutoff is included following 
-    !>[[Alshits et al., Arch. Mech. 31, 91 (1979)](https://rcin.org.pl/dlibra/publication/90447)], 
+    !>If option `r0cut`>0 (turned off by default) and `debye=.false.`, a soft dislocation core cutoff is included following
+    !>[[Alshits et al., Arch. Mech. 31, 91 (1979)](https://rcin.org.pl/dlibra/publication/90447)],
     !>i.e. multiplying the dislocation field by \((1-\exp(r/r_0))\) which leads to \(1/\sqrt{(1-q^2/r_0^2)}\) in Fourier space.
     !>Note: this cutoff is intended only for an isotropic dislocation field at low gliding velocity, as the shape of the cutoff
     !>is beta-dependent the way it is introduced (i.e. a circle only at beta=0).
     real(sel) :: r0cut = -1.d0
     !>Option `modes` is a length-4 logical array controlling which phonon scattering modes are included in phonon wind calculations
-    !>(all four by default). Using shorthand 'T' for transverse and 'L' for longitudinal phonon, the order of the entries is 
+    !>(all four by default). Using shorthand 'T' for transverse and 'L' for longitudinal phonon, the order of the entries is
     !>TT, LL, TL, LT (i.e. purely transverse mode, purely longitudinal mode, and mixed modes where (from right to left) an
     !>incoming longitudinal phonon scatters on the dislocation into a transverse phonon and vice versa.
     !>At low gliding velocity TT dominates, whereas at high gliding velocity both TT and LT (i.e. the 1st and last entry) dominate.
@@ -87,7 +87,7 @@ module dislocdyn_dislocations
     !> in two variables, one for positive theta, one for negative theta
     subroutine set_character_angles(disl,positive_theta)
       class(disloc), intent(inout) :: disl
-      logical, optional :: positive_theta
+      logical, intent(in), optional :: positive_theta
       logical :: positive_character
       positive_character = .true.
       if (present(positive_theta)) then
@@ -105,15 +105,18 @@ module dislocdyn_dislocations
     !> using the integral version of the Stroh method
     subroutine computestroh(disl)
       class(disloc), intent(inout) :: disl
-      if (allocated(disl%t)) deallocate(disl%t); if (allocated(disl%m0)) deallocate(disl%m0)
-      if (allocated(disl%phi)) deallocate(disl%phi); if (allocated(disl%Cv)) deallocate(disl%Cv)
-      if (allocated(disl%M)) deallocate(disl%M); if (allocated(disl%N)) deallocate(disl%N)
+      if (allocated(disl%t)) deallocate(disl%t)
+      if (allocated(disl%m0)) deallocate(disl%m0)
+      if (allocated(disl%phi)) deallocate(disl%phi)
+      if (allocated(disl%Cv)) deallocate(disl%Cv)
+      if (allocated(disl%M)) deallocate(disl%M)
+      if (allocated(disl%N)) deallocate(disl%N)
       allocate(disl%t(3,disl%ntheta),disl%m0(3,disl%ntheta),disl%phi(disl%nphi))
       allocate(disl%M(disl%nphi,3,disl%ntheta),disl%N(disl%nphi,3,disl%ntheta),disl%Cv(3,3,3,3,disl%ntheta))
       disl%phi = linspace(0.d0,2.d0*pi,disl%nphi)
       call strohgeometry(disl%b,disl%n0,disl%t,disl%m0,disl%M,disl%N,disl%Cv,disl%theta,disl%phi,disl%ntheta,disl%nphi)
     end subroutine computestroh
-    !>determines the rotation matrices necessary to align each dislocation of character angle theta with z 
+    !>determines the rotation matrices necessary to align each dislocation of character angle theta with z
     !>and its slip plane normal with y; then rotates the tensor of elastic constants C2 to align with each dislocation
     !>the latter array of aligned C2s is saved in Voigt notation as `%C2aligned`
     subroutine computerot(disl)
@@ -145,8 +148,8 @@ module dislocdyn_dislocations
     !> initializes various properties of the dislocation
     subroutine init_disloc(disl,Millerb,Millern0,positive_theta)
       class(disloc), intent(inout) :: disl
-      real(sel), optional :: Millerb(:), Millern0(:)
-      logical, optional :: positive_theta
+      real(sel), intent(in), optional :: Millerb(:), Millern0(:)
+      logical, intent(in), optional :: positive_theta
       real(sel) :: tmp_len
       call disl%init_crystal()
       if (present(positive_theta)) then
@@ -317,7 +320,7 @@ module dislocdyn_dislocations
     end subroutine computevcrit_barnett
     !-------------------------
     !> Computes all limiting velocities for all dislocation character angles
-    !> In the special case of reflection symmetry for the screw or edge dislocation, the appropriate values from the 
+    !> In the special case of reflection symmetry for the screw or edge dislocation, the appropriate values from the
     !> general numerical algorithm `computevcrit_barnett()` will be replaced by the analytic results of computevcrit screw/edge
     !> the results are assembled into a 2-dim array where each row represents the 3 branches (lowest, 2nd and highest vlim) for
     !> a character angle `theta = [0,...,disl%ntheta]`.
@@ -330,7 +333,7 @@ module dislocdyn_dislocations
       real(sel), intent(in), optional :: tolerance
       real(sel), intent(out) :: vlim(disl%ntheta,3)
       real(sel) :: tmp, tol
-      integer th, sth, eth
+      integer :: th, sth, eth
       logical :: nohigh, reflect
       nohigh = .false.
       if (present(lowest_only)) then
@@ -373,12 +376,13 @@ module dislocdyn_dislocations
       end if
     end subroutine computevcrit
     !-------------------------
-    !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation `disl` 
+    !>Calculates the dislocation drag coefficient from phonon wind for all character angles defined in dislocation `disl`
     !>and gliding velocities `beta`=v/ct
     subroutine phonondrag(drag,disl,beta,options)
-      use dislocdyn_phononwind
+      use dislocdyn_phononwind, only: elasticA3, fourieruij_sincos, fourieruij_nocut, phononwind_xx, phononwind_xy
       type(disloc), intent(in) :: disl !! the dislocation (contains all material properties, slip system, etc.)
-      real(sel), intent(in), contiguous :: beta(:) !! list of velocities (normalized by transverse sound speed of `disl`) to calculate for
+      !> list of velocities (normalized by transverse sound speed of `disl`) to calculate for
+      real(sel), intent(in), contiguous :: beta(:)
       type(phonondrag_opts), intent(in), optional :: options !! contains optional parameters (with default values)
       !> drag coefficient as function of `theta` and `beta`, i.e. `drag(disl%ntheta,nbeta)`
       real(sel), intent(out), allocatable :: drag(:,:)

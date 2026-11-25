@@ -1,9 +1,9 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Nov. 18, 2026
+! Date: Mar. 30, 2026 - Nov. 25, 2026
 module dislocdyn_elasticconstants
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
-  implicit none
+  implicit none (type,external)
   integer, parameter :: VoigtIndices(6)= (/1,5,9,6,3,2/), UnVoigtIndices(9)= (/1,6,5,6,2,4,5,4,3/)
   character(110), parameter :: symkwerror = &
                 "Error: keyword sym must be one of 'iso', 'cubic', 'hcp', 'tetr', 'trig', 'tetr2', 'orth', 'mono', 'tric'."
@@ -168,7 +168,8 @@ module dislocdyn_elasticconstants
           xijk(21) = xijk(16) + 2.d0*xijk(51)! c166 = c144 + 2*c456
           xijk(1) = xijk(8) + 6.d0*xijk(16) + 8*xijk(51) ! c111 = c123 + 6*c144 + 8*c456
           xijk(3)=xijk(2); xijk(7)=xijk(2); xijk(12)=xijk(2); xijk(23)=xijk(2); xijk(27)=xijk(2) ! c113=c122=c133=c223=c233=c112
-          xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21) ! c155=c244=c266=c344=c355=c166
+          ! c155=c244=c266=c344=c355=c166
+          xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21)
           xijk(22)=xijk(1); xijk(37)=xijk(1) ! c222=c333=c111
           xijk(34)=xijk(16); xijk(46)=xijk(16) ! c255=c366=c144
         case ("cubic", "fcc", "bcc")
@@ -180,7 +181,8 @@ module dislocdyn_elasticconstants
           xijk(1) = cijk(1); xijk(2) = cijk(2); xijk(8) = cijk(3)
           xijk(16) = cijk(4); xijk(21) = cijk(5); xijk(51) = cijk(6)
           xijk(3)=xijk(2); xijk(7)=xijk(2); xijk(12)=xijk(2); xijk(23)=xijk(2); xijk(27)=xijk(2) ! c113=c122=c133=c223=c233=c112
-          xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21) ! c155=c244=c266=c344=c355=c166
+          ! c155=c244=c266=c344=c355=c166
+          xijk(19)=xijk(21); xijk(31)=xijk(21); xijk(36)=xijk(21); xijk(41)=xijk(21); xijk(44)=xijk(21)
           xijk(22)=xijk(1); xijk(37)=xijk(1) ! c222=c333=c111
           xijk(34)=xijk(16); xijk(46)=xijk(16) ! c255=c366=c144
         case ("hcp")
@@ -206,7 +208,8 @@ module dislocdyn_elasticconstants
           xijk(:3) = cijk(:3); xijk(8) = cijk(4); xijk(12) = cijk(5); xijk(16) = cijk(6); xijk(19) = cijk(7)
           xijk(21) = cijk(8); xijk(37) = cijk(9); xijk(41) = cijk(10); xijk(46) = cijk(11); xijk(51) = cijk(12)
           xijk(22)=xijk(1); xijk(7) = xijk(2); xijk(23) = xijk(3); xijk(27) = xijk(12) ! c222=c111, c122=c112, c223=c113, c233=c133
-          xijk(31) = xijk(19); xijk(34) = xijk(16); xijk(36) = xijk(21); xijk(44) = xijk(41) ! c244=c155, c255=c144, c266=c166, c355=c344
+          ! c244=c155, c255=c144, c266=c166, c355=c344
+          xijk(31) = xijk(19); xijk(34) = xijk(16); xijk(36) = xijk(21); xijk(44) = xijk(41)
         case ("trig")
           if (n/=14) then
             print*,"error: expected length 14"

@@ -1,11 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 31, 2026 - Oct. 20, 2026
+! Date: Mar. 31, 2026 - Nov. 25, 2026
 module dislocdyn_crystals
-  use dislocdyn_parameters, only : sel, rzero, pi ! defined in subroutines.f90
-  use dislocdyn_utilities, only : operator(.cross.) ! defined in subroutines.f90
-  use dislocdyn_elasticconstants ! defined in elasticconstants.f90
-  implicit none
+  use dislocdyn_parameters, only: sel, rzero, pi ! defined in subroutines.f90
+  use dislocdyn_utilities, only: operator(.cross.) ! defined in subroutines.f90
+  ! defined in elasticconstants.f90
+  use dislocdyn_elasticconstants, only: symkwerror, unvoigt, elasticC2, elasticC3, &
+                                        voigtaverage, reussaverage, hillaverage, kroeneraverage
+  implicit none (type,external)
   private
   !> The `crystal` derived type is used to store material information for a crystal.
   !> It represents the fortran version of the metalprops class found in PyDislocDyn, implementing a subset of the latter.
@@ -120,7 +122,7 @@ module dislocdyn_crystals
     subroutine Miller_to_Cart(mat,millerv,normalize,reziprocal,v)
       class(crystal), intent(in) :: mat ! needed for the lattice vectors and angles
       real(sel), intent(in) :: millerv(:)
-      logical, optional :: normalize, reziprocal
+      logical, intent(in), optional :: normalize, reziprocal
       real(sel), intent(out) :: v(3)
       logical :: norm, rezi
       real(sel) :: a, b, c, d, T(3,3), R(3,3), RV
@@ -130,9 +132,9 @@ module dislocdyn_crystals
       if (present(normalize)) norm = normalize
       if (present(reziprocal)) rezi = reziprocal
       n = size(millerv)
-      if (n/=3 .and. trim(mat%sym)/='hcp') then
+      if (n/=3 .and. trim(mat%sym)/="hcp") then
         error stop "expected 3 Miller indices"
-      else if (trim(mat%sym)=='hcp' .and. n/=4) then
+      else if (trim(mat%sym)=="hcp" .and. n/=4) then
         error stop "crystal sym is hcp; expected 4 Miller indices"
       end if
       a = mat%lat_a(1); b = mat%lat_a(2); c = mat%lat_a(3)
@@ -194,7 +196,7 @@ module dislocdyn_crystals
     !------------------------------
     !> Computes a number quantifying the anisotropy of a crystal following the
     !> recommendation of Kube 2016. In particular, we compute a measure of the
-    !> difference between Voigt and Reuss averages of shear and bulk modulus, 
+    !> difference between Voigt and Reuss averages of shear and bulk modulus,
     !> known also as the universal log-Euclidean anisotropy index:
     !> \(A_L = \sqrt{[\ln(B_V/B_R)]^2 + 5[\ln(G_V/G_R)]^2}\), see [[AIP Advances 6, 095209 (2016)](https://doi.org/10.1063/1.4962996)].
     subroutine anisotropy_index(mat,anisidx)

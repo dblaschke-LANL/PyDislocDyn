@@ -1,13 +1,13 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Nov. 23, 2026
+! Date: July 23, 2018 - Nov. 25, 2026
 
 !>defines various constants to be used elsewhere in the code
 module dislocdyn_parameters
-  implicit none
+  implicit none (type,external)
   integer,parameter :: sel = selected_real_kind(10)
   integer,parameter :: selsm = selected_real_kind(6)  !! some memory-heavy subroutines use lower precision in favor of speed
-  integer,parameter :: version = 20261123
+  integer,parameter :: version = 20261125
   real(kind=sel), parameter :: rzero = 2.d0*tiny(0.)
   real(kind=sel), parameter :: hbar = 1.0545718d-34       !! reduced Planck constant
   real(kind=sel), parameter :: kB = 1.38064852d-23        !! Boltzmann constant
@@ -17,7 +17,7 @@ end module dislocdyn_parameters
 
 !>this module contains a number of helper functions
 module dislocdyn_utilities
-  implicit none
+  implicit none (type,external)
   interface operator(.cross.)
     module procedure cross
   end interface
@@ -43,7 +43,6 @@ module dislocdyn_utilities
     SUBROUTINE elbrak(a,b,Cmat,Ntheta,Nphi,AB)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Ntheta,Nphi
       REAL(KIND=sel), DIMENSION(Nphi,3,Ntheta), INTENT(IN)  :: a, b
@@ -51,7 +50,7 @@ module dislocdyn_utilities
     !-----------------------------------------------------------------------
       REAL(KIND=sel), DIMENSION(Nphi,3,3,Ntheta), INTENT(OUT) :: AB
     !-----------------------------------------------------------------------
-      integer l,o,k,p,i
+      integer :: l,o,k,p,i
       AB(:,:,:,:) = 0.d0
       !$OMP PARALLEL DO PRIVATE(i,p,o,l,k)
       do i=1, Ntheta
@@ -66,14 +65,13 @@ module dislocdyn_utilities
         end do
       end do
       !$OMP END PARALLEL DO
-      
+
     END SUBROUTINE elbrak
 
     !> Compute the bracket (A,B) := `A.Cmat.B`, where `Cmat` is a tensor of 2nd order elastic constants.
     pure SUBROUTINE elbrak1d(a,b,Cmat,Nphi,AB)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Nphi
       REAL(KIND=sel), DIMENSION(Nphi,3), INTENT(IN)  :: a, b
@@ -81,7 +79,7 @@ module dislocdyn_utilities
     !-----------------------------------------------------------------------
       REAL(KIND=sel), DIMENSION(Nphi,3,3), INTENT(OUT) :: AB
     !-----------------------------------------------------------------------
-      integer l,o,k,p
+      integer :: l,o,k,p
       AB(:,:,:) = 0.d0
       do p=1,3
         do o=1,3
@@ -92,7 +90,7 @@ module dislocdyn_utilities
           end do
         end do
       end do
-      
+
     END SUBROUTINE elbrak1d
 
     !!**********************************************************************
@@ -100,7 +98,6 @@ module dislocdyn_utilities
     !> computes the cross product of two 3-dim vectors x and y
     pure function cross(x,y) result(z)
       use dislocdyn_parameters, only : sel
-      implicit none
       real(sel), dimension(3), intent(in)  :: x, y
       real(sel), dimension(3)  :: z
       z(1) = x(2)*y(3) - x(3)*y(2)
@@ -114,12 +111,11 @@ module dislocdyn_utilities
     pure function trapz(f,x,n) result(intf)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: n
       REAL(KIND=sel), INTENT(IN), DIMENSION(n)  :: f, x
       real(sel) :: intf
-     
+
       intf = sum(0.5d0*(f(2:n)+f(1:n-1))*(x(2:n)-x(1:n-1)))
     end function trapz
 
@@ -129,20 +125,19 @@ module dislocdyn_utilities
     pure function cumtrapz(f,x,n) result(intf)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: n
       REAL(KIND=sel), INTENT(IN), DIMENSION(n)  :: f, x
       real(sel), dimension(n) :: intf
       REAL(KIND=sel) :: tmp
       INTEGER :: i
-     
+
       intf(1) = 0.d0; tmp =0.d0
       do i=1,n-1
         tmp = tmp + 0.5d0*(f(i+1)+f(i))*(x(i+1)-x(i))
         intf(i+1) = tmp
       end do
-      
+
     end function cumtrapz
 
     !!**********************************************************************
@@ -151,7 +146,6 @@ module dislocdyn_utilities
     pure function inv(A) result(invA)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN), DIMENSION(3,3)  :: A
       REAL(KIND=sel), DIMENSION(3,3)  :: invA
@@ -160,14 +154,14 @@ module dislocdyn_utilities
     !~   eps = 0.d0
     !~   eps(1,2,3) = 1.d0; eps(3,1,2) = 1.d0; eps(2,3,1) = 1.d0
     !~   eps(3,2,1) = -1.d0; eps(1,3,2) = -1.d0; eps(2,1,3) = -1.d0
-      
+
       ! note: hard coding this loop speeds up things by factor 6/27
     !~   do i=1,3; do j=1,3; do k=1,3
     !~     det = det + eps(i,j,k)*A(1,i)*A(2,j)*A(3,k)
     !~   end do; end do; end do
       det = A(1,1)*A(2,2)*A(3,3) + A(1,3)*A(2,1)*A(3,2) + A(1,2)*A(2,3)*A(3,1) &
             - A(1,3)*A(2,2)*A(3,1) - A(1,1)*A(2,3)*A(3,2) - A(1,2)*A(2,1)*A(3,3)
-      
+
       ! note: hard coding this loop speeds up things by factor 18/27**2
     !~   invA = 0.d0
     !~   do i=1,3; do j=1,3; do k=1,3
@@ -184,7 +178,7 @@ module dislocdyn_utilities
       invA(3,2) = A(3,1)*A(1,2) - A(1,1)*A(3,2)
       invA(3,1) = A(2,1)*A(3,2) - A(2,2)*A(3,1)
       invA(1,3) = A(1,2)*A(2,3) - A(2,2)*A(1,3)
-      
+
       invA = invA/det
     END function inv
 
@@ -194,7 +188,6 @@ module dislocdyn_utilities
     pure function linspace(start,finish,num) result(output)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       real(kind=sel), intent(in) :: start, finish
       integer, intent(in) :: num
@@ -202,7 +195,7 @@ module dislocdyn_utilities
     !--------- local vars --------------------------------------------------
       integer :: i
       real(kind=sel) :: step
-      
+
       if (num==1) then
         output = start
       else
@@ -216,20 +209,19 @@ end module dislocdyn_utilities
 !!**********************************************************************
 
 module dislocdyn_subroutines
-  implicit none
+  implicit none (type,external)
   public :: accscrew_xyintegrand, computeEtot, strohgeometry, computeuk, computeuij, vlim_of_phi, edgevlim_of_phi
   contains
     !> subroutine of python function computeuij_acc_screw(), see PyDislocDyn docs
     SUBROUTINE accscrew_xyintegrand(integrand,x,y,t,xpr,a,b,c,ct,abc,ca,xcomp)
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       logical, intent(in) :: xcomp
       REAL(KIND=sel), INTENT(IN) :: x,y,t,xpr,a,b,c,ct,abc,ca
       REAL(KIND=sel), INTENT(OUT) :: integrand
       real(kind=sel) :: rpr, eta, etatilde, tau, tau2, tau_min_R, tau_min_R2, stepfct, stepfct2
-      
+
       rpr = sqrt((x-xpr)**2 - (x-xpr)*y*b/c + y**2/ct)
       eta = sqrt(2.d0*xpr/a)
       etatilde = sign(1.0d0,x)*sqrt(2.d0*abs(x)/a)*0.5d0*(1.d0+xpr/x)
@@ -248,7 +240,7 @@ module dislocdyn_subroutines
                     - (stepfct2*(1.d0/rpr**4)*((tau2**2*y**2*abc/ct**2 - (x-xpr)*y*(b/(2*c))*rpr**2/(ct*ca**2))/tau_min_R2 &
                        - (x-xpr)**2*tau_min_R2))
       end if
-      
+
     END SUBROUTINE accscrew_xyintegrand
 
     !!**********************************************************************
@@ -258,7 +250,6 @@ module dislocdyn_subroutines
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel
       use dislocdyn_utilities, only : trapz
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       INTEGER, INTENT(IN) :: Ntheta, Nphi
       REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi,3,3,Ntheta)  :: uij
@@ -267,10 +258,10 @@ module dislocdyn_subroutines
       REAL(KIND=sel), INTENT(IN), DIMENSION(3,3,3,3,Ntheta)  :: Cv
       REAL(KIND=sel), INTENT(IN), DIMENSION(Nphi)  :: phi
       REAL(KIND=sel), INTENT(OUT), DIMENSION(Ntheta) :: Wtot
-      
+
       REAL(KIND=sel), DIMENSION(Nphi) :: Wdensity
       INTEGER :: th, k, l, o, p
-     
+
       Wtot = 0.d0
       !$OMP PARALLEL DO PRIVATE(th,p,o,l,k,Wdensity)
       do th=1,Ntheta
@@ -287,7 +278,7 @@ module dislocdyn_subroutines
         Wtot(th) = trapz(Wdensity,phi,Nphi)
       end do
       !$OMP END PARALLEL DO
-      
+
     END SUBROUTINE computeEtot
 
     !!**********************************************************************
@@ -296,7 +287,6 @@ module dislocdyn_subroutines
     pure subroutine strohgeometry(b,n0,t,m0,M,N,Cv,theta,phi,ntheta,nphi)
       use dislocdyn_parameters, only : sel
       use dislocdyn_utilities, only : operator(.cross.)
-      implicit none
       integer, intent(in) :: ntheta, nphi
       real(sel), intent(in) :: b(3), n0(3)
       real(sel), intent(in) :: theta(ntheta), phi(nphi)
@@ -304,7 +294,7 @@ module dislocdyn_subroutines
       real(sel), intent(out), dimension(nphi,3,ntheta) :: M, N
       real(sel), intent(out), dimension(3,3,3,3,ntheta)  :: Cv
       real(sel), dimension(3) :: x
-      integer i,j,k,th,ph
+      integer :: i,j,k,th,ph
       Cv = 0.d0
       x = b .cross. n0
       do th=1,ntheta
@@ -331,7 +321,6 @@ module dislocdyn_subroutines
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel, pi2
       use dislocdyn_utilities, only : elbrak1d, operator(.inv.), trapz, cumtrapz
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
       INTEGER, INTENT(IN) :: Ntheta, Nphi, Nr
@@ -395,7 +384,6 @@ module dislocdyn_subroutines
     !-----------------------------------------------------------------------
       use dislocdyn_parameters, only : sel, pi2
       use dislocdyn_utilities, only : elbrak1d, operator(.inv.), trapz
-      IMPLICIT NONE
     !-----------------------------------------------------------------------
       REAL(KIND=sel), INTENT(IN) :: beta
       INTEGER, INTENT(IN) :: Ntheta, Nphi
@@ -452,7 +440,6 @@ module dislocdyn_subroutines
     pure function edgevlim_of_phi(phi,i,C2,norm) result(vlim)
       use dislocdyn_parameters, only : sel
       use dislocdyn_utilities, only : elbrak1d
-      implicit none
       real(sel), intent(in) :: phi, C2(3,3,3,3), norm
       integer, intent(in) :: i
       real(sel) :: vlim
@@ -469,7 +456,7 @@ module dislocdyn_subroutines
       R = MM(1,1,1)*MM(1,2,2) - MM(1,1,2)*MM(1,2,1)
       tmpout = 0.5d0*Q + i*sqrt(0.25d0*Q**2-R)
       vlim = abs(sqrt(tmpout*norm)/cosph)
-    end function edgevlim_of_phi 
+    end function edgevlim_of_phi
 
     !!**********************************************************************
     !>Subroutine for computing limiting velocities of a dislocation;
@@ -479,7 +466,6 @@ module dislocdyn_subroutines
     pure function vlim_of_phi(phi,i,C2,norm,m0,n0) result(vlim)
       use dislocdyn_parameters, only : sel, pi
       use dislocdyn_utilities, only : elbrak1d
-      implicit none
       real(sel), intent(in) :: phi, C2(3,3,3,3), norm, m0(3), n0(3)
       integer, intent(in) :: i
       real(sel) :: vlim
@@ -507,6 +493,6 @@ module dislocdyn_subroutines
       gam = acos(gam)
       tmpout = -P/3.d0 + 2.d0*sqrt(-a/3.d0)*cos((gam+2.d0*i*pi)/3.d0) ! i=3 is equivalent to i=0
       vlim = abs(sqrt(tmpout*norm)/cosph)
-    end function vlim_of_phi 
+    end function vlim_of_phi
 
 end module dislocdyn_subroutines

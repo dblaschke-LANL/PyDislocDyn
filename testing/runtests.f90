@@ -1,19 +1,19 @@
 ! standalone test suite for Fortran routines of pydislocdyn
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 25, 2026 - Nov. 23, 2026
+! Date: Mar. 25, 2026 - Nov. 25, 2026
 module dislocdyn_checks
   use dislocdyn_parameters, only: sel, rzero
-  implicit none
+  implicit none (type,external)
   private
-  character(*), parameter :: esc = achar(27), red = '[31m', green = '[32m', reset = '[0m'
+  character(*), parameter :: esc = achar(27), red = "[31m", green = "[32m", reset = "[0m"
   character(*), parameter :: passed = char(9)//esc//green//"PASSED"//esc//reset
   character(*), parameter :: failed = char(9)//esc//red//"FAILED"//esc//reset
   public :: testtrue, testequal, testequalarray, testzero, passed, failed
   contains
   subroutine testtrue(equal,string,count_pass,count_fail)
     logical, intent(in) :: equal
-    integer :: count_pass,count_fail
+    integer, intent(inout) :: count_pass,count_fail
     character(*), intent(in) :: string
     if (equal) then
       count_pass = count_pass+1
@@ -25,14 +25,13 @@ module dislocdyn_checks
   end subroutine testtrue
   subroutine testequal(A,B,n,m,string,tolerance,count_pass,count_fail)
   !  Check if two NxM matrices are equal (with some tolerance), and print 'test <string> PASSED/FAILED'
-    implicit none
     integer, intent(in)  :: n, m
     real(kind=sel), intent(in)  :: tolerance
     real(kind=sel), dimension(n,m), intent(in)  :: A, B
     character(*), intent(in) :: string
-    integer :: count_pass,count_fail
+    integer, intent(inout) :: count_pass,count_fail
     logical :: equal
-    
+
     equal = all(abs(A-B) <= tolerance)
     if (equal) then
       count_pass = count_pass+1
@@ -45,14 +44,13 @@ module dislocdyn_checks
 
   SUBROUTINE testequalarray(A,B,n,string,tolerance,count_pass,count_fail)
   !  Check if two arrays are equal (with some tolerance), and print 'test <string> PASSED/FAILED'
-    implicit none
     integer, intent(in)  :: n
     real(kind=sel), intent(in)  :: tolerance
     real(kind=sel), dimension(n), intent(in)  :: A, B
     character(*), intent(in) :: string
-    integer :: count_pass,count_fail
+    integer, intent(inout) :: count_pass,count_fail
     logical :: equal
-    
+
     equal = all(abs(A-B) <= tolerance)
     if (equal) then
       count_pass = count_pass+1
@@ -65,25 +63,24 @@ module dislocdyn_checks
 
   subroutine testzero(A,string,tolerance,count_pass,count_fail)
   ! check if A=0 (with some tolerance), and print 'test <string> PASSED/FAILED'
-    implicit none
     real(kind=sel), intent(in)  :: tolerance, A
     character(*), intent(in) :: string
-    integer :: count_pass,count_fail
+    integer, intent(inout) :: count_pass,count_fail
     call testequalarray([A],[0.d0],1,string,tolerance,count_pass,count_fail)
   end subroutine testzero
 end module dislocdyn_checks
 
 module dislocdyn_tests
   use dislocdyn_parameters, only: sel, pi
-  use dislocdyn_checks
-  implicit none
+  use dislocdyn_checks, only: testzero, testtrue, testequal, testequalarray
+  implicit none (type,external)
   private
   public :: test_disloc, test_readinput
   contains
     subroutine test_disloc(count_pass,count_fail)
-      use dislocdyn_subroutines, only : computeEtot
-      use dislocdyn_elasticconstants
-      use dislocdyn_dislocations
+      use dislocdyn_subroutines, only: computeEtot
+      use dislocdyn_elasticconstants, only: unvoigt, checkvoigt, CheckReflectionSymmetry
+      use dislocdyn_dislocations, only: disloc, phonondrag_opts, phonondrag
       integer, intent(inout) :: count_pass,count_fail
       type(disloc) :: Cu, Ti, Fe
       type(phonondrag_opts) :: dragopts
@@ -128,7 +125,7 @@ module dislocdyn_tests
       allocate(Etot(Cu%ntheta),vlim(Cu%ntheta,3),vlim_low(Cu%ntheta,3))
       call Cu%update_elasticE(Etot)
       call testzero(sum(Etot)-0.22166413212d0,"disloc_Cu_elasticEtot",1.d-9,count_pass,count_fail)
-      
+
       call phonondrag(B,Cu,[0.1d0,0.5d0])
       call testzero(sum(B)-0.0886125,"disloc_Cu_drag",1.d-5,count_pass,count_fail)
       call testtrue((CheckReflectionSymmetry(Cu%C2aligned(:,:,1)) .and. &
@@ -142,7 +139,7 @@ module dislocdyn_tests
       call Cu%computesound([1.d0,1.d0,0.d0],vsound)
       call testzero(sum(vsound)-sqrt(0.5d0*(Cu%cij(1)-Cu%cij(2))/Cu%rho)-sqrt(Cu%cij(3)/Cu%rho)&
                     -sqrt((0.5d0*Cu%cij(1)+0.5d0*Cu%cij(2)+Cu%cij(3))/Cu%rho),"Cu_vsound",1.d-9,count_pass,count_fail)
-      
+
       Ti = disloc(sym="hcp",metal="Ti",rho=4506.d0,lat_a = [2.9506d-10,0.d0,4.6835d-10])
       Ti%cij = [1.624d11, 9.2d10, 6.9d10, 1.807d11, 4.67d10]
       Ti%cijk = [-1.358d12, -1.105d12, 1.7d10, -1.62d11, -3.83d11, -2.63d11, 1.17d11, -2.306d12, -1.617d12, -3.83d11]
@@ -159,7 +156,7 @@ module dislocdyn_tests
           soundinvariant = soundinvariant + C2(i,j,i,j)
         end do
       end do
-      Millerv = transpose(reshape([1.d0,0.d0,0.d0,0.d0, 0.d0,1.d0,-1.d0,0.d0, 0.d0,0.d0,0.d0,1.d0], [4,3])) ! 3 orthogonal vectors 
+      Millerv = transpose(reshape([1.d0,0.d0,0.d0,0.d0, 0.d0,1.d0,-1.d0,0.d0, 0.d0,0.d0,0.d0,1.d0], [4,3])) ! 3 orthogonal vectors
       do i=1,3
         call Ti%Miller_to_Cart(Millerv(i,:),v=v) ! by default, Miller_to_Cart will normalize Cartesian vector v
         call Ti%computesound(v,vsound)
@@ -177,7 +174,7 @@ module dislocdyn_tests
       call Ti%computevcrit(vlim_low,lowest_only=.true.,tolerance=1.d-3)
       call testzero(vlim_s+vlim_e-6014.271264d0 + sum(vlim)-33723.904944d0 + sum(vlim(:,1)-vlim_low(:,1)) + sum(vlim_low(2,2:)) + &
                     sum(vlim_low(2:,3)), "disloc_Tipris_vlimit", 1.d-6, count_pass, count_fail)
-      
+
       Fe = disloc(sym="bcc",metal="Fe",rho=7870.d0,lat_a = [2.8665d-10,0.d0,0.d0],ntheta=99)
       Fe%cij = [226.0d9, 140.0d9, 116.0d9]
       call Fe%init(Millerb=[0.5d0,-0.5d0,0.5d0],Millern0=[1.d0,-1.d0,-2.d0])
@@ -212,54 +209,56 @@ module dislocdyn_tests
       call phonondrag(Btmp,Fe,[0.25d0],options=dragopts)
       B = B + Btmp
       call testzero(sum(B)-0.0846864,"disloc_Fe_drag_neg-theta",1.d-5,count_pass,count_fail)
-      
+
     end subroutine test_disloc
 
     subroutine test_readinput(count_pass,count_fail)
-      use dislocdyn_dislocations
-      use dislocdyn_readinputfiles
+      use dislocdyn_dislocations, only: disloc
+      use dislocdyn_readinputfiles, only: inputdeck, read_inputdeck, read_materialfile
       integer, intent(inout) :: count_pass,count_fail
       type(disloc), allocatable :: disl
       type(inputdeck) :: sim_plan
       character(256) :: materialfile, instructionfile
       integer :: ios
-      
+
       instructionfile = "testinstruct.toml"
-      open(unit=20, file=trim(instructionfile), action="write", iostat=ios, status='replace')
-      write(20,'(a)',iostat=ios) 'sim_type = "vlimit"'
-      write(20,'(a)',iostat=ios) 'b = "0,0.5,0.5"'
-      write(20,'(a)',iostat=ios) 'n0 = "1,-1,1"'
+      open(unit=20, file=trim(instructionfile), action="write", iostat=ios, status="replace")
+      write(20,"(a)") 'sim_type = "vlimit"'
+      write(20,"(a)") 'b = "0,0.5,0.5"'
+      write(20,"(a)") 'n0 = "1,-1,1"'
       close(unit=20)
+      if (ios /= 0) error stop "failed to write instructionfile 'testinstruct.toml'"
+
       materialfile = "testmaterial.toml"
-      open(unit=21, file=trim(materialfile), action="write", iostat=ios, status='replace')
-      write(21,'(a)',iostat=ios) 'name = "Cu"'
-      write(21,'(a)',iostat=ios) 'sym = "cubic"'
-      write(21,'(a)',iostat=ios) 'T = 300'
-      write(21,'(a)',iostat=ios) 'rho = 8960'
-      write(21,'(a)',iostat=ios) new_line('a')//'[lattice]'
-      write(21,'(a)',iostat=ios) 'a = 3.6146e-10'
-      write(21,'(a)',iostat=ios) new_line('a')//'[soec]'
-      write(21,'(a)',iostat=ios) 'cij = "1.683000e+11,1.212000e+11,7.570000e+10"'
+      open(unit=21, file=trim(materialfile), action="write", iostat=ios, status="replace")
+      write(21,"(a)") 'name = "Cu"'
+      write(21,"(a)") 'sym = "cubic"'
+      write(21,"(a)") "T = 300"
+      write(21,"(a)") "rho = 8960"
+      write(21,"(a)") new_line("a")//"[lattice]"
+      write(21,"(a)") "a = 3.6146e-10"
+      write(21,"(a)") new_line("a")//"[soec]"
+      write(21,"(a)") 'cij = "1.683000e+11,1.212000e+11,7.570000e+10"'
       close(unit=21)
-      
+      if (ios /= 0) error stop "failed to write materialfile 'testmaterial.toml'"
+
       allocate(disl)
       call read_materialfile(materialfile,disl)
       call read_inputdeck(instructionfile,sim_plan,disl%sym)
       call testzero(sum(disl%cij)-365200000000.0d0+sum(sim_plan%b)-1.0d0,"readfiles",1.d-5,count_pass,count_fail)
-      
+
     end subroutine test_readinput
 end module dislocdyn_tests
 
 program runtests
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dislocdyn_parameters
+  use dislocdyn_parameters, only: sel, pi, version
   use dislocdyn_utilities, only : ompinfo, linspace, operator(.cross.), operator(.inv.), trapz, cumtrapz
-  use dislocdyn_phononwind_subroutines
-  use dislocdyn_elasticconstants
-  use dislocdyn_checks
-  use dislocdyn_tests
-  implicit none
-  
+  use dislocdyn_elasticconstants, only: unvoigt, checkvoigt, elasticC2
+  use dislocdyn_checks, only: testzero, testtrue, testequal, testequalarray, passed, failed
+  use dislocdyn_tests, only: test_disloc, test_readinput
+  implicit none (type,external)
+
   real(kind=sel) :: tmpintegral, array1(5),array2(5)
   real(kind=sel), dimension(3,3) :: A, B, one=reshape([1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,0.d0,0.d0,1.d0],[3,3])
   real(sel) :: a4(3,3,3,3), a6(3,3,3,3,3,3), b1(6), b2(6,6), b3(6,6,6), xtric(21), n(3), m(3), t(3)
@@ -270,23 +269,23 @@ program runtests
   resol = 10000
   allocate(x(resol), func(resol), integral(resol))
   call system_clock(start_time,countrate)
-  
+
   ! check for openmp
   call get_command_argument(0, exe_name)
-  write(output_unit,'(*(g0))') "Testing dislocdynlib version ", version
+  write(output_unit,"(*(g0))") "Testing dislocdynlib version ", version
   call ompinfo(nthreads)
   if (nthreads>0) then
-    write(output_unit,'(*(g0))') trim(exe_name), " compiled with openmp support, using ",nthreads," threads"
+    write(output_unit,"(*(g0))") trim(exe_name), " compiled with openmp support, using ",nthreads," threads"
   else
-    write(output_unit,'(*(g0))') trim(exe_name), " compiled without openmp support"
+    write(output_unit,"(*(g0))") trim(exe_name), " compiled without openmp support"
     nthreads = 1
   end if
-  
+
   ! test linspace
   array1 = linspace(0.2d0,1.d0,5)
   array2 = [0.2d0,0.4d0,0.6d0,0.8d0,1.d0]
   call testequalarray(array1,array2,5,"linspace",1.d-15,count_pass,count_fail)
-  
+
   ! test cumtrapz / trapz
   x = linspace(1.d-15, 100.d0, resol)
   func(:) = sin(pi*x(:)/25.d0) + x(:)**3 / (exp(x(:))-1.d0)
@@ -294,12 +293,12 @@ program runtests
   call testzero(pi**4/15.d0 - integral(resol),"cumtrapz",1.d-6,count_pass,count_fail)
   tmpintegral = trapz(func,x,resol)
   call testzero(tmpintegral - integral(resol),"trapz",1.d-12,count_pass,count_fail)
-  
+
   ! test inv
   CALL RANDOM_NUMBER(A)
   B = .inv. A
   call testequal(one,matmul(A,B),3,3,"inv",1.d-12,count_pass,count_fail)
-  
+
   ! test cross
   n = [1.1d0,2.2d0,-3.3d0]
   m = [3.0d0,0.0d0,1.0d0]
@@ -322,15 +321,15 @@ program runtests
   call random_number(b1)
   call checkvoigt(b1,istrue)
   call testtrue(.not. istrue,"checkvoigt_asym (intended error printing in above line)",count_pass,count_fail)
-  
+
   ! test C2
   xtric = linspace(1.d0,21.d0,21)
-  call elasticC2(xtric,'tric',b2)
+  call elasticC2(xtric,"tric",b2)
   call testtrue(abs(sum(xtric)*2.d0-76.d0-sum(b2))<1.d-18,"elasticC2_tric",count_pass,count_fail)
-  
+
   call test_disloc(count_pass,count_fail)
   call test_readinput(count_pass,count_fail)
-  
+
   call system_clock(finish_time)
   print*,"------------------------------------------------------------"
   if (count_fail>0) then
@@ -339,7 +338,7 @@ program runtests
     print*,"SUMMARY:", count_pass,passed//" and ",count_fail," failed"
   end if
   print*,"time: ",real(finish_time-start_time)/real(countrate), "s"
-  
+
   if (count_fail>0) error stop "some tests failed"
-  
+
 end program runtests

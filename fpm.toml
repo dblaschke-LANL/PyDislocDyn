@@ -48,3 +48,14 @@ project_github  = "https://github.com/dblaschke-LANL/PyDislocDyn"
 src_dir = ["./pydislocdyn","./app"]
 graph = true
 incl_src = false
+
+[extra.fortitude.check]
+line-length = 132
+ignore = [
+    "S291", # trailing decimal point
+    "S233", # incorrect-keyword-case
+    "S081", # superfluous-semicolon
+    "C131", # missing default accessibility statement; would trip-up f2py
+    "MOD011", # array literal uses old-style syntax: would trip-up f2py
+]
+

@@ -1,11 +1,11 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Apr. 10, 2026 - Nov. 4, 2026
+! Date: Apr. 10, 2026 - Nov. 25, 2026
 module dislocdyn_readinputfiles
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   use dislocdyn_elasticconstants, only : symkwerror, number_of_elasticC
-  use dislocdyn_dislocations ! defined in dislocations.f90
-  implicit none
+  use dislocdyn_dislocations, only: phonondrag_opts, disloc ! defined in dislocations.f90
+  implicit none (type,external)
   private
   type :: string_t
     character(:), allocatable :: str
@@ -26,7 +26,7 @@ module dislocdyn_readinputfiles
     logical :: echoinput = .true.
     logical :: include_negative_theta = .false.
   end type inputdeck
-  
+
   !-------------------------
   public :: read_inputdeck, read_materialfile
   contains
@@ -39,14 +39,14 @@ module dislocdyn_readinputfiles
       character(32) :: key
       character(256) :: line, values
       nsims = 0
-      
-      open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
+
+      open(unit=42, file=trim(filename), action="read", iostat=ios, status="old")
       if (ios/=0) then
         close(unit=42)
         error stop "File not found: " // filename
       end if
       do
-        read(42,'(a)',iostat=ios) line
+        read(42,"(a)",iostat=ios) line
         if (ios/=0) exit
         if ((line /= " ") .and. (line(1:1) /= "#")) then
           read(line,*) key,values
@@ -54,7 +54,7 @@ module dislocdyn_readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key(1:8)=='sim_type') then
+        if (key(1:8)=="sim_type") then
           nsims = nsims + 1
         end if
       end do ! read file
@@ -62,12 +62,12 @@ module dislocdyn_readinputfiles
 !~       print*,"found",nsims,"sims"
     end subroutine scan_inputdeck
 
-    !>reads an input deck file and stores its info in `sim_plan` of derived type `inputdeck` 
+    !>reads an input deck file and stores its info in `sim_plan` of derived type `inputdeck`
     subroutine read_inputdeck(filename,sim_plan,sym)
       use dislocdyn_utilities, only: linspace
       character(*), intent(in) :: filename
       type(inputdeck), intent(out) :: sim_plan
-      character(*), optional :: sym
+      character(*), intent(in), optional :: sym
       ! local variables
       integer :: ios, n, p, nsims, lentxt
       logical :: istoml
@@ -82,25 +82,27 @@ module dislocdyn_readinputfiles
       end if
       ! detect file format
       lentxt = len_trim(filename)
-      if (filename(lentxt-4:lentxt)=='.toml') then
+      if (filename(lentxt-4:lentxt)==".toml") then
         istoml=.true.
       end if
       allocate(sim_plan%sim_type(nsims))
-      sim_plan%sim_type(1)%str = ''
-      sim_plan%logfile = 'dislocdyn.log' ! default value
+      sim_plan%sim_type(1)%str = ""
+      sim_plan%logfile = "dislocdyn.log" ! default value
       n = 3 ! expect 3 Miller indices for each b and n0 in the file
-      if (present(sym) .and. trim(sym)=='hcp') n = 4 ! expect 4 Miller indices for each b and n0 in the file
+      if (present(sym)) then
+        if (trim(sym)=="hcp") n = 4 ! expect 4 Miller indices for each b and n0 in the file
+      end if
       allocate(sim_plan%b(n),sim_plan%n0(n))
       sim_plan%b = 0.d0
       sim_plan%n0 = 0.d0
-      
-      open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
+
+      open(unit=42, file=trim(filename), action="read", iostat=ios, status="old")
       if (ios/=0) then
         close(unit=42)
         error stop "File not found: " // filename
       end if
       do
-        read(42,'(a)',iostat=ios) line
+        read(42,"(a)",iostat=ios) line
         if (ios/=0) exit
         if ((line /= " ") .and. (line(1:1) /= "#") .and. (line(1:1) /= "[")) then
           read(line,*) key,dummy,values
@@ -112,46 +114,46 @@ module dislocdyn_readinputfiles
           ! skip empty lines
           key = trim(line)
         end if
-        if (key(1:8)=='sim_type') then
+        if (key(1:8)=="sim_type") then
           if (p>nsims) error stop "too many sim_types in file"
           sim_plan%sim_type(p)%str = trim(values)
           p = p+1
         end if
-        if (key=='logfile') sim_plan%logfile = trim(values)
-        if (key=='echoinput') read(values,*) sim_plan%echoinput
-        if (key=='include_negative_theta') read(values,*) sim_plan%include_negative_theta
+        if (key=="logfile") sim_plan%logfile = trim(values)
+        if (key=="echoinput") read(values,*) sim_plan%echoinput
+        if (key=="include_negative_theta") read(values,*) sim_plan%include_negative_theta
         if (istoml) then
-          if (key=='b' .or. key=='Millerb') read(values,*) sim_plan%b(1:n)
-          if (key=='n0' .or. key=='Millern0') read(values,*) sim_plan%n0(1:n)
+          if (key=="b" .or. key=="Millerb") read(values,*) sim_plan%b(1:n)
+          if (key=="n0" .or. key=="Millern0") read(values,*) sim_plan%n0(1:n)
         else
-          if (key=='b' .or. key=='Millerb') read(line,*) key,dummy,sim_plan%b(1:n)
-          if (key=='n0' .or. key=='Millern0') read(line,*) key,dummy,sim_plan%n0(1:n)
+          if (key=="b" .or. key=="Millerb") read(line,*) key,dummy,sim_plan%b(1:n)
+          if (key=="n0" .or. key=="Millern0") read(line,*) key,dummy,sim_plan%n0(1:n)
         end if
-        if (key=='Millernorm') read(values,*) sim_plan%Millernorm
-        if (key=='betamin') read(values,*) sim_plan%betamin
-        if (key=='betamax') read(values,*) sim_plan%betamax
-        if (key=='nbeta') then
+        if (key=="Millernorm") read(values,*) sim_plan%Millernorm
+        if (key=="betamin") read(values,*) sim_plan%betamin
+        if (key=="betamax") read(values,*) sim_plan%betamax
+        if (key=="nbeta") then
           read(values,*) sim_plan%nbeta
           allocate(sim_plan%beta(sim_plan%nbeta))
           sim_plan%beta = 0.d0
         end if
         if (istoml) then
-          if (key=='beta') read(values,*) sim_plan%beta(1:sim_plan%nbeta)
+          if (key=="beta") read(values,*) sim_plan%beta(1:sim_plan%nbeta)
         else
-          if (key=='beta') read(line,*) key,dummy,sim_plan%beta(1:sim_plan%nbeta)
+          if (key=="beta") read(line,*) key,dummy,sim_plan%beta(1:sim_plan%nbeta)
         end if
-        if (key=='ntheta') read(values,*) sim_plan%ntheta
-        if (key=='nphi') read(values,*) sim_plan%nphi
+        if (key=="ntheta") read(values,*) sim_plan%ntheta
+        if (key=="nphi") read(values,*) sim_plan%nphi
         ! drag options:
-        if (key=='drag_nphi') read(values,*) sim_plan%drag%nphi
-        if (key=='drag_nq') read(values,*) sim_plan%drag%nq
-        if (key=='drag_ntbase') read(values,*) sim_plan%drag%ntbase
-        if (key=='drag_nph1') read(values,*) sim_plan%drag%nph1
-        if (key=='drag_nq1') read(values,*) sim_plan%drag%nq1
-        if (key=='drag_debye') read(values,*) sim_plan%drag%debye
-        if (key=='drag_r0cut') read(values,*) sim_plan%drag%r0cut
-        if (key=='drag_modes') read(values,*) sim_plan%drag%modes
-      
+        if (key=="drag_nphi") read(values,*) sim_plan%drag%nphi
+        if (key=="drag_nq") read(values,*) sim_plan%drag%nq
+        if (key=="drag_ntbase") read(values,*) sim_plan%drag%ntbase
+        if (key=="drag_nph1") read(values,*) sim_plan%drag%nph1
+        if (key=="drag_nq1") read(values,*) sim_plan%drag%nq1
+        if (key=="drag_debye") read(values,*) sim_plan%drag%debye
+        if (key=="drag_r0cut") read(values,*) sim_plan%drag%r0cut
+        if (key=="drag_modes") read(values,*) sim_plan%drag%modes
+
       end do ! read file
       close(unit=42)
 
@@ -159,7 +161,8 @@ module dislocdyn_readinputfiles
         allocate(sim_plan%beta(sim_plan%nbeta))
         sim_plan%beta = linspace(sim_plan%betamin, sim_plan%betamax, sim_plan%nbeta)
       else if (all(abs(sim_plan%beta)<rzero)) then
-        if (allocated(sim_plan%beta)) deallocate(sim_plan%beta); allocate(sim_plan%beta(sim_plan%nbeta))
+        if (allocated(sim_plan%beta)) deallocate(sim_plan%beta)
+        allocate(sim_plan%beta(sim_plan%nbeta))
         sim_plan%beta = linspace(sim_plan%betamin, sim_plan%betamax, sim_plan%nbeta)
       end if
     end subroutine read_inputdeck
@@ -177,24 +180,24 @@ module dislocdyn_readinputfiles
       character(256) :: line, values, dummy
       real(sel) :: c11, c12, c13, c33, c44, c66
       real(sel) :: c111, c112, c113, c123, c133, c144, c155, c166, c222, c333, c344, c366, c456
-      
+
       istoml = .false.
       c11=0.d0; c12=0.d0; c13=0.d0; c33=0.d0; c44=0.d0; c66=0.d0
       c111=0.d0; c112=0.d0; c113=0.d0; c123=0.d0; c133=0.d0; c144=0.d0; c155=0.d0; c166=0.d0; c222=0.d0
       c333=0.d0; c344=0.d0; c366=0.d0; c456=0.d0
-      
+
       lentxt = len_trim(filename)
-      if (filename(lentxt-4:lentxt)=='.toml') then
+      if (filename(lentxt-4:lentxt)==".toml") then
         istoml=.true.
       end if
-      
-      open(unit=42, file=trim(filename), action="read", iostat=ios, status='old')
+
+      open(unit=42, file=trim(filename), action="read", iostat=ios, status="old")
       if (ios/=0) then
         close(unit=42)
         error stop "File not found: " // filename
       end if
       do
-        read(42,'(a)',iostat=ios) line
+        read(42,"(a)",iostat=ios) line
         if (ios/=0) exit
         key="" ! reset the key
         if ((line /= " ") .and. (line /= "") .and. (line(1:1) /= "#") .and. (line(1:1) /= "[")) then
@@ -205,11 +208,11 @@ module dislocdyn_readinputfiles
           end if
         end if
 
-        if (key=='name') then
+        if (key=="name") then
           read(values,*)metal
           disl%metal = trim(metal)
         end if
-        if (key=='sym') then
+        if (key=="sym") then
           read(values,*)sym
           disl%sym = trim(sym)
           call number_of_elasticC(disl%sym,lencij,lencijk)
@@ -217,62 +220,62 @@ module dislocdyn_readinputfiles
           if (allocated(disl%cijk)) deallocate(disl%cijk)
           allocate(disl%cij(lencij),disl%cijk(lencijk))
         end if
-        if (key=='T') read(values,*)disl%Temp
-        if (key=='rho') read(values,*)disl%rho
+        if (key=="T") read(values,*)disl%Temp
+        if (key=="rho") read(values,*)disl%rho
 
         ! read lattice properties
-        if (key=='a') read(values,*)disl%lat_a(1)
-        if ((key=='b' .and. istoml) .or. key=='lcb') read(values,*)disl%lat_a(2)
-        if (key=='c') read(values,*)disl%lat_a(3)
+        if (key=="a") read(values,*)disl%lat_a(1)
+        if ((key=="b" .and. istoml) .or. key=="lcb") read(values,*)disl%lat_a(2)
+        if (key=="c") read(values,*)disl%lat_a(3)
         if (istoml) then
-          if (key=='lat_a') read(values,*) disl%lat_a(1:3) ! allow reading all lattice vectors from one line
-          if (key=='lat_angles') read(values,*) disl%lat_angles(1:3)
+          if (key=="lat_a") read(values,*) disl%lat_a(1:3) ! allow reading all lattice vectors from one line
+          if (key=="lat_angles") read(values,*) disl%lat_angles(1:3)
         else
-          if (key=='lat_a') read(line,*) key,dummy,disl%lat_a(1:3) ! allow reading all lattice vectors from one line
-          if (key=='lat_angles') read(line,*) key,dummy,disl%lat_angles(1:3)
+          if (key=="lat_a") read(line,*) key,dummy,disl%lat_a(1:3) ! allow reading all lattice vectors from one line
+          if (key=="lat_angles") read(line,*) key,dummy,disl%lat_angles(1:3)
         end if
-        if (key=='alpha') read(values,*)disl%lat_angles(1)
-        if (key=='beta') read(values,*)disl%lat_angles(2)
-        if (key=='gamma') read(values,*)disl%lat_angles(3)
+        if (key=="alpha") read(values,*)disl%lat_angles(1)
+        if (key=="beta") read(values,*)disl%lat_angles(2)
+        if (key=="gamma") read(values,*)disl%lat_angles(3)
 
         ! read SOEC
-        if (key=='c11') read(values,*)c11
-        if (key=='c12') read(values,*)c12
-        if (key=='c13') read(values,*)c13
-        if (key=='c33') read(values,*)c33
-        if (key=='c44') read(values,*)c44
-        if (key=='c66') read(values,*)c66
-        if (key=='lam') read(values,*)disl%lam
-        if (key=='mu') read(values,*)disl%mu
+        if (key=="c11") read(values,*)c11
+        if (key=="c12") read(values,*)c12
+        if (key=="c13") read(values,*)c13
+        if (key=="c33") read(values,*)c33
+        if (key=="c44") read(values,*)c44
+        if (key=="c66") read(values,*)c66
+        if (key=="lam") read(values,*)disl%lam
+        if (key=="mu") read(values,*)disl%mu
         if (istoml) then
-          if (key=='cij') read(values,*) disl%cij(1:lencij)
+          if (key=="cij") read(values,*) disl%cij(1:lencij)
         else
-          if (key=='cij') read(line,*) key,dummy,disl%cij(1:lencij)
+          if (key=="cij") read(line,*) key,dummy,disl%cij(1:lencij)
         end if
 
         ! read TOEC
-        if (key=='c111') read(values,*)c111
-        if (key=='c112') read(values,*)c112
-        if (key=='c113') read(values,*)c113
-        if (key=='c123') read(values,*)c123
-        if (key=='c133') read(values,*)c133
-        if (key=='c144') read(values,*)c144
-        if (key=='c155') read(values,*)c155
-        if (key=='c166') read(values,*)c166
-        if (key=='c222') read(values,*)c222
-        if (key=='c333') read(values,*)c333
-        if (key=='c344') read(values,*)c344
-        if (key=='c366') read(values,*)c366
-        if (key=='c456') read(values,*)c456
+        if (key=="c111") read(values,*)c111
+        if (key=="c112") read(values,*)c112
+        if (key=="c113") read(values,*)c113
+        if (key=="c123") read(values,*)c123
+        if (key=="c133") read(values,*)c133
+        if (key=="c144") read(values,*)c144
+        if (key=="c155") read(values,*)c155
+        if (key=="c166") read(values,*)c166
+        if (key=="c222") read(values,*)c222
+        if (key=="c333") read(values,*)c333
+        if (key=="c344") read(values,*)c344
+        if (key=="c366") read(values,*)c366
+        if (key=="c456") read(values,*)c456
         if (istoml) then
-          if (key=='cijk') read(values,*) disl%cijk(1:lencijk)
+          if (key=="cijk") read(values,*) disl%cijk(1:lencijk)
         else
-          if (key=='cijk') read(line,*) key,dummy,disl%cijk(1:lencijk)
+          if (key=="cijk") read(line,*) key,dummy,disl%cijk(1:lencijk)
         end if
-      
+
       end do ! read file
       close(unit=42)
-      
+
       ! start postprocessing / initializing depending on symmetry
       if (abs(disl%cij(1))<rzero) then
         select case (trim(disl%sym))
@@ -288,11 +291,13 @@ module dislocdyn_readinputfiles
           case ("tetr")
             disl%cij = [c11,c12,c13,c33,c44,c66]
             disl%cijk = [c111,c112,c113,c123,c133,c144,c155,c166,c333,c344,c366,c456]
+          case default
+            ! no need to do anything for other values since cij and cijk are already defined in those cases
         end select
       end if
       if (abs(disl%cij(1))<rzero) then
         error stop "Failed to read SOEC from file " // filename
       end if
-      
+
     end subroutine read_materialfile
 end module dislocdyn_readinputfiles
