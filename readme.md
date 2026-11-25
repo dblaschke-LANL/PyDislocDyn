@@ -46,7 +46,7 @@ The LANL development team asks that any forks or derivative works include approp
 
 ### Optional (but recommended):
 
-* a Fortran 2023 capable compiler (such as gfortran>=15) and meson
+* a Fortran 2023 capable compiler (such as gfortran>=16) and meson
 to employ the alternative faster Fortran implementations of some subroutines via [f2py](https://docs.scipy.org/doc/numpy/f2py/);
 A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included to automate compilation of the Fortran submodule and to ensure it is placed in the correct location.</br>
 * [joblib](https://joblib.readthedocs.io) >=1.2 (for parallelization),
@@ -55,7 +55,7 @@ A helper function, `pydislocdyn.utilities.compilefortranmodule()`, is included t
 * [hatchling](https://hatch.pypa.io/latest/) >=1.26 (to install via pip)
 * [jupyter](https://jupyter.org/) to view and run the examples notebook
 * a recent version of LaTeX to build the manual (LA-UR-22-28074)
-* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.13 or GNU Make and [fmin](https://github.com/jacobwilliams/fmin) to build the standalone Fortran frontend and library 
+* [Fortran package manager (fpm)](https://fpm.fortran-lang.org/) >=0.14 or GNU Make and [fmin](https://github.com/jacobwilliams/fmin) to build the standalone Fortran frontend and library
 * [Ford](https://forddocs.readthedocs.io/en/stable/) >=7 to build the documentation detailing the API of the Fortran library
 
 ## Documentation
@@ -103,7 +103,7 @@ dislocdynlib.git = "https://github.com/dblaschke-lanl/pydislocdyn"
 ```
 
 * the standalone fortran code has been tested with the following compilers:
-    - gfortran 15 &mdash; 16
+    - gfortran 16
     - flang 22 &mdash; 23 (linux)
     - lfortran 0.68 &mdash; 0.69 (linux and macos); known issue: openmp not working (not fully implemented in this compiler)
     - ifx intel oneapi 2025.0 &mdash; 2026.2 (linux)

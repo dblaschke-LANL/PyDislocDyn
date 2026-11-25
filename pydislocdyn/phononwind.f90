@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: July 23, 2018 - Nov. 18, 2026
+! Date: July 23, 2018 - Nov. 24, 2026
 
 !> this module contains subroutines for `phononwind_xx()` and `phononwind_xy()`
 module dislocdyn_phononwind_subroutines
@@ -143,7 +143,7 @@ module dislocdyn_phononwind_subroutines
     use dislocdyn_parameters, only : selsm
     implicit none
 
-    integer :: i, j, ij, k, kk, n, nn
+    integer :: ij, k, kk, n, nn
     integer, intent(in) :: lent, lenph
     real(kind=selsm), intent(in), dimension(lent,lenph) :: prefactor
     real(kind=selsm), intent(in), dimension(lenph,3,3) :: dij
@@ -155,7 +155,7 @@ module dislocdyn_phononwind_subroutines
       do n=1,3
         do kk=1,3
           do k=1,3
-            do concurrent (j = 1:lenph, i = 1:lent) local(ij) shared(dij,flatpoly) reduce(+:output)
+            do concurrent (integer :: j = 1:lenph, i = 1:lent) local(ij) shared(dij,flatpoly) reduce(+:output)
               ij = (i-1)*lenph+j
               output(i,j) = output(i,j) - dij(j,k,kk)*dij(j,n,nn)*flatpoly(ij,k,kk,n,nn)
             end do
@@ -295,10 +295,9 @@ module dislocdyn_phononwind
       INTEGER, INTENT(IN) :: phixres,nq,phres
       REAL(KIND=sel), INTENT(IN) :: ra, rb, phix(phixres), q(nq), ph(phres)
       REAL(KIND=sel), INTENT(OUT) :: sincos(phixres,phres)
-      integer i,j
       real(kind=sel) :: cosphimph
       
-      do concurrent (j=1:phres, i=1:phixres) local(cosphimph) shared(phix,ph,q,ra,rb,nq)
+      do concurrent (integer :: j=1:phres, i=1:phixres) local(cosphimph) shared(phix,ph,q,ra,rb,nq)
           cosphimph = cos(phix(i)-ph(j))
           sincos(i,j) = sum(cos(q*ra*cosphimph)-cos(q*rb*cosphimph))/cosphimph/nq
       end do
@@ -317,9 +316,8 @@ module dislocdyn_phononwind
       INTEGER, INTENT(IN) :: ntheta,phixres,phres
       REAL(KIND=sel), INTENT(IN) :: uij(phixres,3,3,ntheta), sincos(phixres,phres), phix(phixres)
       REAL(KIND=sel), INTENT(OUT) :: fourieruij(phres,3,3,ntheta)
-      integer i,j,th,ph
       
-      do concurrent (th=1:ntheta, j=1:3, i=1:3, ph=1:phres)
+      do concurrent (integer :: th=1:ntheta, j=1:3, i=1:3, ph=1:phres)
         fourieruij(ph,i,j,th) = trapz(uij(:,i,j,th)*sincos(:,ph),phix,phixres)
       end do
       

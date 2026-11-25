@@ -1,6 +1,6 @@
 ! Author: Daniel N. Blaschke
 ! Copyright (c) 2018, Triad National Security, LLC. All rights reserved.
-! Date: Mar. 30, 2026 - Nov. 18, 2026
+! Date: Mar. 30, 2026 - Nov. 24, 2026
 module dislocdyn_elasticconstants
   use dislocdyn_parameters, only : sel, rzero ! defined in subroutines.f90
   implicit none
@@ -151,7 +151,7 @@ module dislocdyn_elasticconstants
       character(*), intent(in) :: sym
       real(sel), intent(out) :: vc(6,6,6)
       real(sel) :: xijk(56)
-      integer :: i,j,k,n,ii,jj,kk,iind(6)
+      integer :: n,ii,jj,kk,iind(6)
       iind = (/0,15,25,31,34,35/)
       xijk = 0.d0
       vc = 0.d0
@@ -257,7 +257,7 @@ module dislocdyn_elasticconstants
           print*,symkwerror
           return
       end select
-      do concurrent (i=1:6, j=1:6, k=1:6) local(ii,jj,kk) shared(vc,xijk) local_init(iind)
+      do concurrent (integer :: i=1:6, j=1:6, k=1:6) local(ii,jj,kk) shared(vc,xijk) local_init(iind)
         ii = min(i,j,k)
         jj = min(max(i,j),max(i,k),max(j,k))
         kk = max(i,j,k)

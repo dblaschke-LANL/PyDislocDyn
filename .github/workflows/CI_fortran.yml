@@ -16,7 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, ubuntu-latest, macos-latest, windows-latest]
         toolchain:
-          - {compiler: gfortran, version: '15'}
+          #~ - {compiler: gfortran, version: '16'}
           - {compiler: gfortran, version: 'latest'}
           - {compiler: ifx, version: '2025.0'}
           - {compiler: ifx, version: 'latest'}

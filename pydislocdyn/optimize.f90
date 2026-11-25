@@ -25,12 +25,12 @@ module dislocdyn_opt
     real(sel) :: x
     ! local vars:
     real(sel) :: c0(n0), y0(n0), c(n), y(n), w1, w2, fmin, fmin_old
-    integer :: i, j, idx
+    integer :: i, idx
     i = 0
     w1 = l
     w2 = u
     c0 = linspace(l,u,n0)
-    do concurrent (j=1:n0)
+    do concurrent (integer :: j=1:n0)
       y0(j) = fct(c0(j))
     end do
     idx = minloc(y0,dim=1)
@@ -44,7 +44,7 @@ module dislocdyn_opt
     do while (i<maxiter)
       fmin_old = fmin
       c = linspace(w1,w2,n)
-      do concurrent (j=1:n)
+      do concurrent (integer :: j=1:n)
         y(j) = fct(c(j))
       end do
       idx = minloc(y,dim=1)
